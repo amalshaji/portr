@@ -58,9 +58,6 @@ func (c *Config) SetDefaults() {
 	for i := range c.Tunnels {
 		c.Tunnels[i].setDefaults()
 	}
-
-	c.Secure = true
-	c.Debug = true
 }
 
 type ClientConfig struct {

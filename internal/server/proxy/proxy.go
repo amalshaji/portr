@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -26,13 +27,19 @@ type Proxy struct {
 	server *http.Server
 }
 
+func (p *Proxy) GetServerAddr() string {
+	return ":" + fmt.Sprint(p.config.Proxy.Port)
+}
+
 func New(config *config.Config) *Proxy {
-	return &Proxy{
+	p := &Proxy{
 		log:    utils.GetLogger(),
 		config: config,
 		routes: make(map[string]string),
-		server: &http.Server{Addr: ":" + fmt.Sprint(config.Proxy.Port)},
+		server: nil,
 	}
+	p.server = &http.Server{Addr: p.GetServerAddr()}
+	return p
 }
 
 func (p *Proxy) GetRoute(src string) (string, error) {
@@ -77,7 +84,8 @@ func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 	subdomain := p.config.ExtractSubdomain(r.Host)
 	target, err := p.GetRoute(subdomain)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(strings.TrimSpace(utils.UnregisteredSubdomain)))
 		return
 	}
 
@@ -90,7 +98,7 @@ func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Proxy) Start() {
-	p.log.Info("starting proxy server", "host", p.config.Proxy.Host, "port", p.config.Proxy.Port)
+	p.log.Info("starting proxy server", "port", p.GetServerAddr())
 
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)

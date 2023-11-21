@@ -32,6 +32,10 @@ func New(config *config.SshConfig, proxy *proxy.Proxy) *SshServer {
 	}
 }
 
+func (s *SshServer) GetServerAddr() string {
+	return ":" + fmt.Sprint(s.config.Port)
+}
+
 func (s *SshServer) getSshPublicKey() ssh.PublicKey {
 	publicKey, err := os.ReadFile(s.config.KeysDir + "/id_rsa.pub")
 	if err != nil {
@@ -41,13 +45,11 @@ func (s *SshServer) getSshPublicKey() ssh.PublicKey {
 	return key
 }
 
-type Status struct {
-	user   string
-	status string
-}
-
 func parseSshUsername(user string) (string, string) {
 	output := strings.Split(user, ":")
+	if len(output) != 2 {
+		log.Fatal("invalid username format")
+	}
 	return output[0], output[1]
 }
 
@@ -56,16 +58,8 @@ func (s *SshServer) Start() {
 
 	keyFromDisk := s.getSshPublicKey()
 
-	status := make(chan Status)
-
-	go func() {
-		for st := range status {
-			s.log.Info("connection status", "user", st.user, "status", st.status)
-		}
-	}()
-
 	server := ssh.Server{
-		Addr: ":" + fmt.Sprint(s.config.Port),
+		Addr: s.GetServerAddr(),
 		Handler: ssh.Handler(func(sh ssh.Session) {
 			select {}
 		}),
@@ -85,6 +79,10 @@ func (s *SshServer) Start() {
 				<-ctx.Done()
 				// log user disconnection
 				log.Printf("connection closed for %s", user)
+				err := s.proxy.RemoveRoute(subdomain)
+				if err != nil {
+					s.log.Error("failed to remove route", "error", err)
+				}
 			}()
 			return true
 		}),
@@ -101,7 +99,7 @@ func (s *SshServer) Start() {
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	s.log.Info("starting SSH server", "host", s.config.Host, "port", s.config.Port)
+	s.log.Info("starting SSH server", "port", s.GetServerAddr())
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, ssh.ErrServerClosed) {

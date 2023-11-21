@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -72,7 +73,6 @@ func (s *SshClient) startListenerForClient() error {
 	}
 	defer sshClient.Close()
 
-	// remoteEndpoint := "localhost:0"            // Remote address to listen on
 	localEndpoint := s.config.Tunnel.GetAddr() // Local address to forward to
 
 	randomPorts := utils.GenerateRandomHttpPorts()[:1]
@@ -98,13 +98,15 @@ func (s *SshClient) startListenerForClient() error {
 		remoteConn, err := s.listener.Accept()
 		if err != nil {
 			s.log.Error("failed to accept connection", "error", err)
-			continue
+			break
 		}
 
 		// Connect to the local endpoint
 		localConn, err := net.Dial("tcp", localEndpoint)
 		if err != nil {
-			s.log.Error("failed to connect to local endpoint", "error", err)
+			// serve local html if the local server is not available
+			// change this to beautiful template
+			remoteConn.Write([]byte(strings.TrimSpace(utils.LocalServerNotOnline)))
 			remoteConn.Close()
 			continue
 		}
@@ -113,6 +115,8 @@ func (s *SshClient) startListenerForClient() error {
 		go tunnel(remoteConn, localConn)
 		go tunnel(localConn, remoteConn)
 	}
+
+	return nil
 }
 
 func tunnel(src, dst net.Conn) {
