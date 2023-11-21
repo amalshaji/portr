@@ -9,3 +9,4 @@ proxy:
   port: 8001
 secure: false
 debug: true
+domain: 

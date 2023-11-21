@@ -4,7 +4,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     volumes:
-      - ../configs/server.yaml:/app/config.yml
+      - ../configs/server.yaml:/app/config.yaml
       - ../data:/app/data/
       - ../keys:/app/keys/
     ports:

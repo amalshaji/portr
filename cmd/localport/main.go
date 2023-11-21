@@ -12,7 +12,7 @@ const VERSION = "0.0.1-beta"
 
 func main() {
 	app := &cli.App{
-		Name:    "rig",
+		Name:    "localport",
 		Usage:   "Expose local http/tcp servers to the internet",
 		Version: VERSION,
 		Commands: []*cli.Command{

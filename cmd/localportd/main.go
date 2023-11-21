@@ -14,19 +14,19 @@ const VERSION = "0.0.1-beta"
 
 func main() {
 	app := &cli.App{
-		Name:    "rigd",
+		Name:    "localportd",
 		Usage:   "Expose local http/ws servers to the internet",
 		Version: VERSION,
 		Commands: []*cli.Command{
 			{
 				Name:  "start",
-				Usage: "Start the rig server",
+				Usage: "Start the localport server",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:    "config",
 						Aliases: []string{"c"},
 						Usage:   "config file",
-						Value:   "config.yml",
+						Value:   "config.yaml",
 					},
 				},
 				Action: func(c *cli.Context) error {

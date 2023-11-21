@@ -20,4 +20,4 @@ VOLUME [ "/app/configs" ]
 VOLUME [ "/app/data" ]
 
 ENTRYPOINT ["./localportd", "start"]
-CMD [ "--config", "/app/config.yml" ]
+CMD [ "--config", "/app/config.yaml" ]

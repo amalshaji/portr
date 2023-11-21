@@ -8,7 +8,7 @@ import (
 func configCmd() *cli.Command {
 	return &cli.Command{
 		Name:  "config",
-		Usage: "Create/edit the rig config file",
+		Usage: "Edit the localport config file",
 		Subcommands: []*cli.Command{
 			{
 				Name:  "edit",

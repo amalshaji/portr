@@ -98,8 +98,8 @@ func Load(configFile string) (Config, error) {
 }
 
 var homedir, _ = os.UserHomeDir()
-var DefaultConfigDir = homedir + "/.rig"
-var DefaultConfigPath = DefaultConfigDir + "/config.yml"
+var DefaultConfigDir = homedir + "/.localport"
+var DefaultConfigPath = DefaultConfigDir + "/config.yaml"
 
 func checkDefaultConfigFileExists() bool {
 	_, err := os.Stat(DefaultConfigPath)
