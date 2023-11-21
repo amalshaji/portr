@@ -1,0 +1,10 @@
+serverUrl: localhost:8000
+sshUrl: localhost:2222
+tunnelUrl: localhost:8001
+secretkey: 
+secure: false
+debug: true
+tunnels:
+  - name: rig
+    subdomain: rig
+    port: 4321

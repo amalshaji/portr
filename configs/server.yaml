@@ -1,0 +1,12 @@
+admin:
+  host: localhost
+  port: 8000
+ssh:
+  host: localhost
+  port: 2222
+proxy:
+  host: localhost
+  port: 8001
+
+secure: false
+debug: true
