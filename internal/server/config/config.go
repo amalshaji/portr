@@ -9,12 +9,13 @@ import (
 )
 
 type AdminConfig struct {
-	Host string
-	Port int
+	Host    string
+	Port    int
+	UseVite bool `yaml:"useVite"`
 }
 
 func (a AdminConfig) Address() string {
-	return a.Host + ":" + fmt.Sprint(a.Port)
+	return ":" + fmt.Sprint(a.Port)
 }
 
 type SshConfig struct {
@@ -48,8 +49,9 @@ type Config struct {
 func new() *Config {
 	return &Config{
 		Admin: AdminConfig{
-			Host: "localhost",
-			Port: 8000,
+			Host:    "localhost",
+			Port:    8000,
+			UseVite: false,
 		},
 		Ssh: SshConfig{
 			Host:    "localhost",

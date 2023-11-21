@@ -1,3 +1,11 @@
+FROM node:20-alpine3.18 as frontend-builder
+
+WORKDIR /app
+
+COPY internal/server/admin/web .
+
+RUN npm i -g pnpm && pnpm i && pnpm build
+
 FROM golang:1.21.4 AS builder
 
 WORKDIR /app
@@ -15,6 +23,7 @@ FROM alpine:3.18.4
 WORKDIR /app
 
 COPY --from=builder /app/localportd /app/
+COPY --from=frontend-builder /app/build/ ./build
 
 VOLUME [ "/app/configs" ]
 VOLUME [ "/app/data" ]

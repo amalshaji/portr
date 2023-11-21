@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/amalshaji/localport/internal/server/admin"
 	"github.com/amalshaji/localport/internal/server/config"
 	"github.com/amalshaji/localport/internal/server/proxy"
 	sshd "github.com/amalshaji/localport/internal/server/ssh"
@@ -50,7 +51,9 @@ func start(configFilePath string) {
 
 	proxyServer := proxy.New(config)
 	sshServer := sshd.New(&config.Ssh, proxyServer)
+	adminServer := admin.New(&config.Admin)
 
 	go proxyServer.Start()
-	sshServer.Start()
+	go sshServer.Start()
+	adminServer.Start()
 }
