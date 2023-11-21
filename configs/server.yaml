@@ -7,6 +7,5 @@ ssh:
 proxy:
   host: localhost
   port: 8001
-
 secure: false
 debug: true

@@ -1,0 +1,14 @@
+services:
+  localport:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ../configs/server.yaml:/app/config.yml
+      - ../data:/app/data/
+      - ../keys:/app/keys/
+    ports:
+      - 8000:8000
+      - 8001:8001
+      - 2222:2222
+    restart: unless-stopped
