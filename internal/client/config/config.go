@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"runtime"
@@ -84,7 +83,7 @@ func Load(configFile string) (Config, error) {
 
 	bytes, err := os.ReadFile(configFile)
 	if err != nil {
-		log.Fatal(err)
+		return Config{}, err
 	}
 
 	err = yaml.Unmarshal(bytes, &config)
