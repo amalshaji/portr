@@ -24,6 +24,7 @@ WORKDIR /app
 
 COPY --from=builder /app/localportd /app/
 COPY --from=builder /app/internal/server/admin/templates/ /app/internal/server/admin/templates/
+COPY --from=builder /app/internal/server/admin/static/ /app/internal/server/admin/static/
 COPY --from=frontend-builder /app/dist/ ./internal/server/admin/web/dist/
 
 VOLUME [ "/app/configs" ]

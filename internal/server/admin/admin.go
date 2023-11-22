@@ -38,6 +38,8 @@ func New(config *config.AdminConfig) *AdminServer {
 		app.Static("/", "./internal/server/admin/web/dist")
 	}
 
+	app.Static("/static", "./internal/server/admin/static")
+
 	// server index templates for all routes
 	// should be explicit?
 	app.Use("*", func(c *fiber.Ctx) error {

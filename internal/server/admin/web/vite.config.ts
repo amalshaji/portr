@@ -6,5 +6,7 @@ export default defineConfig({
   plugins: [svelte()],
   build: {
     manifest: true,
+    outDir: "dist/static",
   },
+  base: "/static/",
 });

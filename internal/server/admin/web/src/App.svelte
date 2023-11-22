@@ -2,9 +2,8 @@
 </script>
 
 <main>
-  <h1>Localport</h1>
-  <h2>Expose local http/ws ports to the internet</h2>
-  <h3>(coming soon)</h3>
+  <img style="height: 200px;" src="/static/logo.svg" alt="Localport" />
+  <h1>Expose local http/websocket ports to the internet</h1>
 </main>
 
 <style>
@@ -20,9 +19,8 @@
     flex-direction: column;
     align-items: center;
   }
-  h1,
-  h2,
-  h3 {
+
+  h1 {
     font-weight: 300;
   }
 </style>
