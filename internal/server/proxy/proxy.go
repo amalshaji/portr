@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -85,7 +84,7 @@ func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 	target, err := p.GetRoute(subdomain)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(strings.TrimSpace(utils.UnregisteredSubdomain(subdomain))))
+		w.Write([]byte(utils.UnregisteredSubdomain(subdomain)))
 		return
 	}
 

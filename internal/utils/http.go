@@ -3,7 +3,7 @@ package utils
 import "fmt"
 
 func LocalServerNotOnline(endpoint string) string {
-	return fmt.Sprintf(`
+	return Trim(fmt.Sprintf(`
 HTTP/1.1 400 Bad Request
 Content-Type: text/html; charset=utf-8
 
@@ -127,11 +127,11 @@ Content-Type: text/html; charset=utf-8
     </div>
     </body>
 </html>
-    `, endpoint)
+        `, endpoint))
 }
 
 func UnregisteredSubdomain(subdomain string) string {
-	return fmt.Sprintf(`
+	return Trim(fmt.Sprintf(`
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -182,5 +182,5 @@ func UnregisteredSubdomain(subdomain string) string {
     </div>
     </body>
 </html>
-    `, subdomain)
+        `, subdomain))
 }
