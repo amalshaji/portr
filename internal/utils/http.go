@@ -36,8 +36,8 @@ Content-Type: text/html; charset=utf-8
     </head>
     <body>
     <div id="main">
-        <h1>We cannot establish a connection with your local server</h1>
-        <h2>Please start your local server and reload this page</h2>
+        <h1>Unable to establish connection with the local server</h1>
+        <h2>Please ensure that the local server is running and then reload this page</h2>
         <svg xmlns="http://www.w3.org/2000/svg" width="400" height="200">
         <!-- Local Server -->
         <svg
