@@ -106,7 +106,7 @@ func (s *SshClient) startListenerForClient() error {
 		if err != nil {
 			// serve local html if the local server is not available
 			// change this to beautiful template
-			remoteConn.Write([]byte(strings.TrimSpace(utils.LocalServerNotOnline)))
+			remoteConn.Write([]byte(strings.TrimSpace(utils.LocalServerNotOnline(localEndpoint))))
 			remoteConn.Close()
 			continue
 		}

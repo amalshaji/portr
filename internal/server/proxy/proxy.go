@@ -85,7 +85,7 @@ func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 	target, err := p.GetRoute(subdomain)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(strings.TrimSpace(utils.UnregisteredSubdomain)))
+		w.Write([]byte(strings.TrimSpace(utils.UnregisteredSubdomain(subdomain))))
 		return
 	}
 
