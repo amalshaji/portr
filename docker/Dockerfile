@@ -23,7 +23,8 @@ FROM alpine:3.18.4
 WORKDIR /app
 
 COPY --from=builder /app/localportd /app/
-COPY --from=frontend-builder /app/build/ ./build
+COPY --from=builder /app/internal/server/admin/templates/ /app/internal/server/admin/templates/
+COPY --from=frontend-builder /app/dist/ ./internal/server/admin/web/dist/
 
 VOLUME [ "/app/configs" ]
 VOLUME [ "/app/data" ]

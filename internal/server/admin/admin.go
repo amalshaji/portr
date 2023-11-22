@@ -13,9 +13,9 @@ import (
 	"github.com/amalshaji/localport/internal/server/config"
 	"github.com/amalshaji/localport/internal/utils"
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/template/django/v3"
 )
 
 type AdminServer struct {
@@ -25,21 +25,27 @@ type AdminServer struct {
 }
 
 func New(config *config.AdminConfig) *AdminServer {
+	engine := django.New("./internal/server/admin/templates", ".html")
 	app := fiber.New(fiber.Config{
 		DisableStartupMessage: true,
+		Views:                 engine,
 	})
-
-	if !config.UseVite {
-		app.Static("/", "./build")
-	} else {
-		app.Use(cors.New(cors.Config{
-			AllowOrigins: "http://localhost:5173",
-			AllowHeaders: "Origin, Content-Type, Accept",
-		}))
-	}
 
 	app.Use(logger.New())
 	app.Use(recover.New())
+
+	if !config.UseVite {
+		app.Static("/", "./internal/server/admin/web/dist")
+	}
+
+	// server index templates for all routes
+	// should be explicit?
+	app.Use("*", func(c *fiber.Ctx) error {
+		return c.Render("index", fiber.Map{
+			"UseVite":  config.UseVite,
+			"ViteTags": getViteTags(),
+		})
+	})
 
 	return &AdminServer{
 		app:    app,
