@@ -1,26 +1,12 @@
 <script lang="ts">
+  // @ts-expect-error
+  import { Router, Route } from "svelte-routing";
+  import Home from "./pages/home.svelte";
+  import Notfound from "./pages/notfound.svelte";
+  export let url = "";
 </script>
 
-<main>
-  <img style="height: 200px;" src="/static/logo.svg" alt="Localport" />
-  <h1>Expose local http/websocket ports to the internet</h1>
-</main>
-
-<style>
-  main {
-    padding: 0 24px;
-    margin: 0;
-    height: 80vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-family: "Inter";
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  h1 {
-    font-weight: 300;
-  }
-</style>
+<Router {url}>
+  <Route path="/"><Home /></Route>
+  <Route path=""><Notfound /></Route>
+</Router>
