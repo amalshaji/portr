@@ -5,6 +5,6 @@ secretkey:
 secure: false
 debug: true
 tunnels:
-  - name: rig
-    subdomain: rig
+  - name: localport
+    subdomain: localport
     port: 4321
