@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -44,13 +43,17 @@ func (s *SshClient) getSshSigner() ssh.Signer {
 	homeDir, _ := os.UserHomeDir()
 	pemBytes, err := os.ReadFile(homeDir + "/.localport/keys/id_rsa")
 	if err != nil {
-		s.log.Error("failed to read ssh key", "error", err)
+		if s.config.Debug {
+			s.log.Error("failed to read ssh key", "error", err)
+		}
 		log.Fatal(ErrLocalSetupIncomplete)
 	}
 
 	signer, err := ssh.ParsePrivateKey(pemBytes)
 	if err != nil {
-		s.log.Error("failed to parse ssh key", "error", err)
+		if s.config.Debug {
+			s.log.Error("failed to parse ssh key", "error", err)
+		}
 		log.Fatal(ErrLocalSetupIncomplete)
 	}
 	return signer
@@ -97,7 +100,9 @@ func (s *SshClient) startListenerForClient() error {
 		// Accept incoming connections on the remote port
 		remoteConn, err := s.listener.Accept()
 		if err != nil {
-			s.log.Error("failed to accept connection", "error", err)
+			if s.config.Debug {
+				s.log.Error("failed to accept connection", "error", err)
+			}
 			break
 		}
 
@@ -106,7 +111,7 @@ func (s *SshClient) startListenerForClient() error {
 		if err != nil {
 			// serve local html if the local server is not available
 			// change this to beautiful template
-			remoteConn.Write([]byte(strings.TrimSpace(utils.LocalServerNotOnline(localEndpoint))))
+			remoteConn.Write([]byte(utils.LocalServerNotOnline(localEndpoint)))
 			remoteConn.Close()
 			continue
 		}
@@ -141,8 +146,7 @@ func (s *SshClient) Start(ctx context.Context) {
 
 	go func() {
 		if err := s.startListenerForClient(); err != nil {
-			s.log.Error("failed to establish tunnel connection", "error", err)
-			done <- nil
+			log.Fatalf("failed to establish tunnel connection: error=%v\n", err)
 		}
 	}()
 
@@ -150,6 +154,8 @@ func (s *SshClient) Start(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer func() { cancel() }()
 	if err := s.Shutdown(ctx); err != nil {
-		s.log.Error("failed to stop tunnel client", "error", err)
+		if s.config.Debug {
+			s.log.Error("failed to stop tunnel client", "error", err)
+		}
 	}
 }
