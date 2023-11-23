@@ -53,7 +53,7 @@
     <div
       class="flex my-8 w-full max-w-sm overflow-hidden bg-white rounded-lg border dark:bg-gray-800"
     >
-      <div class="flex items-center justify-center w-12 bg-blue-500">
+      <div class="flex items-center justify-center w-12 bg-slate-700">
         <svg
           class="w-6 h-6 text-white fill-current"
           viewBox="0 0 40 40"
@@ -67,9 +67,6 @@
 
       <div class="px-4 py-2 -mx-3">
         <div class="mx-3">
-          <span class="font-semibold text-blue-500 dark:text-blue-400"
-            >Info</span
-          >
           <p class="text-sm text-gray-600 dark:text-gray-200">
             {#if isSuperUserSignup}
               You are signing up as a superuser.
