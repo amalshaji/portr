@@ -7,9 +7,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/amalshaji/localport/internal/server/admin/handler"
+	"github.com/amalshaji/localport/internal/server/admin/service"
 	"github.com/amalshaji/localport/internal/server/config"
 	"github.com/amalshaji/localport/internal/utils"
 	"github.com/gofiber/fiber/v2"
@@ -24,7 +27,7 @@ type AdminServer struct {
 	log    *slog.Logger
 }
 
-func New(config *config.AdminConfig) *AdminServer {
+func New(config *config.AdminConfig, service *service.Service) *AdminServer {
 	engine := django.New("./internal/server/admin/templates", ".html")
 	app := fiber.New(fiber.Config{
 		DisableStartupMessage: true,
@@ -39,6 +42,30 @@ func New(config *config.AdminConfig) *AdminServer {
 	}
 
 	app.Static("/static", "./internal/server/admin/static")
+
+	// middleware to handle authentication
+	// throw api error for api requests
+	// redirect to login for dashboard requests
+	// finally, set user in locals
+	app.Use(func(c *fiber.Ctx) error {
+		token := c.Cookies("localport-session")
+		user, err := service.GetUserBySession(token)
+
+		if err != nil {
+			if strings.HasPrefix(c.Path(), "/api") && err != nil {
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
+			} else if strings.HasPrefix(c.Path(), "/dashboard") {
+				return c.Redirect("/")
+			}
+		}
+
+		// set user in locals
+		c.Locals("user", user)
+		return c.Next()
+	})
+
+	handler := handler.New(config, service)
+	handler.RegisterUserRoutes(app)
 
 	// server index templates for all routes
 	// should be explicit?

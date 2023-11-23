@@ -1,7 +1,7 @@
 admin:
   host: localhost
   port: 8000
-  useVite: false
+  useVite: true
 ssh:
   host: localhost
   port: 2222

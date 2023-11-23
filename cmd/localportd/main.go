@@ -5,7 +5,9 @@ import (
 	"os"
 
 	"github.com/amalshaji/localport/internal/server/admin"
+	"github.com/amalshaji/localport/internal/server/admin/service"
 	"github.com/amalshaji/localport/internal/server/config"
+	"github.com/amalshaji/localport/internal/server/db"
 	"github.com/amalshaji/localport/internal/server/proxy"
 	sshd "github.com/amalshaji/localport/internal/server/ssh"
 	"github.com/urfave/cli/v2"
@@ -49,9 +51,16 @@ func start(configFilePath string) {
 		log.Fatal(err)
 	}
 
+	db := db.New()
+	db.Connect()
+
+	service := service.New(db)
+
 	proxyServer := proxy.New(config)
 	sshServer := sshd.New(&config.Ssh, proxyServer)
-	adminServer := admin.New(&config.Admin)
+	adminServer := admin.New(&config.Admin, service)
+
+	// service.ListUsers()
 
 	go proxyServer.Start()
 	go sshServer.Start()
