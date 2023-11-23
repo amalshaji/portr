@@ -54,7 +54,7 @@ func start(configFilePath string) {
 	db := db.New()
 	db.Connect()
 
-	service := service.New(db)
+	service := service.New(db, config)
 
 	proxyServer := proxy.New(config)
 	sshServer := sshd.New(&config.Ssh, proxyServer)

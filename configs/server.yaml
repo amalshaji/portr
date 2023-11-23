@@ -2,6 +2,9 @@ admin:
   host: localhost
   port: 8000
   useVite: true
+  oauth:
+    clientId: $GITHUB_CLIENT_ID         # this is read from the environment, feel free to replace
+    clientSecret: $GITHUB_CLIENT_SECRET # this is read from the environment, feel free to replace
 ssh:
   host: localhost
   port: 2222

@@ -24,3 +24,10 @@ func (h *Handler) RegisterConnectionRoutes(app *fiber.App) {
 	connectionGroup := app.Group("/api/connections")
 	connectionGroup.Get("/", h.ListActiveConnections)
 }
+
+func (h *Handler) RegisterGithubAuthRoutes(app *fiber.App) {
+	connectionGroup := app.Group("/auth/github")
+	connectionGroup.Get("/", h.StartGithubAuth)
+	connectionGroup.Get("/callback", h.GithubAuthCallback)
+	connectionGroup.Get("/is-superuser-signup", h.IsSuperUserSignup)
+}

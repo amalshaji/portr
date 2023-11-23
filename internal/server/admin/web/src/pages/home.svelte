@@ -1,3 +1,19 @@
+<script lang="ts">
+  import { onMount } from "svelte";
+
+  let isSuperUserSignup = false;
+
+  const checkIfSuperuserSignup = async () => {
+    const resp = await fetch("/auth/github/is-superuser-signup");
+    const data = await resp.json();
+    isSuperUserSignup = data.isSuperUserSignup;
+  };
+
+  onMount(() => {
+    checkIfSuperuserSignup();
+  });
+</script>
+
 <div class="page page-center-4">
   <div class="container container-tight py-5 mt-5">
     <div class="card card-md">
@@ -11,7 +27,7 @@
       <div class="card-body">
         <div class="row">
           <div class="col">
-            <a href="#" class="btn w-100">
+            <a href="/auth/github" class="btn w-100">
               <!-- Download SVG icon from http://tabler-icons.io/i/brand-github -->
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -30,6 +46,11 @@
               >
               Login with Github
             </a>
+            {#if isSuperUserSignup}
+              <p class="mt-4 alert alert-info">
+                This is the first signup, you will be the superuser 👑
+              </p>
+            {/if}
           </div>
         </div>
       </div>

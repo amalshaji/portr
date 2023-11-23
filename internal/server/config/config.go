@@ -8,13 +8,23 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type OAuth struct {
+	ClientID     string `yaml:"clientId"`
+	ClientSecret string `yaml:"clientSecret"`
+}
+
 type AdminConfig struct {
 	Host    string
 	Port    int
-	UseVite bool `yaml:"useVite"`
+	UseVite bool  `yaml:"useVite"`
+	OAuth   OAuth `yaml:"oauth"`
 }
 
 func (a AdminConfig) Address() string {
+	return a.Host + ":" + fmt.Sprint(a.Port)
+}
+
+func (a AdminConfig) ListenAddress() string {
 	return ":" + fmt.Sprint(a.Port)
 }
 
@@ -52,6 +62,10 @@ func new() *Config {
 			Host:    "localhost",
 			Port:    8000,
 			UseVite: false,
+			OAuth: OAuth{
+				ClientID:     "",
+				ClientSecret: "",
+			},
 		},
 		Ssh: SshConfig{
 			Host:    "localhost",
@@ -68,19 +82,31 @@ func new() *Config {
 	}
 }
 
-func (c Config) ExtractSubdomain(url string) string {
-	// can be better
-	protocol := "http"
-	if c.Secure {
-		protocol = "https"
+func (c *Config) setDefaults() {
+	if !c.Secure {
+		c.Domain = c.Admin.Address()
 	}
+}
 
-	withoutProtocol := strings.ReplaceAll(url, protocol+"://", "")
+func (c Config) Protocol() string {
+	if c.Secure {
+		return "https"
+	}
+	return "http"
+}
 
+func (c Config) AdminUrl() string {
+	if c.Secure {
+		return "https://" + c.Domain
+	}
+	return "http://" + c.Admin.Address()
+}
+
+func (c Config) ExtractSubdomain(url string) string {
+	withoutProtocol := strings.ReplaceAll(url, c.Protocol()+"://", "")
 	if c.Secure {
 		return strings.ReplaceAll(withoutProtocol, "."+c.Domain, "")
 	}
-
 	return strings.ReplaceAll(withoutProtocol, "."+c.Proxy.Address(), "")
 }
 
@@ -92,10 +118,12 @@ func Load(path string) (*Config, error) {
 		return nil, err
 	}
 
-	err = yaml.Unmarshal(bytes, c)
+	err = yaml.Unmarshal([]byte(os.ExpandEnv(string(bytes))), c)
 	if err != nil {
 		return nil, err
 	}
+
+	c.setDefaults()
 
 	return c, nil
 }

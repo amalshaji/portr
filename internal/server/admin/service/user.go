@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/amalshaji/localport/internal/server/db"
+	"github.com/amalshaji/localport/internal/utils"
 	"gorm.io/gorm"
 )
 
@@ -20,4 +21,41 @@ func (s *Service) GetUserBySession(token string) (db.User, error) {
 		return db.User{}, fmt.Errorf("session not found")
 	}
 	return session.User, nil
+}
+
+func (s *Service) CreateUser(githubUserDetails GithubUserDetails, role db.UserRole) (db.User, error) {
+	secretKey := utils.GenerateSecretKeyForUser()
+	user := db.User{
+		Email:     githubUserDetails.Email,
+		Role:      role,
+		SecretKey: &secretKey,
+	}
+	result := s.db.Conn.Create(&user)
+	if result.Error != nil {
+		return db.User{}, result.Error
+	}
+	return user, nil
+}
+
+func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (db.User, error) {
+	userDetails, err := s.GetGithubUserDetails(accessToken)
+	if err != nil {
+		return db.User{}, err
+	}
+	var count int64
+	s.db.Conn.Find(&db.User{}).Count(&count)
+	if count == 0 {
+		// This is the first user, make it super user
+		return s.CreateUser(userDetails, db.SuperUser)
+	}
+
+	var user db.User
+	result := s.db.Conn.Where("email = ?", userDetails.Email).First(&user)
+	if result.Error == gorm.ErrRecordNotFound {
+		// No user found, signup
+		// check for user restrictions
+		return s.CreateUser(userDetails, db.Member)
+	}
+
+	return user, nil
 }

@@ -67,6 +67,7 @@ func New(config *config.AdminConfig, service *service.Service) *AdminServer {
 	handler := handler.New(config, service)
 	handler.RegisterUserRoutes(app)
 	handler.RegisterConnectionRoutes(app)
+	handler.RegisterGithubAuthRoutes(app)
 
 	// server index templates for all routes
 	// should be explicit?
@@ -85,13 +86,13 @@ func New(config *config.AdminConfig, service *service.Service) *AdminServer {
 }
 
 func (s *AdminServer) Start() {
-	s.log.Info("starting admin server", "port", s.config.Address())
+	s.log.Info("starting admin server", "port", s.config.ListenAddress())
 
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		if err := s.app.Listen(s.config.Address()); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := s.app.Listen(s.config.ListenAddress()); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			s.log.Error("failed to start admin server", "error", err)
 			done <- nil
 		}
