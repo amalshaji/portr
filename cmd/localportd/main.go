@@ -57,7 +57,7 @@ func start(configFilePath string) {
 	service := service.New(db, config)
 
 	proxyServer := proxy.New(config)
-	sshServer := sshd.New(&config.Ssh, proxyServer)
+	sshServer := sshd.New(&config.Ssh, proxyServer, service)
 	adminServer := admin.New(&config.Admin, service)
 
 	// service.ListUsers()

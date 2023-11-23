@@ -36,7 +36,7 @@ func New(config config.ClientConfig) *SshClient {
 }
 
 func (s *SshClient) generateUsername() string {
-	return fmt.Sprintf("%s:%s", s.config.Secretkey, s.config.Tunnel.Subdomain)
+	return fmt.Sprintf("%s:%s", s.config.SecretKey, s.config.Tunnel.Subdomain)
 }
 
 func (s *SshClient) getSshSigner() ssh.Signer {

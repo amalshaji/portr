@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/amalshaji/localport/internal/server/admin/service"
 	"github.com/amalshaji/localport/internal/server/config"
 	"github.com/amalshaji/localport/internal/server/proxy"
 	"github.com/amalshaji/localport/internal/utils"
@@ -19,16 +20,18 @@ import (
 )
 
 type SshServer struct {
-	config *config.SshConfig
-	log    *slog.Logger
-	proxy  *proxy.Proxy
+	config  *config.SshConfig
+	log     *slog.Logger
+	proxy   *proxy.Proxy
+	service *service.Service
 }
 
-func New(config *config.SshConfig, proxy *proxy.Proxy) *SshServer {
+func New(config *config.SshConfig, proxy *proxy.Proxy, service *service.Service) *SshServer {
 	return &SshServer{
-		config: config,
-		log:    utils.GetLogger(),
-		proxy:  proxy,
+		config:  config,
+		log:     utils.GetLogger(),
+		proxy:   proxy,
+		service: service,
 	}
 }
 
@@ -68,17 +71,36 @@ func (s *SshServer) Start() {
 			// get user based on user(secretKey value)
 			// accept/reject
 			proxyTarget := fmt.Sprintf("%s:%d", host, port)
-			_, subdomain := parseSshUsername(user)
+
+			secretKey, subdomain := parseSshUsername(user)
+			if secretKey == "" {
+				s.log.Error("missing secret key")
+				return false
+			}
+			if subdomain == "" {
+				s.log.Error("missing subdomain")
+				return false
+			}
+
 			err := s.proxy.AddRoute(subdomain, proxyTarget)
 			if err != nil {
 				s.log.Error("failed to add route", "error", err)
 				return false
 			}
 
+			connection, err := s.service.RegisterNewConnection(subdomain, secretKey)
+			if err != nil {
+				s.log.Error("failed to register connection", "error", err)
+				return false
+			}
+
 			go func() {
 				<-ctx.Done()
-				// log user disconnection
-				log.Printf("connection closed for %s", user)
+				err = s.service.MarkConnectionAsClosed(connection)
+				if err != nil {
+					s.log.Error("failed to mark connection as closed", "error", err)
+				}
+
 				err := s.proxy.RemoveRoute(subdomain)
 				if err != nil {
 					s.log.Error("failed to remove route", "error", err)

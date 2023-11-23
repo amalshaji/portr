@@ -2,6 +2,7 @@ package db
 
 import (
 	"log"
+	"time"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -26,7 +27,11 @@ func defaultSettings() map[string]string {
 func (d *Db) Connect() {
 	var err error
 
-	d.Conn, err = gorm.Open(sqlite.Open("./data/db.sqlite"), &gorm.Config{})
+	d.Conn, err = gorm.Open(sqlite.Open("./data/db.sqlite"), &gorm.Config{
+		NowFunc: func() time.Time {
+			return time.Now().UTC()
+		},
+	})
 	if err != nil {
 		log.Fatal(err)
 	}

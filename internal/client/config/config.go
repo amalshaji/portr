@@ -35,7 +35,7 @@ type Config struct {
 	ServerUrl string   `yaml:"serverUrl"`
 	SshUrl    string   `yaml:"sshUrl"`
 	TunnelUrl string   `yaml:"tunnelUrl"`
-	Secretkey string   `yaml:"secretkey"`
+	SecretKey string   `yaml:"secretKey"`
 	Tunnels   []Tunnel `yaml:"tunnels"`
 	Secure    bool     `yaml:"secure"`
 	Debug     bool     `yaml:"debug"`
@@ -63,7 +63,7 @@ type ClientConfig struct {
 	ServerUrl string
 	SshUrl    string
 	TunnelUrl string
-	Secretkey string
+	SecretKey string
 	Tunnel    Tunnel
 	Secure    bool
 	Debug     bool

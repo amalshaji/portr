@@ -40,7 +40,7 @@ func (c *Client) Start(ctx context.Context, services ...string) {
 			ServerUrl: c.config.ServerUrl,
 			SshUrl:    c.config.SshUrl,
 			TunnelUrl: c.config.TunnelUrl,
-			Secretkey: c.config.Secretkey,
+			SecretKey: c.config.SecretKey,
 			Tunnel:    tunnel,
 			Secure:    c.config.Secure,
 			Debug:     c.config.Debug,
