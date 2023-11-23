@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"time"
+
 	"github.com/amalshaji/localport/internal/utils"
 	"github.com/gofiber/fiber/v2"
 )
@@ -14,6 +16,9 @@ func (h *Handler) StartGithubAuth(c *fiber.Ctx) error {
 		Name:     "localport-oauth-state",
 		Value:    state,
 		HTTPOnly: true,
+		Path:     "/",
+		Expires:  time.Now().Add(10 * time.Minute),
+		SameSite: "Lax",
 	})
 	return c.Redirect(url)
 }
@@ -54,9 +59,12 @@ func (h *Handler) GithubAuthCallback(c *fiber.Ctx) error {
 		Name:     "localport-session",
 		Value:    sessionToken,
 		HTTPOnly: true,
+		Path:     "/",
+		Expires:  time.Now().Add(24 * time.Hour),
+		SameSite: "Lax",
 	})
 	c.ClearCookie("localport-oauth-state")
-	return c.Redirect("/dashboard")
+	return c.Redirect("/connections")
 }
 
 func (h *Handler) IsSuperUserSignup(c *fiber.Ctx) error {

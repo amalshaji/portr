@@ -3,17 +3,28 @@
   import { onMount } from "svelte";
 
   // @ts-expect-error
-  import { Router, Route, Link } from "svelte-routing";
+  import { Router, Route, Link, navigate } from "svelte-routing";
   import SettingsPage from "./settings.svelte";
   import Connections from "./connections.svelte";
   import Notfound from "./notfound.svelte";
   export let url = "";
 
-  let user;
+  let user: any;
 
   const getMe = async () => {
     const res = await fetch("/api/users/me");
     user = await res.json();
+  };
+
+  const logout = async () => {
+    const res = await fetch("/api/users/me/logout", {
+      method: "POST",
+      credentials: "include",
+    });
+    console.log(await res.text());
+    if (res.ok) {
+      navigate("/");
+    }
   };
 
   onMount(() => {
@@ -60,12 +71,12 @@
         <Settings></Settings>
       </Link>
 
-      <a
-        href="/settings"
+      <button
+        on:click={logout}
         class="p-1.5 text-gray-700 focus:outline-nones transition-colors duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"
       >
         <LogOut></LogOut>
-      </a>
+      </button>
 
       <button>
         <img

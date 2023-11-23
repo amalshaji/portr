@@ -62,3 +62,11 @@ func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (db.User, er
 	// TODO: update github details
 	return user, nil
 }
+
+func (s *Service) Logout(token string) error {
+	result := s.db.Conn.Where("token = ?", token).Delete(&db.Session{})
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
+}

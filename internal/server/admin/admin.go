@@ -52,7 +52,7 @@ func New(config *config.AdminConfig, service *service.Service) *AdminServer {
 		user, err := service.GetUserBySession(token)
 
 		if err != nil {
-			if strings.HasPrefix(c.Path(), "/api") && err != nil {
+			if strings.HasPrefix(c.Path(), "/api") {
 				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
 			} else if strings.HasPrefix(c.Path(), "/connections") {
 				return c.Redirect("/")
