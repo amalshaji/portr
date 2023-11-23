@@ -66,6 +66,7 @@ func New(config *config.AdminConfig, service *service.Service) *AdminServer {
 
 	handler := handler.New(config, service)
 	handler.RegisterUserRoutes(app)
+	handler.RegisterConnectionRoutes(app)
 
 	// server index templates for all routes
 	// should be explicit?

@@ -18,7 +18,9 @@ func New(config *config.AdminConfig, service *service.Service) *Handler {
 func (h *Handler) RegisterUserRoutes(app *fiber.App) {
 	userGroup := app.Group("/api/users")
 	userGroup.Get("/", h.ListUsers)
+}
 
+func (h *Handler) RegisterConnectionRoutes(app *fiber.App) {
 	connectionGroup := app.Group("/api/connections")
 	connectionGroup.Get("/", h.ListActiveConnections)
 }
