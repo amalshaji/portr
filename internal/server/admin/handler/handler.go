@@ -1,18 +1,22 @@
 package handler
 
 import (
+	"log/slog"
+
 	"github.com/amalshaji/localport/internal/server/admin/service"
 	"github.com/amalshaji/localport/internal/server/config"
+	"github.com/amalshaji/localport/internal/utils"
 	"github.com/gofiber/fiber/v2"
 )
 
 type Handler struct {
 	config  *config.AdminConfig
 	service *service.Service
+	log     *slog.Logger
 }
 
 func New(config *config.AdminConfig, service *service.Service) *Handler {
-	return &Handler{config: config, service: service}
+	return &Handler{config: config, service: service, log: utils.GetLogger()}
 }
 
 func (h *Handler) RegisterUserRoutes(app *fiber.App) {

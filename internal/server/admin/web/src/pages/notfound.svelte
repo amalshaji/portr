@@ -13,7 +13,7 @@
           We are sorry but the page you are looking for was not found
         </p>
         <div class="empty-action">
-          <Link to="/" class="btn btn-primary">
+          <a href="/dashboard" class="btn btn-primary">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               class="icon"
@@ -29,8 +29,8 @@
                 d="M5 12l14 0"
               /><path d="M5 12l6 6" /><path d="M5 12l6 -6" /></svg
             >
-            Take me home
-          </Link>
+            Go to dashboard
+          </a>
         </div>
       </div>
     </div>

@@ -57,8 +57,11 @@ func New(config *config.AdminConfig, service *service.Service) *AdminServer {
 			} else if strings.HasPrefix(c.Path(), "/dashboard") {
 				return c.Redirect("/")
 			}
+		} else {
+			if c.Path() == "/" {
+				return c.Redirect("/dashboard")
+			}
 		}
-
 		// set user in locals
 		c.Locals("user", user)
 		return c.Next()

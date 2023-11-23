@@ -38,7 +38,7 @@ type OAuthState struct {
 	gorm.Model
 
 	AccessToken string
-	Metadata    JsonField `gorm:"type:json"`
+	AvatarUrl   string
 	UserID      uint
 	User        User
 }

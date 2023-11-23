@@ -1,32 +1,59 @@
 package service
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/amalshaji/localport/internal/server/db"
 	"github.com/amalshaji/localport/internal/utils"
+	"golang.org/x/oauth2"
 )
 
-const GITHUB_REDIRECT_URI = "/admin/auth/github/callback"
+const GITHUB_REDIRECT_URI = "/auth/github/callback"
 
-func (s *Service) GetAuthorizationUrl() (string, string) {
-	state := utils.GenerateOAuthState()
-	return fmt.Sprintf(
-		"https://github.com/login/oauth/authorize?client_id=%s&redirect_uri=%s&state=%s",
-		s.config.Admin.OAuth.ClientID,
-		s.config.AdminUrl()+GITHUB_REDIRECT_URI,
-		state,
-	), state
+func (s *Service) GetOauth2Client() oauth2.Config {
+	return oauth2.Config{
+		ClientID:     s.config.Admin.OAuth.ClientID,
+		ClientSecret: s.config.Admin.OAuth.ClientSecret,
+		RedirectURL:  s.config.AdminUrl() + GITHUB_REDIRECT_URI,
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://github.com/login/oauth/authorize",
+			TokenURL: "https://github.com/login/oauth/access_token",
+		},
+	}
 }
 
 func (s *Service) GetAccessToken(code, state string) (string, error) {
-	resp, err := http.Post(
-		"https://github.com/login/oauth/access_token?client_id=%s&client_secret=%s&code=%s",
-		"application/json",
-		nil,
+	requestBodyMap := map[string]string{
+		"client_id":     s.config.Admin.OAuth.ClientID,
+		"client_secret": s.config.Admin.OAuth.ClientSecret,
+		"code":          code,
+	}
+	requestJSON, _ := json.Marshal(requestBodyMap)
+
+	req, err := http.NewRequest(
+		"POST",
+		"https://github.com/login/oauth/access_token",
+		bytes.NewBuffer(requestJSON),
 	)
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -37,7 +64,7 @@ func (s *Service) GetAccessToken(code, state string) (string, error) {
 		TokenType   string `json:"token_type"`
 	}
 
-	err = json.NewDecoder(resp.Body).Decode(&response)
+	err = json.Unmarshal(body, &response)
 	if err != nil {
 		return "", err
 	}
@@ -73,8 +100,13 @@ func (s *Service) GetGithubUserDetails(accessToken string) (GithubUserDetails, e
 		return GithubUserDetails{}, fmt.Errorf("github api returned status code %d", resp.StatusCode)
 	}
 
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return GithubUserDetails{}, err
+	}
+
 	var result GithubUserDetails
-	err = json.NewDecoder(resp.Body).Decode(&result)
+	err = json.Unmarshal(body, &result)
 	if err != nil {
 		return GithubUserDetails{}, err
 	}
