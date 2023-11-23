@@ -69,3 +69,10 @@ type Connection struct {
 	UserID    uint
 	User      User
 }
+
+type Settings struct {
+	gorm.Model
+
+	Name  string `gorm:"uniqueIndex"`
+	Value string
+}

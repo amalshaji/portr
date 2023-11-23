@@ -35,3 +35,8 @@ func (h *Handler) RegisterGithubAuthRoutes(app *fiber.App) {
 	connectionGroup.Get("/callback", h.GithubAuthCallback)
 	connectionGroup.Get("/is-superuser-signup", h.IsSuperUserSignup)
 }
+
+func (h *Handler) RegisterSettingsRoutes(app *fiber.App) {
+	connectionGroup := app.Group("/app/settings")
+	connectionGroup.Get("/", h.ListSettingsForSignupPage)
+}
