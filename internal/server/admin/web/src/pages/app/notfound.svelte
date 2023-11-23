@@ -7,7 +7,7 @@
   <div class="container flex items-center min-h-screen px-6 py-12 mx-auto">
     <div class="flex flex-col items-center mx-auto text-center">
       <p
-        class="p-3 text-sm font-medium text-blue-500 rounded-full bg-blue-50 dark:bg-gray-800"
+        class="p-3 text-sm font-medium text-gray-500 rounded-full bg-gray-100 dark:bg-gray-800"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
