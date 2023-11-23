@@ -22,8 +22,11 @@ type User struct {
 	Email     string   `gorm:"uniqueIndex"`
 	FirstName *string  `gorm:"null"`
 	LastName  *string  `gorm:"null"`
-	SecretKey *string  `gorm:"null" json:"-"`
+	SecretKey string   `gorm:"null" json:"-"`
 	Role      UserRole `gorm:"default:member"`
+
+	GithubAccessToken string `json:"-"`
+	GithubAvatarUrl   string `json:"avatarUrl"`
 }
 
 type Session struct {
@@ -32,15 +35,6 @@ type Session struct {
 	Token  string
 	UserID uint
 	User   User
-}
-
-type OAuthState struct {
-	gorm.Model
-
-	AccessToken string
-	AvatarUrl   string
-	UserID      uint
-	User        User
 }
 
 type InviteStatus string

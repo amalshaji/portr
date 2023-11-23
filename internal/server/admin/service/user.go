@@ -23,46 +23,20 @@ func (s *Service) GetUserBySession(token string) (db.User, error) {
 	return session.User, nil
 }
 
-func (s *Service) CreateUser(githubUserDetails GithubUserDetails, role db.UserRole) (db.User, error) {
+func (s *Service) CreateUser(githubUserDetails GithubUserDetails, accessToken string, role db.UserRole) (db.User, error) {
 	secretKey := utils.GenerateSecretKeyForUser()
 	user := db.User{
-		Email:     githubUserDetails.Email,
-		Role:      role,
-		SecretKey: &secretKey,
+		Email:             githubUserDetails.Email,
+		Role:              role,
+		SecretKey:         secretKey,
+		GithubAccessToken: accessToken,
+		GithubAvatarUrl:   githubUserDetails.AvatarUrl,
 	}
 	result := s.db.Conn.Create(&user)
 	if result.Error != nil {
 		return db.User{}, result.Error
 	}
 	return user, nil
-}
-
-func (s *Service) CreateOrUpdateOauthStateForUser(
-	user db.User,
-	accessToken string,
-	githubUserDetails GithubUserDetails,
-) error {
-	var oauthState = db.OAuthState{}
-	result := s.db.Conn.Where("user_id = ?", user.ID).First(&oauthState)
-	if result.Error != nil && result.Error == gorm.ErrRecordNotFound {
-		result := s.db.Conn.Create(&db.OAuthState{
-			AccessToken: accessToken,
-			AvatarUrl:   githubUserDetails.AvatarUrl,
-			User:        user,
-		})
-		if result.Error != nil {
-			return result.Error
-		}
-	} else {
-		result := s.db.Conn.Model(&oauthState).Updates(db.OAuthState{
-			AccessToken: accessToken,
-			AvatarUrl:   githubUserDetails.AvatarUrl,
-		})
-		if result.Error != nil {
-			return result.Error
-		}
-	}
-	return nil
 }
 
 func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (db.User, error) {
@@ -74,15 +48,7 @@ func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (db.User, er
 	s.db.Conn.Find(&db.User{}).Count(&count)
 	if count == 0 {
 		// This is the first user, make it super user
-		user, err := s.CreateUser(userDetails, db.SuperUser)
-		if err != nil {
-			return db.User{}, err
-		}
-		err = s.CreateOrUpdateOauthStateForUser(user, accessToken, userDetails)
-		if err != nil {
-			return db.User{}, err
-		}
-		return user, nil
+		return s.CreateUser(userDetails, accessToken, db.SuperUser)
 	}
 
 	var user db.User
@@ -90,16 +56,9 @@ func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (db.User, er
 	if result.Error == gorm.ErrRecordNotFound {
 		// No user found, signup
 		// check for user restrictions
-		user, err := s.CreateUser(userDetails, db.Member)
-		if err != nil {
-			return db.User{}, err
-		}
-		err = s.CreateOrUpdateOauthStateForUser(user, accessToken, userDetails)
-		if err != nil {
-			return db.User{}, err
-		}
-		return user, nil
+		return s.CreateUser(userDetails, accessToken, db.Member)
 	}
 
+	// TODO: update github details
 	return user, nil
 }

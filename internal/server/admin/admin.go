@@ -54,12 +54,18 @@ func New(config *config.AdminConfig, service *service.Service) *AdminServer {
 		if err != nil {
 			if strings.HasPrefix(c.Path(), "/api") && err != nil {
 				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
-			} else if strings.HasPrefix(c.Path(), "/dashboard") {
+			} else if strings.HasPrefix(c.Path(), "/connections") {
+				return c.Redirect("/")
+			} else if strings.HasPrefix(c.Path(), "/setup-client") {
+				return c.Redirect("/")
+			} else if strings.HasPrefix(c.Path(), "/invites") {
+				return c.Redirect("/")
+			} else if strings.HasPrefix(c.Path(), "/settings") {
 				return c.Redirect("/")
 			}
 		} else {
 			if c.Path() == "/" {
-				return c.Redirect("/dashboard")
+				return c.Redirect("/connections")
 			}
 		}
 		// set user in locals

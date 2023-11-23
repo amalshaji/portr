@@ -35,7 +35,6 @@ func (d *Db) Connect() {
 		&User{},
 		&Invite{},
 		&Session{},
-		&OAuthState{},
 		&Connection{},
 		&Settings{},
 	); err != nil {
