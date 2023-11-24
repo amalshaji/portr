@@ -41,7 +41,9 @@ func New(config *config.AdminConfig, service *service.Service) *AdminServer {
 		app.Static("/", "./internal/server/admin/web/dist")
 	}
 
-	app.Static("/static", "./internal/server/admin/static")
+	app.Static("/static", "./internal/server/admin/static", fiber.Static{
+		Compress: true,
+	})
 
 	// middleware to handle authentication
 	// throw api error for api requests
