@@ -8,6 +8,8 @@
   import Notfound from "./notfound.svelte";
   import { createQuery } from "@tanstack/svelte-query";
   import { getLoggedInUser } from "../../lib/services/user";
+  import * as Tooltip from "$lib/components/ui/tooltip";
+
   export let url = "";
 
   const loggedInUserQuery = createQuery({
@@ -39,21 +41,42 @@
         to="/connections"
         class="p-1.5 text-gray-700 focus:outline-nones transition-colors duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"
       >
-        <Cable></Cable>
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            <Cable />
+          </Tooltip.Trigger>
+          <Tooltip.Content>
+            <p>Connections</p>
+          </Tooltip.Content>
+        </Tooltip.Root>
       </Link>
 
       <Link
         to="/setup-client"
         class="p-1.5 text-gray-700 focus:outline-nones transition-colors duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"
       >
-        <BookOpenText></BookOpenText>
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            <BookOpenText />
+          </Tooltip.Trigger>
+          <Tooltip.Content>
+            <p>Client setup</p>
+          </Tooltip.Content>
+        </Tooltip.Root>
       </Link>
 
       <Link
-        to="/invites"
+        to="/users"
         class="p-1.5 text-gray-700 focus:outline-nones transition-colors duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"
       >
-        <Users></Users>
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            <Users />
+          </Tooltip.Trigger>
+          <Tooltip.Content>
+            <p>Users</p>
+          </Tooltip.Content>
+        </Tooltip.Root>
       </Link>
     </nav>
 
@@ -62,14 +85,28 @@
         to="/settings"
         class="p-1.5 text-gray-700 focus:outline-nones transition-colors duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"
       >
-        <Settings></Settings>
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            <Settings />
+          </Tooltip.Trigger>
+          <Tooltip.Content>
+            <p>Settings</p>
+          </Tooltip.Content>
+        </Tooltip.Root>
       </Link>
 
       <button
         on:click={logout}
         class="p-1.5 text-gray-700 focus:outline-nones transition-colors duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"
       >
-        <LogOut></LogOut>
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            <LogOut />
+          </Tooltip.Trigger>
+          <Tooltip.Content>
+            <p>Logout</p>
+          </Tooltip.Content>
+        </Tooltip.Root>
       </button>
 
       <button>

@@ -12,8 +12,6 @@
   import { connections, connectionsLoading } from "$lib/store";
   let checked = false;
 
-  let connectionsType = "recent";
-
   $: if (checked) {
     getConnections("active");
   } else {
@@ -79,10 +77,6 @@
       header: "User",
     }),
   ]);
-
-  onMount(() => {
-    getConnections(connectionsType);
-  });
 </script>
 
 <div class="container mx-auto py-10">
