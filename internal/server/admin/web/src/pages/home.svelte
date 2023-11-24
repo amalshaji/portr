@@ -1,10 +1,14 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { Github } from "lucide-svelte";
+  import Error from "../lib/components/error.svelte";
 
   let isSuperUserSignup = false;
   let signupRequiresInvite = "false";
   let allowedDomains = "";
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const githubAuthError = urlParams.get("github-oauth-error");
 
   const checkIfSuperuserSignup = async () => {
     const resp = await fetch("/auth/github/is-superuser-signup");
@@ -45,7 +49,7 @@
       >
         <Github></Github>
 
-        <span class="hidden mx-2 sm:inline">Sign in with GitHub</span>
+        <span class="hidden mx-2 sm:inline">Continue with GitHub</span>
       </a>
     </div>
 
@@ -80,5 +84,9 @@
         </div>
       </div>
     </div>
+
+    {#if githubAuthError}
+      <Error error={githubAuthError} />
+    {/if}
   </div>
 </div>
