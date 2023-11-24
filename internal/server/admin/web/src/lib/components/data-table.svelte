@@ -2,10 +2,12 @@
   // @ts-expect-error
   import { Render, Subscribe } from "svelte-headless-table";
   import * as Table from "$lib/components/ui/table";
+  import DataTableSkeleton from "./data-table-skeleton.svelte";
 
-  export let props;
+  export let table, columns, isLoading: boolean;
 
-  const { tableAttrs, tableBodyAttrs, pageRows, headerRows } = props;
+  const { tableAttrs, tableBodyAttrs, pageRows, headerRows } =
+    table.createViewModel(columns);
 </script>
 
 <div class="rounded-sm border">
@@ -32,7 +34,13 @@
     </Table.Header>
 
     <Table.Body {...$tableBodyAttrs}>
-      {#if $pageRows.length === 0}
+      {#if isLoading}
+        <Table.Row>
+          <Table.Cell colspan={$headerRows[0].cells.length}>
+            <DataTableSkeleton />
+          </Table.Cell>
+        </Table.Row>
+      {:else if $pageRows.length === 0}
         <Table.Row>
           <Table.Cell colspan={$headerRows[0].cells.length}>
             <div class="flex flex-col items-center justify-center py-10">
