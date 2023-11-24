@@ -2,4 +2,4 @@
   import { Skeleton } from "$lib/components/ui/skeleton";
 </script>
 
-<Skeleton class="w-full h-[200px]" />
+<Skeleton class="w-full h-[100px]" />
