@@ -8,7 +8,7 @@ func (s *Service) ListSettings() []db.Settings {
 	return settings
 }
 
-func (s *Service) ListSettingsForSignupPage() map[string]string {
+func (s *Service) ListSettingsForSignup() map[string]string {
 	// Signup page only requires a subset of settings
 	var settings []db.Settings
 	s.db.Conn.Find(&settings, "name IN ?", []string{"signup_requires_invite", "allow_random_user_signup", "random_user_signup_allowed_domains"})

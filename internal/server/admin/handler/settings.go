@@ -7,5 +7,5 @@ func (h *Handler) ListSettings(c *fiber.Ctx) error {
 }
 
 func (h *Handler) ListSettingsForSignupPage(c *fiber.Ctx) error {
-	return c.JSON(h.service.ListSettingsForSignupPage())
+	return c.JSON(h.service.ListSettingsForSignup())
 }

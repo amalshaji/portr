@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/amalshaji/localport/internal/utils"
@@ -49,7 +50,7 @@ func (h *Handler) GithubAuthCallback(c *fiber.Ctx) error {
 	user, err := h.service.GetOrCreateUserForGithubLogin(token.AccessToken)
 	if err != nil {
 		h.log.Error("error while creating user", "error", err)
-		return c.Redirect("/?github-oauth-error=error while signing up")
+		return c.Redirect(fmt.Sprintf("/?github-oauth-error=%s", err.Error()))
 	}
 
 	sessionToken := h.service.LoginUser(user)

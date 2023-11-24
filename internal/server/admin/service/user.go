@@ -2,6 +2,8 @@ package service
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/amalshaji/localport/internal/server/db"
 	"github.com/amalshaji/localport/internal/utils"
@@ -34,15 +36,34 @@ func (s *Service) CreateUser(githubUserDetails GithubUserDetails, accessToken st
 	}
 	result := s.db.Conn.Create(&user)
 	if result.Error != nil {
-		return db.User{}, result.Error
+		return db.User{}, fmt.Errorf("error while creating user")
 	}
 	return user, nil
+}
+
+func (s *Service) checkEligibleSignup(userDetails GithubUserDetails) error {
+	settings := s.ListSettingsForSignup()
+	if settings["signup_requires_invite"] == "true" {
+		var count int64
+		s.db.Conn.Find(&db.Invite{}, "email = ? AND status = ?", userDetails.Email, "invited").Count(&count)
+		if count == 0 {
+			return fmt.Errorf("please ask your admin to invite you")
+		}
+	}
+	if settings["allow_random_user_signup"] == "true" {
+		allowedDomains := strings.Split(settings["random_user_signup_allowed_domains"], ",")
+		userEmailDomain := strings.Split(userDetails.Email, "@")[1]
+		if !slices.Contains(allowedDomains, userEmailDomain) {
+			return fmt.Errorf("%s is not allowed to signup", userEmailDomain)
+		}
+	}
+	return nil
 }
 
 func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (db.User, error) {
 	userDetails, err := s.GetGithubUserDetails(accessToken)
 	if err != nil {
-		return db.User{}, err
+		return db.User{}, fmt.Errorf("error while creating user")
 	}
 	var count int64
 	s.db.Conn.Find(&db.User{}).Count(&count)
@@ -56,6 +77,9 @@ func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (db.User, er
 	if result.Error == gorm.ErrRecordNotFound {
 		// No user found, signup
 		// check for user restrictions
+		if err := s.checkEligibleSignup(userDetails); err != nil {
+			return db.User{}, err
+		}
 		return s.CreateUser(userDetails, accessToken, db.Member)
 	}
 
