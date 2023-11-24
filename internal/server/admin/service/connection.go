@@ -8,6 +8,12 @@ import (
 
 func (s *Service) ListActiveConnections() []db.Connection {
 	var connections []db.Connection
+	s.db.Conn.Joins("User").Find(&connections, "closed_at IS NULL")
+	return connections
+}
+
+func (s *Service) ListRecentConnections() []db.Connection {
+	var connections []db.Connection
 	s.db.Conn.Joins("User").Find(&connections)
 	return connections
 }

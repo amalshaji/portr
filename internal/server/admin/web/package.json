@@ -11,19 +11,25 @@
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^2.4.2",
+    "@tanstack/svelte-query": "^5.8.4",
     "@tsconfig/svelte": "^5.0.2",
     "autoprefixer": "^10.4.14",
+    "clsx": "^2.0.0",
     "postcss": "^8.4.24",
     "postcss-load-config": "^4.0.1",
+    "radix-icons-svelte": "^1.2.1",
     "svelte": "^4.2.3",
     "svelte-check": "^3.6.0",
     "svelte-routing": "^2.7.0",
+    "tailwind-merge": "^2.0.0",
+    "tailwind-variants": "^0.1.18",
     "tailwindcss": "^3.3.2",
     "tslib": "^2.6.2",
     "typescript": "^5.2.2",
     "vite": "^5.0.0"
   },
   "dependencies": {
+    "bits-ui": "^0.9.8",
     "lucide-svelte": "^0.292.0"
   }
 }

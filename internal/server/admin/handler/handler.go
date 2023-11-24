@@ -28,7 +28,7 @@ func (h *Handler) RegisterUserRoutes(app *fiber.App) {
 
 func (h *Handler) RegisterConnectionRoutes(app *fiber.App) {
 	connectionGroup := app.Group("/api/connections")
-	connectionGroup.Get("/", h.ListActiveConnections)
+	connectionGroup.Get("/", h.ListConnections)
 }
 
 func (h *Handler) RegisterGithubAuthRoutes(app *fiber.App) {

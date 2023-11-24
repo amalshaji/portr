@@ -9,4 +9,9 @@ export default defineConfig({
     outDir: "dist/static",
   },
   base: "/static/",
+  resolve: {
+    alias: {
+      $lib: "/src/lib",
+    },
+  },
 });

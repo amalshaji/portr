@@ -1,35 +1,29 @@
 <script lang="ts">
   import { Cable, BookOpenText, Settings, LogOut, Users } from "lucide-svelte";
-  import { onMount } from "svelte";
 
   // @ts-expect-error
   import { Router, Route, Link, navigate } from "svelte-routing";
   import SettingsPage from "./settings.svelte";
   import Connections from "./connections.svelte";
   import Notfound from "./notfound.svelte";
+  import { createQuery } from "@tanstack/svelte-query";
+  import { getLoggedInUser } from "../../lib/services/user";
   export let url = "";
 
-  let user: any;
-
-  const getMe = async () => {
-    const res = await fetch("/api/users/me");
-    user = await res.json();
-  };
+  const loggedInUserQuery = createQuery({
+    queryKey: ["me"],
+    queryFn: () => getLoggedInUser(),
+  });
 
   const logout = async () => {
     const res = await fetch("/api/users/me/logout", {
       method: "POST",
-      credentials: "include",
     });
     console.log(await res.text());
     if (res.ok) {
       navigate("/");
     }
   };
-
-  onMount(() => {
-    getMe();
-  });
 </script>
 
 <div class="flex">
@@ -81,7 +75,9 @@
       <button>
         <img
           class="object-cover w-8 h-8 rounded-full"
-          src={user?.avatarUrl}
+          src={$loggedInUserQuery.isSuccess
+            ? $loggedInUserQuery.data.avatarUrl
+            : ""}
           alt=""
         />
       </button>
