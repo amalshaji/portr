@@ -35,12 +35,14 @@ func (s *Service) UpdateSignupSettings(updateSettingsInput UpdateSignupSettingsI
 		return db.Settings{}, fmt.Errorf("both signupRequiresInvite and allowRandomUserSignup cannot be true")
 	}
 
-	if updateSettingsInput.AllowRandomUserSignup && updateSettingsInput.RandomUserSignupAllowedDomains == "" {
-		return db.Settings{}, fmt.Errorf("domains list cannot be empty")
-	}
+	if updateSettingsInput.AllowRandomUserSignup {
+		if updateSettingsInput.RandomUserSignupAllowedDomains == "" {
+			return db.Settings{}, fmt.Errorf("domains list cannot be empty")
+		}
 
-	if !validateAllowedDomains(updateSettingsInput.RandomUserSignupAllowedDomains) {
-		return db.Settings{}, fmt.Errorf("domains list must be comma separated and valid")
+		if !validateAllowedDomains(updateSettingsInput.RandomUserSignupAllowedDomains) {
+			return db.Settings{}, fmt.Errorf("domains list must be comma separated and valid")
+		}
 	}
 
 	var settings db.Settings
