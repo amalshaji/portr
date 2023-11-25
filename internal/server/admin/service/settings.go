@@ -30,7 +30,7 @@ func validateAllowedDomains(domains string) bool {
 	return true
 }
 
-func (s *Service) UpdateSignupSettings(updateSettingsInput UpdateSettingsInput) (db.Settings, error) {
+func (s *Service) UpdateSignupSettings(updateSettingsInput UpdateSignupSettingsInput) (db.Settings, error) {
 	if updateSettingsInput.SignupRequiresInvite && updateSettingsInput.AllowRandomUserSignup {
 		return db.Settings{}, fmt.Errorf("both signupRequiresInvite and allowRandomUserSignup cannot be true")
 	}
@@ -49,6 +49,16 @@ func (s *Service) UpdateSignupSettings(updateSettingsInput UpdateSettingsInput) 
 	settings.SignupRequiresInvite = updateSettingsInput.SignupRequiresInvite
 	settings.AllowRandomUserSignup = updateSettingsInput.AllowRandomUserSignup
 	settings.RandomUserSignupAllowedDomains = updateSettingsInput.RandomUserSignupAllowedDomains
+
+	s.db.Conn.Save(&settings)
+	return settings, nil
+}
+
+func (s *Service) UpdateEmailSettings(updateSettingsInput UpdateEmailSettingsInput) (db.Settings, error) {
+	var settings db.Settings
+	s.db.Conn.First(&settings)
+
+	settings.UserInviteEmailTemplate = updateSettingsInput.UserInviteEmailTemplate
 
 	s.db.Conn.Save(&settings)
 	return settings, nil

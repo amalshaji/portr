@@ -7,6 +7,9 @@
   import { settings } from "$lib/store";
   import { onDestroy } from "svelte";
   import { toast } from "svelte-sonner";
+  import { Reload } from "radix-icons-svelte";
+
+  let isUpdating = false;
 
   let signupRequiresInvite: boolean,
     allowRandomUserSignup: boolean,
@@ -48,11 +51,7 @@
         randomUserSignupAllowedDomainsValid = true;
       }
     }
-    console.log({
-      SignupRequiresInvite: signupRequiresInvite,
-      AllowRandomUserSignup: allowRandomUserSignup,
-      RandomUserSignupAllowedDomains: randomUserSignupAllowedDomains,
-    });
+    isUpdating = true;
     try {
       const res = await fetch("/api/settings/signup/update", {
         method: "PATCH",
@@ -80,7 +79,9 @@
         toast.error("Failed to update signup settings");
       }
     } catch (err) {
-      throw err;
+      console.error(err);
+    } finally {
+      isUpdating = false;
     }
   };
 
@@ -131,6 +132,11 @@
     </RadioGroup.Root></Card.Content
   >
   <Card.Footer>
-    <Button on:click={updateSignupSettings}>Save changes</Button>
+    <Button on:click={updateSignupSettings} disabled={isUpdating}>
+      {#if isUpdating}
+        <Reload class="mr-2 h-4 w-4 animate-spin" />
+      {/if}
+      Save changes
+    </Button>
   </Card.Footer>
 </Card.Root>

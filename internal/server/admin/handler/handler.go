@@ -44,4 +44,5 @@ func (h *Handler) RegisterSettingsRoutes(app *fiber.App) {
 	connectionGroup.Get("/signup", h.ListSettingsForSignupPage)
 	connectionGroup.Get("/all", h.ListSettings)
 	connectionGroup.Patch("/signup/update", h.UpdateSignupSettings)
+	connectionGroup.Patch("/email/update", h.UpdateEmailSettings)
 }
