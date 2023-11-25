@@ -51,7 +51,7 @@ func (d *Db) Connect() {
 	// Populate/update default settings
 	var settings Settings
 	result := d.Conn.First(&settings)
-	if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
+	if result.Error != nil && result.Error == gorm.ErrRecordNotFound {
 		settings.AllowRandomUserSignup = DefaultAllowRandomUserSignup
 		settings.SignupRequiresInvite = DefaultSignupRequiresInvite
 		settings.RandomUserSignupAllowedDomains = DefaultRandomUserSignupAllowedDomains
