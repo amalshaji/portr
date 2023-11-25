@@ -30,6 +30,7 @@ func (s *Service) sendInviteEmail(invite *db.Invite) error {
 	}
 
 	if err := s.smtp.SendEmail(smtpInput); err != nil {
+		s.log.Error("failed to send invite email", "error", err)
 		return err
 	}
 	return nil
@@ -69,10 +70,11 @@ func (s *Service) CreateInvite(input CreateInviteInput, invitedBy db.User) (*db.
 
 	// send invite email
 	if err := s.sendInviteEmail(&invite); err != nil {
-		s.log.Error("failed to send email", "error", err)
 		tx.Rollback()
+		return nil, err
 	}
 
+	tx.Commit()
 	return &invite, nil
 }
 
