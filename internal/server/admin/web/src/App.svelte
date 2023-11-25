@@ -3,6 +3,7 @@
   // @ts-expect-error
   import { Router, Route } from "svelte-routing";
   import { QueryClient, QueryClientProvider } from "@tanstack/svelte-query";
+  import { Toaster } from "svelte-sonner";
 
   import Home from "./pages/home.svelte";
   import Notfound from "./pages/notfound.svelte";
@@ -11,6 +12,8 @@
 
   const queryClient = new QueryClient();
 </script>
+
+<Toaster position="top-right" />
 
 <QueryClientProvider client={queryClient}>
   <Router {url}>

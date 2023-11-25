@@ -23,6 +23,7 @@ func (h *Handler) RegisterUserRoutes(app *fiber.App) {
 	userGroup := app.Group("/api/users")
 	userGroup.Get("/", h.ListUsers)
 	userGroup.Get("/me", h.Me)
+	userGroup.Patch("/me/update", h.MeUpdate)
 	userGroup.Post("/me/logout", h.Logout)
 }
 

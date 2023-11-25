@@ -89,8 +89,15 @@ func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (db.User, er
 
 func (s *Service) Logout(token string) error {
 	result := s.db.Conn.Where("token = ?", token).Delete(&db.Session{})
+	return result.Error
+}
+
+func (s *Service) UpdateUser(user *db.User, firstName, lastName string) (*db.User, error) {
+	user.FirstName = &firstName
+	user.LastName = &lastName
+	result := s.db.Conn.Save(&user)
 	if result.Error != nil {
-		return result.Error
+		return nil, result.Error
 	}
-	return nil
+	return user, nil
 }

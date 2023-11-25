@@ -11,6 +11,9 @@ dependencies:
   lucide-svelte:
     specifier: ^0.292.0
     version: 0.292.0(svelte@4.2.7)
+  svelte-sonner:
+    specifier: ^0.3.3
+    version: 0.3.3(svelte@4.2.7)
   zod:
     specifier: ^3.22.4
     version: 3.22.4
@@ -1535,6 +1538,14 @@ packages:
   /svelte-routing@2.8.0:
     resolution: {integrity: sha512-0vnIYYbUWtmGHLLH1nMHw5F+NzPpZIY46opHmTtXvA2LmDfqlWvhB7J/bU8b0vr/Oj6DybVGW+KExPjzMKin5A==}
     dev: true
+
+  /svelte-sonner@0.3.3(svelte@4.2.7):
+    resolution: {integrity: sha512-fUPHh5X88GctOjUBXflfXWplJxErDDm2erYh3EUjMWdfYiT9SGMpAv5NGDGbmKfZ+qUKOiTFrJ2P/iahYrTvhA==}
+    peerDependencies:
+      svelte: '>=3 <5'
+    dependencies:
+      svelte: 4.2.7
+    dev: false
 
   /svelte-subscribe@1.0.6(svelte@4.2.7):
     resolution: {integrity: sha512-legaLPjOGAN3G6xUa8+1ms3qo3lE4nfypZe1CedyOEoUUwWPfmzJHuBXtwdro4xUf4kezUbzjtyK1UOeZDksog==}

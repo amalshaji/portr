@@ -6,16 +6,12 @@
   import SettingsPage from "./settings.svelte";
   import Connections from "./connections.svelte";
   import Notfound from "./notfound.svelte";
-  import { createQuery } from "@tanstack/svelte-query";
   import { getLoggedInUser } from "../../lib/services/user";
   import * as Tooltip from "$lib/components/ui/tooltip";
+  import { onMount } from "svelte";
+  import { currentUser } from "$lib/store";
 
   export let url = "";
-
-  const loggedInUserQuery = createQuery({
-    queryKey: ["me"],
-    queryFn: () => getLoggedInUser(),
-  });
 
   const logout = async () => {
     const res = await fetch("/api/users/me/logout", {
@@ -26,6 +22,10 @@
       navigate("/");
     }
   };
+
+  onMount(async () => {
+    $currentUser = await getLoggedInUser();
+  });
 </script>
 
 <div class="flex">
@@ -112,9 +112,7 @@
       <button>
         <img
           class="object-cover w-8 h-8 rounded-full"
-          src={$loggedInUserQuery.isSuccess
-            ? $loggedInUserQuery.data.avatarUrl
-            : ""}
+          src={$currentUser?.avatarUrl}
           alt=""
         />
       </button>

@@ -69,7 +69,7 @@
     table.column({
       accessor: ({ User }) => {
         const { Email, FirstName, LastName } = User;
-        if (FirstName && LastName) {
+        if (FirstName) {
           return `${FirstName} ${LastName}`;
         }
         return Email;

@@ -33,6 +33,7 @@
   "dependencies": {
     "bits-ui": "^0.9.8",
     "lucide-svelte": "^0.292.0",
+    "svelte-sonner": "^0.3.3",
     "zod": "^3.22.4"
   }
 }
