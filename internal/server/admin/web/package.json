@@ -10,27 +10,29 @@
     "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^2.4.2",
-    "@tanstack/svelte-query": "^5.8.4",
+    "@sveltejs/vite-plugin-svelte": "^2.5.3",
+    "@tanstack/svelte-query": "^5.8.6",
     "@tsconfig/svelte": "^5.0.2",
-    "autoprefixer": "^10.4.14",
+    "autoprefixer": "^10.4.16",
     "clsx": "^2.0.0",
-    "postcss": "^8.4.24",
-    "postcss-load-config": "^4.0.1",
+    "formsnap": "^0.4.1",
+    "postcss": "^8.4.31",
+    "postcss-load-config": "^4.0.2",
     "radix-icons-svelte": "^1.2.1",
-    "svelte": "^4.2.3",
-    "svelte-check": "^3.6.0",
+    "svelte": "^4.2.7",
+    "svelte-check": "^3.6.2",
     "svelte-headless-table": "^0.17.7",
-    "svelte-routing": "^2.7.0",
+    "svelte-routing": "^2.8.0",
     "tailwind-merge": "^2.0.0",
     "tailwind-variants": "^0.1.18",
-    "tailwindcss": "^3.3.2",
+    "tailwindcss": "^3.3.5",
     "tslib": "^2.6.2",
-    "typescript": "^5.2.2",
-    "vite": "^5.0.0"
+    "typescript": "^5.3.2",
+    "vite": "^5.0.2"
   },
   "dependencies": {
     "bits-ui": "^0.9.8",
-    "lucide-svelte": "^0.292.0"
+    "lucide-svelte": "^0.292.0",
+    "zod": "^3.22.4"
   }
 }

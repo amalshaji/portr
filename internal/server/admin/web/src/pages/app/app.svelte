@@ -21,7 +21,7 @@
     const res = await fetch("/api/users/me/logout", {
       method: "POST",
     });
-    console.log(await res.text());
+
     if (res.ok) {
       navigate("/");
     }
@@ -30,7 +30,7 @@
 
 <div class="flex">
   <aside
-    class="flex flex-col items-center w-16 h-screen py-8 overflow-y-auto bg-white border-r rtl:border-l rtl:border-r-0 dark:bg-gray-900 dark:border-gray-700"
+    class="flex sticky top-0 flex-col items-center w-16 h-screen py-8 overflow-y-auto bg-white border-r rtl:border-l rtl:border-r-0 dark:bg-gray-900 dark:border-gray-700"
   >
     <nav class="flex flex-col flex-1 space-y-6">
       <a href="/">
