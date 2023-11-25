@@ -1,5 +1,12 @@
 <script lang="ts">
-  import { Cable, BookOpenText, Settings, LogOut, Users } from "lucide-svelte";
+  import {
+    Cable,
+    BookOpenText,
+    Settings,
+    LogOut,
+    Users,
+    UserCircleIcon,
+  } from "lucide-svelte";
 
   // @ts-expect-error
   import { Router, Route, Link, navigate } from "svelte-routing";
@@ -10,6 +17,7 @@
   import * as Tooltip from "$lib/components/ui/tooltip";
   import { onMount } from "svelte";
   import { currentUser } from "$lib/store";
+  import Profile from "./profile.svelte";
 
   export let url = "";
 
@@ -82,6 +90,20 @@
 
     <div class="flex flex-col space-y-6">
       <Link
+        to="/profile"
+        class="p-1.5 text-gray-700 focus:outline-nones transition-colors duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"
+      >
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            <UserCircleIcon />
+          </Tooltip.Trigger>
+          <Tooltip.Content>
+            <p>Profile</p>
+          </Tooltip.Content>
+        </Tooltip.Root>
+      </Link>
+
+      <Link
         to="/settings"
         class="p-1.5 text-gray-700 focus:outline-nones transition-colors duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"
       >
@@ -122,6 +144,7 @@
     <Router {url}>
       <Route path="/connections"><Connections /></Route>
       <Route path="/settings"><SettingsPage /></Route>
+      <Route path="/profile"><Profile /></Route>
       <Route path="*"><Notfound /></Route>
     </Router>
   </aside>

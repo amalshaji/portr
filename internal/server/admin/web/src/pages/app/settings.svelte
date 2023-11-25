@@ -1,6 +1,5 @@
 <script lang="ts">
   import EmailSettingsCard from "$lib/components/settings/emailSettingsCard.svelte";
-  import ProfileSettingsCard from "$lib/components/settings/profileSettingsCard.svelte";
   import SignupSettingsCard from "$lib/components/settings/signupSettingsCard.svelte";
   import * as Tabs from "$lib/components/ui/tabs";
   import { settings } from "$lib/store";
@@ -19,15 +18,11 @@
 <div class="container mx-auto py-16 w-3/4">
   <p class="text-2xl py-4">Settings</p>
 
-  <Tabs.Root value="profile" class="mx-auto">
-    <Tabs.List class="grid w-full grid-cols-3">
-      <Tabs.Trigger value="profile">Profile</Tabs.Trigger>
+  <Tabs.Root value="signup" class="mx-auto">
+    <Tabs.List class="grid w-full grid-cols-2">
       <Tabs.Trigger value="signup">Signup</Tabs.Trigger>
       <Tabs.Trigger value="email">Email</Tabs.Trigger>
     </Tabs.List>
-    <Tabs.Content value="profile">
-      <ProfileSettingsCard />
-    </Tabs.Content>
     <Tabs.Content value="signup">
       <SignupSettingsCard />
     </Tabs.Content>

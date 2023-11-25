@@ -1,12 +1,7 @@
 <script lang="ts">
   import DataTable from "../../lib/components/data-table.svelte";
-  import { onMount } from "svelte";
-  import { createTable, Render, Subscribe } from "svelte-headless-table";
-  import { addSortBy } from "svelte-headless-table/plugins";
-  import { readable } from "svelte/store";
-  import * as Table from "$lib/components/ui/table";
+  import { createTable } from "svelte-headless-table";
   import { humanizeTimeMs } from "$lib/humanize";
-  import DataTableSkeleton from "$lib/components/data-table-skeleton.svelte";
   import { Checkbox } from "$lib/components/ui/checkbox";
   import Label from "$lib/components/ui/label/label.svelte";
   import { connections, connectionsLoading } from "$lib/store";
@@ -17,8 +12,6 @@
   } else {
     getConnections();
   }
-
-  let loadingConnection = true;
 
   const getConnections = async (type: string = "") => {
     $connectionsLoading = true;
@@ -79,8 +72,8 @@
   ]);
 </script>
 
-<div class="container mx-auto py-10">
-  <p class="text-2xl py-4">Connections</p>
+<div class="container mx-auto py-16 w-3/4">
+  <p class="text-2xl py-4">Profile</p>
   <div class="flex items-center space-x-2 my-3">
     <Checkbox id="terms" bind:checked />
     <Label
