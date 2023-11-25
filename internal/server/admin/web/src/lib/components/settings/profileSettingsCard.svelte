@@ -46,7 +46,7 @@
     <Card.Description>Some basic information about you</Card.Description>
   </Card.Header>
   <Card.Content class="space-y-2">
-    <div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+    <div class="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
       <div class="sm:col-span-3">
         <Label for="first_name">First Name</Label>
         <Input
