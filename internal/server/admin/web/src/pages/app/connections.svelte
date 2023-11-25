@@ -1,53 +1,59 @@
 <script lang="ts">
-  import DataTable from "../../lib/components/data-table.svelte";
+  import DataTable from "$lib/components/data-table.svelte";
+  // @ts-expect-error
   import { createTable } from "svelte-headless-table";
   import { humanizeTimeMs } from "$lib/humanize";
   import { Checkbox } from "$lib/components/ui/checkbox";
   import Label from "$lib/components/ui/label/label.svelte";
   import { connections, connectionsLoading } from "$lib/store";
+  import type { Connection, User } from "$lib/types";
   let checked = false;
 
+  let connectionType = "Recent";
+
   $: if (checked) {
+    connectionType = "Active";
     getConnections("active");
   } else {
-    getConnections();
+    connectionType = "Recent";
+    getConnections("recent");
   }
 
   const getConnections = async (type: string = "") => {
-    $connectionsLoading = true;
+    connectionsLoading.set(true);
     try {
-      const response = await fetch(`/api/connections?type=${type}`);
-      $connections = await response.json();
+      const response = await fetch(`/api/connection?type=${type}`);
+      connections.set(await response.json());
     } catch (err) {
       console.error(err);
     } finally {
-      $connectionsLoading = false;
+      connectionsLoading.set(false);
     }
   };
 
-  let table, columns;
+  const table = createTable(connections);
 
-  table = createTable(connections);
-
-  columns = table.createColumns([
-    table.column({
-      accessor: "ID",
-      header: "ID",
-    }),
+  const columns = table.createColumns([
+    // table.column({
+    //   accessor: "ID",
+    //   header: "ID",
+    // }),
     table.column({
       accessor: "Subdomain",
       header: "Subdomain",
     }),
     table.column({
-      accessor: ({ ClosedAt }) => (ClosedAt === null ? "Active" : "Inactive"),
+      accessor: ({ ClosedAt }: { ClosedAt: string | null }) =>
+        ClosedAt === null ? "Active" : "Inactive",
       header: "Status",
     }),
     table.column({
       header: "Created At",
-      accessor: ({ CreatedAt }) => new Date(CreatedAt).toLocaleString("en-US"),
+      accessor: ({ CreatedAt }: { CreatedAt: string }) =>
+        new Date(CreatedAt).toLocaleString("en-US"),
     }),
     table.column({
-      accessor: (item) => {
+      accessor: (item: Connection) => {
         const { CreatedAt, ClosedAt } = item;
         if (ClosedAt === null) {
           return "-";
@@ -60,7 +66,7 @@
       header: "Duration",
     }),
     table.column({
-      accessor: ({ User }) => {
+      accessor: ({ User }: { User: User }) => {
         const { Email, FirstName, LastName } = User;
         if (FirstName) {
           return `${FirstName} ${LastName}`;
@@ -73,7 +79,7 @@
 </script>
 
 <div class="container mx-auto py-16 w-3/4">
-  <p class="text-2xl py-4">Profile</p>
+  <p class="text-2xl py-4">{connectionType} connections</p>
   <div class="flex items-center space-x-2 my-3">
     <Checkbox id="terms" bind:checked />
     <Label

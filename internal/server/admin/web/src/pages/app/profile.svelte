@@ -20,7 +20,7 @@
   const updateProfile = async () => {
     isUpdating = true;
     try {
-      const res = await fetch("/api/users/me/update", {
+      const res = await fetch("/api/user/me/update", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

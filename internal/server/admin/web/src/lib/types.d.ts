@@ -1,8 +1,8 @@
 export type User = {
   ID: number;
   CreatedAt: string;
-  UpdatedAt: string;
-  DeletedAt: string;
+  UpdatedAt: string | null;
+  DeletedAt: string | null;
   Email: string;
   FirstName: string | null;
   LastName: string | null;
@@ -20,4 +20,24 @@ export type SettingsForSignup = BaseSettings;
 
 export type Settings = BaseSettings & {
   UserInviteEmailTemplate: string;
+};
+
+export type Connection = {
+  ID: number;
+  CreatedAt: string;
+  UpdatedAt: string | null;
+  DeletedAt: string | null;
+  Subdomain: string;
+  ClosedAt: string | null;
+  UserID: number;
+  User: User;
+};
+
+export type Invite = {
+  Email: string;
+  Role: "admin" | "member";
+  Status: "pending" | "accepted" | "expired";
+  InviteUid: string;
+  InvitedByUserID: number;
+  InvitedByUser: User;
 };

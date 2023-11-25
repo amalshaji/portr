@@ -8,7 +8,9 @@ require (
 	github.com/gofiber/template/django/v3 v3.1.7
 	github.com/labstack/gommon v0.4.1
 	github.com/matoous/go-nanoid/v2 v2.0.0
+	github.com/oklog/ulid/v2 v2.1.0
 	github.com/urfave/cli/v2 v2.25.7
+	github.com/valyala/fasttemplate v1.2.2
 	golang.org/x/crypto v0.15.0
 	golang.org/x/oauth2 v0.14.0
 	gopkg.in/yaml.v3 v3.0.1

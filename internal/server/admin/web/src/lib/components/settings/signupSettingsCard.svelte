@@ -53,7 +53,7 @@
     }
     isUpdating = true;
     try {
-      const res = await fetch("/api/settings/signup/update", {
+      const res = await fetch("/api/setting/signup/update", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

@@ -3,3 +3,6 @@ localportd:
 
 localport:
 	@go run cmd/localport/*.go
+
+load-env:
+	export $(cat .env | grep -v '^#' | xargs)

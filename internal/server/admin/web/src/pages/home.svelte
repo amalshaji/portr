@@ -24,7 +24,7 @@
   };
 
   const getSettingsForSignup = async () => {
-    const resp = await fetch("/api/settings/signup");
+    const resp = await fetch("/api/setting/signup");
     settingsForSignup = await resp.json();
   };
 

@@ -13,6 +13,7 @@
   import SettingsPage from "./settings.svelte";
   import Connections from "./connections.svelte";
   import Notfound from "./notfound.svelte";
+  import UsersPage from "./users.svelte";
   import { getLoggedInUser } from "../../lib/services/user";
   import * as Tooltip from "$lib/components/ui/tooltip";
   import { onMount } from "svelte";
@@ -22,7 +23,7 @@
   export let url = "";
 
   const logout = async () => {
-    const res = await fetch("/api/users/me/logout", {
+    const res = await fetch("/api/user/me/logout", {
       method: "POST",
     });
 
@@ -145,6 +146,7 @@
       <Route path="/connections"><Connections /></Route>
       <Route path="/settings"><SettingsPage /></Route>
       <Route path="/profile"><Profile /></Route>
+      <Route path="/users"><UsersPage /></Route>
       <Route path="*"><Notfound /></Route>
     </Router>
   </aside>

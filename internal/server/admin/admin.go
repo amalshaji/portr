@@ -80,6 +80,7 @@ func New(config *config.AdminConfig, service *service.Service) *AdminServer {
 	handler.RegisterConnectionRoutes(app)
 	handler.RegisterGithubAuthRoutes(app)
 	handler.RegisterSettingsRoutes(app)
+	handler.RegisterInviteRoutes(app)
 
 	// server index templates for all routes
 	// should be explicit?

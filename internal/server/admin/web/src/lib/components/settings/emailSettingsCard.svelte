@@ -18,7 +18,7 @@
   const updateEmailSettings = async () => {
     isUpdating = true;
     try {
-      const res = await fetch("/api/settings/email/update", {
+      const res = await fetch("/api/setting/email/update", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

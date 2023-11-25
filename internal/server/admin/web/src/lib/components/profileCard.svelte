@@ -20,7 +20,7 @@
   const updateProfile = async () => {
     isUpdating = true;
     try {
-      const res = await fetch("/api/users/me/update", {
+      const res = await fetch("/api/user/me/update", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -58,10 +58,10 @@
       </div>
 
       <div class="sm:col-span-3">
-        <Label for="first_name">Last Name</Label>
+        <Label for="last_name">Last Name</Label>
         <Input
           type="text"
-          id="first_name"
+          id="last_name"
           placeholder="Wick"
           bind:value={lastName}
         />

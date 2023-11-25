@@ -9,3 +9,8 @@ type UpdateSignupSettingsInput struct {
 type UpdateEmailSettingsInput struct {
 	UserInviteEmailTemplate string
 }
+
+type CreateInviteInput struct {
+	Email string
+	Role  string
+}

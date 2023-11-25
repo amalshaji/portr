@@ -6,7 +6,7 @@
   import { onMount } from "svelte";
 
   const getSettings = async () => {
-    const res = await fetch("/api/settings/all");
+    const res = await fetch("/api/setting/all");
     settings.set(await res.json());
   };
 

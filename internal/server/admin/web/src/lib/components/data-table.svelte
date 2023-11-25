@@ -24,7 +24,9 @@
                 let:props
               >
                 <Table.Head class="text-gray-800" {...attrs}>
-                  <Render of={cell.render()} />
+                  <div class="px-2">
+                    <Render of={cell.render()} />
+                  </div>
                 </Table.Head>
               </Subscribe>
             {/each}
@@ -60,7 +62,9 @@
                   let:props
                 >
                   <Table.Cell {...attrs}>
-                    <Render of={cell.render()} />
+                    <div class="px-2">
+                      <Render of={cell.render()} />
+                    </div>
                   </Table.Cell>
                 </Subscribe>
               {/each}

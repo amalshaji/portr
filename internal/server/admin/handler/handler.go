@@ -20,7 +20,7 @@ func New(config *config.AdminConfig, service *service.Service) *Handler {
 }
 
 func (h *Handler) RegisterUserRoutes(app *fiber.App) {
-	userGroup := app.Group("/api/users")
+	userGroup := app.Group("/api/user")
 	userGroup.Get("/", h.ListUsers)
 	userGroup.Get("/me", h.Me)
 	userGroup.Patch("/me/update", h.MeUpdate)
@@ -28,7 +28,7 @@ func (h *Handler) RegisterUserRoutes(app *fiber.App) {
 }
 
 func (h *Handler) RegisterConnectionRoutes(app *fiber.App) {
-	connectionGroup := app.Group("/api/connections")
+	connectionGroup := app.Group("/api/connection")
 	connectionGroup.Get("/", h.ListConnections)
 }
 
@@ -40,9 +40,15 @@ func (h *Handler) RegisterGithubAuthRoutes(app *fiber.App) {
 }
 
 func (h *Handler) RegisterSettingsRoutes(app *fiber.App) {
-	connectionGroup := app.Group("/api/settings")
+	connectionGroup := app.Group("/api/setting")
 	connectionGroup.Get("/signup", h.ListSettingsForSignupPage)
 	connectionGroup.Get("/all", h.ListSettings)
 	connectionGroup.Patch("/signup/update", h.UpdateSignupSettings)
 	connectionGroup.Patch("/email/update", h.UpdateEmailSettings)
+}
+
+func (h *Handler) RegisterInviteRoutes(app *fiber.App) {
+	connectionGroup := app.Group("/api/invite")
+	connectionGroup.Get("/", h.ListInvites)
+	connectionGroup.Post("/", h.CreateInvite)
 }
