@@ -1,11 +1,14 @@
 package smtp
 
 import (
+	"fmt"
 	"log/slog"
-	"net/smtp"
+	"strings"
 
 	"github.com/amalshaji/localport/internal/server/config"
 	"github.com/amalshaji/localport/internal/utils"
+	"github.com/emersion/go-sasl"
+	"github.com/emersion/go-smtp"
 )
 
 type Smtp struct {
@@ -25,6 +28,7 @@ type SendEmailInput struct {
 }
 
 func (s *Smtp) SendEmail(input SendEmailInput) error {
-	auth := smtp.PlainAuth("", s.config.Smtp.Username, s.config.Smtp.Password, s.config.Smtp.Host)
-	return smtp.SendMail(s.config.Smtp.Address(), auth, input.From, []string{input.To}, []byte(input.Body))
+	auth := sasl.NewPlainClient("", s.config.Smtp.Username, s.config.Smtp.Password)
+	message := fmt.Sprintf("Subject: %s\n\n%s", input.Subject, input.Body)
+	return smtp.SendMailTLS(s.config.Smtp.Address(), auth, input.From, []string{input.To}, strings.NewReader(message))
 }

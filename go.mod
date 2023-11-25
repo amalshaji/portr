@@ -3,6 +3,8 @@ module github.com/amalshaji/localport
 go 1.21.4
 
 require (
+	github.com/emersion/go-sasl v0.0.0-20231106173351-e73c9f7bad43
+	github.com/emersion/go-smtp v0.19.0
 	github.com/gliderlabs/ssh v0.3.5
 	github.com/gofiber/fiber/v2 v2.51.0
 	github.com/gofiber/template/django/v3 v3.1.7

@@ -48,7 +48,7 @@ const (
 type Invite struct {
 	gorm.Model
 
-	Email           string       `json:"email"`
+	Email           string
 	Role            UserRole     `gorm:"default:member"`
 	Status          InviteStatus `gorm:"default:invited"`
 	InviteUid       string       `gorm:"uniqueIndex" json:"-"`

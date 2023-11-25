@@ -80,6 +80,6 @@ func (s *Service) CreateInvite(input CreateInviteInput, invitedBy db.User) (*db.
 
 func (s *Service) ListInvites() []db.Invite {
 	var invites []db.Invite
-	s.db.Conn.Find(&invites)
+	s.db.Conn.Joins("InvitedByUser").Find(&invites)
 	return invites
 }
