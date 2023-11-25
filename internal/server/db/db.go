@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/amalshaji/localport/internal/utils"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -16,13 +17,14 @@ func New() *Db {
 	return &Db{}
 }
 
-func defaultSettings() map[string]string {
-	return map[string]string{
-		"signup_requires_invite":             "true",
-		"allow_random_user_signup":           "false",
-		"random_user_signup_allowed_domains": "",
-	}
-}
+var (
+	DefaultSignupRequiresInvite           = true
+	DefaultAllowRandomUserSignup          = false
+	DefaultRandomUserSignupAllowedDomains = ""
+	DefaultUserInviteEmailTemplate        = utils.Trim(`Hi {{email}}, you have been invited to join {{org_name}} on LocalPort. Click the link below to get started.
+
+<a href="{{inviteUrl}}">Click here to create your account</a>`)
+)
 
 func (d *Db) Connect() {
 	var err error
@@ -46,12 +48,19 @@ func (d *Db) Connect() {
 		log.Fatal(err)
 	}
 
-	// populate default settings
-	for name, value := range defaultSettings() {
-		var count int64
-		d.Conn.Model(&Settings{}).Where("name = ?", name).Count(&count)
-		if count == 0 {
-			d.Conn.Create(&Settings{Name: name, Value: value})
+	// Populate/update default settings
+	var settings Settings
+	result := d.Conn.First(&settings)
+	if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
+		settings.AllowRandomUserSignup = DefaultAllowRandomUserSignup
+		settings.SignupRequiresInvite = DefaultSignupRequiresInvite
+		settings.RandomUserSignupAllowedDomains = DefaultRandomUserSignupAllowedDomains
+		settings.UserInviteEmailTemplate = DefaultUserInviteEmailTemplate
+
+		result := d.Conn.Save(&settings)
+		if result.Error != nil {
+			log.Fatal(result.Error)
 		}
 	}
+
 }

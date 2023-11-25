@@ -67,6 +67,8 @@ type Connection struct {
 type Settings struct {
 	gorm.Model
 
-	Name  string `gorm:"uniqueIndex"`
-	Value string
+	SignupRequiresInvite           bool
+	AllowRandomUserSignup          bool
+	RandomUserSignupAllowedDomains string
+	UserInviteEmailTemplate        string
 }

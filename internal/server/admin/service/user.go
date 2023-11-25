@@ -43,15 +43,14 @@ func (s *Service) CreateUser(githubUserDetails GithubUserDetails, accessToken st
 
 func (s *Service) checkEligibleSignup(userDetails GithubUserDetails) error {
 	settings := s.ListSettingsForSignup()
-	if settings["signup_requires_invite"] == "true" {
+	if settings.SignupRequiresInvite {
 		var count int64
 		s.db.Conn.Find(&db.Invite{}, "email = ? AND status = ?", userDetails.Email, "invited").Count(&count)
 		if count == 0 {
 			return fmt.Errorf("please ask your admin to invite you")
 		}
-	}
-	if settings["allow_random_user_signup"] == "true" {
-		allowedDomains := strings.Split(settings["random_user_signup_allowed_domains"], ",")
+	} else {
+		allowedDomains := strings.Split(settings.RandomUserSignupAllowedDomains, ",")
 		userEmailDomain := strings.Split(userDetails.Email, "@")[1]
 		if !slices.Contains(allowedDomains, userEmailDomain) {
 			return fmt.Errorf("%s is not allowed to signup", userEmailDomain)
@@ -62,6 +61,9 @@ func (s *Service) checkEligibleSignup(userDetails GithubUserDetails) error {
 
 func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (db.User, error) {
 	userDetails, err := s.GetGithubUserDetails(accessToken)
+	if userDetails.Email == "" {
+		return db.User{}, fmt.Errorf("failed to retrieve email from github, make sure it is public")
+	}
 	if err != nil {
 		return db.User{}, fmt.Errorf("error while creating user")
 	}

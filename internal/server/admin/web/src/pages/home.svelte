@@ -9,10 +9,10 @@
 
   import * as Alert from "$lib/components/ui/alert";
   import { Button } from "$lib/components/ui/button";
+  import type { SettingsForSignup } from "$lib/types";
 
   let isSuperUserSignup = false;
-  let signupRequiresInvite = "false";
-  let allowedDomains = "";
+  let settingsForSignup: SettingsForSignup;
 
   const urlParams = new URLSearchParams(window.location.search);
   const githubAuthError = urlParams.get("github-oauth-error");
@@ -24,10 +24,8 @@
   };
 
   const getSettingsForSignup = async () => {
-    const resp = await fetch("/app/settings");
-    const data = await resp.json();
-    signupRequiresInvite = data.signup_requires_invite;
-    allowedDomains = data.random_user_signup_allowed_domains;
+    const resp = await fetch("/api/settings/signup");
+    settingsForSignup = await resp.json();
   };
 
   onMount(() => {
@@ -60,11 +58,13 @@
         <Alert.Description>
           {#if isSuperUserSignup}
             You are signing up as a superuser.
-          {:else if signupRequiresInvite == "true"}
+          {:else if settingsForSignup?.SignupRequiresInvite}
             You need an invite to sign up.
-          {:else if allowedDomains.length > 0}
+          {:else if settingsForSignup?.RandomUserSignupAllowedDomains.length > 0}
             Signup is restricted to the following domains:
-            {allowedDomains.split(",").join(", ")}
+            {settingsForSignup?.RandomUserSignupAllowedDomains.split(",").join(
+              ", "
+            )}
           {/if}
         </Alert.Description>
       </Alert.Root>

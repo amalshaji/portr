@@ -9,3 +9,15 @@ export type User = {
   Role: "superuser" | "admin" | "member";
   avatarUrl: string | null;
 };
+
+type BaseSettings = {
+  AllowRandomUserSignup: boolean;
+  RandomUserSignupAllowedDomains: string;
+  SignupRequiresInvite: boolean;
+};
+
+export type SettingsForSignup = BaseSettings;
+
+export type Settings = BaseSettings & {
+  UserInviteEmailTemplate: string;
+};

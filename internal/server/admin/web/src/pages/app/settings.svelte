@@ -3,6 +3,17 @@
   import ProfileSettingsCard from "$lib/components/settings/profileSettingsCard.svelte";
   import SignupSettingsCard from "$lib/components/settings/signupSettingsCard.svelte";
   import * as Tabs from "$lib/components/ui/tabs";
+  import { settings } from "$lib/store";
+  import { onMount } from "svelte";
+
+  const getSettings = async () => {
+    const res = await fetch("/api/settings/all");
+    settings.set(await res.json());
+  };
+
+  onMount(() => {
+    getSettings();
+  });
 </script>
 
 <div class="container mx-auto py-16 w-3/4">

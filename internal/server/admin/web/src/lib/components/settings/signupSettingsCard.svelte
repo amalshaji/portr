@@ -4,16 +4,100 @@
   import * as Card from "$lib/components/ui/card";
   import * as RadioGroup from "$lib/components/ui/radio-group";
   import { Textarea } from "$lib/components/ui/textarea";
+  import { settings } from "$lib/store";
+  import { onDestroy } from "svelte";
+  import { toast } from "svelte-sonner";
 
-  let radioValue: string = "signup_requires_invite",
-    onUpdate: any,
-    random_user_signup_allowed_domains: string;
+  let signupRequiresInvite: boolean,
+    allowRandomUserSignup: boolean,
+    randomUserSignupAllowedDomains: string;
 
-  let show_allowed_domains_textarea = false;
+  let randomUserSignupAllowedDomainsValid = true;
 
-  $: radioValue === "allow_random_user_signup"
-    ? (show_allowed_domains_textarea = true)
-    : (show_allowed_domains_textarea = false);
+  let radioValue: string;
+
+  let settingsUnSubscriber = settings.subscribe((settings) => {
+    signupRequiresInvite = settings?.SignupRequiresInvite || true;
+    allowRandomUserSignup = settings?.AllowRandomUserSignup || false;
+    randomUserSignupAllowedDomains =
+      settings?.RandomUserSignupAllowedDomains || "";
+    radioValue = settings?.SignupRequiresInvite
+      ? "signup_requires_invite"
+      : "allow_random_user_signup";
+  });
+
+  let show_allowed_domains_textarea = true;
+
+  $: if (radioValue === "allow_random_user_signup") {
+    signupRequiresInvite = false;
+    allowRandomUserSignup = true;
+    show_allowed_domains_textarea = true;
+  } else {
+    signupRequiresInvite = true;
+    allowRandomUserSignup = false;
+    show_allowed_domains_textarea = false;
+  }
+
+  const updateSignupSettings = async () => {
+    if (allowRandomUserSignup) {
+      const domainsValid = validateDomains();
+      if (!domainsValid) {
+        randomUserSignupAllowedDomainsValid = false;
+        return;
+      } else {
+        randomUserSignupAllowedDomainsValid = true;
+      }
+    }
+    console.log({
+      SignupRequiresInvite: signupRequiresInvite,
+      AllowRandomUserSignup: allowRandomUserSignup,
+      RandomUserSignupAllowedDomains: randomUserSignupAllowedDomains,
+    });
+    try {
+      const res = await fetch("/api/settings/signup/update", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          SignupRequiresInvite: signupRequiresInvite,
+          AllowRandomUserSignup: allowRandomUserSignup,
+          RandomUserSignupAllowedDomains: randomUserSignupAllowedDomains,
+        }),
+      });
+      if (res.ok) {
+        // @ts-ignore
+        settings.update((settings) => {
+          return {
+            ...settings,
+            SignupRequiresInvite: signupRequiresInvite,
+            AllowRandomUserSignup: allowRandomUserSignup,
+            RandomUserSignupAllowedDomains: randomUserSignupAllowedDomains,
+          };
+        });
+        toast.success("Signup settings updated");
+      } else {
+        toast.error("Failed to update signup settings");
+      }
+    } catch (err) {
+      throw err;
+    }
+  };
+
+  const validateDomains = () => {
+    const domains = randomUserSignupAllowedDomains.split(",");
+    for (let i = 0; i < domains.length; i++) {
+      const domain = domains[i].trim();
+      if (domain.split(".").length < 2) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  onDestroy(() => {
+    settingsUnSubscriber();
+  });
 </script>
 
 <Card.Root>
@@ -37,8 +121,9 @@
         <div class="px-10">
           <Label for="allowed_domains">Allowed domains</Label>
           <Textarea
-            bind:value={random_user_signup_allowed_domains}
+            bind:value={randomUserSignupAllowedDomains}
             id="allowed_domains"
+            class={randomUserSignupAllowedDomainsValid ? "" : "border-red-300"}
             placeholder="localport.app,example.com"
           />
         </div>
@@ -46,6 +131,6 @@
     </RadioGroup.Root></Card.Content
   >
   <Card.Footer>
-    <Button on:click={onUpdate}>Save changes</Button>
+    <Button on:click={updateSignupSettings}>Save changes</Button>
   </Card.Footer>
 </Card.Root>
