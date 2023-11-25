@@ -62,7 +62,7 @@ func (h *Handler) GithubAuthCallback(c *fiber.Ctx) error {
 		Expires:  time.Now().Add(24 * time.Hour),
 		SameSite: "Lax",
 	})
-	return c.Redirect("/connections")
+	return c.Redirect("/overview")
 }
 
 func (h *Handler) IsSuperUserSignup(c *fiber.Ctx) error {

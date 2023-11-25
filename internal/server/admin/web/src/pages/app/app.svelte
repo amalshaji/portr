@@ -1,11 +1,11 @@
 <script lang="ts">
   import {
-    Cable,
-    BookOpenText,
     Settings,
     LogOut,
     Users,
-    UserCircleIcon,
+    Home,
+    ArrowUpDown,
+    User,
   } from "lucide-svelte";
 
   // @ts-expect-error
@@ -15,10 +15,10 @@
   import Notfound from "./notfound.svelte";
   import UsersPage from "./users.svelte";
   import { getLoggedInUser } from "../../lib/services/user";
-  import * as Tooltip from "$lib/components/ui/tooltip";
   import { onMount } from "svelte";
   import { currentUser } from "$lib/store";
   import Profile from "./profile.svelte";
+  import { Button } from "$lib/components/ui/button";
 
   export let url = "";
 
@@ -39,115 +39,90 @@
 
 <div class="flex">
   <aside
-    class="flex sticky top-0 flex-col items-center w-16 h-screen py-8 overflow-y-auto bg-white border-r rtl:border-l rtl:border-r-0 dark:bg-gray-900 dark:border-gray-700"
+    class="flex flex-col w-64 h-screen px-5 py-8 overflow-y-auto bg-white border-r rtl:border-r-0 rtl:border-l dark:bg-gray-900 dark:border-gray-700"
   >
-    <nav class="flex flex-col flex-1 space-y-6">
-      <a href="/">
-        <img class="w-auto h-6 mx-auto" src="/static/favicon.svg" alt="" />
-      </a>
+    <a href="/">
+      <img class="w-auto h-7" src="/static/favicon.svg" alt="" />
+    </a>
 
-      <Link
-        to="/connections"
-        class="p-1.5 text-gray-700 focus:outline-nones transition-colors duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"
-      >
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            <Cable />
-          </Tooltip.Trigger>
-          <Tooltip.Content>
-            <p>Connections</p>
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </Link>
+    <div class="flex flex-col justify-between flex-1 mt-6">
+      <nav class="flex-1 -mx-3 space-y-3">
+        <Link
+          to="/overview"
+          class="flex items-center px-3 py-2 text-gray-600 transition-colors duration-300 transform rounded-lg dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-200 hover:text-gray-700"
+        >
+          <Home strokeWidth={1.5} class="h-4 w-4" />
+          <span class="mx-2 text-sm">Overview</span>
+        </Link>
 
-      <Link
-        to="/setup-client"
-        class="p-1.5 text-gray-700 focus:outline-nones transition-colors duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"
-      >
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            <BookOpenText />
-          </Tooltip.Trigger>
-          <Tooltip.Content>
-            <p>Client setup</p>
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </Link>
+        <Link
+          to="/connections"
+          class="flex items-center px-3 py-2 text-gray-600 transition-colors duration-300 transform rounded-lg dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-200 hover:text-gray-700"
+        >
+          <ArrowUpDown strokeWidth={1.5} class="h-4 w-4" />
+          <span class="mx-2 text-sm">Connections</span>
+        </Link>
 
-      <Link
-        to="/users"
-        class="p-1.5 text-gray-700 focus:outline-nones transition-colors duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"
-      >
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            <Users />
-          </Tooltip.Trigger>
-          <Tooltip.Content>
-            <p>Users</p>
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </Link>
-    </nav>
+        <Link
+          to="/users"
+          class="flex items-center px-3 py-2 text-gray-600 transition-colors duration-300 transform rounded-lg dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-200 hover:text-gray-700"
+        >
+          <Users strokeWidth={1.5} class="h-4 w-4" />
+          <span class="mx-2 text-sm">Users</span>
+        </Link>
 
-    <div class="flex flex-col space-y-6">
-      <Link
-        to="/profile"
-        class="p-1.5 text-gray-700 focus:outline-nones transition-colors duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"
-      >
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            <UserCircleIcon />
-          </Tooltip.Trigger>
-          <Tooltip.Content>
-            <p>Profile</p>
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </Link>
+        <Link
+          to="/profile"
+          class="flex items-center px-3 py-2 text-gray-600 transition-colors duration-300 transform rounded-lg dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-200 hover:text-gray-700"
+        >
+          <User strokeWidth={1.5} class="h-4 w-4" />
+          <span class="mx-2 text-sm">Profile</span>
+        </Link>
 
-      <Link
-        to="/settings"
-        class="p-1.5 text-gray-700 focus:outline-nones transition-colors duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"
-      >
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            <Settings />
-          </Tooltip.Trigger>
-          <Tooltip.Content>
-            <p>Settings</p>
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </Link>
+        <Link
+          to="/settings"
+          class="flex items-center px-3 py-2 text-gray-600 transition-colors duration-300 transform rounded-lg dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-200 hover:text-gray-700"
+        >
+          <Settings strokeWidth={1.5} class="h-4 w-4" />
+          <span class="mx-2 text-sm">Settings</span>
+        </Link>
+      </nav>
 
-      <button
-        on:click={logout}
-        class="p-1.5 text-gray-700 focus:outline-nones transition-colors duration-200 rounded-lg dark:text-gray-200 dark:hover:bg-gray-800 hover:bg-gray-100"
-      >
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            <LogOut />
-          </Tooltip.Trigger>
-          <Tooltip.Content>
-            <p>Logout</p>
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </button>
+      <div class="mt-6">
+        <div class="flex items-center justify-between mt-6">
+          <button class="flex items-center gap-x-2">
+            <img
+              class="object-cover rounded-full h-7 w-7"
+              src={$currentUser?.avatarUrl}
+              alt="avatar"
+            />
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-200"
+              >{$currentUser?.FirstName
+                ? `${$currentUser?.FirstName} ${$currentUser?.LastName}`
+                : $currentUser?.Email}</span
+            >
+          </button>
 
-      <button>
-        <img
-          class="object-cover w-8 h-8 rounded-full"
-          src={$currentUser?.avatarUrl}
-          alt=""
-        />
-      </button>
+          <Button
+            variant="outline"
+            on:click={logout}
+            class="text-gray-500 transition-colors duration-200 dark:text-gray-400 rtl:rotate-0"
+          >
+            <LogOut strokeWidth={1.5} class="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
     </div>
   </aside>
   <aside class="w-full">
-    <Router {url}>
-      <Route path="/connections"><Connections /></Route>
-      <Route path="/settings"><SettingsPage /></Route>
-      <Route path="/profile"><Profile /></Route>
-      <Route path="/users"><UsersPage /></Route>
-      <Route path="*"><Notfound /></Route>
-    </Router>
+    <div class="container mx-auto py-16 w-full lg:w-3/4">
+      <Router {url}>
+        <Route path="/connections"><Connections /></Route>
+        <Route path="/settings"><SettingsPage /></Route>
+        <Route path="/profile"><Profile /></Route>
+        <Route path="/users"><UsersPage /></Route>
+        <Route path="*"><Notfound /></Route>
+      </Router>
+    </div>
   </aside>
 </div>

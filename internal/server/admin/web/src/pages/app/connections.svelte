@@ -78,17 +78,15 @@
   ]);
 </script>
 
-<div class="container mx-auto py-16 w-3/4">
-  <p class="text-2xl py-4">{connectionType} connections</p>
-  <div class="flex items-center space-x-2 my-3">
-    <Checkbox id="terms" bind:checked />
-    <Label
-      for="terms"
-      class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-    >
-      Show active connections
-    </Label>
-  </div>
-
-  <DataTable {table} {columns} isLoading={$connectionsLoading} />
+<p class="text-2xl py-4">{connectionType} connections</p>
+<div class="flex items-center space-x-2 my-3">
+  <Checkbox id="terms" bind:checked />
+  <Label
+    for="terms"
+    class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+  >
+    Show active connections
+  </Label>
 </div>
+
+<DataTable {table} {columns} isLoading={$connectionsLoading} />

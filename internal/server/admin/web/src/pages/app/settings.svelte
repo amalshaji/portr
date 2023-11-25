@@ -15,19 +15,17 @@
   });
 </script>
 
-<div class="container mx-auto py-16 w-3/4">
-  <p class="text-2xl py-4">Settings</p>
+<p class="text-2xl py-4">Settings</p>
 
-  <Tabs.Root value="signup" class="mx-auto">
-    <Tabs.List class="grid w-full grid-cols-2">
-      <Tabs.Trigger value="signup">Signup</Tabs.Trigger>
-      <Tabs.Trigger value="email">Email</Tabs.Trigger>
-    </Tabs.List>
-    <Tabs.Content value="signup">
-      <SignupSettingsCard />
-    </Tabs.Content>
-    <Tabs.Content value="email">
-      <EmailSettingsCard />
-    </Tabs.Content>
-  </Tabs.Root>
-</div>
+<Tabs.Root value="signup" class="mx-auto">
+  <Tabs.List class="grid w-full grid-cols-2">
+    <Tabs.Trigger value="signup">Signup</Tabs.Trigger>
+    <Tabs.Trigger value="email">Email</Tabs.Trigger>
+  </Tabs.List>
+  <Tabs.Content value="signup">
+    <SignupSettingsCard />
+  </Tabs.Content>
+  <Tabs.Content value="email">
+    <EmailSettingsCard />
+  </Tabs.Content>
+</Tabs.Root>

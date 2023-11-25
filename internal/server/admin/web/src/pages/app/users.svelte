@@ -13,25 +13,23 @@
 
 <InviteUser bind:open={inviteUserModalOpen} />
 
-<div class="container mx-auto py-16 w-3/4">
-  <div class="flex justify-between items-center">
-    <p class="text-2xl py-4">Users</p>
-    {#if currentTab === "invites"}
-      <Button on:click={() => (inviteUserModalOpen = !inviteUserModalOpen)}
-        >Invite user</Button
-      >
-    {/if}
-  </div>
-  <Tabs.Root bind:value={currentTab} class="mx-auto">
-    <Tabs.List class="grid w-full grid-cols-2">
-      <Tabs.Trigger value="members">Members</Tabs.Trigger>
-      <Tabs.Trigger value="invites">Invites</Tabs.Trigger>
-    </Tabs.List>
-    <Tabs.Content value="members">
-      <Members />
-    </Tabs.Content>
-    <Tabs.Content value="invites">
-      <Invites />
-    </Tabs.Content>
-  </Tabs.Root>
+<div class="flex justify-between items-center">
+  <p class="text-2xl py-4">Users</p>
+  {#if currentTab === "invites"}
+    <Button on:click={() => (inviteUserModalOpen = !inviteUserModalOpen)}
+      >Invite user</Button
+    >
+  {/if}
 </div>
+<Tabs.Root bind:value={currentTab} class="mx-auto">
+  <Tabs.List class="grid w-full grid-cols-2">
+    <Tabs.Trigger value="members">Members</Tabs.Trigger>
+    <Tabs.Trigger value="invites">Invites</Tabs.Trigger>
+  </Tabs.List>
+  <Tabs.Content value="members">
+    <Members />
+  </Tabs.Content>
+  <Tabs.Content value="invites">
+    <Invites />
+  </Tabs.Content>
+</Tabs.Root>

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -56,18 +57,13 @@ func New(config *config.AdminConfig, service *service.Service) *AdminServer {
 		if err != nil {
 			if strings.HasPrefix(c.Path(), "/api") && !(c.Path() == "/api/settings/signup") {
 				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
-			} else if strings.HasPrefix(c.Path(), "/connections") {
-				return c.Redirect("/")
-			} else if strings.HasPrefix(c.Path(), "/setup-client") {
-				return c.Redirect("/")
-			} else if strings.HasPrefix(c.Path(), "/invites") {
-				return c.Redirect("/")
-			} else if strings.HasPrefix(c.Path(), "/settings") {
+			} else if slices.Contains([]string{"/connections", "/overview", "/settings", "/users", "/profile"}, c.Path()) {
 				return c.Redirect("/")
 			}
+
 		} else {
 			if c.Path() == "/" {
-				return c.Redirect("/connections")
+				return c.Redirect("/overview")
 			}
 		}
 		// set user in locals
