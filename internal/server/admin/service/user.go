@@ -47,22 +47,25 @@ func (s *Service) CreateUser(githubUserDetails GithubUserDetails, accessToken st
 	return user, nil
 }
 
-func (s *Service) checkEligibleSignup(userDetails GithubUserDetails) error {
+func (s *Service) checkEligibleSignup(userDetails GithubUserDetails) (db.UserRole, error) {
+	var invite db.Invite
+
 	settings := s.ListSettingsForSignup()
+
 	if settings.SignupRequiresInvite {
-		var count int64
-		s.db.Conn.Find(&db.Invite{}, "email = ? AND status = ?", userDetails.Email, "accepted").Count(&count)
-		if count == 0 {
-			return ErrRequiresInvite
+		result := s.db.Conn.First(&invite, "email = ? AND status = ?", userDetails.Email, "accepted")
+		if result.Error != nil && result.Error == gorm.ErrRecordNotFound {
+			return "", ErrRequiresInvite
 		}
-	} else {
-		allowedDomains := strings.Split(settings.RandomUserSignupAllowedDomains, ",")
-		userEmailDomain := strings.Split(userDetails.Email, "@")[1]
-		if !slices.Contains(allowedDomains, userEmailDomain) {
-			return ErrDomainNotAllowed
-		}
+		return invite.Role, nil
 	}
-	return nil
+
+	allowedDomains := strings.Split(settings.RandomUserSignupAllowedDomains, ",")
+	userEmailDomain := strings.Split(userDetails.Email, "@")[1]
+	if !slices.Contains(allowedDomains, userEmailDomain) {
+		return "", ErrDomainNotAllowed
+	}
+	return db.Member, nil
 }
 
 func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (db.User, error) {
@@ -87,10 +90,11 @@ func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (db.User, er
 	if result.Error == gorm.ErrRecordNotFound {
 		// No user found, signup
 		// check for user restrictions
-		if err := s.checkEligibleSignup(userDetails); err != nil {
+		var role db.UserRole
+		if role, err = s.checkEligibleSignup(userDetails); err != nil {
 			return db.User{}, err
 		}
-		return s.CreateUser(userDetails, accessToken, db.Member)
+		return s.CreateUser(userDetails, accessToken, role)
 	}
 
 	// TODO: update github details
