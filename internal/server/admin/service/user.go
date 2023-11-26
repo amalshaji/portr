@@ -31,7 +31,13 @@ func (s *Service) GetUserBySession(token string) (*db.User, error) {
 	return &session.User, nil
 }
 
-func (s *Service) CreateUser(githubUserDetails GithubUserDetails, accessToken string, role db.UserRole) (db.User, error) {
+func (s *Service) CreateUser(
+	githubUserDetails GithubUserDetails,
+	accessToken string,
+	role db.UserRole,
+) (
+	*db.User, error,
+) {
 	secretKey := utils.GenerateSecretKeyForUser()
 	user := db.User{
 		Email:             githubUserDetails.Email,
@@ -42,9 +48,9 @@ func (s *Service) CreateUser(githubUserDetails GithubUserDetails, accessToken st
 	}
 	result := s.db.Conn.Create(&user)
 	if result.Error != nil {
-		return db.User{}, fmt.Errorf("error while creating user")
+		return nil, fmt.Errorf("error while creating user")
 	}
-	return user, nil
+	return &user, nil
 }
 
 func (s *Service) checkEligibleSignup(userDetails GithubUserDetails) (db.UserRole, error) {
@@ -68,14 +74,36 @@ func (s *Service) checkEligibleSignup(userDetails GithubUserDetails) (db.UserRol
 	return db.Member, nil
 }
 
-func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (db.User, error) {
+func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (*db.User, error) {
 	userDetails, err := s.GetGithubUserDetails(accessToken)
 	if err != nil {
-		return db.User{}, fmt.Errorf("error while creating user")
+		s.log.Error("error while getting user details", "error", err)
+		return nil, fmt.Errorf("error while creating user")
 	}
 
 	if userDetails.Email == "" {
-		return db.User{}, ErrPrivateEmail
+		// no emails in user api
+		// get all emails from the emails api
+		email, err := s.GetGithubUserEmails(accessToken)
+		if err != nil {
+			s.log.Error("error while getting user emails", "error", err)
+			return nil, fmt.Errorf("error while creating user")
+		}
+
+		// get the primary email
+		for _, e := range *email {
+			if e.Verified && e.Primary {
+				userDetails.Email = e.Email
+				break
+			}
+		}
+
+		if userDetails.Email == "" {
+			// no primary email found
+			s.log.Error("no primary email found", "error", err)
+			return nil, fmt.Errorf("failed to fetch email from github")
+		}
+
 	}
 
 	var count int64
@@ -92,13 +120,13 @@ func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (db.User, er
 		// check for user restrictions
 		var role db.UserRole
 		if role, err = s.checkEligibleSignup(userDetails); err != nil {
-			return db.User{}, err
+			return nil, err
 		}
 		return s.CreateUser(userDetails, accessToken, role)
 	}
 
 	// TODO: update github details
-	return user, nil
+	return &user, nil
 }
 
 func (s *Service) Logout(token string) error {

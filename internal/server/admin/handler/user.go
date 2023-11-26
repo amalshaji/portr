@@ -12,7 +12,7 @@ func (h *Handler) ListUsers(c *fiber.Ctx) error {
 }
 
 func (h *Handler) Me(c *fiber.Ctx) error {
-	return c.JSON(c.Locals("user"))
+	return c.JSON(c.Locals("user").(*db.User))
 }
 
 func (h *Handler) MeUpdate(c *fiber.Ctx) error {
