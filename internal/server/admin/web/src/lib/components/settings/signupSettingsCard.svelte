@@ -101,7 +101,7 @@
   });
 </script>
 
-<Card.Root>
+<Card.Root class="rounded-sm">
   <Card.Header class="space-y-3">
     <Card.Title>Signup</Card.Title>
     <Card.Description>Configure who can signup for an account</Card.Description>

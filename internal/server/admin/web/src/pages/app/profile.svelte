@@ -41,7 +41,7 @@
 </script>
 
 <p class="text-2xl py-4">Profile</p>
-<Card.Root>
+<Card.Root class="rounded-sm">
   <Card.Header class="space-y-3">
     <Card.Title>Profile</Card.Title>
     <Card.Description>Some basic information about you</Card.Description>
