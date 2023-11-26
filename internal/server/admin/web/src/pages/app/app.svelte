@@ -1,11 +1,11 @@
 <script lang="ts">
   import {
     Settings,
-    LogOut,
     Users,
     Home,
     ArrowUpDown,
     User,
+    MoreVertical,
   } from "lucide-svelte";
 
   // @ts-expect-error
@@ -19,6 +19,7 @@
   import { currentUser } from "$lib/store";
   import Profile from "./profile.svelte";
   import { Button } from "$lib/components/ui/button";
+  import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
 
   export let url = "";
 
@@ -88,29 +89,32 @@
         </Link>
       </nav>
 
-      <div class="mt-6">
-        <div class="flex items-center justify-between mt-6">
-          <button class="flex items-center gap-x-2">
-            <img
-              class="object-cover rounded-full h-7 w-7"
-              src={$currentUser?.avatarUrl}
-              alt="avatar"
-            />
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-200"
-              >{$currentUser?.FirstName
-                ? `${$currentUser?.FirstName} ${$currentUser?.LastName}`
-                : $currentUser?.Email}</span
+      <div class="mt-6 -mx-3">
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger asChild let:builder>
+            <Button builders={[builder]} variant="ghost" class="space-x-1">
+              <img
+                class="object-cover rounded-full h-7 w-7"
+                src={$currentUser?.avatarUrl}
+                alt="avatar"
+              />
+              <span
+                class="text-sm font-medium text-gray-700 dark:text-gray-200 overflow-clip"
+                >{$currentUser?.FirstName
+                  ? `${$currentUser?.FirstName} ${$currentUser?.LastName}`
+                  : $currentUser?.Email}</span
+              >
+              <MoreVertical strokeWidth={1.5} class="h-4 w-4" />
+            </Button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content class="w-52">
+            <DropdownMenu.Label>My Account</DropdownMenu.Label>
+            <DropdownMenu.Separator />
+            <DropdownMenu.Item on:click={logout} class="hover:cursor-pointer"
+              >Logout</DropdownMenu.Item
             >
-          </button>
-
-          <Button
-            variant="outline"
-            on:click={logout}
-            class="text-gray-500 transition-colors duration-200 dark:text-gray-400 rtl:rotate-0"
-          >
-            <LogOut strokeWidth={1.5} class="h-4 w-4" />
-          </Button>
-        </div>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
       </div>
     </div>
   </aside>
