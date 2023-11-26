@@ -41,3 +41,8 @@ export type Invite = {
   InvitedByUserID: number;
   InvitedByUser: User;
 };
+
+export type ServerAddress = {
+  AdminUrl: string;
+  SshUrl: string;
+};

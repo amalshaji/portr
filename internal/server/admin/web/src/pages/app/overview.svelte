@@ -4,16 +4,19 @@
   import { toast } from "svelte-sonner";
   import "svelte-highlight/styles/stackoverflow-light.css";
   import { currentUser } from "$lib/store";
+  import type { ServerAddress } from "$lib/types";
+  import { onMount } from "svelte";
 
   const editConfigCommand = "localport config edit";
   const validateConfigCommand = "localport config validate";
   const helpCommand = "localport -h";
 
   let config: string;
+  let serverAddress: ServerAddress;
 
   $: config = `
-serverUrl: localhost:8000
-sshUrl: localhost:2222
+serverUrl: ${serverAddress?.AdminUrl}
+sshUrl: ${serverAddress?.SshUrl}
 secretKey: ${$currentUser?.SecretKey} # <- this is your key
 secure: true
 tunnels:
@@ -26,11 +29,16 @@ tunnels:
     navigator.clipboard.writeText(code);
     toast.success("Code copied to clipboard");
   };
-</script>
 
-<!-- <svelte:head>
-  {@html github}
-</svelte:head> -->
+  const getServerAddress = async () => {
+    const res = await fetch("/config/address");
+    serverAddress = await res.json();
+  };
+
+  onMount(() => {
+    getServerAddress();
+  });
+</script>
 
 <p class="text-2xl py-4">Client setup</p>
 

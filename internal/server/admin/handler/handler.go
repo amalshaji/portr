@@ -60,4 +60,5 @@ func (h *Handler) RegisterInviteRoutes(app *fiber.App) {
 func (h *Handler) RegisterClientConfigRoutes(app *fiber.App) {
 	configGroup := app.Group("/config")
 	configGroup.Post("/validate", h.ValidateClientConfig)
+	configGroup.Get("/address", h.GetServerAddress)
 }

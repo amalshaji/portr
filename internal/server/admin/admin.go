@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"slices"
-	"strings"
 	"syscall"
 	"time"
 
@@ -64,10 +63,10 @@ func New(config *config.Config, service *service.Service) *AdminServer {
 		user, err := service.GetUserBySession(token)
 
 		if err != nil {
-			if strings.HasPrefix(c.Path(), "/api") {
-				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
-			} else if slices.Contains(clientPages, c.Path()) {
+			if slices.Contains(clientPages, c.Path()) {
 				return c.Redirect("/")
+			} else {
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
 			}
 
 		} else {
