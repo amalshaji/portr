@@ -23,6 +23,7 @@
   let isLoading = false;
 
   const invite = async () => {
+    error = "";
     isLoading = true;
     try {
       const res = await fetch("/api/invite", {
@@ -54,7 +55,7 @@
       <AlertDialog.Description>
         <div class="mt-4 space-y-4">
           {#if error}
-            <Alert.Root variant="destructive">
+            <Alert.Root>
               <ExclamationTriangle class="h-4 w-4" />
               <Alert.Title>Error</Alert.Title>
               <Alert.Description>

@@ -72,7 +72,7 @@
 
     {#if githubAuthError}
       <div class="my-4 bg-white">
-        <Alert.Root variant="destructive">
+        <Alert.Root>
           <ExclamationTriangle class="h-4 w-4" />
           <Alert.Title>Error</Alert.Title>
           <Alert.Description>
