@@ -37,6 +37,9 @@ devDependencies:
   formsnap:
     specifier: ^0.4.1
     version: 0.4.1(svelte@4.2.7)(sveltekit-superforms@1.10.2)(zod@3.22.4)
+  highlight.js:
+    specifier: ^11.9.0
+    version: 11.9.0
   postcss:
     specifier: ^8.4.31
     version: 8.4.31
@@ -55,6 +58,9 @@ devDependencies:
   svelte-headless-table:
     specifier: ^0.17.7
     version: 0.17.7(svelte@4.2.7)
+  svelte-highlight:
+    specifier: ^7.4.2
+    version: 7.4.2
   svelte-routing:
     specifier: ^2.8.0
     version: 2.8.0
@@ -954,6 +960,11 @@ packages:
       function-bind: 1.1.2
     dev: true
 
+  /highlight.js@11.9.0:
+    resolution: {integrity: sha512-fJ7cW7fQGCYAkgv4CPfwFHrfd/cLS4Hau96JuJ+ZTOWhjnhoeN1ub1tFmALm/+lW5z4WCAuAV9bm05AP0mS6Gw==}
+    engines: {node: '>=12.0.0'}
+    dev: true
+
   /import-fresh@3.3.0:
     resolution: {integrity: sha512-veYYhQa+D1QBKznvhUHxb8faxlrwUnxseDAbAp457E0wLNio2bOSKnjYDhMj+YiAq61xrMGhQk9iXVk5FzgQMw==}
     engines: {node: '>=6'}
@@ -1458,6 +1469,12 @@ packages:
       svelte-keyed: 1.1.7(svelte@4.2.7)
       svelte-render: 1.6.1(svelte@4.2.7)
       svelte-subscribe: 1.0.6(svelte@4.2.7)
+    dev: true
+
+  /svelte-highlight@7.4.2:
+    resolution: {integrity: sha512-J0AGYK1bJCc5t4P8bT7NuCc0224XurJKF57YUJPxj8sqbfAYICyom5+spF2fyPHGKgZtkX8jNQLGwHgPzfCapA==}
+    dependencies:
+      highlight.js: 11.9.0
     dev: true
 
   /svelte-hmr@0.15.3(svelte@4.2.7):
