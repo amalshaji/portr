@@ -24,6 +24,7 @@ func (h *Handler) RegisterUserRoutes(app *fiber.App) {
 	userGroup.Get("/", h.ListUsers)
 	userGroup.Get("/me", h.Me)
 	userGroup.Patch("/me/update", h.MeUpdate)
+	userGroup.Patch("/me/rotate-secret-key", h.RotateSecretKey)
 	userGroup.Post("/me/logout", h.Logout)
 }
 

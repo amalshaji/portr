@@ -115,3 +115,12 @@ func (s *Service) UpdateUser(user *db.User, firstName, lastName string) (*db.Use
 	}
 	return user, nil
 }
+
+func (s *Service) RotateSecretKey(user db.User) (*db.User, error) {
+	user.SecretKey = utils.GenerateSecretKeyForUser()
+	result := s.db.Conn.Save(&user)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &user, nil
+}

@@ -22,11 +22,11 @@ type User struct {
 	Email     string   `gorm:"uniqueIndex"`
 	FirstName *string  `gorm:"null"`
 	LastName  *string  `gorm:"null"`
-	SecretKey string   `gorm:"null" json:"-"`
+	SecretKey string   `gorm:"null"`
 	Role      UserRole `gorm:"default:member"`
 
 	GithubAccessToken string `json:"-"`
-	GithubAvatarUrl   string `json:"avatarUrl"`
+	GithubAvatarUrl   string `json:"AvatarUrl"`
 }
 
 type Session struct {

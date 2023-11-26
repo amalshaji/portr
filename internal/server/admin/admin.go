@@ -57,7 +57,7 @@ func New(config *config.AdminConfig, service *service.Service) *AdminServer {
 		if err != nil {
 			if strings.HasPrefix(c.Path(), "/api") && !(c.Path() == "/api/setting/signup") {
 				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
-			} else if slices.Contains([]string{"/connections", "/overview", "/settings", "/users", "/profile"}, c.Path()) {
+			} else if slices.Contains([]string{"/connections", "/overview", "/settings", "/users", "/my-account"}, c.Path()) {
 				return c.Redirect("/")
 			}
 

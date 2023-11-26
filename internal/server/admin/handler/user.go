@@ -34,11 +34,19 @@ func (h *Handler) MeUpdate(c *fiber.Ctx) error {
 func (h *Handler) Logout(c *fiber.Ctx) error {
 	// expire all keys!
 	c.ClearCookie()
-	// TODO: delete the session from db as well
 	err := h.service.Logout(c.Cookies("localport-session"))
 	if err != nil {
 		h.log.Error("error while logging out", "error", err)
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "internal server error"})
 	}
 	return c.SendStatus(http.StatusOK)
+}
+
+func (h *Handler) RotateSecretKey(c *fiber.Ctx) error {
+	user, err := h.service.RotateSecretKey(c.Locals("user").(db.User))
+	if err != nil {
+		h.log.Error("error while logging out", "error", err)
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"message": err.Error()})
+	}
+	return c.JSON(user)
 }

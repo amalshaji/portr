@@ -39,10 +39,10 @@
       accessor: (item: User) => item,
       header: "",
       cell: ({
-        value: { avatarUrl, Email },
+        value: { AvatarUrl, Email },
       }: {
-        value: { avatarUrl: string; Email: string };
-      }) => createRender(Avatar, { url: avatarUrl, fallback: Email }),
+        value: { AvatarUrl: string; Email: string };
+      }) => createRender(Avatar, { url: AvatarUrl, fallback: Email }),
     }),
   ]);
 

@@ -6,8 +6,9 @@ export type User = {
   Email: string;
   FirstName: string | null;
   LastName: string | null;
+  SecretKey: string;
   Role: "superuser" | "admin" | "member";
-  avatarUrl: string | null;
+  AvatarUrl: string | null;
 };
 
 type BaseSettings = {
