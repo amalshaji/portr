@@ -17,6 +17,25 @@ func configCmd() *cli.Command {
 					return config.EditConfig()
 				},
 			},
+			{
+				Name:  "validate",
+				Usage: "Validate the config file",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "config",
+						Aliases: []string{"c"},
+						Usage:   "Config file",
+						Value:   config.DefaultConfigPath,
+					},
+				},
+				Action: func(c *cli.Context) error {
+					config, err := config.Load(c.String("config"))
+					if err != nil {
+						return err
+					}
+					return config.ValidateConfig()
+				},
+			},
 		},
 	}
 }

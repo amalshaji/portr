@@ -10,12 +10,12 @@ import (
 )
 
 type Handler struct {
-	config  *config.AdminConfig
+	config  *config.Config
 	service *service.Service
 	log     *slog.Logger
 }
 
-func New(config *config.AdminConfig, service *service.Service) *Handler {
+func New(config *config.Config, service *service.Service) *Handler {
 	return &Handler{config: config, service: service, log: utils.GetLogger()}
 }
 
@@ -55,4 +55,9 @@ func (h *Handler) RegisterInviteRoutes(app *fiber.App) {
 
 	inviteAcceptGroup := app.Group("/invite")
 	inviteAcceptGroup.Get("/:code", h.AcceptInvite)
+}
+
+func (h *Handler) RegisterClientConfigRoutes(app *fiber.App) {
+	configGroup := app.Group("/config")
+	configGroup.Post("/validate", h.ValidateClientConfig)
 }

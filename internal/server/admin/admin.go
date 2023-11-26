@@ -28,7 +28,7 @@ type AdminServer struct {
 	log    *slog.Logger
 }
 
-func New(config *config.AdminConfig, service *service.Service) *AdminServer {
+func New(config *config.Config, service *service.Service) *AdminServer {
 	engine := django.New("./internal/server/admin/templates", ".html")
 	app := fiber.New(fiber.Config{
 		DisableStartupMessage: true,
@@ -38,7 +38,7 @@ func New(config *config.AdminConfig, service *service.Service) *AdminServer {
 	app.Use(logger.New())
 	app.Use(recover.New())
 
-	if !config.UseVite {
+	if !config.Admin.UseVite {
 		app.Static("/", "./internal/server/admin/web/dist")
 	}
 
@@ -50,14 +50,23 @@ func New(config *config.AdminConfig, service *service.Service) *AdminServer {
 	// throw api error for api requests
 	// redirect to login for dashboard requests
 	// finally, set user in locals
+
+	clientPages := []string{"/connections", "/overview", "/settings", "/users", "/my-account"}
+	authExcludedEndpoints := []string{"/config/validate", "/api/setting/signup"}
+
+	// handle auth
 	app.Use(func(c *fiber.Ctx) error {
+		if slices.Contains(authExcludedEndpoints, c.Path()) {
+			return c.Next()
+		}
+
 		token := c.Cookies("localport-session")
 		user, err := service.GetUserBySession(token)
 
 		if err != nil {
-			if strings.HasPrefix(c.Path(), "/api") && !(c.Path() == "/api/setting/signup") {
+			if strings.HasPrefix(c.Path(), "/api") {
 				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
-			} else if slices.Contains([]string{"/connections", "/overview", "/settings", "/users", "/my-account"}, c.Path()) {
+			} else if slices.Contains(clientPages, c.Path()) {
 				return c.Redirect("/")
 			}
 
@@ -77,19 +86,20 @@ func New(config *config.AdminConfig, service *service.Service) *AdminServer {
 	handler.RegisterGithubAuthRoutes(app)
 	handler.RegisterSettingsRoutes(app)
 	handler.RegisterInviteRoutes(app)
+	handler.RegisterClientConfigRoutes(app)
 
 	// server index templates for all routes
 	// should be explicit?
 	app.Use("*", func(c *fiber.Ctx) error {
 		return c.Render("index", fiber.Map{
-			"UseVite":  config.UseVite,
+			"UseVite":  config.Admin.UseVite,
 			"ViteTags": getViteTags(),
 		})
 	})
 
 	return &AdminServer{
 		app:    app,
-		config: config,
+		config: &config.Admin,
 		log:    utils.GetLogger(),
 	}
 }

@@ -1,7 +1,11 @@
 package config
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
@@ -47,16 +51,25 @@ func (c *Config) SetDefaults() {
 	}
 
 	if c.SshUrl == "" {
-		c.SshUrl = "localhost:2222"
+		c.SshUrl = c.ServerUrl
 	}
 
 	if c.TunnelUrl == "" {
-		c.TunnelUrl = "localhost:8001"
+		c.TunnelUrl = c.ServerUrl
 	}
 
 	for i := range c.Tunnels {
 		c.Tunnels[i].setDefaults()
 	}
+}
+
+func (c Config) GetAdminAddress() string {
+	protocol := "http"
+	if c.Secure {
+		protocol = "https"
+	}
+
+	return protocol + "://" + c.ServerUrl
 }
 
 type ClientConfig struct {
@@ -99,6 +112,8 @@ func Load(configFile string) (Config, error) {
 var homedir, _ = os.UserHomeDir()
 var DefaultConfigDir = homedir + "/.localport"
 var DefaultConfigPath = DefaultConfigDir + "/config.yaml"
+var DefaultKeyDir = DefaultConfigDir + "/keys"
+var DefaultKeyPath = DefaultKeyDir + "/id_rsa"
 
 func checkDefaultConfigFileExists() bool {
 	_, err := os.Stat(DefaultConfigPath)
@@ -151,6 +166,51 @@ func EditConfig() error {
 	cmd := exec.Command(editorCmd, DefaultConfigPath)
 	if err := cmd.Run(); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (c Config) ValidateConfig() error {
+	if !checkDefaultConfigFileExists() {
+		err := initConfig()
+		if err != nil {
+			return err
+		}
+	}
+
+	payloadMap := map[string]string{
+		"key": c.SecretKey,
+	}
+	payload, err := json.Marshal(payloadMap)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(c.GetAdminAddress()+"/config/validate", "application/json", bytes.NewBuffer(payload))
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("config validation failed")
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	_, err = os.Stat(DefaultKeyDir)
+	if os.IsNotExist(err) {
+		err = os.MkdirAll(DefaultKeyDir, os.ModePerm)
+		if err != nil {
+			return err
+		}
+	}
+	err = os.WriteFile(DefaultKeyPath, body, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to setup credentials: %s", err)
 	}
 
 	return nil
