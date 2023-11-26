@@ -87,3 +87,24 @@ func (s *Service) ListInvites() []db.Invite {
 	s.db.Conn.Joins("InvitedByUser").Find(&invites)
 	return invites
 }
+
+var (
+	ErrInviteNotFound = fmt.Errorf("invite not found")
+)
+
+func (s *Service) AcceptInvite(code string) error {
+	var invite db.Invite
+	result := s.db.Conn.Where("invite_uid = ? AND status = ?", code, db.Invited).First(&invite)
+	if result.Error != nil {
+		return ErrInviteNotFound
+	}
+
+	invite.Status = db.Accepted
+	result = s.db.Conn.Save(&invite)
+	if result.Error != nil {
+		s.log.Error("failed to update invite status", "error", result.Error)
+		return result.Error
+	}
+
+	return nil
+}

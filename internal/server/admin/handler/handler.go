@@ -33,22 +33,25 @@ func (h *Handler) RegisterConnectionRoutes(app *fiber.App) {
 }
 
 func (h *Handler) RegisterGithubAuthRoutes(app *fiber.App) {
-	connectionGroup := app.Group("/auth/github")
-	connectionGroup.Get("/", h.StartGithubAuth)
-	connectionGroup.Get("/callback", h.GithubAuthCallback)
-	connectionGroup.Get("/is-superuser-signup", h.IsSuperUserSignup)
+	githubAuthGroup := app.Group("/auth/github")
+	githubAuthGroup.Get("/", h.StartGithubAuth)
+	githubAuthGroup.Get("/callback", h.GithubAuthCallback)
+	githubAuthGroup.Get("/is-superuser-signup", h.IsSuperUserSignup)
 }
 
 func (h *Handler) RegisterSettingsRoutes(app *fiber.App) {
-	connectionGroup := app.Group("/api/setting")
-	connectionGroup.Get("/signup", h.ListSettingsForSignupPage)
-	connectionGroup.Get("/all", h.ListSettings)
-	connectionGroup.Patch("/signup/update", h.UpdateSignupSettings)
-	connectionGroup.Patch("/email/update", h.UpdateEmailSettings)
+	settingsGroup := app.Group("/api/setting")
+	settingsGroup.Get("/signup", h.ListSettingsForSignupPage)
+	settingsGroup.Get("/all", h.ListSettings)
+	settingsGroup.Patch("/signup/update", h.UpdateSignupSettings)
+	settingsGroup.Patch("/email/update", h.UpdateEmailSettings)
 }
 
 func (h *Handler) RegisterInviteRoutes(app *fiber.App) {
-	connectionGroup := app.Group("/api/invite")
-	connectionGroup.Get("/", h.ListInvites)
-	connectionGroup.Post("/", h.CreateInvite)
+	inviteGroup := app.Group("/api/invite")
+	inviteGroup.Get("/", h.ListInvites)
+	inviteGroup.Post("/", h.CreateInvite)
+
+	inviteAcceptGroup := app.Group("/invite")
+	inviteAcceptGroup.Get("/:code", h.AcceptInvite)
 }

@@ -3,6 +3,7 @@
 
   import {
     ExclamationTriangle,
+    CheckCircled,
     LockClosed,
     GithubLogo,
   } from "radix-icons-svelte";
@@ -13,28 +14,36 @@
 
   let isSuperUserSignup = false;
 
-  const getErrorMessage = (errCode: string) => {
-    const errorCodes: Map<string, string> = {
+  const getResponseMessage = (code: string) => {
+    const codes: Map<string, string> = {
       // @ts-expect-error
       "github-oauth-error": "There was an error authenticating with GitHub.",
-      "invalid-invite": "The invite is not valid.",
+      "invalid-invite": "The invite is invalid/expired.",
       "requires-invite": "Signup requires an invite.",
       "domain-not-allowed": `You need to use one of the following domains to sign up: ${$settingsForSignup?.RandomUserSignupAllowedDomains.split(
         ","
       ).join(", ")}`,
+      "invite-accepted": "You can now continue with github.",
+      "private-email": "Your email is private. Please make it public.",
     };
     return (
       // @ts-expect-error
-      errorCodes[errCode] ?? ""
+      codes[code] ?? ""
     );
   };
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const errorCode = urlParams.get("errorCode") as string;
-  let error: string = "";
+  const getMessageType = (code: string) => {
+    return ["invite-accepted"].includes(code) ? "success" : "error";
+  };
 
-  if (errorCode) {
-    error = getErrorMessage(errorCode);
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = urlParams.get("code") as string;
+  let message: string = "";
+  let messageType: string = "success";
+
+  if (code) {
+    message = getResponseMessage(code);
+    messageType = getMessageType(code);
   }
 
   const checkIfSuperuserSignup = async () => {
@@ -90,13 +99,18 @@
       </Alert.Root>
     </div>
 
-    {#if error}
+    {#if message}
       <div class="my-4 bg-white">
         <Alert.Root>
-          <ExclamationTriangle class="h-4 w-4" />
-          <Alert.Title>Error</Alert.Title>
+          {#if messageType === "success"}
+            <CheckCircled class="h-4 w-4" />
+            <Alert.Title>Success</Alert.Title>
+          {:else}
+            <ExclamationTriangle class="h-4 w-4" />
+            <Alert.Title>Error</Alert.Title>
+          {/if}
           <Alert.Description>
-            {error}
+            {message}
           </Alert.Description>
         </Alert.Root>
       </div>

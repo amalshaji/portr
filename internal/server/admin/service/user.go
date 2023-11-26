@@ -13,6 +13,7 @@ import (
 var (
 	ErrRequiresInvite   = fmt.Errorf("requires invite")
 	ErrDomainNotAllowed = fmt.Errorf("domain not allowed")
+	ErrPrivateEmail     = fmt.Errorf("private email")
 )
 
 func (s *Service) ListUsers() []db.User {
@@ -50,7 +51,7 @@ func (s *Service) checkEligibleSignup(userDetails GithubUserDetails) error {
 	settings := s.ListSettingsForSignup()
 	if settings.SignupRequiresInvite {
 		var count int64
-		s.db.Conn.Find(&db.Invite{}, "email = ? AND status = ?", userDetails.Email, "invited").Count(&count)
+		s.db.Conn.Find(&db.Invite{}, "email = ? AND status = ?", userDetails.Email, "accepted").Count(&count)
 		if count == 0 {
 			return ErrRequiresInvite
 		}
@@ -66,12 +67,14 @@ func (s *Service) checkEligibleSignup(userDetails GithubUserDetails) error {
 
 func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (db.User, error) {
 	userDetails, err := s.GetGithubUserDetails(accessToken)
-	if userDetails.Email == "" {
-		return db.User{}, fmt.Errorf("failed to retrieve email from github, make sure it is public")
-	}
 	if err != nil {
 		return db.User{}, fmt.Errorf("error while creating user")
 	}
+
+	if userDetails.Email == "" {
+		return db.User{}, ErrPrivateEmail
+	}
+
 	var count int64
 	s.db.Conn.Find(&db.User{}).Count(&count)
 	if count == 0 {
