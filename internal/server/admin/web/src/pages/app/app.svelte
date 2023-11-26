@@ -20,6 +20,7 @@
   import Profile from "./profile.svelte";
   import { Button } from "$lib/components/ui/button";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
+  import Sidebarlink from "$lib/components/sidebarlink.svelte";
 
   export let url = "";
 
@@ -47,46 +48,30 @@
     </a>
 
     <div class="flex flex-col justify-between flex-1 mt-6">
-      <nav class="flex-1 -mx-3 space-y-3">
-        <Link
-          to="/overview"
-          class="flex items-center px-3 py-2 text-gray-600 transition-colors duration-300 transform rounded-lg dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-200 hover:text-gray-700"
-        >
+      <nav class="flex-1 -mx-3 space-y-2">
+        <Sidebarlink url="/overview">
           <Home strokeWidth={1.5} class="h-4 w-4" />
           <span class="mx-2 text-sm">Overview</span>
-        </Link>
+        </Sidebarlink>
 
-        <Link
-          to="/connections"
-          class="flex items-center px-3 py-2 text-gray-600 transition-colors duration-300 transform rounded-lg dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-200 hover:text-gray-700"
-        >
+        <Sidebarlink url="/connections">
           <ArrowUpDown strokeWidth={1.5} class="h-4 w-4" />
           <span class="mx-2 text-sm">Connections</span>
-        </Link>
+        </Sidebarlink>
 
-        <Link
-          to="/users"
-          class="flex items-center px-3 py-2 text-gray-600 transition-colors duration-300 transform rounded-lg dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-200 hover:text-gray-700"
-        >
+        <Sidebarlink url="/users">
           <Users strokeWidth={1.5} class="h-4 w-4" />
           <span class="mx-2 text-sm">Users</span>
-        </Link>
+        </Sidebarlink>
 
-        <Link
-          to="/profile"
-          class="flex items-center px-3 py-2 text-gray-600 transition-colors duration-300 transform rounded-lg dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-200 hover:text-gray-700"
-        >
+        <Sidebarlink url="/profile">
           <User strokeWidth={1.5} class="h-4 w-4" />
           <span class="mx-2 text-sm">Profile</span>
-        </Link>
-
-        <Link
-          to="/settings"
-          class="flex items-center px-3 py-2 text-gray-600 transition-colors duration-300 transform rounded-lg dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-200 hover:text-gray-700"
-        >
+        </Sidebarlink>
+        <Sidebarlink url="/settings">
           <Settings strokeWidth={1.5} class="h-4 w-4" />
           <span class="mx-2 text-sm">Settings</span>
-        </Link>
+        </Sidebarlink>
       </nav>
 
       <div class="mt-6 -mx-3">
