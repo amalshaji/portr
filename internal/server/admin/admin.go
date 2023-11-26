@@ -65,6 +65,8 @@ func New(config *config.Config, service *service.Service) *AdminServer {
 		if err != nil {
 			if slices.Contains(clientPages, c.Path()) {
 				return c.Redirect("/")
+			} else if c.Path() == "/" {
+				return c.Next()
 			} else {
 				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
 			}
