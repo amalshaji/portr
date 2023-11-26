@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/amalshaji/localport/internal/client/config"
+	"github.com/labstack/gommon/color"
 	"github.com/urfave/cli/v2"
 )
 
@@ -33,7 +36,13 @@ func configCmd() *cli.Command {
 					if err != nil {
 						return err
 					}
-					return config.ValidateConfig()
+					err = config.ValidateConfig()
+					if err != nil {
+						return err
+					}
+
+					fmt.Println(color.Green("Config file is valid"))
+					return nil
 				},
 			},
 		},
