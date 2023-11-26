@@ -21,6 +21,7 @@
   import { Button } from "$lib/components/ui/button";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
   import Sidebarlink from "$lib/components/sidebarlink.svelte";
+  import Overview from "./overview.svelte";
 
   export let url = "";
 
@@ -112,6 +113,7 @@
   <aside class="w-full">
     <div class="container mx-auto py-16 w-full lg:w-3/4">
       <Router {url}>
+        <Route path="/overview"><Overview /></Route>
         <Route path="/connections"><Connections /></Route>
         <Route path="/settings"><SettingsPage /></Route>
         <Route path="/profile"><Profile /></Route>
