@@ -19,8 +19,8 @@ func New(config *config.Config, service *service.Service) *Handler {
 	return &Handler{config: config, service: service, log: utils.GetLogger()}
 }
 
-func (h *Handler) RegisterUserRoutes(app *fiber.App) {
-	userGroup := app.Group("/api/user")
+func (h *Handler) RegisterUserRoutes(app *fiber.App, authMiddleware fiber.Handler) {
+	userGroup := app.Group("/api/user", authMiddleware)
 	userGroup.Get("/", h.ListUsers)
 	userGroup.Get("/me", h.Me)
 	userGroup.Patch("/me/update", h.MeUpdate)
@@ -28,8 +28,8 @@ func (h *Handler) RegisterUserRoutes(app *fiber.App) {
 	userGroup.Post("/me/logout", h.Logout)
 }
 
-func (h *Handler) RegisterConnectionRoutes(app *fiber.App) {
-	connectionGroup := app.Group("/api/connection")
+func (h *Handler) RegisterConnectionRoutes(app *fiber.App, authMiddleware fiber.Handler) {
+	connectionGroup := app.Group("/api/connection", authMiddleware)
 	connectionGroup.Get("/", h.ListConnections)
 }
 
@@ -40,16 +40,16 @@ func (h *Handler) RegisterGithubAuthRoutes(app *fiber.App) {
 	githubAuthGroup.Get("/is-superuser-signup", h.IsSuperUserSignup)
 }
 
-func (h *Handler) RegisterSettingsRoutes(app *fiber.App) {
+func (h *Handler) RegisterSettingsRoutes(app *fiber.App, authMiddleware fiber.Handler) {
 	settingsGroup := app.Group("/api/setting")
 	settingsGroup.Get("/signup", h.ListSettingsForSignupPage)
-	settingsGroup.Get("/all", h.ListSettings)
-	settingsGroup.Patch("/signup/update", h.UpdateSignupSettings)
-	settingsGroup.Patch("/email/update", h.UpdateEmailSettings)
+	settingsGroup.Get("/all", authMiddleware, h.ListSettings)
+	settingsGroup.Patch("/signup/update", authMiddleware, h.UpdateSignupSettings)
+	settingsGroup.Patch("/email/update", authMiddleware, h.UpdateEmailSettings)
 }
 
-func (h *Handler) RegisterInviteRoutes(app *fiber.App) {
-	inviteGroup := app.Group("/api/invite")
+func (h *Handler) RegisterInviteRoutes(app *fiber.App, authMiddleware fiber.Handler) {
+	inviteGroup := app.Group("/api/invite", authMiddleware)
 	inviteGroup.Get("/", h.ListInvites)
 	inviteGroup.Post("/", h.CreateInvite)
 
@@ -57,8 +57,8 @@ func (h *Handler) RegisterInviteRoutes(app *fiber.App) {
 	inviteAcceptGroup.Get("/:code", h.AcceptInvite)
 }
 
-func (h *Handler) RegisterClientConfigRoutes(app *fiber.App) {
+func (h *Handler) RegisterClientConfigRoutes(app *fiber.App, authMiddleware fiber.Handler) {
 	configGroup := app.Group("/config")
 	configGroup.Post("/validate", h.ValidateClientConfig)
-	configGroup.Get("/address", h.GetServerAddress)
+	configGroup.Get("/address", authMiddleware, h.GetServerAddress)
 }

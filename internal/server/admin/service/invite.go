@@ -37,7 +37,7 @@ func (s *Service) sendInviteEmail(invite *db.Invite) error {
 	return nil
 }
 
-func (s *Service) CreateInvite(input CreateInviteInput, invitedBy db.User) (*db.Invite, error) {
+func (s *Service) CreateInvite(input CreateInviteInput, invitedBy *db.User) (*db.Invite, error) {
 	email := utils.Trim(input.Email)
 	role := utils.Trim(input.Role)
 
@@ -62,7 +62,7 @@ func (s *Service) CreateInvite(input CreateInviteInput, invitedBy db.User) (*db.
 	invite = db.Invite{
 		Email:         email,
 		Role:          db.UserRole(role),
-		InvitedByUser: invitedBy,
+		InvitedByUser: *invitedBy,
 		InviteUid:     ulid.Make().String(),
 	}
 

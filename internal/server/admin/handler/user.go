@@ -23,8 +23,8 @@ func (h *Handler) MeUpdate(c *fiber.Ctx) error {
 	if err := c.BodyParser(&updatePayload); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"message": "invalid payload"})
 	}
-	userFromLocals := c.Locals("user").(db.User)
-	user, err := h.service.UpdateUser(&userFromLocals, updatePayload.FirstName, updatePayload.LastName)
+	userFromLocals := c.Locals("user").(*db.User)
+	user, err := h.service.UpdateUser(userFromLocals, updatePayload.FirstName, updatePayload.LastName)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "failed to update profile info"})
 	}
@@ -43,7 +43,7 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 }
 
 func (h *Handler) RotateSecretKey(c *fiber.Ctx) error {
-	user, err := h.service.RotateSecretKey(c.Locals("user").(db.User))
+	user, err := h.service.RotateSecretKey(c.Locals("user").(*db.User))
 	if err != nil {
 		h.log.Error("error while logging out", "error", err)
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"message": err.Error()})

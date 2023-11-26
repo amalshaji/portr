@@ -7,13 +7,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"slices"
 	"syscall"
 	"time"
 
 	"github.com/amalshaji/localport/internal/server/admin/handler"
 	"github.com/amalshaji/localport/internal/server/admin/service"
 	"github.com/amalshaji/localport/internal/server/config"
+	"github.com/amalshaji/localport/internal/server/db"
 	"github.com/amalshaji/localport/internal/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -45,58 +45,61 @@ func New(config *config.Config, service *service.Service) *AdminServer {
 		Compress: true,
 	})
 
-	// middleware to handle authentication
-	// throw api error for api requests
-	// redirect to login for dashboard requests
-	// finally, set user in locals
-
 	clientPages := []string{"/connections", "/overview", "/settings", "/users", "/my-account"}
-	authExcludedEndpoints := []string{"/config/validate", "/api/setting/signup"}
 
 	// handle auth
 	app.Use(func(c *fiber.Ctx) error {
-		if slices.Contains(authExcludedEndpoints, c.Path()) {
-			return c.Next()
-		}
-
 		token := c.Cookies("localport-session")
-		user, err := service.GetUserBySession(token)
+		user, _ := service.GetUserBySession(token)
 
-		if err != nil {
-			if slices.Contains(clientPages, c.Path()) {
-				return c.Redirect("/")
-			} else if c.Path() == "/" {
-				return c.Next()
-			} else {
-				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
-			}
-
-		} else {
-			if c.Path() == "/" {
-				return c.Redirect("/overview")
-			}
-		}
-		// set user in locals
 		c.Locals("user", user)
 		return c.Next()
 	})
 
+	viewAuthMiddleware := func(c *fiber.Ctx) error {
+		user := c.Locals("user").(*db.User)
+		if user == nil {
+			return c.Redirect("/")
+		}
+		return c.Next()
+	}
+
+	apiAuthMiddleware := func(c *fiber.Ctx) error {
+		user := c.Locals("user").(*db.User)
+		if user == nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
+		}
+		return c.Next()
+	}
+
 	handler := handler.New(config, service)
-	handler.RegisterUserRoutes(app)
-	handler.RegisterConnectionRoutes(app)
+	handler.RegisterUserRoutes(app, apiAuthMiddleware)
+	handler.RegisterConnectionRoutes(app, apiAuthMiddleware)
 	handler.RegisterGithubAuthRoutes(app)
-	handler.RegisterSettingsRoutes(app)
-	handler.RegisterInviteRoutes(app)
-	handler.RegisterClientConfigRoutes(app)
+	handler.RegisterSettingsRoutes(app, apiAuthMiddleware)
+	handler.RegisterInviteRoutes(app, apiAuthMiddleware)
+	handler.RegisterClientConfigRoutes(app, apiAuthMiddleware)
 
 	// server index templates for all routes
 	// should be explicit?
-	app.Use("*", func(c *fiber.Ctx) error {
+	rootTemplateView := func(c *fiber.Ctx) error {
 		return c.Render("index", fiber.Map{
 			"UseVite":  config.Admin.UseVite,
 			"ViteTags": getViteTags(),
 		})
+	}
+
+	app.Get("/", func(c *fiber.Ctx) error {
+		user := c.Locals("user").(*db.User)
+		if user != nil {
+			return c.Redirect("/overview")
+		}
+		return rootTemplateView(c)
 	})
+
+	for _, page := range clientPages {
+		app.Get(page, viewAuthMiddleware, rootTemplateView)
+	}
 
 	return &AdminServer{
 		app:    app,

@@ -22,13 +22,13 @@ func (s *Service) ListUsers() []db.User {
 	return users
 }
 
-func (s *Service) GetUserBySession(token string) (db.User, error) {
+func (s *Service) GetUserBySession(token string) (*db.User, error) {
 	var session = db.Session{}
 	result := s.db.Conn.Joins("User").First(&session, "token = ?", token)
 	if result.Error == gorm.ErrRecordNotFound {
-		return db.User{}, fmt.Errorf("session not found")
+		return nil, fmt.Errorf("session not found")
 	}
-	return session.User, nil
+	return &session.User, nil
 }
 
 func (s *Service) CreateUser(githubUserDetails GithubUserDetails, accessToken string, role db.UserRole) (db.User, error) {
@@ -116,11 +116,11 @@ func (s *Service) UpdateUser(user *db.User, firstName, lastName string) (*db.Use
 	return user, nil
 }
 
-func (s *Service) RotateSecretKey(user db.User) (*db.User, error) {
+func (s *Service) RotateSecretKey(user *db.User) (*db.User, error) {
 	user.SecretKey = utils.GenerateSecretKeyForUser()
 	result := s.db.Conn.Save(&user)
 	if result.Error != nil {
 		return nil, result.Error
 	}
-	return &user, nil
+	return user, nil
 }
