@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/amalshaji/localport/internal/server/admin/service"
@@ -12,7 +11,6 @@ import (
 func (h *Handler) CreateInvite(c *fiber.Ctx) error {
 	var payload service.CreateInviteInput
 	if err := c.BodyParser(&payload); err != nil {
-		fmt.Println(err)
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"message": "invalid payload"})
 	}
 	user, err := h.service.CreateInvite(payload, c.Locals("user").(db.User))

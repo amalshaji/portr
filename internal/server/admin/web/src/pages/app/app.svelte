@@ -92,18 +92,24 @@
       <div class="mt-6 -mx-3">
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild let:builder>
-            <Button builders={[builder]} variant="ghost" class="space-x-1">
-              <img
-                class="object-cover rounded-full h-7 w-7"
-                src={$currentUser?.avatarUrl}
-                alt="avatar"
-              />
-              <span
-                class="text-sm font-medium text-gray-700 dark:text-gray-200 overflow-clip"
-                >{$currentUser?.FirstName
-                  ? `${$currentUser?.FirstName} ${$currentUser?.LastName}`
-                  : $currentUser?.Email}</span
-              >
+            <Button
+              builders={[builder]}
+              variant="ghost"
+              class="space-x-1 justify-between w-full text-left"
+            >
+              <div class="flex items-center space-x-1">
+                <img
+                  class="object-cover rounded-full h-7 w-7"
+                  src={$currentUser?.avatarUrl}
+                  alt="avatar"
+                />
+                <span
+                  class="text-sm font-medium text-gray-700 dark:text-gray-200 overflow-clip"
+                  >{$currentUser?.FirstName
+                    ? `${$currentUser?.FirstName} ${$currentUser?.LastName}`
+                    : $currentUser?.Email}</span
+                >
+              </div>
               <MoreVertical strokeWidth={1.5} class="h-4 w-4" />
             </Button>
           </DropdownMenu.Trigger>

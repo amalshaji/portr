@@ -1,11 +1,13 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
   import * as AlertDialog from "$lib/components/ui/alert-dialog";
-
+  import { ExclamationTriangle, Reload } from "radix-icons-svelte";
+  import * as Alert from "$lib/components/ui/alert";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
 
   import * as Select from "$lib/components/ui/select";
+  import { toast } from "svelte-sonner";
   const roles = [
     { value: "member", label: "Member" },
     { value: "admin", label: "Admin" },
@@ -14,19 +16,33 @@
   let email: string = "",
     role = roles[0];
 
+  let error = "";
+
   export let open: boolean = false;
 
-  const invite = async () => {
-    const res = await fetch("/api/invite", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ Email: email, Role: role.value }),
-    });
+  let isLoading = false;
 
-    if (res.ok) {
-      open = false;
+  const invite = async () => {
+    isLoading = true;
+    try {
+      const res = await fetch("/api/invite", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ Email: email, Role: role.value }),
+      });
+
+      if (res.ok) {
+        open = false;
+        toast.success("User invited successfully");
+      } else {
+        error = (await res.json()).message;
+      }
+    } catch (err) {
+      throw err;
+    } finally {
+      isLoading = false;
     }
   };
 </script>
@@ -37,6 +53,15 @@
       <AlertDialog.Title>Invite user</AlertDialog.Title>
       <AlertDialog.Description>
         <div class="mt-4 space-y-4">
+          {#if error}
+            <Alert.Root variant="destructive">
+              <ExclamationTriangle class="h-4 w-4" />
+              <Alert.Title>Error</Alert.Title>
+              <Alert.Description>
+                {error}
+              </Alert.Description>
+            </Alert.Root>
+          {/if}
           <div class="sm:col-span-3 space-y-2">
             <Label for="email">Email</Label>
             <Input
@@ -71,7 +96,12 @@
     </AlertDialog.Header>
     <AlertDialog.Footer>
       <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-      <AlertDialog.Action on:click={invite}>Continue</AlertDialog.Action>
+      <Button on:click={invite} disabled={isLoading}>
+        {#if isLoading}
+          <Reload class="mr-2 h-4 w-4 animate-spin" />
+        {/if}
+        Invite
+      </Button>
     </AlertDialog.Footer>
   </AlertDialog.Content>
 </AlertDialog.Root>

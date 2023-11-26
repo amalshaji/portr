@@ -24,9 +24,9 @@
     allowRandomUserSignup = settings?.AllowRandomUserSignup || false;
     randomUserSignupAllowedDomains =
       settings?.RandomUserSignupAllowedDomains || "";
-    radioValue = settings?.SignupRequiresInvite
-      ? "signup_requires_invite"
-      : "allow_random_user_signup";
+    radioValue = settings?.AllowRandomUserSignup
+      ? "allow_random_user_signup"
+      : "signup_requires_invite";
   });
 
   let show_allowed_domains_textarea = true;

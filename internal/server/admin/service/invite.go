@@ -5,6 +5,7 @@ import (
 
 	"github.com/amalshaji/localport/internal/server/db"
 	"github.com/amalshaji/localport/internal/server/smtp"
+	"github.com/amalshaji/localport/internal/utils"
 	"github.com/oklog/ulid/v2"
 	"github.com/valyala/fasttemplate"
 )
@@ -37,17 +38,20 @@ func (s *Service) sendInviteEmail(invite *db.Invite) error {
 }
 
 func (s *Service) CreateInvite(input CreateInviteInput, invitedBy db.User) (*db.Invite, error) {
+	email := utils.Trim(input.Email)
+	role := utils.Trim(input.Role)
+
 	// check if user exists
 	var count int64
-	s.db.Conn.Model(&db.User{}).Where("email = ?", input.Email).Count(&count)
+	s.db.Conn.Model(&db.User{}).Where("email = ?", email).Count(&count)
 
 	if count == 1 {
-		return nil, fmt.Errorf("user with email %s already exists", input.Email)
+		return nil, fmt.Errorf("user is already a member")
 	}
 
 	// check if invite exists
 	var invite db.Invite
-	result := s.db.Conn.Where("email = ? AND status = ?", input.Email, db.Invited).First(&invite)
+	result := s.db.Conn.Where("email = ? AND status IN ?", email, []db.InviteStatus{db.Invited, db.Accepted}).First(&invite)
 	if result.Error == nil {
 		return nil, fmt.Errorf("the user is already invited")
 	}
@@ -56,8 +60,8 @@ func (s *Service) CreateInvite(input CreateInviteInput, invitedBy db.User) (*db.
 
 	// create new invite
 	invite = db.Invite{
-		Email:         input.Email,
-		Role:          db.UserRole(input.Role),
+		Email:         email,
+		Role:          db.UserRole(role),
 		InvitedByUser: invitedBy,
 		InviteUid:     ulid.Make().String(),
 	}
