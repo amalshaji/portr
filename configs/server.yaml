@@ -7,7 +7,7 @@ admin:
     clientSecret: $GITHUB_CLIENT_SECRET 
   smtp:
     host: $SMTP_HOST
-    port: 465
+    port: 587
     username: $SMTP_USERNAME
     password: $SMTP_PASSWORD
     fromEmail: $SMTP_FROM_EMAIL

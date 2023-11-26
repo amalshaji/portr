@@ -30,5 +30,5 @@ type SendEmailInput struct {
 func (s *Smtp) SendEmail(input SendEmailInput) error {
 	auth := sasl.NewPlainClient("", s.config.Smtp.Username, s.config.Smtp.Password)
 	message := fmt.Sprintf("Subject: %s\n\n%s", input.Subject, input.Body)
-	return smtp.SendMailTLS(s.config.Smtp.Address(), auth, input.From, []string{input.To}, strings.NewReader(message))
+	return smtp.SendMail(s.config.Smtp.Address(), auth, input.From, []string{input.To}, strings.NewReader(message))
 }
