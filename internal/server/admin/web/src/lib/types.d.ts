@@ -37,7 +37,6 @@ export type Invite = {
   Email: string;
   Role: "admin" | "member";
   Status: "pending" | "accepted" | "expired";
-  InviteUid: string;
   InvitedByUserID: number;
   InvitedByUser: User;
 };

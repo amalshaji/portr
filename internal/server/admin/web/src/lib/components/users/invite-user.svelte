@@ -8,6 +8,8 @@
 
   import * as Select from "$lib/components/ui/select";
   import { toast } from "svelte-sonner";
+  import { invites } from "$lib/store";
+
   const roles = [
     { value: "member", label: "Member" },
     { value: "admin", label: "Admin" },
@@ -35,8 +37,12 @@
       });
 
       if (res.ok) {
-        open = false;
         toast.success("User invited successfully");
+        const data = await res.json();
+        invites.update((invites) => {
+          return [data, ...invites];
+        });
+        open = false;
       } else {
         error = (await res.json()).message;
       }

@@ -9,7 +9,7 @@
   } from "lucide-svelte";
 
   // @ts-expect-error
-  import { Router, Route, Link, navigate } from "svelte-routing";
+  import { Router, Route, navigate } from "svelte-routing";
   import SettingsPage from "./settings.svelte";
   import Connections from "./connections.svelte";
   import Notfound from "./notfound.svelte";
