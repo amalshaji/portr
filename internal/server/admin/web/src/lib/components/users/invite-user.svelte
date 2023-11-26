@@ -37,7 +37,7 @@
       });
 
       if (res.ok) {
-        toast.success("User invited successfully");
+        toast.success("Invitation sent");
         const data = await res.json();
         invites.update((invites) => {
           return [data, ...invites];

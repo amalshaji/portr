@@ -35,7 +35,9 @@
             UserInviteEmailTemplate: userInviteEmailTemplate,
           };
         });
-        toast.success("Email settings updated successfully");
+        toast.success("Email settings updated");
+      } else {
+        toast.error("Something went wrong");
       }
     } catch (err) {
       console.error(err);

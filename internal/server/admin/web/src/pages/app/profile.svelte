@@ -30,8 +30,12 @@
           lastName,
         }),
       });
-      $currentUser = await res.json();
-      toast.success("Profile updated successfully");
+      if (res.ok) {
+        currentUser.set(await res.json());
+        toast.success("Profile updated");
+      } else {
+        toast.error("Something went wrong");
+      }
     } catch (err) {
       throw err;
     } finally {

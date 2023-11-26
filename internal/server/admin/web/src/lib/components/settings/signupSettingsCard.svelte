@@ -76,7 +76,7 @@
         });
         toast.success("Signup settings updated");
       } else {
-        toast.error("Failed to update signup settings");
+        toast.error("Something went wrong");
       }
     } catch (err) {
       console.error(err);
