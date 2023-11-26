@@ -37,7 +37,10 @@ tunnels:
 <div class="px-6 mt-4">
   <ul class="list-decimal space-y-4">
     <li>
-      Download the localport client from <a href="#" class="underline">here</a>
+      Download the localport client from <a
+        href="/static/localport.zip"
+        class="underline">here</a
+      >
     </li>
     <li class="space-y-2">
       <span
