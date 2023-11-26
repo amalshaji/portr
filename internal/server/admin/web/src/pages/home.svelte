@@ -9,13 +9,33 @@
 
   import * as Alert from "$lib/components/ui/alert";
   import { Button } from "$lib/components/ui/button";
-  import type { SettingsForSignup } from "$lib/types";
+  import { settingsForSignup } from "$lib/store";
 
   let isSuperUserSignup = false;
-  let settingsForSignup: SettingsForSignup;
+
+  const getErrorMessage = (errCode: string) => {
+    const errorCodes: Map<string, string> = {
+      // @ts-expect-error
+      "github-oauth-error": "There was an error authenticating with GitHub.",
+      "invalid-invite": "The invite is not valid.",
+      "requires-invite": "Signup requires an invite.",
+      "domain-not-allowed": `You need to use one of the following domains to sign up: ${$settingsForSignup?.RandomUserSignupAllowedDomains.split(
+        ","
+      ).join(", ")}`,
+    };
+    return (
+      // @ts-expect-error
+      errorCodes[errCode] ?? ""
+    );
+  };
 
   const urlParams = new URLSearchParams(window.location.search);
-  const githubAuthError = urlParams.get("github-oauth-error");
+  const errorCode = urlParams.get("errorCode") as string;
+  let error: string = "";
+
+  if (errorCode) {
+    error = getErrorMessage(errorCode);
+  }
 
   const checkIfSuperuserSignup = async () => {
     const resp = await fetch("/auth/github/is-superuser-signup");
@@ -25,7 +45,7 @@
 
   const getSettingsForSignup = async () => {
     const resp = await fetch("/api/setting/signup");
-    settingsForSignup = await resp.json();
+    settingsForSignup.set(await resp.json());
   };
 
   onMount(() => {
@@ -58,11 +78,11 @@
         <Alert.Description>
           {#if isSuperUserSignup}
             You are signing up as a superuser.
-          {:else if settingsForSignup?.SignupRequiresInvite}
+          {:else if $settingsForSignup?.SignupRequiresInvite}
             You need an invite to sign up.
-          {:else if settingsForSignup?.RandomUserSignupAllowedDomains.length > 0}
+          {:else if $settingsForSignup?.RandomUserSignupAllowedDomains?.length ?? 0 > 0}
             Signup is restricted to the following domains:
-            {settingsForSignup?.RandomUserSignupAllowedDomains.split(",").join(
+            {$settingsForSignup?.RandomUserSignupAllowedDomains.split(",").join(
               ", "
             )}
           {/if}
@@ -70,13 +90,13 @@
       </Alert.Root>
     </div>
 
-    {#if githubAuthError}
+    {#if error}
       <div class="my-4 bg-white">
         <Alert.Root>
           <ExclamationTriangle class="h-4 w-4" />
           <Alert.Title>Error</Alert.Title>
           <Alert.Description>
-            {githubAuthError}
+            {error}
           </Alert.Description>
         </Alert.Root>
       </div>

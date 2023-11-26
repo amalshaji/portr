@@ -1,9 +1,10 @@
 package handler
 
 import (
-	"fmt"
+	"errors"
 	"time"
 
+	"github.com/amalshaji/localport/internal/server/admin/service"
 	"github.com/amalshaji/localport/internal/utils"
 	"github.com/gofiber/fiber/v2"
 )
@@ -28,7 +29,7 @@ func (h *Handler) GithubAuthCallback(c *fiber.Ctx) error {
 	state := c.Cookies("localport-oauth-state")
 	if state == "" {
 		h.log.Error("malformed oauth flow", "error", "missing state in cookie")
-		return c.Redirect("/?github-oauth-error=error while authenticating with github")
+		return c.Redirect("/?errorCode=github-oauth-error")
 	}
 
 	c.ClearCookie("localport-oauth-state")
@@ -36,7 +37,7 @@ func (h *Handler) GithubAuthCallback(c *fiber.Ctx) error {
 	code := c.Query("code")
 	if code == "" {
 		h.log.Error("malformed oauth flow", "error", "missing code in query params")
-		return c.Redirect("/?github-oauth-error=error while authenticating with github")
+		return c.Redirect("/?errorCode=github-oauth-error")
 	}
 
 	oauth2Client := h.service.GetOauth2Client()
@@ -44,13 +45,16 @@ func (h *Handler) GithubAuthCallback(c *fiber.Ctx) error {
 	token, err := oauth2Client.Exchange(c.Context(), code)
 	if err != nil {
 		h.log.Error("error while getting access token", "error", err)
-		return c.Redirect("/?github-oauth-error=error while authenticating with github")
+		return c.Redirect("/?errorCode=github-oauth-error")
 	}
 
 	user, err := h.service.GetOrCreateUserForGithubLogin(token.AccessToken)
 	if err != nil {
 		h.log.Error("error while creating user", "error", err)
-		return c.Redirect(fmt.Sprintf("/?github-oauth-error=%s", err.Error()))
+		if errors.Is(err, service.ErrRequiresInvite) {
+			return c.Redirect("/?errorCode=requires-invite")
+		}
+		return c.Redirect("/?errorCode=domain-not-allowed")
 	}
 
 	sessionToken := h.service.LoginUser(user)

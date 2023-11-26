@@ -10,6 +10,11 @@ import (
 	"gorm.io/gorm"
 )
 
+var (
+	ErrRequiresInvite   = fmt.Errorf("requires invite")
+	ErrDomainNotAllowed = fmt.Errorf("domain not allowed")
+)
+
 func (s *Service) ListUsers() []db.User {
 	var users []db.User
 	s.db.Conn.Find(&users)
@@ -47,13 +52,13 @@ func (s *Service) checkEligibleSignup(userDetails GithubUserDetails) error {
 		var count int64
 		s.db.Conn.Find(&db.Invite{}, "email = ? AND status = ?", userDetails.Email, "invited").Count(&count)
 		if count == 0 {
-			return fmt.Errorf("please ask your admin to invite you")
+			return ErrRequiresInvite
 		}
 	} else {
 		allowedDomains := strings.Split(settings.RandomUserSignupAllowedDomains, ",")
 		userEmailDomain := strings.Split(userDetails.Email, "@")[1]
 		if !slices.Contains(allowedDomains, userEmailDomain) {
-			return fmt.Errorf("%s is not allowed to signup", userEmailDomain)
+			return ErrDomainNotAllowed
 		}
 	}
 	return nil
