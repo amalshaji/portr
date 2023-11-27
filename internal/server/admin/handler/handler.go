@@ -48,10 +48,14 @@ func (h *Handler) RegisterSettingsRoutes(app *fiber.App, authMiddleware fiber.Ha
 	settingsGroup.Patch("/email/update", authMiddleware, h.UpdateEmailSettings)
 }
 
-func (h *Handler) RegisterInviteRoutes(app *fiber.App, authMiddleware fiber.Handler) {
+func (h *Handler) RegisterInviteRoutes(
+	app *fiber.App,
+	authMiddleware fiber.Handler,
+	permissionHandler fiber.Handler,
+) {
 	inviteGroup := app.Group("/api/invite", authMiddleware)
 	inviteGroup.Get("/", h.ListInvites)
-	inviteGroup.Post("/", h.CreateInvite)
+	inviteGroup.Post("/", permissionHandler, h.CreateInvite)
 
 	inviteAcceptGroup := app.Group("/invite")
 	inviteAcceptGroup.Get("/:code", h.AcceptInvite)

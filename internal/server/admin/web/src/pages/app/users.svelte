@@ -3,8 +3,8 @@
   import Invites from "$lib/components/users/invites.svelte";
   import Members from "$lib/components/users/members.svelte";
   import { Button } from "$lib/components/ui/button";
-  import * as AlertDialog from "$lib/components/ui/alert-dialog";
   import InviteUser from "$lib/components/users/invite-user.svelte";
+  import { currentUser } from "$lib/store";
 
   let currentTab = "members";
 
@@ -16,8 +16,9 @@
 <div class="flex justify-between items-center">
   <p class="text-2xl py-4">Users</p>
   {#if currentTab === "invites"}
-    <Button on:click={() => (inviteUserModalOpen = !inviteUserModalOpen)}
-      >Invite user</Button
+    <Button
+      on:click={() => (inviteUserModalOpen = !inviteUserModalOpen)}
+      disabled={$currentUser?.Role === "member"}>Invite user</Button
     >
   {/if}
 </div>

@@ -56,28 +56,12 @@ func New(config *config.Config, service *service.Service) *AdminServer {
 		return c.Next()
 	})
 
-	viewAuthMiddleware := func(c *fiber.Ctx) error {
-		user := c.Locals("user").(*db.User)
-		if user == nil {
-			return c.Redirect("/")
-		}
-		return c.Next()
-	}
-
-	apiAuthMiddleware := func(c *fiber.Ctx) error {
-		user := c.Locals("user").(*db.User)
-		if user == nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
-		}
-		return c.Next()
-	}
-
 	handler := handler.New(config, service)
 	handler.RegisterUserRoutes(app, apiAuthMiddleware)
 	handler.RegisterConnectionRoutes(app, apiAuthMiddleware)
 	handler.RegisterGithubAuthRoutes(app)
 	handler.RegisterSettingsRoutes(app, apiAuthMiddleware)
-	handler.RegisterInviteRoutes(app, apiAuthMiddleware)
+	handler.RegisterInviteRoutes(app, apiAuthMiddleware, adminPermissionRequired)
 	handler.RegisterClientConfigRoutes(app, apiAuthMiddleware)
 
 	// server index templates for all routes
