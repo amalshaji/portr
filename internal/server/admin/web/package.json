@@ -30,7 +30,7 @@
     "tailwindcss": "^3.3.5",
     "tslib": "^2.6.2",
     "typescript": "^5.3.2",
-    "vite": "^5.0.2"
+    "vite": "^5.0.5"
   },
   "dependencies": {
     "bits-ui": "^0.9.8",
