@@ -36,13 +36,13 @@ func (t *Tunnel) GetAddr() string {
 }
 
 type Config struct {
-	ServerUrl string   `yaml:"serverUrl"`
-	SshUrl    string   `yaml:"sshUrl"`
-	TunnelUrl string   `yaml:"tunnelUrl"`
-	SecretKey string   `yaml:"secretKey"`
-	Tunnels   []Tunnel `yaml:"tunnels"`
-	Secure    bool     `yaml:"secure"`
-	Debug     bool     `yaml:"debug"`
+	ServerUrl    string   `yaml:"serverUrl"`
+	SshUrl       string   `yaml:"sshUrl"`
+	TunnelUrl    string   `yaml:"tunnelUrl"`
+	SecretKey    string   `yaml:"secretKey"`
+	Tunnels      []Tunnel `yaml:"tunnels"`
+	UseLocalHost bool     `yaml:"useLocalhost"`
+	Debug        bool     `yaml:"debug"`
 }
 
 func (c *Config) SetDefaults() {
@@ -65,7 +65,7 @@ func (c *Config) SetDefaults() {
 
 func (c Config) GetAdminAddress() string {
 	protocol := "http"
-	if c.Secure {
+	if !c.UseLocalHost {
 		protocol = "https"
 	}
 
@@ -73,18 +73,18 @@ func (c Config) GetAdminAddress() string {
 }
 
 type ClientConfig struct {
-	ServerUrl string
-	SshUrl    string
-	TunnelUrl string
-	SecretKey string
-	Tunnel    Tunnel
-	Secure    bool
-	Debug     bool
+	ServerUrl    string
+	SshUrl       string
+	TunnelUrl    string
+	SecretKey    string
+	Tunnel       Tunnel
+	UseLocalHost bool
+	Debug        bool
 }
 
 func (c *ClientConfig) GetAddr() string {
 	protocol := "http"
-	if c.Secure {
+	if !c.UseLocalHost {
 		protocol = "https"
 	}
 
@@ -187,7 +187,11 @@ func (c Config) ValidateConfig() error {
 		return err
 	}
 
-	resp, err := http.Post(c.GetAdminAddress()+"/config/validate", "application/json", bytes.NewBuffer(payload))
+	resp, err := http.Post(
+		c.GetAdminAddress()+"/config/validate",
+		"application/json",
+		bytes.NewBuffer(payload),
+	)
 	if err != nil {
 		return err
 	}

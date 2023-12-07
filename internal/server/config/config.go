@@ -61,12 +61,12 @@ func (p ProxyConfig) Address() string {
 }
 
 type Config struct {
-	Admin  AdminConfig `yaml:"admin"`
-	Ssh    SshConfig   `yaml:"ssh"`
-	Proxy  ProxyConfig `yaml:"proxy"`
-	Domain string      `yaml:"domain"`
-	Secure bool        `yaml:"secure"`
-	Debug  bool        `yaml:"debug"`
+	Admin        AdminConfig `yaml:"admin"`
+	Ssh          SshConfig   `yaml:"ssh"`
+	Proxy        ProxyConfig `yaml:"proxy"`
+	Domain       string      `yaml:"domain"`
+	UseLocalHost bool        `yaml:"useLocalhost"`
+	Debug        bool        `yaml:"debug"`
 }
 
 func new() *Config {
@@ -89,27 +89,27 @@ func new() *Config {
 			Host: "localhost",
 			Port: 8001,
 		},
-		Domain: "",
-		Secure: false,
-		Debug:  false,
+		Domain:       "",
+		UseLocalHost: false,
+		Debug:        false,
 	}
 }
 
 func (c *Config) setDefaults() {
-	if !c.Secure {
+	if c.UseLocalHost {
 		c.Domain = c.Admin.Address()
 	}
 }
 
 func (c Config) Protocol() string {
-	if c.Secure {
+	if !c.UseLocalHost {
 		return "https"
 	}
 	return "http"
 }
 
 func (c Config) AdminUrl() string {
-	if c.Secure {
+	if !c.UseLocalHost {
 		return "https://" + c.Domain
 	}
 	return "http://" + c.Admin.Address()
@@ -117,7 +117,7 @@ func (c Config) AdminUrl() string {
 
 func (c Config) ExtractSubdomain(url string) string {
 	withoutProtocol := strings.ReplaceAll(url, c.Protocol()+"://", "")
-	if c.Secure {
+	if !c.UseLocalHost {
 		return strings.ReplaceAll(withoutProtocol, "."+c.Domain, "")
 	}
 	return strings.ReplaceAll(withoutProtocol, "."+c.Proxy.Address(), "")

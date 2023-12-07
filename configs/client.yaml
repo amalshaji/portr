@@ -1,8 +1,8 @@
 serverUrl: localhost:8000
 sshUrl: localhost:2222
 tunnelUrl: localhost:8001
-secretKey: 
-secure: false
+secretKey: LS4cmVvT17ut2nBodeqNzcFzx6p1fCoQshCCOyg4Ip
+useLocalhost: true
 debug: true
 tunnels:
   - name: localport

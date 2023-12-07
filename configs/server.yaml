@@ -1,5 +1,6 @@
 admin:
   port: 8000
+  useVite: false
   oauth:
     clientId: $GITHUB_CLIENT_ID # this is replaced by the environment var
     clientSecret: $GITHUB_CLIENT_SECRET
@@ -13,6 +14,6 @@ ssh:
   port: 2222
 proxy:
   port: 8001
-secure: false
+useLocalhost: true
 debug: true
 domain: $DOMAIN

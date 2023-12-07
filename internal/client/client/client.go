@@ -37,13 +37,13 @@ func (c *Client) Start(ctx context.Context, services ...string) {
 			continue
 		}
 		clientConfigs = append(clientConfigs, config.ClientConfig{
-			ServerUrl: c.config.ServerUrl,
-			SshUrl:    c.config.SshUrl,
-			TunnelUrl: c.config.TunnelUrl,
-			SecretKey: c.config.SecretKey,
-			Tunnel:    tunnel,
-			Secure:    c.config.Secure,
-			Debug:     c.config.Debug,
+			ServerUrl:    c.config.ServerUrl,
+			SshUrl:       c.config.SshUrl,
+			TunnelUrl:    c.config.TunnelUrl,
+			SecretKey:    c.config.SecretKey,
+			Tunnel:       tunnel,
+			UseLocalHost: c.config.UseLocalHost,
+			Debug:        c.config.Debug,
 		})
 	}
 

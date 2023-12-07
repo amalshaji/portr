@@ -18,7 +18,6 @@
 serverUrl: ${serverAddress?.AdminUrl}
 sshUrl: ${serverAddress?.SshUrl}
 secretKey: ${$currentUser?.SecretKey} # <- this is your key
-secure: true
 tunnels:
   - name: localport
     subdomain: localport

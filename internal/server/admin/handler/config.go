@@ -32,12 +32,10 @@ func (h *Handler) ValidateClientConfig(c *fiber.Ctx) error {
 
 func (h *Handler) GetServerAddress(c *fiber.Ctx) error {
 	AdminUrl := h.config.Admin.Host + ":" + fmt.Sprint(h.config.Admin.Port)
-	if h.config.Secure {
-		AdminUrl = h.config.Domain
-	}
-
 	sshHost := h.config.Ssh.Host
-	if h.config.Secure {
+
+	if !h.config.UseLocalHost {
+		AdminUrl = h.config.Domain
 		sshHost = h.config.Domain
 	}
 
