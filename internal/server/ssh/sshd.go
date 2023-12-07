@@ -82,15 +82,15 @@ func (s *SshServer) Start() {
 				return false
 			}
 
-			err := s.proxy.AddRoute(subdomain, proxyTarget)
-			if err != nil {
-				s.log.Error("failed to add route", "error", err)
-				return false
-			}
-
 			connection, err := s.service.RegisterNewConnection(subdomain, secretKey)
 			if err != nil {
 				s.log.Error("failed to register connection", "error", err)
+				return false
+			}
+
+			err = s.proxy.AddRoute(subdomain, proxyTarget)
+			if err != nil {
+				s.log.Error("failed to add route", "error", err)
 				return false
 			}
 
