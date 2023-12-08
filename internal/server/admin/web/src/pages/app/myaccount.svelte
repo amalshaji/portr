@@ -46,7 +46,7 @@
 
   const copySecretToClipboard = () => {
     navigator.clipboard.writeText($currentUser?.SecretKey as string);
-    toast.success("Secret key to clipboard");
+    toast.success("Secret key copied to clipboard");
   };
 
   const rotateSecretKey = async () => {
