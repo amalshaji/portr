@@ -22,9 +22,6 @@ devDependencies:
   '@sveltejs/vite-plugin-svelte':
     specifier: ^2.5.3
     version: 2.5.3(svelte@4.2.8)(vite@5.0.7)
-  '@tanstack/svelte-query':
-    specifier: ^5.13.2
-    version: 5.13.2(svelte@4.2.8)
   '@tsconfig/svelte':
     specifier: ^5.0.2
     version: 5.0.2
@@ -567,19 +564,6 @@ packages:
     dependencies:
       tslib: 2.6.2
     dev: false
-
-  /@tanstack/query-core@5.12.1:
-    resolution: {integrity: sha512-WbZztNmKq0t6QjdNmHzezbi/uifYo9j6e2GLJkodsYaYUlzMbAp91RDyeHkIZrm7EfO4wa6Sm5sxJZm5SPlh6w==}
-    dev: true
-
-  /@tanstack/svelte-query@5.13.2(svelte@4.2.8):
-    resolution: {integrity: sha512-WtgHNUDaYERNMMzYDdiOH53b2r8I4vlNKS2Pmm5v8CXKNkkFLOY/JcLFqQRel3V8Rb4qM0BMdCfOFVtcg6CAiw==}
-    peerDependencies:
-      svelte: ^3.54.0 || ^4.0.0 || ^5.0.0-next.0
-    dependencies:
-      '@tanstack/query-core': 5.12.1
-      svelte: 4.2.8
-    dev: true
 
   /@tsconfig/svelte@5.0.2:
     resolution: {integrity: sha512-BRbo1fOtyVbhfLyuCWw6wAWp+U8UQle+ZXu84MYYWzYSEB28dyfnRBIE99eoG+qdAC0po6L2ScIEivcT07UaMA==}
