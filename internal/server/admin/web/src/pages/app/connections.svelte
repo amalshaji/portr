@@ -48,7 +48,7 @@
       header: "Status",
     }),
     table.column({
-      header: "Created At",
+      header: "Created at",
       accessor: ({ CreatedAt }: { CreatedAt: string }) =>
         new Date(CreatedAt).toLocaleString("en-US"),
     }),
@@ -73,7 +73,7 @@
         }
         return Email;
       },
-      header: "User",
+      header: "Created by",
     }),
   ]);
 </script>

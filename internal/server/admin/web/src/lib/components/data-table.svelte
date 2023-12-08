@@ -24,7 +24,7 @@
                 let:props
               >
                 <Table.Head class="text-gray-800" {...attrs}>
-                  <div class="px-2">
+                  <div class="px-2 font-semibold">
                     <Render of={cell.render()} />
                   </div>
                 </Table.Head>
