@@ -6,7 +6,7 @@ COPY internal/server/admin/web .
 
 RUN npm i -g pnpm && pnpm i && pnpm build
 
-FROM golang:1.21.4 AS builder
+FROM golang:1.21.5 AS builder
 
 WORKDIR /app
 
