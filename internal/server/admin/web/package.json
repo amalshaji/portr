@@ -11,31 +11,31 @@
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^2.5.3",
-    "@tanstack/svelte-query": "^5.8.6",
+    "@tanstack/svelte-query": "^5.13.2",
     "@tsconfig/svelte": "^5.0.2",
     "autoprefixer": "^10.4.16",
     "clsx": "^2.0.0",
     "formsnap": "^0.4.1",
     "highlight.js": "^11.9.0",
-    "postcss": "^8.4.31",
+    "postcss": "^8.4.32",
     "postcss-load-config": "^4.0.2",
     "radix-icons-svelte": "^1.2.1",
-    "svelte": "^4.2.7",
+    "svelte": "^4.2.8",
     "svelte-check": "^3.6.2",
     "svelte-headless-table": "^0.17.7",
     "svelte-highlight": "^7.4.2",
-    "svelte-routing": "^2.8.0",
-    "tailwind-merge": "^2.0.0",
+    "svelte-routing": "^2.10.0",
+    "tailwind-merge": "^2.1.0",
     "tailwind-variants": "^0.1.18",
-    "tailwindcss": "^3.3.5",
+    "tailwindcss": "^3.3.6",
     "tslib": "^2.6.2",
-    "typescript": "^5.3.2",
-    "vite": "^5.0.2"
+    "typescript": "^5.3.3",
+    "vite": "^5.0.7"
   },
   "dependencies": {
-    "bits-ui": "^0.9.8",
+    "bits-ui": "^0.9.9",
     "lucide-svelte": "^0.292.0",
-    "svelte-sonner": "^0.3.3",
+    "svelte-sonner": "^0.3.6",
     "zod": "^3.22.4"
   }
 }
