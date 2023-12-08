@@ -3,7 +3,7 @@
   import { shell, yaml } from "svelte-highlight/languages";
   import { toast } from "svelte-sonner";
   import "svelte-highlight/styles/stackoverflow-light.css";
-  import { currentUser } from "$lib/store";
+  import { currentUser, serverAddress } from "$lib/store";
   import type { ServerAddress } from "$lib/types";
   import { onMount } from "svelte";
 
@@ -12,11 +12,10 @@
   const helpCommand = "localport -h";
 
   let config: string;
-  let serverAddress: ServerAddress;
 
   $: config = `
-serverUrl: ${serverAddress?.AdminUrl}
-sshUrl: ${serverAddress?.SshUrl}
+serverUrl: ${$serverAddress?.AdminUrl}
+sshUrl: ${$serverAddress?.SshUrl}
 secretKey: ${$currentUser?.SecretKey} # <- this is your key
 tunnels:
   - name: localport
@@ -31,7 +30,7 @@ tunnels:
 
   const getServerAddress = async () => {
     const res = await fetch("/config/address");
-    serverAddress = await res.json();
+    serverAddress.set(await res.json());
   };
 
   onMount(() => {
@@ -54,6 +53,8 @@ tunnels:
         >Edit the localport client config file using the following command. This
         will open the default config file</span
       >
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
       <div
         class="border rounded-sm"
         on:click={() => copyCodeToClipboard(editConfigCommand)}
@@ -63,6 +64,8 @@ tunnels:
     </li>
     <li class="space-y-2">
       <span>Paste the following into the config file and save it.</span>
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
       <div
         class="border rounded-sm"
         on:click={() => copyCodeToClipboard(config)}
@@ -75,6 +78,8 @@ tunnels:
         >Validate the config file by running the following command. This will
         validate the key and pull necessary credentials for the tunnel to work.
       </span>
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
       <div
         class="border rounded-sm"
         on:click={() => copyCodeToClipboard(validateConfigCommand)}

@@ -2,6 +2,7 @@ import { writable } from "svelte/store";
 import type {
   Connection,
   Invite,
+  ServerAddress,
   Settings,
   SettingsForSignup,
   User,
@@ -20,3 +21,5 @@ export const invites = writable<Invite[]>([]);
 export const invitesLoading = writable(false);
 
 export const settingsForSignup = writable<SettingsForSignup | null>(null);
+
+export const serverAddress = writable<ServerAddress | null>(null);
