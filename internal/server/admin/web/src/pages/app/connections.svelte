@@ -34,10 +34,6 @@
   const table = createTable(connections);
 
   const columns = table.createColumns([
-    // table.column({
-    //   accessor: "ID",
-    //   header: "ID",
-    // }),
     table.column({
       accessor: "Subdomain",
       header: "Subdomain",
@@ -79,8 +75,8 @@
 </script>
 
 <p class="text-2xl py-4">{connectionType} connections</p>
-<div class="flex items-center space-x-2 my-3">
-  <Checkbox id="terms" bind:checked />
+<div class="flex items-center space-x-2 my-6">
+  <Checkbox id="terms" bind:checked class="rounded-full" />
   <Label
     for="terms"
     class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"

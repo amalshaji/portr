@@ -37,7 +37,7 @@
     }),
     table.column({
       accessor: (item: User) => item,
-      header: "",
+      header: "Avatar",
       cell: ({
         value: { AvatarUrl, Email },
       }: {

@@ -1,6 +1,5 @@
 <script lang="ts">
   import "./app.pcss";
-  // @ts-expect-error
   import { Router, Route } from "svelte-routing";
   import { Toaster } from "svelte-sonner";
 

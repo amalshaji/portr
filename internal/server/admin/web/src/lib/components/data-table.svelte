@@ -23,8 +23,8 @@
                 props={cell.props()}
                 let:props
               >
-                <Table.Head class="text-gray-800" {...attrs}>
-                  <div class="px-2 font-semibold">
+                <Table.Head class="text-gray-800 bg-gray-100" {...attrs}>
+                  <div class="px-2">
                     <Render of={cell.render()} />
                   </div>
                 </Table.Head>
@@ -62,7 +62,7 @@
                   let:props
                 >
                   <Table.Cell {...attrs}>
-                    <div class="px-2">
+                    <div class="px-2 py-2">
                       <Render of={cell.render()} />
                     </div>
                   </Table.Cell>

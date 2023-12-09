@@ -8,7 +8,6 @@
     MoreVertical,
   } from "lucide-svelte";
 
-  // @ts-expect-error
   import { Router, Route, navigate } from "svelte-routing";
   import SettingsPage from "./settings.svelte";
   import Connections from "./connections.svelte";
@@ -112,7 +111,7 @@
     </div>
   </aside>
   <aside class="w-full">
-    <div class="container mx-auto py-16 w-full lg:w-3/4">
+    <div class="mx-auto py-16 w-full lg:w-4/5">
       <Router {url}>
         <Route path="/overview"><Overview /></Route>
         <Route path="/connections"><Connections /></Route>
