@@ -4,7 +4,6 @@
   import { toast } from "svelte-sonner";
   import "svelte-highlight/styles/stackoverflow-light.css";
   import { currentUser, serverAddress } from "$lib/store";
-  import type { ServerAddress } from "$lib/types";
   import { onMount } from "svelte";
 
   const editConfigCommand = "localport config edit";
