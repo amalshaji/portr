@@ -6,21 +6,18 @@ import (
 	"github.com/amalshaji/localport/internal/server/db"
 	"github.com/amalshaji/localport/internal/server/smtp"
 	"github.com/amalshaji/localport/internal/utils"
-	"github.com/oklog/ulid/v2"
 	"github.com/valyala/fasttemplate"
 )
 
-func (s *Service) sendInviteEmail(invite *db.Invite) error {
-	inviteURL := fmt.Sprintf("%s/invite/%s", s.config.AdminUrl(), invite.InviteUid)
-
+func (s *Service) sendInviteNotification(invite *db.Invite) error {
 	// get email template
 	settings := s.ListSettings()
 
 	t := fasttemplate.New(settings.UserInviteEmailTemplate, "{{", "}}")
 	renderedText := t.ExecuteString(map[string]interface{}{
-		"inviteUrl": inviteURL,
-		"email":     invite.Email,
-		"role":      invite.Role,
+		"appUrl": s.config.AdminUrl(),
+		"email":  invite.Email,
+		"role":   invite.Role,
 	})
 
 	smtpInput := smtp.SendEmailInput{
@@ -31,7 +28,7 @@ func (s *Service) sendInviteEmail(invite *db.Invite) error {
 	}
 
 	if err := s.smtp.SendEmail(smtpInput); err != nil {
-		s.log.Error("failed to send invite email", "error", err)
+		s.log.Error("failed to send invite notification", "error", err)
 		return err
 	}
 	return nil
@@ -51,7 +48,7 @@ func (s *Service) CreateInvite(input CreateInviteInput, invitedBy *db.User) (*db
 
 	// check if invite exists
 	var invite db.Invite
-	result := s.db.Conn.Where("email = ? AND status IN ?", email, []db.InviteStatus{db.Invited, db.Accepted}).First(&invite)
+	result := s.db.Conn.Where("email = ? AND status = ?", email, db.Active).First(&invite)
 	if result.Error == nil {
 		return nil, fmt.Errorf("the user is already invited")
 	}
@@ -63,7 +60,6 @@ func (s *Service) CreateInvite(input CreateInviteInput, invitedBy *db.User) (*db
 		Email:         email,
 		Role:          db.UserRole(role),
 		InvitedByUser: *invitedBy,
-		InviteUid:     ulid.Make().String(),
 	}
 
 	result = tx.Create(&invite)
@@ -73,7 +69,7 @@ func (s *Service) CreateInvite(input CreateInviteInput, invitedBy *db.User) (*db
 	}
 
 	// send invite email
-	if err := s.sendInviteEmail(&invite); err != nil {
+	if err := s.sendInviteNotification(&invite); err != nil {
 		tx.Rollback()
 		return nil, err
 	}
@@ -91,20 +87,3 @@ func (s *Service) ListInvites() []db.Invite {
 var (
 	ErrInviteNotFound = fmt.Errorf("invite not found")
 )
-
-func (s *Service) AcceptInvite(code string) error {
-	var invite db.Invite
-	result := s.db.Conn.Where("invite_uid = ? AND status = ?", code, db.Invited).First(&invite)
-	if result.Error != nil {
-		return ErrInviteNotFound
-	}
-
-	invite.Status = db.Accepted
-	result = s.db.Conn.Save(&invite)
-	if result.Error != nil {
-		s.log.Error("failed to update invite status", "error", result.Error)
-		return result.Error
-	}
-
-	return nil
-}

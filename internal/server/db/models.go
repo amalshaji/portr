@@ -40,9 +40,9 @@ type Session struct {
 type InviteStatus string
 
 const (
-	Invited  InviteStatus = "invited"
-	Accepted InviteStatus = "accepted"
-	Expired  InviteStatus = "expired"
+	Active    InviteStatus = "active"
+	Accepted  InviteStatus = "accepted"
+	Cancelled InviteStatus = "cancelled"
 )
 
 type Invite struct {
@@ -50,8 +50,7 @@ type Invite struct {
 
 	Email           string
 	Role            UserRole     `gorm:"default:member"`
-	Status          InviteStatus `gorm:"default:invited"`
-	InviteUid       string       `gorm:"uniqueIndex" json:"-"`
+	Status          InviteStatus `gorm:"default:active"`
 	InvitedByUserID uint
 	InvitedByUser   User
 }

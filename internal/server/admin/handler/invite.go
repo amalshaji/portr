@@ -23,11 +23,3 @@ func (h *Handler) CreateInvite(c *fiber.Ctx) error {
 func (h *Handler) ListInvites(c *fiber.Ctx) error {
 	return c.JSON(h.service.ListInvites())
 }
-
-func (h *Handler) AcceptInvite(c *fiber.Ctx) error {
-	err := h.service.AcceptInvite(c.Params("code"))
-	if err != nil {
-		return c.Redirect("/?code=invalid-invite")
-	}
-	return c.Redirect("/?code=invite-accepted")
-}

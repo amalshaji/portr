@@ -91,7 +91,7 @@
                     alt="avatar"
                   />
                   <span
-                    class="text-sm font-medium text-gray-700 dark:text-gray-200 overflow-clip"
+                    class="text-sm font-medium text-gray-700 dark:text-gray-200 overflow-clip text-ellipsis"
                     >{$currentUser?.FirstName
                       ? `${$currentUser?.FirstName} ${$currentUser?.LastName}`
                       : $currentUser?.Email}</span

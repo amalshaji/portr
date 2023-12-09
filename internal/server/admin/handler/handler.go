@@ -56,9 +56,6 @@ func (h *Handler) RegisterInviteRoutes(
 	inviteGroup := app.Group("/api/invite", authMiddleware)
 	inviteGroup.Get("/", h.ListInvites)
 	inviteGroup.Post("/", permissionHandler, h.CreateInvite)
-
-	inviteAcceptGroup := app.Group("/invite")
-	inviteAcceptGroup.Get("/:code", h.AcceptInvite)
 }
 
 func (h *Handler) RegisterClientConfigRoutes(app *fiber.App, authMiddleware fiber.Handler) {

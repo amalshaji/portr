@@ -21,9 +21,9 @@ var (
 	DefaultSignupRequiresInvite           = true
 	DefaultAllowRandomUserSignup          = false
 	DefaultRandomUserSignupAllowedDomains = ""
-	DefaultUserInviteEmailTemplate        = utils.Trim(`Hi {{email}}, you have been invited to join LocalPort. Click the link below to get started.
+	DefaultUserInviteEmailTemplate        = utils.Trim(`Hi {{email}}, you have been invited to join LocalPort. You can now signup using your GitHub account.
 
-<a href="{{inviteUrl}}">Click here to create your account</a>`)
+{{appUrl}}`)
 )
 
 func (d *Db) Connect() {
