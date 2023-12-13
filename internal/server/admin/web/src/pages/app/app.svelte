@@ -22,6 +22,7 @@
   import Overview from "./overview.svelte";
   import { setContext } from "svelte";
   import TeamSelector from "$lib/components/team-selector.svelte";
+  import { LogOut } from "lucide-svelte";
 
   export let url = "";
   export let team: string;
@@ -118,9 +119,10 @@
               </Button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content class="w-52">
-              <DropdownMenu.Item on:click={logout} class="hover:cursor-pointer"
-                >Logout</DropdownMenu.Item
-              >
+              <DropdownMenu.Item on:click={logout} class="hover:cursor-pointer">
+                <LogOut strokeWidth={1.5} class="h-4 w-4" />
+                <span class="mx-2 text-sm">Logout</span>
+              </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Root>
         </div>
