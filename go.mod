@@ -10,7 +10,6 @@ require (
 	github.com/gofiber/template/django/v3 v3.1.7
 	github.com/labstack/gommon v0.4.1
 	github.com/matoous/go-nanoid/v2 v2.0.0
-	github.com/oklog/ulid/v2 v2.1.0
 	github.com/urfave/cli/v2 v2.25.7
 	github.com/valyala/fasttemplate v1.2.2
 	golang.org/x/crypto v0.15.0
@@ -28,6 +27,7 @@ require (
 	github.com/gofiber/template v1.8.2 // indirect
 	github.com/gofiber/utils v1.1.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/uuid v1.4.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect

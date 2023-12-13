@@ -3,14 +3,16 @@
   // @ts-expect-error
   import { createTable, createRender } from "svelte-headless-table";
   import { users, usersLoading } from "$lib/store";
-  import { onMount } from "svelte";
+  import { getContext, onMount } from "svelte";
   import Avatar from "./avatar.svelte";
-  import type { User } from "$lib/types";
+  import type { TeamUser, User } from "$lib/types";
+
+  let team = getContext("team");
 
   const getUsers = async () => {
     usersLoading.set(true);
     try {
-      const response = await fetch("/api/user");
+      const response = await fetch(`/api/${team}/user`);
       users.set(await response.json());
     } catch (err) {
       console.error(err);
@@ -27,7 +29,7 @@
     //   header: "ID",
     // }),
     table.column({
-      accessor: "Email",
+      accessor: (item: TeamUser) => item.User.Email,
       header: "Email",
     }),
 
@@ -36,7 +38,7 @@
       header: "Role",
     }),
     table.column({
-      accessor: (item: User) => item,
+      accessor: (item: TeamUser) => item.User,
       header: "Avatar",
       cell: ({
         value: { AvatarUrl, Email },

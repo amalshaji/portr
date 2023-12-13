@@ -13,7 +13,7 @@ func (h *Handler) CreateInvite(c *fiber.Ctx) error {
 	if err := c.BodyParser(&payload); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"message": "invalid payload"})
 	}
-	user, err := h.service.CreateInvite(payload, c.Locals("user").(*db.User))
+	user, err := h.service.CreateInvite(payload, c.Locals("teamUser").(*db.TeamUser))
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"message": err.Error()})
 	}
@@ -21,5 +21,6 @@ func (h *Handler) CreateInvite(c *fiber.Ctx) error {
 }
 
 func (h *Handler) ListInvites(c *fiber.Ctx) error {
-	return c.JSON(h.service.ListInvites())
+	teamUser := c.Locals("teamUser").(*db.TeamUser)
+	return c.JSON(h.service.ListInvites(teamUser.TeamID))
 }

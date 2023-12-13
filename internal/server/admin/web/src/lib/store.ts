@@ -5,10 +5,12 @@ import type {
   ServerAddress,
   Settings,
   SettingsForSignup,
+  TeamUser,
   User,
 } from "./types";
 
 export const currentUser = writable<User | null>(null);
+export const currentTeamUser = writable<TeamUser | null>(null);
 export const settings = writable<Settings | null>(null);
 
 export const connections = writable<Connection[]>([]);

@@ -8,11 +8,16 @@ import (
 )
 
 func (h *Handler) ListUsers(c *fiber.Ctx) error {
-	return c.JSON(h.service.ListUsers())
+	teamUser := c.Locals("teamUser").(*db.TeamUser)
+	return c.JSON(h.service.ListTeamUsers(teamUser.Team.Name))
 }
 
 func (h *Handler) Me(c *fiber.Ctx) error {
 	return c.JSON(c.Locals("user").(*db.User))
+}
+
+func (h *Handler) MeInTeam(c *fiber.Ctx) error {
+	return c.JSON(c.Locals("teamUser").(*db.TeamUser))
 }
 
 func (h *Handler) MeUpdate(c *fiber.Ctx) error {
@@ -43,7 +48,7 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 }
 
 func (h *Handler) RotateSecretKey(c *fiber.Ctx) error {
-	user, err := h.service.RotateSecretKey(c.Locals("user").(*db.User))
+	user, err := h.service.RotateSecretKey(c.Locals("teamUser").(*db.TeamUser))
 	if err != nil {
 		h.log.Error("error while logging out", "error", err)
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"message": err.Error()})

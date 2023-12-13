@@ -3,7 +3,7 @@
   import { shell, yaml } from "svelte-highlight/languages";
   import { toast } from "svelte-sonner";
   import "svelte-highlight/styles/stackoverflow-light.css";
-  import { currentUser, serverAddress } from "$lib/store";
+  import { currentUser, serverAddress, currentTeamUser } from "$lib/store";
   import { onMount } from "svelte";
 
   const editConfigCommand = "localport config edit";
@@ -15,7 +15,7 @@
   $: config = `
 serverUrl: ${$serverAddress?.AdminUrl}
 sshUrl: ${$serverAddress?.SshUrl}
-secretKey: ${$currentUser?.SecretKey} # <- this is your key
+secretKey: ${$currentTeamUser?.SecretKey} 
 tunnels:
   - name: localport
     subdomain: localport

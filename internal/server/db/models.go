@@ -19,14 +19,37 @@ const (
 type User struct {
 	gorm.Model
 
-	Email     string   `gorm:"uniqueIndex"`
-	FirstName *string  `gorm:"null"`
-	LastName  *string  `gorm:"null"`
-	SecretKey string   `gorm:"null"`
-	Role      UserRole `gorm:"default:member"`
+	Email     string  `gorm:"uniqueIndex"`
+	FirstName *string `gorm:"null"`
+	LastName  *string `gorm:"null"`
+
+	IsSuperUser bool `gorm:"default:false"`
 
 	GithubAccessToken string `json:"-"`
 	GithubAvatarUrl   string `json:"AvatarUrl"`
+
+	Teams []Team `gorm:"many2many:team_users"`
+}
+
+type Team struct {
+	gorm.Model
+
+	Name string `gorm:"uniqueIndex"`
+	Slug string `gorm:"uniqueIndex"`
+
+	Users []User `gorm:"many2many:team_users"`
+}
+
+type TeamUser struct {
+	gorm.Model
+
+	TeamID uint
+	Team   Team
+	UserID uint
+	User   User
+
+	SecretKey string   `gorm:"uniqueIndex"`
+	Role      UserRole `gorm:"default:member"`
 }
 
 type Session struct {
@@ -48,27 +71,30 @@ const (
 type Invite struct {
 	gorm.Model
 
-	Email           string
-	Role            UserRole     `gorm:"default:member"`
-	Status          InviteStatus `gorm:"default:active"`
-	InvitedByUserID uint
-	InvitedByUser   User
+	Email               string
+	Role                UserRole     `gorm:"default:member"`
+	Status              InviteStatus `gorm:"default:active"`
+	InvitedByTeamUserID uint
+	InvitedByTeamUser   TeamUser
+
+	TeamID uint
+	Team   Team
 }
 
 type Connection struct {
 	gorm.Model
 
-	Subdomain string
-	ClosedAt  *time.Time
-	UserID    uint
-	User      User
+	Subdomain  string
+	ClosedAt   *time.Time
+	TeamUserID uint
+	TeamUser   TeamUser
 }
 
 type Settings struct {
 	gorm.Model
 
-	SignupRequiresInvite           bool
-	AllowRandomUserSignup          bool
-	RandomUserSignupAllowedDomains string
-	UserInviteEmailTemplate        string
+	UserInviteEmailTemplate string
+
+	TeamID uint
+	Team   Team
 }

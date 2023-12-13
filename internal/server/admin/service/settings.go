@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/amalshaji/localport/internal/server/db"
@@ -28,32 +27,6 @@ func validateAllowedDomains(domains string) bool {
 		}
 	}
 	return true
-}
-
-func (s *Service) UpdateSignupSettings(updateSettingsInput UpdateSignupSettingsInput) (db.Settings, error) {
-	if updateSettingsInput.SignupRequiresInvite && updateSettingsInput.AllowRandomUserSignup {
-		return db.Settings{}, fmt.Errorf("both signupRequiresInvite and allowRandomUserSignup cannot be true")
-	}
-
-	if updateSettingsInput.AllowRandomUserSignup {
-		if updateSettingsInput.RandomUserSignupAllowedDomains == "" {
-			return db.Settings{}, fmt.Errorf("domains list cannot be empty")
-		}
-
-		if !validateAllowedDomains(updateSettingsInput.RandomUserSignupAllowedDomains) {
-			return db.Settings{}, fmt.Errorf("domains list must be comma separated and valid")
-		}
-	}
-
-	var settings db.Settings
-	s.db.Conn.First(&settings)
-
-	settings.SignupRequiresInvite = updateSettingsInput.SignupRequiresInvite
-	settings.AllowRandomUserSignup = updateSettingsInput.AllowRandomUserSignup
-	settings.RandomUserSignupAllowedDomains = updateSettingsInput.RandomUserSignupAllowedDomains
-
-	s.db.Conn.Save(&settings)
-	return settings, nil
 }
 
 func (s *Service) UpdateEmailSettings(updateSettingsInput UpdateEmailSettingsInput) (db.Settings, error) {

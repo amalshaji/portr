@@ -1,3 +1,12 @@
+export type Team = {
+  ID: number;
+  CreatedAt: string;
+  UpdatedAt: string | null;
+  DeletedAt: string | null;
+  Name: string;
+  Slug: string;
+};
+
 export type User = {
   ID: number;
   CreatedAt: string;
@@ -6,9 +15,21 @@ export type User = {
   Email: string;
   FirstName: string | null;
   LastName: string | null;
-  SecretKey: string;
-  Role: "superuser" | "admin" | "member";
   AvatarUrl: string | null;
+  Teams: Team[];
+};
+
+export type TeamUser = {
+  ID: number;
+  CreatedAt: string;
+  UpdatedAt: string | null;
+  DeletedAt: string | null;
+  TeamID: number;
+  Team: Team;
+  UserID: number;
+  User: User;
+  Role: "superuser" | "admin" | "member";
+  SecretKey: string;
 };
 
 type BaseSettings = {

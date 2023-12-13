@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/amalshaji/localport/internal/server/admin/handler"
 	"github.com/amalshaji/localport/internal/server/admin/service"
+
 	"github.com/amalshaji/localport/internal/server/config"
 	"github.com/amalshaji/localport/internal/server/db"
 	"github.com/amalshaji/localport/internal/utils"
@@ -47,7 +49,6 @@ func New(config *config.Config, service *service.Service) *AdminServer {
 
 	clientPages := []string{"/connections", "/overview", "/settings", "/users", "/my-account"}
 
-	// handle auth
 	app.Use(func(c *fiber.Ctx) error {
 		token := c.Cookies("localport-session")
 		user, _ := service.GetUserBySession(token)
@@ -56,13 +57,48 @@ func New(config *config.Config, service *service.Service) *AdminServer {
 		return c.Next()
 	})
 
+	// set teamUser in locals
+	gleanTeamUser := func(c *fiber.Ctx) error {
+		userFromLocals := c.Locals("user")
+		user := userFromLocals.(*db.User)
+		if user == nil {
+			return c.Next()
+		}
+		teamName := c.Params("teamName")
+		teamUser, _ := service.GetTeamUser(user, teamName)
+		c.Locals("teamUser", teamUser)
+		return c.Next()
+	}
+
 	handler := handler.New(config, service)
-	handler.RegisterUserRoutes(app, apiAuthMiddleware)
-	handler.RegisterConnectionRoutes(app, apiAuthMiddleware)
-	handler.RegisterGithubAuthRoutes(app)
-	handler.RegisterSettingsRoutes(app, apiAuthMiddleware)
-	handler.RegisterInviteRoutes(app, apiAuthMiddleware, adminPermissionRequired)
+
+	githubAuthGroup := app.Group("/auth/github")
+	handler.RegisterGithubAuthRoutes(githubAuthGroup)
+
+	apiGroup := app.Group("/api/", apiAuthMiddleware)
+	handler.RegisterUserRoutes(apiGroup)
+	handler.RegisterSettingsRoutes(apiGroup)
+	handler.RegisterTeamRoutes(apiGroup, superUserPermissionRequired)
+
 	handler.RegisterClientConfigRoutes(app, apiAuthMiddleware)
+
+	teamApiGroup := app.Group("/api/:teamName", gleanTeamUser, apiTeamAuthMiddleware)
+	handler.RegisterTeamUserRoutes(teamApiGroup)
+	handler.RegisterConnectionRoutes(teamApiGroup)
+	handler.RegisterInviteRoutes(teamApiGroup, adminPermissionRequired)
+
+	// handle initial setup
+	app.Use(func(c *fiber.Ctx) error {
+		user := c.Locals("user").(*db.User)
+
+		if user != nil && len(user.Teams) == 0 && c.Path() != "/setup" {
+			return c.Redirect("/setup")
+		}
+		if user != nil && len(user.Teams) > 0 && c.Path() == "/setup" {
+			return c.Redirect(fmt.Sprintf("/%s/overview", user.Teams[0].Name))
+		}
+		return c.Next()
+	})
 
 	// server index templates for all routes
 	// should be explicit?
@@ -76,13 +112,19 @@ func New(config *config.Config, service *service.Service) *AdminServer {
 	app.Get("/", func(c *fiber.Ctx) error {
 		user := c.Locals("user").(*db.User)
 		if user != nil {
-			return c.Redirect("/overview")
+			if len(user.Teams) == 0 {
+				return c.Redirect("/setup")
+			}
+			return c.Redirect(fmt.Sprintf("/%s/overview", user.Teams[0].Name))
 		}
+
 		return rootTemplateView(c)
 	})
 
+	app.Get("/setup", rootViewAuthMiddleware, rootTemplateView)
+
 	for _, page := range clientPages {
-		app.Get(page, viewAuthMiddleware, rootTemplateView)
+		app.Get("/:teamName"+page, gleanTeamUser, teamViewAuthMiddleware, rootTemplateView)
 	}
 
 	return &AdminServer{

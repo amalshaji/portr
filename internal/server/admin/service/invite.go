@@ -9,21 +9,22 @@ import (
 	"github.com/valyala/fasttemplate"
 )
 
-func (s *Service) sendInviteNotification(invite *db.Invite) error {
+func (s *Service) sendInviteNotification(invite *db.Invite, teamName string) error {
 	// get email template
 	settings := s.ListSettings()
 
 	t := fasttemplate.New(settings.UserInviteEmailTemplate, "{{", "}}")
 	renderedText := t.ExecuteString(map[string]interface{}{
-		"appUrl": s.config.AdminUrl(),
-		"email":  invite.Email,
-		"role":   invite.Role,
+		"appUrl":   s.config.AdminUrl(),
+		"email":    invite.Email,
+		"role":     invite.Role,
+		"teamName": teamName,
 	})
 
 	smtpInput := smtp.SendEmailInput{
 		From:    s.config.Admin.Smtp.FromEmail,
 		To:      invite.Email,
-		Subject: "You have been invited to Localport",
+		Subject: "Invitation to join Localport",
 		Body:    renderedText,
 	}
 
@@ -34,13 +35,13 @@ func (s *Service) sendInviteNotification(invite *db.Invite) error {
 	return nil
 }
 
-func (s *Service) CreateInvite(input CreateInviteInput, invitedBy *db.User) (*db.Invite, error) {
+func (s *Service) CreateInvite(input CreateInviteInput, invitedBy *db.TeamUser) (*db.Invite, error) {
 	email := utils.Trim(input.Email)
 	role := utils.Trim(input.Role)
 
 	// check if user exists
 	var count int64
-	s.db.Conn.Model(&db.User{}).Where("email = ?", email).Count(&count)
+	s.db.Conn.Model(&db.TeamUser{}).Joins("User").Where("users.email = ?", email).Count(&count)
 
 	if count == 1 {
 		return nil, fmt.Errorf("user is already a member")
@@ -48,7 +49,9 @@ func (s *Service) CreateInvite(input CreateInviteInput, invitedBy *db.User) (*db
 
 	// check if invite exists
 	var invite db.Invite
-	result := s.db.Conn.Where("email = ? AND status = ?", email, db.Active).First(&invite)
+	result := s.db.Conn.
+		Where("email = ? AND status = ? AND team_id = ?", email, db.Active, invitedBy.TeamID).
+		First(&invite)
 	if result.Error == nil {
 		return nil, fmt.Errorf("the user is already invited")
 	}
@@ -57,9 +60,10 @@ func (s *Service) CreateInvite(input CreateInviteInput, invitedBy *db.User) (*db
 
 	// create new invite
 	invite = db.Invite{
-		Email:         email,
-		Role:          db.UserRole(role),
-		InvitedByUser: *invitedBy,
+		Email:             email,
+		Role:              db.UserRole(role),
+		InvitedByTeamUser: *invitedBy,
+		TeamID:            invitedBy.TeamID,
 	}
 
 	result = tx.Create(&invite)
@@ -69,7 +73,7 @@ func (s *Service) CreateInvite(input CreateInviteInput, invitedBy *db.User) (*db
 	}
 
 	// send invite email
-	if err := s.sendInviteNotification(&invite); err != nil {
+	if err := s.sendInviteNotification(&invite, invitedBy.Team.Name); err != nil {
 		tx.Rollback()
 		return nil, err
 	}
@@ -78,9 +82,9 @@ func (s *Service) CreateInvite(input CreateInviteInput, invitedBy *db.User) (*db
 	return &invite, nil
 }
 
-func (s *Service) ListInvites() []db.Invite {
+func (s *Service) ListInvites(teamID uint) []db.Invite {
 	var invites []db.Invite
-	s.db.Conn.Joins("InvitedByUser").Find(&invites)
+	s.db.Conn.Joins("InvitedByTeamUser").Find(&invites, "invites.team_id = ?", teamID)
 	return invites
 }
 

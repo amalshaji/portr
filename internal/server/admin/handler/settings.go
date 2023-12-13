@@ -15,18 +15,6 @@ func (h *Handler) ListSettingsForSignupPage(c *fiber.Ctx) error {
 	return c.JSON(h.service.ListSettingsForSignup())
 }
 
-func (h *Handler) UpdateSignupSettings(c *fiber.Ctx) error {
-	var updatePayload service.UpdateSignupSettingsInput
-	if err := c.BodyParser(&updatePayload); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"message": "invalid payload"})
-	}
-	user, err := h.service.UpdateSignupSettings(updatePayload)
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": err.Error()})
-	}
-	return c.JSON(user)
-}
-
 func (h *Handler) UpdateEmailSettings(c *fiber.Ctx) error {
 	var updatePayload service.UpdateEmailSettingsInput
 	if err := c.BodyParser(&updatePayload); err != nil {

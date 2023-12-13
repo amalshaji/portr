@@ -18,10 +18,7 @@ func New() *Db {
 }
 
 var (
-	DefaultSignupRequiresInvite           = true
-	DefaultAllowRandomUserSignup          = false
-	DefaultRandomUserSignupAllowedDomains = ""
-	DefaultUserInviteEmailTemplate        = utils.Trim(`Hi {{email}}, you have been invited to join LocalPort. You can now signup using your GitHub account.
+	DefaultUserInviteEmailTemplate = utils.Trim(`Hi {{email}}, you have been invited to join team {{teamName}} on LocalPort. You can now signup using your GitHub account.
 
 {{appUrl}}`)
 )
@@ -39,7 +36,9 @@ func (d *Db) Connect() {
 	}
 
 	if err := d.Conn.AutoMigrate(
+		&Team{},
 		&User{},
+		&TeamUser{},
 		&Invite{},
 		&Session{},
 		&Connection{},
@@ -52,9 +51,6 @@ func (d *Db) Connect() {
 	var settings Settings
 	result := d.Conn.First(&settings)
 	if result.Error != nil && result.Error == gorm.ErrRecordNotFound {
-		settings.AllowRandomUserSignup = DefaultAllowRandomUserSignup
-		settings.SignupRequiresInvite = DefaultSignupRequiresInvite
-		settings.RandomUserSignupAllowedDomains = DefaultRandomUserSignupAllowedDomains
 		settings.UserInviteEmailTemplate = DefaultUserInviteEmailTemplate
 
 		result := d.Conn.Save(&settings)

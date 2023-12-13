@@ -7,6 +7,7 @@
   import Label from "$lib/components/ui/label/label.svelte";
   import { connections, connectionsLoading } from "$lib/store";
   import type { Connection, User } from "$lib/types";
+  import { getContext } from "svelte";
   let checked = false;
 
   let connectionType = "Recent";
@@ -19,11 +20,13 @@
     getConnections("recent");
   }
 
+  let team = getContext("team");
+
   const getConnections = async (type: string = "") => {
     connectionsLoading.set(true);
     try {
-      const response = await fetch(`/api/connection?type=${type}`);
-      connections.set(await response.json());
+      const response = await fetch(`/api/${team}/connection?type=${type}`);
+      connections.set((await response.json()) || []);
     } catch (err) {
       console.error(err);
     } finally {

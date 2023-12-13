@@ -3,9 +3,12 @@
   import { Label } from "$lib/components/ui/label";
   import { Button } from "$lib/components/ui/button";
   import * as Card from "$lib/components/ui/card";
-  import { currentUser } from "$lib/store";
+  import { currentTeamUser, currentUser } from "$lib/store";
   import { toast } from "svelte-sonner";
   import { Reload } from "radix-icons-svelte";
+  import { getContext } from "svelte";
+
+  let team = getContext("team");
 
   let firstName: string = "",
     lastName: string = "";
@@ -45,21 +48,21 @@
   };
 
   const copySecretToClipboard = () => {
-    navigator.clipboard.writeText($currentUser?.SecretKey as string);
+    navigator.clipboard.writeText($currentTeamUser?.SecretKey as string);
     toast.success("Secret key copied to clipboard");
   };
 
   const rotateSecretKey = async () => {
     isRotatingSecretKey = true;
     try {
-      const res = await fetch("/api/user/me/rotate-secret-key", {
+      const res = await fetch(`/api/${team}/user/me/rotate-secret-key`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
       });
       if (res.ok) {
-        currentUser.set(await res.json());
+        currentTeamUser.set(await res.json());
         toast.success("Secret key rotated");
       } else {
         toast.error("Something went wrong");
@@ -123,7 +126,7 @@
       <Input
         type="text"
         readonly
-        value={$currentUser?.SecretKey}
+        value={$currentTeamUser?.SecretKey}
         on:click={copySecretToClipboard}
       />
     </Card.Content>

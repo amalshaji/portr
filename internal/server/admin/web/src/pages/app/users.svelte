@@ -4,7 +4,7 @@
   import Members from "$lib/components/users/members.svelte";
   import { Button } from "$lib/components/ui/button";
   import InviteUser from "$lib/components/users/invite-user.svelte";
-  import { currentUser } from "$lib/store";
+  import { currentTeamUser } from "$lib/store";
 
   let currentTab = "members";
 
@@ -18,7 +18,7 @@
   {#if currentTab === "invites"}
     <Button
       on:click={() => (inviteUserModalOpen = !inviteUserModalOpen)}
-      disabled={$currentUser?.Role === "member"}>Invite user</Button
+      disabled={$currentTeamUser?.Role === "member"}>Invite user</Button
     >
   {/if}
 </div>

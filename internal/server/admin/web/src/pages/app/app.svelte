@@ -13,16 +13,20 @@
   import Connections from "./connections.svelte";
   import Notfound from "./notfound.svelte";
   import UsersPage from "./users.svelte";
-  import { getLoggedInUser } from "../../lib/services/user";
   import { onMount } from "svelte";
-  import { currentUser } from "$lib/store";
+  import { currentTeamUser, currentUser } from "$lib/store";
   import MyAccount from "./myaccount.svelte";
   import { Button } from "$lib/components/ui/button";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
   import Sidebarlink from "$lib/components/sidebarlink.svelte";
   import Overview from "./overview.svelte";
+  import { setContext } from "svelte";
+  import TeamSelector from "$lib/components/team-selector.svelte";
 
   export let url = "";
+  export let team: string;
+
+  setContext("team", team);
 
   const logout = async () => {
     const res = await fetch("/api/user/me/logout", {
@@ -34,8 +38,19 @@
     }
   };
 
+  const getLoggedInTeamUser = async () => {
+    const response = await fetch(`/api/${team}/user/me`);
+    currentTeamUser.set(await response.json());
+  };
+
+  const getLoggedInUser = async () => {
+    const response = await fetch(`/api/user/me`);
+    currentUser.set(await response.json());
+  };
+
   onMount(async () => {
-    $currentUser = await getLoggedInUser();
+    getLoggedInUser();
+    getLoggedInTeamUser();
   });
 </script>
 
@@ -43,33 +58,35 @@
   <aside
     class="sticky top-0 flex flex-col w-64 h-screen px-5 py-8 overflow-y-auto bg-white border-r rtl:border-r-0 rtl:border-l dark:bg-gray-900 dark:border-gray-700"
   >
-    <a href="/">
+    <a href="/" class="my-4">
       <img class="w-auto h-7" src="/static/favicon.svg" alt="" />
     </a>
 
+    <TeamSelector />
+
     <div class="flex flex-col justify-between flex-1 mt-6">
       <nav class="flex-1 -mx-3 space-y-2">
-        <Sidebarlink url="/overview">
+        <Sidebarlink url="/{team}/overview">
           <Home strokeWidth={1.5} class="h-4 w-4" />
           <span class="mx-2 text-sm">Overview</span>
         </Sidebarlink>
 
-        <Sidebarlink url="/connections">
+        <Sidebarlink url="/{team}/connections">
           <ArrowUpDown strokeWidth={1.5} class="h-4 w-4" />
           <span class="mx-2 text-sm">Connections</span>
         </Sidebarlink>
 
-        <Sidebarlink url="/users">
+        <Sidebarlink url="/{team}/users">
           <Users strokeWidth={1.5} class="h-4 w-4" />
           <span class="mx-2 text-sm">Users</span>
         </Sidebarlink>
 
-        <Sidebarlink url="/settings">
+        <Sidebarlink url="/{team}/settings">
           <Settings strokeWidth={1.5} class="h-4 w-4" />
           <span class="mx-2 text-sm">Settings</span>
         </Sidebarlink>
 
-        <Sidebarlink url="/my-account">
+        <Sidebarlink url="/{team}/my-account">
           <User strokeWidth={1.5} class="h-4 w-4" />
           <span class="mx-2 text-sm">My account</span>
         </Sidebarlink>

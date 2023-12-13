@@ -2,8 +2,6 @@ package service
 
 import (
 	"fmt"
-	"slices"
-	"strings"
 
 	"github.com/amalshaji/localport/internal/server/db"
 	"github.com/amalshaji/localport/internal/utils"
@@ -22,27 +20,48 @@ func (s *Service) ListUsers() []db.User {
 	return users
 }
 
+func (s *Service) ListTeamUsers(teamName string) []db.TeamUser {
+	var users []db.TeamUser
+	s.db.Conn.Model(&db.TeamUser{}).
+		Select("role").
+		Joins("User").
+		Joins("Team").
+		Where("team.slug = ?", teamName).
+		Find(&users)
+	return users
+}
+
 func (s *Service) GetUserBySession(token string) (*db.User, error) {
-	var session = db.Session{}
-	result := s.db.Conn.Joins("User").First(&session, "token = ?", token)
+	var session = db.User{}
+	result := s.db.Conn.Preload("Teams").
+		Joins("JOIN sessions on users.id = sessions.user_id").
+		Where("sessions.token = ?", token).
+		First(&session)
 	if result.Error == gorm.ErrRecordNotFound {
 		return nil, fmt.Errorf("session not found")
 	}
-	return &session.User, nil
+	return &session, nil
+}
+
+func (s *Service) GetTeamUser(user *db.User, teamName string) (*db.TeamUser, error) {
+	var teamUser db.TeamUser
+	result := s.db.Conn.Joins("Team").Joins("User").First(&teamUser, "team.slug = ? AND user_id = ?", teamName, user.ID)
+	if result.Error == gorm.ErrRecordNotFound {
+		return nil, fmt.Errorf("teamUser not found")
+	}
+	return &teamUser, nil
 }
 
 func (s *Service) CreateUser(
 	githubUserDetails GithubUserDetails,
 	accessToken string,
-	role db.UserRole,
+	isSuperUser bool,
 ) (
 	*db.User, error,
 ) {
-	secretKey := utils.GenerateSecretKeyForUser()
 	user := db.User{
 		Email:             githubUserDetails.Email,
-		Role:              role,
-		SecretKey:         secretKey,
+		IsSuperUser:       isSuperUser,
 		GithubAccessToken: accessToken,
 		GithubAvatarUrl:   githubUserDetails.AvatarUrl,
 	}
@@ -53,25 +72,19 @@ func (s *Service) CreateUser(
 	return &user, nil
 }
 
-func (s *Service) checkEligibleSignup(userDetails GithubUserDetails) (db.UserRole, error) {
-	var invite db.Invite
+func (s *Service) checkEligibleSignup(userDetails GithubUserDetails) error {
+	var count int64
 
-	settings := s.ListSettingsForSignup()
-
-	if settings.SignupRequiresInvite {
-		result := s.db.Conn.First(&invite, "email = ? AND status = ?", userDetails.Email, "accepted")
-		if result.Error != nil && result.Error == gorm.ErrRecordNotFound {
-			return "", ErrRequiresInvite
-		}
-		return invite.Role, nil
+	result := s.db.Conn.Model(&db.Invite{}).
+		Where("email = ? AND status = ?", userDetails.Email, "active").
+		Count(&count)
+	if result.Error != nil {
+		return result.Error
 	}
-
-	allowedDomains := strings.Split(settings.RandomUserSignupAllowedDomains, ",")
-	userEmailDomain := strings.Split(userDetails.Email, "@")[1]
-	if !slices.Contains(allowedDomains, userEmailDomain) {
-		return "", ErrDomainNotAllowed
+	if count == 0 {
+		return ErrRequiresInvite
 	}
-	return db.Member, nil
+	return nil
 }
 
 func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (*db.User, error) {
@@ -110,23 +123,66 @@ func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (*db.User, e
 	s.db.Conn.Find(&db.User{}).Count(&count)
 	if count == 0 {
 		// This is the first user, make it super user
-		return s.CreateUser(userDetails, accessToken, db.SuperUser)
+		return s.CreateUser(userDetails, accessToken, true)
 	}
+
+	tx := s.db.Conn.Begin()
 
 	var user db.User
 	result := s.db.Conn.Where("email = ?", userDetails.Email).First(&user)
 	if result.Error == gorm.ErrRecordNotFound {
 		// No user found, signup
 		// check for user restrictions
-		var role db.UserRole
-		if role, err = s.checkEligibleSignup(userDetails); err != nil {
+		if err = s.checkEligibleSignup(userDetails); err != nil {
 			return nil, err
 		}
-		return s.CreateUser(userDetails, accessToken, role)
+		user, err := s.CreateUser(userDetails, accessToken, false)
+		if err != nil {
+			s.log.Error("error while creating user", "error", err)
+			tx.Rollback()
+			return nil, err
+		}
+		for _, invite := range s.TeamsInvitedTo(user.Email) {
+			_, err := s.CreateTeamUser(user, &invite.Team, invite.Role)
+			if err != nil {
+				s.log.Error("error while creating team user", "error", err)
+				tx.Rollback()
+				return nil, err
+			}
+			// mark invite as accepted
+			invite.Status = db.Accepted
+			result := s.db.Conn.Save(&invite)
+			if result.Error != nil {
+				s.log.Error("error while updating invite", "error", result.Error)
+				tx.Rollback()
+				return nil, result.Error
+			}
+		}
 	}
 
+	tx.Commit()
 	// TODO: update github details
 	return &user, nil
+}
+
+func (s *Service) TeamsInvitedTo(email string) []db.Invite {
+	var invites []db.Invite
+	s.db.Conn.Joins("Team").Model(&db.Invite{}).Where("email = ?", email).Find(&invites)
+	return invites
+}
+
+func (s *Service) CreateTeamUser(user *db.User, team *db.Team, role db.UserRole) (*db.TeamUser, error) {
+	teamUser := db.TeamUser{
+		TeamID:    team.ID,
+		UserID:    user.ID,
+		Role:      role,
+		SecretKey: utils.GenerateSecretKeyForUser(),
+	}
+	result := s.db.Conn.Create(&teamUser)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &teamUser, nil
 }
 
 func (s *Service) Logout(token string) error {
@@ -137,14 +193,14 @@ func (s *Service) Logout(token string) error {
 func (s *Service) UpdateUser(user *db.User, firstName, lastName string) (*db.User, error) {
 	user.FirstName = &firstName
 	user.LastName = &lastName
-	result := s.db.Conn.Save(&user)
+	result := s.db.Conn.Model(&db.User{}).Where("id = ?", user.ID).Updates(user)
 	if result.Error != nil {
 		return nil, result.Error
 	}
 	return user, nil
 }
 
-func (s *Service) RotateSecretKey(user *db.User) (*db.User, error) {
+func (s *Service) RotateSecretKey(user *db.TeamUser) (*db.TeamUser, error) {
 	user.SecretKey = utils.GenerateSecretKeyForUser()
 	result := s.db.Conn.Save(&user)
 	if result.Error != nil {

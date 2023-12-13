@@ -19,41 +19,42 @@ func New(config *config.Config, service *service.Service) *Handler {
 	return &Handler{config: config, service: service, log: utils.GetLogger()}
 }
 
-func (h *Handler) RegisterUserRoutes(app *fiber.App, authMiddleware fiber.Handler) {
-	userGroup := app.Group("/api/user", authMiddleware)
+func (h *Handler) RegisterTeamUserRoutes(group fiber.Router) {
+	userGroup := group.Group("/user")
 	userGroup.Get("/", h.ListUsers)
-	userGroup.Get("/me", h.Me)
-	userGroup.Patch("/me/update", h.MeUpdate)
+	userGroup.Get("/me", h.MeInTeam)
 	userGroup.Patch("/me/rotate-secret-key", h.RotateSecretKey)
-	userGroup.Post("/me/logout", h.Logout)
 }
 
-func (h *Handler) RegisterConnectionRoutes(app *fiber.App, authMiddleware fiber.Handler) {
-	connectionGroup := app.Group("/api/connection", authMiddleware)
+func (h *Handler) RegisterUserRoutes(group fiber.Router) {
+	currentUserGroup := group.Group("/user")
+	currentUserGroup.Get("/me", h.Me)
+	currentUserGroup.Patch("/me/update", h.MeUpdate)
+	currentUserGroup.Post("/me/logout", h.Logout)
+}
+
+func (h *Handler) RegisterConnectionRoutes(group fiber.Router) {
+	connectionGroup := group.Group("/connection")
 	connectionGroup.Get("/", h.ListConnections)
 }
 
-func (h *Handler) RegisterGithubAuthRoutes(app *fiber.App) {
-	githubAuthGroup := app.Group("/auth/github")
-	githubAuthGroup.Get("/", h.StartGithubAuth)
-	githubAuthGroup.Get("/callback", h.GithubAuthCallback)
-	githubAuthGroup.Get("/is-superuser-signup", h.IsSuperUserSignup)
+func (h *Handler) RegisterGithubAuthRoutes(group fiber.Router) {
+	group.Get("/", h.StartGithubAuth)
+	group.Get("/callback", h.GithubAuthCallback)
+	group.Get("/is-superuser-signup", h.IsSuperUserSignup)
 }
 
-func (h *Handler) RegisterSettingsRoutes(app *fiber.App, authMiddleware fiber.Handler) {
-	settingsGroup := app.Group("/api/setting")
-	settingsGroup.Get("/signup", h.ListSettingsForSignupPage)
-	settingsGroup.Get("/all", authMiddleware, h.ListSettings)
-	settingsGroup.Patch("/signup/update", authMiddleware, h.UpdateSignupSettings)
-	settingsGroup.Patch("/email/update", authMiddleware, h.UpdateEmailSettings)
+func (h *Handler) RegisterSettingsRoutes(group fiber.Router) {
+	settingsGroup := group.Group("/setting")
+	settingsGroup.Get("/all", h.ListSettings)
+	settingsGroup.Patch("/email/update", h.UpdateEmailSettings)
 }
 
 func (h *Handler) RegisterInviteRoutes(
-	app *fiber.App,
-	authMiddleware fiber.Handler,
+	group fiber.Router,
 	permissionHandler fiber.Handler,
 ) {
-	inviteGroup := app.Group("/api/invite", authMiddleware)
+	inviteGroup := group.Group("/invite")
 	inviteGroup.Get("/", h.ListInvites)
 	inviteGroup.Post("/", permissionHandler, h.CreateInvite)
 }
@@ -62,4 +63,12 @@ func (h *Handler) RegisterClientConfigRoutes(app *fiber.App, authMiddleware fibe
 	configGroup := app.Group("/config")
 	configGroup.Post("/validate", h.ValidateClientConfig)
 	configGroup.Get("/address", authMiddleware, h.GetServerAddress)
+}
+
+func (h *Handler) RegisterTeamRoutes(
+	group fiber.Router,
+	permissionHandler fiber.Handler,
+) {
+	teamGroup := group.Group("/team", permissionHandler)
+	teamGroup.Post("/", h.CreateTeam)
 }

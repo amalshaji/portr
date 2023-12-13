@@ -3,16 +3,16 @@
   // @ts-expect-error
   import { createTable } from "svelte-headless-table";
   import { invites, invitesLoading } from "$lib/store";
-  import { onMount } from "svelte";
-  import { Button } from "$lib/components/ui/button";
-  import * as AlertDialog from "$lib/components/ui/alert-dialog";
-  import type { Invite, User } from "$lib/types";
+  import { getContext, onMount } from "svelte";
+  import type { Invite } from "$lib/types";
+
+  let team = getContext("team");
 
   const getInvites = async () => {
     invitesLoading.set(true);
     try {
-      const response = await fetch("/api/invite");
-      invites.set(await response.json());
+      const response = await fetch(`/api/${team}/invite`);
+      invites.set((await response.json()) || []);
     } catch (err) {
       console.error(err);
     } finally {

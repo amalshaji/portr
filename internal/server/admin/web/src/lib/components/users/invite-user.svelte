@@ -9,6 +9,7 @@
   import * as Select from "$lib/components/ui/select";
   import { toast } from "svelte-sonner";
   import { invites } from "$lib/store";
+  import { getContext } from "svelte";
 
   const roles = [
     { value: "member", label: "Member" },
@@ -24,11 +25,13 @@
 
   let isLoading = false;
 
+  let team = getContext("team");
+
   const invite = async () => {
     error = "";
     isLoading = true;
     try {
-      const res = await fetch("/api/invite", {
+      const res = await fetch(`/api/${team}/invite`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
