@@ -13,6 +13,7 @@
     try {
       const response = await fetch(`/api/${team}/invite`);
       invites.set((await response.json()) || []);
+      console.log($invites);
     } catch (err) {
       console.error(err);
     } finally {
@@ -41,7 +42,7 @@
     }),
     table.column({
       accessor: (item: Invite) => {
-        const { Email, FirstName, LastName } = item.InvitedByUser;
+        const { Email, FirstName, LastName } = item.InvitedByTeamUser.User;
         if (FirstName) {
           return `${FirstName} ${LastName}`;
         }

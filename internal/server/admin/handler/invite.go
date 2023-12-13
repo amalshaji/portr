@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/amalshaji/localport/internal/server/admin/service"
-	"github.com/amalshaji/localport/internal/server/db"
+	db "github.com/amalshaji/localport/internal/server/db/models"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -13,7 +13,8 @@ func (h *Handler) CreateInvite(c *fiber.Ctx) error {
 	if err := c.BodyParser(&payload); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"message": "invalid payload"})
 	}
-	user, err := h.service.CreateInvite(payload, c.Locals("teamUser").(*db.TeamUser))
+	teamUser := c.Locals("teamUser").(*db.GetTeamMemberByUserIdAndTeamSlugRow)
+	user, err := h.service.CreateInvite(c.Context(), payload, teamUser.ID, teamUser.TeamID)
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"message": err.Error()})
 	}
@@ -21,6 +22,6 @@ func (h *Handler) CreateInvite(c *fiber.Ctx) error {
 }
 
 func (h *Handler) ListInvites(c *fiber.Ctx) error {
-	teamUser := c.Locals("teamUser").(*db.TeamUser)
-	return c.JSON(h.service.ListInvites(teamUser.TeamID))
+	teamUser := c.Locals("teamUser").(*db.GetTeamMemberByUserIdAndTeamSlugRow)
+	return c.JSON(h.service.ListInvites(c.Context(), teamUser.TeamID))
 }

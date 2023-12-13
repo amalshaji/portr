@@ -21,7 +21,7 @@ func New(config *config.Config, service *service.Service) *Handler {
 
 func (h *Handler) RegisterTeamUserRoutes(group fiber.Router) {
 	userGroup := group.Group("/user")
-	userGroup.Get("/", h.ListUsers)
+	userGroup.Get("/", h.ListTeamUsers)
 	userGroup.Get("/me", h.MeInTeam)
 	userGroup.Patch("/me/rotate-secret-key", h.RotateSecretKey)
 }

@@ -1,21 +1,20 @@
 package service
 
 import (
+	"context"
+	"database/sql"
+	"errors"
 	"fmt"
-
-	"github.com/amalshaji/localport/internal/server/db"
 )
 
-func (s *Service) ValidateClientConfig(key string) error {
-	var count int64
-	result := s.db.Conn.Find(&db.User{}, "secret_key = ?", key).Count(&count)
-	if result.Error != nil {
-		s.log.Error("error while validating secret key", "error", result.Error)
-		return result.Error
-	}
-	if count == 0 {
-		s.log.Error("invalid secret key", "key", key)
-		return fmt.Errorf("invalid secret key")
+func (s *Service) ValidateClientConfig(ctx context.Context, key string) error {
+	_, err := s.db.Queries.GetTeamUserBySecretKey(ctx, key)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			s.log.Error("invalid secret key", "key", key)
+			return fmt.Errorf("invalid secret key")
+		}
+		return fmt.Errorf("error while validating secret key: %w", err)
 	}
 	return nil
 }

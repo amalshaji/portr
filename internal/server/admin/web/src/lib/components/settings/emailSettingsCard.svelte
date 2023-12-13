@@ -16,6 +16,7 @@
   });
 
   const updateEmailSettings = async () => {
+    console.log(userInviteEmailTemplate);
     isUpdating = true;
     try {
       const res = await fetch("/api/setting/email/update", {

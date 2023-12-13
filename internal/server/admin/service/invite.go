@@ -1,19 +1,20 @@
 package service
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/amalshaji/localport/internal/server/db"
+	db "github.com/amalshaji/localport/internal/server/db/models"
 	"github.com/amalshaji/localport/internal/server/smtp"
 	"github.com/amalshaji/localport/internal/utils"
 	"github.com/valyala/fasttemplate"
 )
 
-func (s *Service) sendInviteNotification(invite *db.Invite, teamName string) error {
+func (s *Service) sendInviteNotification(ctx context.Context, invite *db.Invite, teamName string) error {
 	// get email template
-	settings := s.ListSettings()
+	settings := s.ListSettings(ctx)
 
-	t := fasttemplate.New(settings.UserInviteEmailTemplate, "{{", "}}")
+	t := fasttemplate.New(settings.UserInviteEmailTemplate.(string), "{{", "}}")
 	renderedText := t.ExecuteString(map[string]interface{}{
 		"appUrl":   s.config.AdminUrl(),
 		"email":    invite.Email,
@@ -35,46 +36,49 @@ func (s *Service) sendInviteNotification(invite *db.Invite, teamName string) err
 	return nil
 }
 
-func (s *Service) CreateInvite(input CreateInviteInput, invitedBy *db.TeamUser) (*db.Invite, error) {
+func (s *Service) CreateInvite(ctx context.Context, input CreateInviteInput, InvitedByTeamMemberID, teamID int64) (*db.Invite, error) {
 	email := utils.Trim(input.Email)
 	role := utils.Trim(input.Role)
 
-	// check if user exists
-	var count int64
-	s.db.Conn.Model(&db.TeamUser{}).Joins("User").Where("users.email = ?", email).Count(&count)
-
-	if count == 1 {
-		return nil, fmt.Errorf("user is already a member")
+	// check if user is part of team
+	getTeamMemberResult, err := s.db.Queries.GetTeamMemberByEmail(ctx, email)
+	if err == nil {
+		if getTeamMemberResult.TeamID == teamID {
+			return nil, fmt.Errorf("user is already a member")
+		}
 	}
 
 	// check if invite exists
-	var invite db.Invite
-	result := s.db.Conn.
-		Where("email = ? AND status = ? AND team_id = ?", email, db.Active, invitedBy.TeamID).
-		First(&invite)
-	if result.Error == nil {
+	count, _ := s.db.Queries.GetNumberOfExistingTeamInvitesForUser(
+		ctx,
+		db.GetNumberOfExistingTeamInvitesForUserParams{
+			Email:  email,
+			TeamID: teamID,
+		})
+	if count > 0 {
 		return nil, fmt.Errorf("the user is already invited")
 	}
 
-	tx := s.db.Conn.Begin()
+	tx, _ := s.db.Conn.Begin()
+	defer tx.Rollback()
 
-	// create new invite
-	invite = db.Invite{
-		Email:             email,
-		Role:              db.UserRole(role),
-		InvitedByTeamUser: *invitedBy,
-		TeamID:            invitedBy.TeamID,
+	qtx := s.db.Queries.WithTx(tx)
+
+	invite, err := qtx.CreateInvite(ctx, db.CreateInviteParams{
+		Email:                 email,
+		Role:                  role,
+		Status:                "active",
+		InvitedByTeamMemberID: InvitedByTeamMemberID,
+		TeamID:                teamID,
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	result = tx.Create(&invite)
-	if result.Error != nil {
-		tx.Rollback()
-		return nil, result.Error
-	}
+	team, _ := qtx.GetTeamById(ctx, teamID)
 
 	// send invite email
-	if err := s.sendInviteNotification(&invite, invitedBy.Team.Name); err != nil {
-		tx.Rollback()
+	if err := s.sendInviteNotification(ctx, &invite, team.Name); err != nil {
 		return nil, err
 	}
 
@@ -82,9 +86,8 @@ func (s *Service) CreateInvite(input CreateInviteInput, invitedBy *db.TeamUser) 
 	return &invite, nil
 }
 
-func (s *Service) ListInvites(teamID uint) []db.Invite {
-	var invites []db.Invite
-	s.db.Conn.Joins("InvitedByTeamUser").Find(&invites, "invites.team_id = ?", teamID)
+func (s *Service) ListInvites(ctx context.Context, teamID int64) []db.GetInvitesForTeamRow {
+	invites, _ := s.db.Queries.GetInvitesForTeam(ctx, teamID)
 	return invites
 }
 

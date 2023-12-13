@@ -29,7 +29,7 @@
     //   header: "ID",
     // }),
     table.column({
-      accessor: (item: TeamUser) => item.User.Email,
+      accessor: "Email",
       header: "Email",
     }),
 
@@ -38,13 +38,13 @@
       header: "Role",
     }),
     table.column({
-      accessor: (item: TeamUser) => item.User,
+      accessor: (item: TeamUser) => item,
       header: "Avatar",
       cell: ({
-        value: { AvatarUrl, Email },
+        value: { GithubAvatarUrl, Email },
       }: {
-        value: { AvatarUrl: string; Email: string };
-      }) => createRender(Avatar, { url: AvatarUrl, fallback: Email }),
+        value: { GithubAvatarUrl: string; Email: string };
+      }) => createRender(Avatar, { url: GithubAvatarUrl, fallback: Email }),
     }),
   ]);
 

@@ -20,10 +20,6 @@
       "github-oauth-error": "There was an error authenticating with GitHub.",
       "invalid-invite": "The invite is invalid/expired.",
       "requires-invite": "Signup requires an invite.",
-      "domain-not-allowed": `You need to use one of the following domains to sign up: ${$settingsForSignup?.RandomUserSignupAllowedDomains.split(
-        ","
-      ).join(", ")}`,
-      "invite-accepted": "You can now continue with github.",
       "private-email": "Your email is private. Please make it public.",
     };
     return (
@@ -87,13 +83,8 @@
         <Alert.Description>
           {#if isSuperUserSignup}
             You are signing up as a superuser.
-          {:else if $settingsForSignup?.SignupRequiresInvite}
+          {:else}
             You need an invite to sign up.
-          {:else if $settingsForSignup?.RandomUserSignupAllowedDomains?.length ?? 0 > 0}
-            Signup is restricted to the following domains:
-            {$settingsForSignup?.RandomUserSignupAllowedDomains.split(",").join(
-              ", "
-            )}
           {/if}
         </Alert.Description>
       </Alert.Root>

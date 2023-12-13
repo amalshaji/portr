@@ -15,7 +15,7 @@ import (
 	"github.com/amalshaji/localport/internal/server/admin/service"
 
 	"github.com/amalshaji/localport/internal/server/config"
-	"github.com/amalshaji/localport/internal/server/db"
+	db "github.com/amalshaji/localport/internal/server/db/models"
 	"github.com/amalshaji/localport/internal/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -39,6 +39,8 @@ func New(config *config.Config, service *service.Service) *AdminServer {
 	app.Use(logger.New())
 	app.Use(recover.New())
 
+	ctx := context.Background()
+
 	if !config.Admin.UseVite {
 		app.Static("/", "./internal/server/admin/web/dist")
 	}
@@ -47,11 +49,11 @@ func New(config *config.Config, service *service.Service) *AdminServer {
 		Compress: true,
 	})
 
-	clientPages := []string{"/connections", "/overview", "/settings", "/users", "/my-account"}
+	clientPages := []string{"/connections", "/overview", "/settings", "/users", "/my-account", "/new-team"}
 
 	app.Use(func(c *fiber.Ctx) error {
 		token := c.Cookies("localport-session")
-		user, _ := service.GetUserBySession(token)
+		user, _ := service.GetUserBySession(ctx, token)
 
 		c.Locals("user", user)
 		return c.Next()
@@ -59,13 +61,12 @@ func New(config *config.Config, service *service.Service) *AdminServer {
 
 	// set teamUser in locals
 	gleanTeamUser := func(c *fiber.Ctx) error {
-		userFromLocals := c.Locals("user")
-		user := userFromLocals.(*db.User)
+		user := c.Locals("user").(*db.UserWithTeams)
 		if user == nil {
 			return c.Next()
 		}
 		teamName := c.Params("teamName")
-		teamUser, _ := service.GetTeamUser(user, teamName)
+		teamUser, _ := service.GetTeamUser(ctx, user.ID, teamName)
 		c.Locals("teamUser", teamUser)
 		return c.Next()
 	}
@@ -89,7 +90,7 @@ func New(config *config.Config, service *service.Service) *AdminServer {
 
 	// handle initial setup
 	app.Use(func(c *fiber.Ctx) error {
-		user := c.Locals("user").(*db.User)
+		user := c.Locals("user").(*db.UserWithTeams)
 
 		if user != nil && len(user.Teams) == 0 && c.Path() != "/setup" {
 			return c.Redirect("/setup")
@@ -110,7 +111,7 @@ func New(config *config.Config, service *service.Service) *AdminServer {
 	}
 
 	app.Get("/", func(c *fiber.Ctx) error {
-		user := c.Locals("user").(*db.User)
+		user := c.Locals("user").(*db.UserWithTeams)
 		if user != nil {
 			if len(user.Teams) == 0 {
 				return c.Redirect("/setup")

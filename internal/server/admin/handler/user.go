@@ -3,21 +3,21 @@ package handler
 import (
 	"net/http"
 
-	"github.com/amalshaji/localport/internal/server/db"
+	db "github.com/amalshaji/localport/internal/server/db/models"
 	"github.com/gofiber/fiber/v2"
 )
 
-func (h *Handler) ListUsers(c *fiber.Ctx) error {
-	teamUser := c.Locals("teamUser").(*db.TeamUser)
-	return c.JSON(h.service.ListTeamUsers(teamUser.Team.Name))
+func (h *Handler) ListTeamUsers(c *fiber.Ctx) error {
+	teamUser := c.Locals("teamUser").(*db.GetTeamMemberByUserIdAndTeamSlugRow)
+	return c.JSON(h.service.ListTeamUsers(c.Context(), teamUser.TeamID))
 }
 
 func (h *Handler) Me(c *fiber.Ctx) error {
-	return c.JSON(c.Locals("user").(*db.User))
+	return c.JSON(c.Locals("user").(*db.UserWithTeams))
 }
 
 func (h *Handler) MeInTeam(c *fiber.Ctx) error {
-	return c.JSON(c.Locals("teamUser").(*db.TeamUser))
+	return c.JSON(c.Locals("teamUser").(*db.GetTeamMemberByUserIdAndTeamSlugRow))
 }
 
 func (h *Handler) MeUpdate(c *fiber.Ctx) error {
@@ -28,18 +28,18 @@ func (h *Handler) MeUpdate(c *fiber.Ctx) error {
 	if err := c.BodyParser(&updatePayload); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"message": "invalid payload"})
 	}
-	userFromLocals := c.Locals("user").(*db.User)
-	user, err := h.service.UpdateUser(userFromLocals, updatePayload.FirstName, updatePayload.LastName)
+	userFromLocals := c.Locals("user").(*db.UserWithTeams)
+	result, err := h.service.UpdateUser(c.Context(), userFromLocals.ID, updatePayload.FirstName, updatePayload.LastName)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "failed to update profile info"})
 	}
-	return c.JSON(user)
+	return c.JSON(result)
 }
 
 func (h *Handler) Logout(c *fiber.Ctx) error {
 	// expire all keys!
 	c.ClearCookie()
-	err := h.service.Logout(c.Cookies("localport-session"))
+	err := h.service.Logout(c.Context(), c.Cookies("localport-session"))
 	if err != nil {
 		h.log.Error("error while logging out", "error", err)
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "internal server error"})
@@ -48,10 +48,10 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 }
 
 func (h *Handler) RotateSecretKey(c *fiber.Ctx) error {
-	user, err := h.service.RotateSecretKey(c.Locals("teamUser").(*db.TeamUser))
+	result, err := h.service.RotateSecretKey(c.Context(), c.Locals("teamUser").(*db.GetTeamMemberByUserIdAndTeamSlugRow).ID)
 	if err != nil {
 		h.log.Error("error while logging out", "error", err)
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"message": err.Error()})
 	}
-	return c.JSON(user)
+	return c.JSON(result)
 }

@@ -1,16 +1,19 @@
 package db
 
 import (
+	"context"
+	"database/sql"
+	"errors"
 	"log"
-	"time"
 
+	db "github.com/amalshaji/localport/internal/server/db/models"
 	"github.com/amalshaji/localport/internal/utils"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type Db struct {
-	Conn *gorm.DB
+	Conn    *sql.DB
+	Queries *db.Queries
 }
 
 func New() *Db {
@@ -18,6 +21,7 @@ func New() *Db {
 }
 
 var (
+	DefaultUserInviteEmailSubject  = utils.Trim("Invitation to join team {{teamName}} on LocalPort")
 	DefaultUserInviteEmailTemplate = utils.Trim(`Hi {{email}}, you have been invited to join team {{teamName}} on LocalPort. You can now signup using your GitHub account.
 
 {{appUrl}}`)
@@ -26,37 +30,28 @@ var (
 func (d *Db) Connect() {
 	var err error
 
-	d.Conn, err = gorm.Open(sqlite.Open("./data/db.sqlite"), &gorm.Config{
-		NowFunc: func() time.Time {
-			return time.Now().UTC()
-		},
-	})
+	d.Conn, err = sql.Open("sqlite3", "./data/db.sqlite")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err := d.Conn.AutoMigrate(
-		&Team{},
-		&User{},
-		&TeamUser{},
-		&Invite{},
-		&Session{},
-		&Connection{},
-		&Settings{},
-	); err != nil {
-		log.Fatal(err)
-	}
+	ctx := context.Background()
 
+	d.Queries = db.New(d.Conn)
+	_, err = d.Queries.GetGlobalSettings(ctx)
 	// Populate/update default settings
-	var settings Settings
-	result := d.Conn.First(&settings)
-	if result.Error != nil && result.Error == gorm.ErrRecordNotFound {
-		settings.UserInviteEmailTemplate = DefaultUserInviteEmailTemplate
 
-		result := d.Conn.Save(&settings)
-		if result.Error != nil {
-			log.Fatal(result.Error)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			_, err = d.Queries.CreateGlobalSettings(ctx, db.CreateGlobalSettingsParams{
+				UserInviteEmailTemplate: DefaultUserInviteEmailTemplate,
+				UserInviteEmailSubject:  DefaultUserInviteEmailSubject,
+			})
+			if err != nil {
+				log.Fatal(err)
+			}
+		} else {
+			log.Fatal(err)
 		}
 	}
-
 }

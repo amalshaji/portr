@@ -15,7 +15,7 @@ export type User = {
   Email: string;
   FirstName: string | null;
   LastName: string | null;
-  AvatarUrl: string | null;
+  GithubAvatarUrl: string | null;
   Teams: Team[];
 };
 
@@ -59,8 +59,8 @@ export type Invite = {
   Email: string;
   Role: "admin" | "member";
   Status: "pending" | "accepted" | "expired";
-  InvitedByUserID: number;
-  InvitedByUser: User;
+  InvitedByTeamUserID: number;
+  InvitedByTeamUser: TeamUser;
 };
 
 export type ServerAddress = {

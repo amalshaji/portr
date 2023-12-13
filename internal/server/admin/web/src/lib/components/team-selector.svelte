@@ -2,7 +2,9 @@
   import * as Select from "$lib/components/ui/select";
   import { currentUser } from "$lib/store";
   import type { Team } from "$lib/types";
+  import { BadgePlus } from "lucide-svelte";
   import { getContext, onDestroy } from "svelte";
+  import { Link } from "svelte-routing";
 
   let team = getContext("team");
 
@@ -16,6 +18,9 @@
   });
 
   const switchTeams = (item: any) => {
+    if (item.value === "new_team") {
+      return;
+    }
     location.href = `/${item.value}/overview`;
   };
 
@@ -34,7 +39,7 @@
     </div>
   </Select.Trigger>
   <Select.Content>
-    <Select.Group on:change={(e) => console.log(e)}>
+    <Select.Group>
       <Select.Label>Your teams</Select.Label>
       {#each teams as team}
         <Select.Item value={team.Slug} label={team.Name}>

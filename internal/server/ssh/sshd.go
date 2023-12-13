@@ -82,7 +82,7 @@ func (s *SshServer) Start() {
 				return false
 			}
 
-			connection, err := s.service.RegisterNewConnection(subdomain, secretKey)
+			connection, err := s.service.RegisterNewConnection(ctx, subdomain, secretKey)
 			if err != nil {
 				s.log.Error("failed to register connection", "error", err)
 				return false
@@ -96,7 +96,7 @@ func (s *SshServer) Start() {
 
 			go func() {
 				<-ctx.Done()
-				err = s.service.MarkConnectionAsClosed(connection)
+				err = s.service.MarkConnectionAsClosed(ctx, connection)
 				if err != nil {
 					s.log.Error("failed to mark connection as closed", "error", err)
 				}

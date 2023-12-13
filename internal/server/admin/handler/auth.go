@@ -48,7 +48,7 @@ func (h *Handler) GithubAuthCallback(c *fiber.Ctx) error {
 		return c.Redirect("/?code=github-oauth-error")
 	}
 
-	user, err := h.service.GetOrCreateUserForGithubLogin(token.AccessToken)
+	user, err := h.service.GetOrCreateUserForGithubLogin(c.Context(), token.AccessToken)
 	if err != nil {
 		h.log.Error("error while creating user", "error", err)
 		if errors.Is(err, service.ErrRequiresInvite) {
@@ -60,10 +60,10 @@ func (h *Handler) GithubAuthCallback(c *fiber.Ctx) error {
 		}
 	}
 
-	sessionToken := h.service.LoginUser(user)
+	session, _ := h.service.LoginUser(c.Context(), user)
 	c.Cookie(&fiber.Cookie{
 		Name:     "localport-session",
-		Value:    sessionToken,
+		Value:    session.Token,
 		HTTPOnly: true,
 		Path:     "/",
 		Expires:  time.Now().Add(24 * time.Hour),
@@ -73,5 +73,5 @@ func (h *Handler) GithubAuthCallback(c *fiber.Ctx) error {
 }
 
 func (h *Handler) IsSuperUserSignup(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"isSuperUserSignup": h.service.IsSuperUserSignUp()})
+	return c.JSON(fiber.Map{"isSuperUserSignup": h.service.IsSuperUserSignUp(c.Context())})
 }

@@ -1,11 +1,13 @@
 package service
 
 import (
+	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 
-	"github.com/amalshaji/localport/internal/server/db"
+	db "github.com/amalshaji/localport/internal/server/db/models"
 	"github.com/amalshaji/localport/internal/utils"
-	"gorm.io/gorm"
 )
 
 var (
@@ -14,45 +16,68 @@ var (
 	ErrPrivateEmail     = fmt.Errorf("private email")
 )
 
-func (s *Service) ListUsers() []db.User {
-	var users []db.User
-	s.db.Conn.Find(&users)
-	return users
+func (s *Service) ListTeamUsers(ctx context.Context, teamID int64) []db.GetTeamMembersRow {
+	teamUsers, _ := s.db.Queries.GetTeamMembers(ctx, teamID)
+	return teamUsers
 }
 
-func (s *Service) ListTeamUsers(teamName string) []db.TeamUser {
-	var users []db.TeamUser
-	s.db.Conn.Model(&db.TeamUser{}).
-		Select("role").
-		Joins("User").
-		Joins("Team").
-		Where("team.slug = ?", teamName).
-		Find(&users)
-	return users
-}
-
-func (s *Service) GetUserBySession(token string) (*db.User, error) {
-	var session = db.User{}
-	result := s.db.Conn.Preload("Teams").
-		Joins("JOIN sessions on users.id = sessions.user_id").
-		Where("sessions.token = ?", token).
-		First(&session)
-	if result.Error == gorm.ErrRecordNotFound {
-		return nil, fmt.Errorf("session not found")
+func (s *Service) GetUserBySession(ctx context.Context, token string) (*db.UserWithTeams, error) {
+	result, err := s.db.Queries.GetUserBySession(ctx, token)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			s.log.Error("invalid session token", "token", token)
+			return nil, fmt.Errorf("invalid session token")
+		}
 	}
-	return &session, nil
+	// optimize this, single query
+	teams, _ := s.db.Queries.GetTeamsOfUser(ctx, result.ID)
+	return &db.UserWithTeams{
+		GetUserBySessionRow: result,
+		Teams:               teams,
+	}, nil
 }
 
-func (s *Service) GetTeamUser(user *db.User, teamName string) (*db.TeamUser, error) {
-	var teamUser db.TeamUser
-	result := s.db.Conn.Joins("Team").Joins("User").First(&teamUser, "team.slug = ? AND user_id = ?", teamName, user.ID)
-	if result.Error == gorm.ErrRecordNotFound {
-		return nil, fmt.Errorf("teamUser not found")
+type UserWithTeamsUpdateResponse struct {
+	db.GetUserByIdRow
+	Teams []db.Team
+}
+
+func (s *Service) GetUserById(ctx context.Context, userID int64) (UserWithTeamsUpdateResponse, error) {
+	result, err := s.db.Queries.GetUserById(ctx, userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			s.log.Error("invalid session token", "userID", userID)
+			return UserWithTeamsUpdateResponse{}, fmt.Errorf("invalid session token")
+		}
+	}
+	// optimize this, single query
+	teams, _ := s.db.Queries.GetTeamsOfUser(ctx, result.ID)
+	return UserWithTeamsUpdateResponse{
+		GetUserByIdRow: result,
+		Teams:          teams,
+	}, nil
+}
+
+func (s *Service) GetTeamUser(
+	ctx context.Context,
+	userID int64,
+	teamName string,
+) (*db.GetTeamMemberByUserIdAndTeamSlugRow, error) {
+	teamUser, err := s.db.Queries.GetTeamMemberByUserIdAndTeamSlug(ctx, db.GetTeamMemberByUserIdAndTeamSlugParams{
+		ID:   userID,
+		Slug: teamName,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			s.log.Error("teamUser not found", "user", userID, "team", teamName)
+			return nil, fmt.Errorf("teamUser not found")
+		}
 	}
 	return &teamUser, nil
 }
 
 func (s *Service) CreateUser(
+	ctx context.Context,
 	githubUserDetails GithubUserDetails,
 	accessToken string,
 	isSuperUser bool,
@@ -65,29 +90,28 @@ func (s *Service) CreateUser(
 		GithubAccessToken: accessToken,
 		GithubAvatarUrl:   githubUserDetails.AvatarUrl,
 	}
-	result := s.db.Conn.Create(&user)
-	if result.Error != nil {
-		return nil, fmt.Errorf("error while creating user")
+	user, err := s.db.Queries.CreateUser(ctx, db.CreateUserParams{
+		Email:             user.Email,
+		IsSuperUser:       user.IsSuperUser,
+		GithubAccessToken: user.GithubAccessToken,
+		GithubAvatarUrl:   user.GithubAvatarUrl,
+	})
+	if err != nil {
+		s.log.Error("error while creating user", "error", err)
+		return nil, err
 	}
 	return &user, nil
 }
 
-func (s *Service) checkEligibleSignup(userDetails GithubUserDetails) error {
-	var count int64
-
-	result := s.db.Conn.Model(&db.Invite{}).
-		Where("email = ? AND status = ?", userDetails.Email, "active").
-		Count(&count)
-	if result.Error != nil {
-		return result.Error
-	}
-	if count == 0 {
+func (s *Service) checkEligibleSignup(ctx context.Context, userDetails GithubUserDetails) error {
+	result, _ := s.db.Queries.GetActiveTeamInvitesForUser(ctx, userDetails.Email)
+	if len(result) == 0 {
 		return ErrRequiresInvite
 	}
 	return nil
 }
 
-func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (*db.User, error) {
+func (s *Service) GetOrCreateUserForGithubLogin(ctx context.Context, accessToken string) (*db.User, error) {
 	userDetails, err := s.GetGithubUserDetails(accessToken)
 	if err != nil {
 		s.log.Error("error while getting user details", "error", err)
@@ -119,44 +143,45 @@ func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (*db.User, e
 
 	}
 
-	var count int64
-	s.db.Conn.Find(&db.User{}).Count(&count)
+	count, _ := s.db.Queries.GetUsersCount(ctx)
 	if count == 0 {
 		// This is the first user, make it super user
-		return s.CreateUser(userDetails, accessToken, true)
+		return s.CreateUser(ctx, userDetails, accessToken, true)
 	}
 
-	tx := s.db.Conn.Begin()
+	tx, _ := s.db.Conn.Begin()
+	defer tx.Rollback()
 
-	var user db.User
-	result := s.db.Conn.Where("email = ?", userDetails.Email).First(&user)
-	if result.Error == gorm.ErrRecordNotFound {
-		// No user found, signup
-		// check for user restrictions
-		if err = s.checkEligibleSignup(userDetails); err != nil {
-			return nil, err
-		}
-		user, err := s.CreateUser(userDetails, accessToken, false)
+	user, err := s.db.Queries.GetUserByEmail(ctx, userDetails.Email)
+	if err == nil {
+		return &user, nil
+	}
+
+	// assume the error is sql.ErrNoRows
+
+	// No user found, signup
+	// check for user restrictions
+	if err = s.checkEligibleSignup(ctx, userDetails); err != nil {
+		return nil, err
+	}
+
+	newUser, err := s.CreateUser(ctx, userDetails, accessToken, false)
+	if err != nil {
+		s.log.Error("error while creating user", "error", err)
+		return nil, err
+	}
+
+	for _, invite := range s.TeamsInvitedTo(ctx, user.Email) {
+		_, err := s.CreateTeamUser(ctx, newUser.ID, invite.TeamID, invite.Role)
 		if err != nil {
-			s.log.Error("error while creating user", "error", err)
-			tx.Rollback()
+			s.log.Error("error while creating team user", "error", err)
 			return nil, err
 		}
-		for _, invite := range s.TeamsInvitedTo(user.Email) {
-			_, err := s.CreateTeamUser(user, &invite.Team, invite.Role)
-			if err != nil {
-				s.log.Error("error while creating team user", "error", err)
-				tx.Rollback()
-				return nil, err
-			}
-			// mark invite as accepted
-			invite.Status = db.Accepted
-			result := s.db.Conn.Save(&invite)
-			if result.Error != nil {
-				s.log.Error("error while updating invite", "error", result.Error)
-				tx.Rollback()
-				return nil, result.Error
-			}
+		// mark invite as accepted
+		err = s.db.Queries.AcceptInvite(ctx, invite.ID)
+		if err != nil {
+			s.log.Error("error while updating invite", "error", err)
+			return nil, err
 		}
 	}
 
@@ -165,46 +190,46 @@ func (s *Service) GetOrCreateUserForGithubLogin(accessToken string) (*db.User, e
 	return &user, nil
 }
 
-func (s *Service) TeamsInvitedTo(email string) []db.Invite {
-	var invites []db.Invite
-	s.db.Conn.Joins("Team").Model(&db.Invite{}).Where("email = ?", email).Find(&invites)
-	return invites
+func (s *Service) TeamsInvitedTo(ctx context.Context, email string) []db.Invite {
+	teamsInvitedTo, _ := s.db.Queries.GetActiveTeamInvitesForUser(ctx, email)
+	return teamsInvitedTo
 }
 
-func (s *Service) CreateTeamUser(user *db.User, team *db.Team, role db.UserRole) (*db.TeamUser, error) {
-	teamUser := db.TeamUser{
-		TeamID:    team.ID,
-		UserID:    user.ID,
+func (s *Service) CreateTeamUser(ctx context.Context, userID, teamID int64, role string) (*db.TeamMember, error) {
+	teamUser, _ := s.db.Queries.CreateTeamMember(ctx, db.CreateTeamMemberParams{
+		TeamID:    teamID,
+		UserID:    userID,
 		Role:      role,
 		SecretKey: utils.GenerateSecretKeyForUser(),
-	}
-	result := s.db.Conn.Create(&teamUser)
-	if result.Error != nil {
-		return nil, result.Error
-	}
+	})
 	return &teamUser, nil
 }
 
-func (s *Service) Logout(token string) error {
-	result := s.db.Conn.Where("token = ?", token).Delete(&db.Session{})
-	return result.Error
+func (s *Service) Logout(ctx context.Context, token string) error {
+	return s.db.Queries.DeleteSession(ctx, token)
 }
 
-func (s *Service) UpdateUser(user *db.User, firstName, lastName string) (*db.User, error) {
-	user.FirstName = &firstName
-	user.LastName = &lastName
-	result := s.db.Conn.Model(&db.User{}).Where("id = ?", user.ID).Updates(user)
-	if result.Error != nil {
-		return nil, result.Error
+func (s *Service) UpdateUser(ctx context.Context, userID int64, firstName, lastName string) (UserWithTeamsUpdateResponse, error) {
+	err := s.db.Queries.UpdateUser(ctx, db.UpdateUserParams{
+		ID:        userID,
+		FirstName: firstName,
+		LastName:  lastName,
+	})
+	if err != nil {
+		return UserWithTeamsUpdateResponse{}, err
 	}
-	return user, nil
+
+	return s.GetUserById(ctx, userID)
 }
 
-func (s *Service) RotateSecretKey(user *db.TeamUser) (*db.TeamUser, error) {
-	user.SecretKey = utils.GenerateSecretKeyForUser()
-	result := s.db.Conn.Save(&user)
-	if result.Error != nil {
-		return nil, result.Error
+func (s *Service) RotateSecretKey(ctx context.Context, teamUserID int64) (db.GetTeamMemberByIdRow, error) {
+	secretKey := utils.GenerateSecretKeyForUser()
+	err := s.db.Queries.UpdateSecretKey(ctx, db.UpdateSecretKeyParams{
+		ID:        teamUserID,
+		SecretKey: secretKey,
+	})
+	if err != nil {
+		return db.GetTeamMemberByIdRow{}, err
 	}
-	return user, nil
+	return s.db.Queries.GetTeamMemberById(ctx, teamUserID)
 }

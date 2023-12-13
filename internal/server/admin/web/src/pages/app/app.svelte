@@ -6,9 +6,10 @@
     ArrowUpDown,
     User,
     MoreVertical,
+    BadgePlus,
   } from "lucide-svelte";
 
-  import { Router, Route, navigate } from "svelte-routing";
+  import { Router, Route, navigate, Link } from "svelte-routing";
   import SettingsPage from "./settings.svelte";
   import Connections from "./connections.svelte";
   import Notfound from "./notfound.svelte";
@@ -23,6 +24,8 @@
   import { setContext } from "svelte";
   import TeamSelector from "$lib/components/team-selector.svelte";
   import { LogOut } from "lucide-svelte";
+  import NewTeam from "./new-team.svelte";
+  import Separator from "$lib/components/ui/separator/separator.svelte";
 
   export let url = "";
   export let team: string;
@@ -82,6 +85,8 @@
           <span class="mx-2 text-sm">Users</span>
         </Sidebarlink>
 
+        <Separator />
+
         <Sidebarlink url="/{team}/settings">
           <Settings strokeWidth={1.5} class="h-4 w-4" />
           <span class="mx-2 text-sm">Settings</span>
@@ -105,7 +110,7 @@
                 <div class="flex items-center space-x-1">
                   <img
                     class="object-cover rounded-full h-7 w-7"
-                    src={$currentUser?.AvatarUrl}
+                    src={$currentUser?.GithubAvatarUrl}
                     alt="avatar"
                   />
                   <span
@@ -118,7 +123,14 @@
                 <MoreVertical strokeWidth={1.5} class="h-4 w-4" />
               </Button>
             </DropdownMenu.Trigger>
-            <DropdownMenu.Content class="w-52">
+            <DropdownMenu.Content class="w-52 space-y-2">
+              <DropdownMenu.Item class="hover:cursor-pointer">
+                <Link to={`/${team}/new-team`} class="flex w-full items-center">
+                  <BadgePlus strokeWidth={1.5} class="h-4 w-4" />
+                  <span class="mx-2 text-sm">New team</span>
+                </Link>
+              </DropdownMenu.Item>
+              <Separator />
               <DropdownMenu.Item on:click={logout} class="hover:cursor-pointer">
                 <LogOut strokeWidth={1.5} class="h-4 w-4" />
                 <span class="mx-2 text-sm">Logout</span>
@@ -137,6 +149,7 @@
         <Route path="/settings"><SettingsPage /></Route>
         <Route path="/my-account"><MyAccount /></Route>
         <Route path="/users"><UsersPage /></Route>
+        <Route path="/new-team"><NewTeam /></Route>
         <Route path="*"><Notfound /></Route>
       </Router>
     </div>

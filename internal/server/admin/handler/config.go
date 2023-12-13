@@ -16,7 +16,7 @@ func (h *Handler) ValidateClientConfig(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "invalid payload"})
 	}
 
-	err := h.service.ValidateClientConfig(payload.Key)
+	err := h.service.ValidateClientConfig(c.Context(), payload.Key)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "failed to validate client config"})
 	}

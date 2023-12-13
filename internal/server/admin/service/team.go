@@ -1,44 +1,37 @@
 package service
 
 import (
-	"github.com/amalshaji/localport/internal/server/db"
+	"context"
+
+	db "github.com/amalshaji/localport/internal/server/db/models"
 	"github.com/amalshaji/localport/internal/utils"
 )
-
-func (s *Service) GetTeamCount() int64 {
-	var count int64
-	s.db.Conn.Model(&db.Team{}).Count(&count)
-	return count
-}
 
 type CreateTeamInput struct {
 	Name string `json:"name"`
 }
 
-func (s *Service) CreateTeam(createTeamInput CreateTeamInput) (*db.Team, error) {
-	team := db.Team{Name: createTeamInput.Name, Slug: utils.Slugify(createTeamInput.Name)}
-	result := s.db.Conn.Create(&team)
-	if result.Error != nil {
-		return nil, result.Error
-	}
-	return &team, nil
+func (s *Service) CreateTeam(ctx context.Context, createTeamInput CreateTeamInput) (db.Team, error) {
+	return s.db.Queries.CreateTeam(ctx, db.CreateTeamParams{
+		Name: createTeamInput.Name,
+		Slug: utils.Slugify(createTeamInput.Name),
+	})
 }
 
-func (s *Service) CreateFirstTeam(createTeamInput CreateTeamInput, user *db.User) (*db.Team, error) {
-	tx := s.db.Conn.Begin()
+func (s *Service) CreateFirstTeam(ctx context.Context, createTeamInput CreateTeamInput, userID int64) (*db.Team, error) {
+	tx, _ := s.db.Conn.Begin()
+	defer tx.Rollback()
 
-	team, err := s.CreateTeam(createTeamInput)
+	team, err := s.CreateTeam(ctx, createTeamInput)
 	if err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 
-	_, err = s.CreateTeamUser(user, team, db.Admin)
+	_, err = s.CreateTeamUser(ctx, userID, team.ID, "admin")
 	if err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 
 	tx.Commit()
-	return team, nil
+	return &team, nil
 }

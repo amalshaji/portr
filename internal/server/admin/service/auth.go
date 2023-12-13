@@ -2,12 +2,13 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 
-	"github.com/amalshaji/localport/internal/server/db"
+	db "github.com/amalshaji/localport/internal/server/db/models"
 	"github.com/amalshaji/localport/internal/utils"
 	"golang.org/x/oauth2"
 )
@@ -159,17 +160,15 @@ func (s *Service) GetGithubUserEmails(accessToken string) (*[]GithubUserEmails, 
 	return &result, nil
 }
 
-func (s *Service) LoginUser(user *db.User) string {
+func (s *Service) LoginUser(ctx context.Context, user *db.User) (db.Session, error) {
 	sessionToken := utils.GenerateSessionToken()
-	s.db.Conn.Create(&db.Session{
-		Token: sessionToken,
-		User:  *user,
+	return s.db.Queries.CreateSession(ctx, db.CreateSessionParams{
+		Token:  sessionToken,
+		UserID: user.ID,
 	})
-	return sessionToken
 }
 
-func (s *Service) IsSuperUserSignUp() bool {
-	var count int64
-	s.db.Conn.Find(&db.User{}).Count(&count)
+func (s *Service) IsSuperUserSignUp(ctx context.Context) bool {
+	count, _ := s.db.Queries.GetUsersCount(ctx)
 	return count == 0
 }

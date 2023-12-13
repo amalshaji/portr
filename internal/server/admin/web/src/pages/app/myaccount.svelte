@@ -12,10 +12,10 @@
 
   let firstName: string = "",
     lastName: string = "";
-
   currentUser.subscribe((user) => {
     firstName = user?.FirstName || "";
     lastName = user?.LastName || "";
+    console.log(user);
   });
 
   let isUpdating = false,

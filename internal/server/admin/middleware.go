@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/amalshaji/localport/internal/server/db"
+	db "github.com/amalshaji/localport/internal/server/db/models"
 	"github.com/gofiber/fiber/v2"
 )
 
 var rootViewAuthMiddleware = func(c *fiber.Ctx) error {
-	user := c.Locals("user").(*db.User)
+	user := c.Locals("user").(*db.UserWithTeams)
 	if user == nil {
 		return c.Redirect("/")
 	}
@@ -17,12 +17,12 @@ var rootViewAuthMiddleware = func(c *fiber.Ctx) error {
 }
 
 var teamViewAuthMiddleware = func(c *fiber.Ctx) error {
-	user := c.Locals("user").(*db.User)
+	user := c.Locals("user").(*db.UserWithTeams)
 	if user == nil {
 		return c.Redirect("/")
 	}
 
-	teamUser := c.Locals("teamUser").(*db.TeamUser)
+	teamUser := c.Locals("teamUser").(*db.GetTeamMemberByUserIdAndTeamSlugRow)
 	if teamUser == nil {
 		return c.Redirect(fmt.Sprintf("/%s/overview", user.Teams[0].Slug))
 	}
@@ -31,7 +31,7 @@ var teamViewAuthMiddleware = func(c *fiber.Ctx) error {
 }
 
 var apiAuthMiddleware = func(c *fiber.Ctx) error {
-	user := c.Locals("user").(*db.User)
+	user := c.Locals("user").(*db.UserWithTeams)
 	if user == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
 	}
@@ -39,7 +39,7 @@ var apiAuthMiddleware = func(c *fiber.Ctx) error {
 }
 
 var apiTeamAuthMiddleware = func(c *fiber.Ctx) error {
-	teamUser := c.Locals("teamUser").(*db.TeamUser)
+	teamUser := c.Locals("teamUser").(*db.GetTeamMemberByUserIdAndTeamSlugRow)
 	if teamUser == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
 	}
@@ -48,8 +48,8 @@ var apiTeamAuthMiddleware = func(c *fiber.Ctx) error {
 
 // Make sure to run these after running auth middlewares
 var adminPermissionRequired = func(c *fiber.Ctx) error {
-	user := c.Locals("teamUser").(*db.TeamUser)
-	if !slices.Contains([]db.UserRole{db.Admin, db.SuperUser}, user.Role) {
+	user := c.Locals("teamUser").(*db.GetTeamMemberByUserIdAndTeamSlugRow)
+	if !slices.Contains([]string{"admin", "superuser"}, user.Role) {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"message": "you need admin permissions to perform this action",
 		})
@@ -58,7 +58,7 @@ var adminPermissionRequired = func(c *fiber.Ctx) error {
 }
 
 var superUserPermissionRequired = func(c *fiber.Ctx) error {
-	user := c.Locals("user").(*db.User)
+	user := c.Locals("user").(*db.UserWithTeams)
 	if !user.IsSuperUser {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"message": "you need admin permissions to perform this action",

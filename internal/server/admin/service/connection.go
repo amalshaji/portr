@@ -1,42 +1,45 @@
 package service
 
 import (
-	"time"
+	"context"
 
-	"github.com/amalshaji/localport/internal/server/db"
+	db "github.com/amalshaji/localport/internal/server/db/models"
 )
 
-func (s *Service) ListActiveConnections(teamID uint) []db.Connection {
-	var connections []db.Connection
-	s.db.Conn.
-		Limit(20).
-		Order("connections.id desc").
-		Joins("User").
-		Find(&connections, "closed_at IS NULL AND team_id = ?", teamID)
-	return connections
-}
-
-func (s *Service) ListRecentConnections(teamID uint) []db.Connection {
-	var connections []db.Connection
-	s.db.Conn.Limit(20).Order("connections.id desc").Joins("User").Find(&connections, "team_id = ?", teamID)
-	return connections
-}
-
-func (s *Service) RegisterNewConnection(subdomain string, secretKey string) (db.Connection, error) {
-	var teamUser db.TeamUser
-	result := s.db.Conn.First(&teamUser, "secret_key = ?", secretKey)
-	if result.Error != nil {
-		return db.Connection{}, result.Error
+func (s *Service) ListActiveConnections(ctx context.Context, teamID int64) []db.GetActiveConnectionsForTeamRow {
+	result, err := s.db.Queries.GetActiveConnectionsForTeam(ctx, teamID)
+	if err != nil {
+		s.log.Error("error while fetching active connections", "error", err)
+		return []db.GetActiveConnectionsForTeamRow{}
 	}
-	connection := db.Connection{Subdomain: subdomain, TeamUser: teamUser}
-	result = s.db.Conn.Create(&connection)
-	if result.Error != nil {
-		return db.Connection{}, result.Error
-	}
-	return connection, nil
+	return result
 }
 
-func (s *Service) MarkConnectionAsClosed(connection db.Connection) error {
-	result := s.db.Conn.Model(&connection).Update("closed_at", time.Now().UTC())
-	return result.Error
+func (s *Service) ListRecentConnections(ctx context.Context, teamID int64) []db.GetRecentConnectionsForTeamRow {
+	result, err := s.db.Queries.GetRecentConnectionsForTeam(ctx, teamID)
+	if err != nil {
+		s.log.Error("error while fetching active connections", "error", err)
+		return []db.GetRecentConnectionsForTeamRow{}
+	}
+	return result
+}
+
+func (s *Service) RegisterNewConnection(ctx context.Context, subdomain string, secretKey string) (db.Connection, error) {
+	teamUserResult, err := s.db.Queries.GetTeamUserBySecretKey(ctx, secretKey)
+	if err != nil {
+		return db.Connection{}, err
+	}
+
+	result, err := s.db.Queries.CreateNewConnection(ctx, db.CreateNewConnectionParams{
+		Subdomain:    subdomain,
+		TeamMemberID: teamUserResult.ID,
+	})
+	if err != nil {
+		return db.Connection{}, err
+	}
+	return result, nil
+}
+
+func (s *Service) MarkConnectionAsClosed(ctx context.Context, connection db.Connection) error {
+	return s.db.Queries.MarkConnectionAsClosed(ctx, connection.ID)
 }
