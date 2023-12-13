@@ -10,8 +10,7 @@
 
   let teamName: string = "";
 
-  let isUpdating = false,
-
+  let isUpdating = false;
 
   const createTeam = async () => {
     isUpdating = true;
