@@ -23,16 +23,28 @@
 </script>
 
 <Select.Root bind:selected onSelectedChange={switchTeams}>
-  <Select.Trigger class="w-[180px]">
-    <Select.Value />
+  <Select.Trigger>
+    <div class="flex items-center space-x-2">
+      <img
+        src="https://api.dicebear.com/7.x/initials/svg?seed={selected.value}"
+        alt={selected.Label}
+        class="w-5 h-5 rounded-full"
+      />
+      <Select.Value />
+    </div>
   </Select.Trigger>
   <Select.Content>
     <Select.Group on:change={(e) => console.log(e)}>
-      <Select.Label>Switch team</Select.Label>
+      <Select.Label>Your teams</Select.Label>
       {#each teams as team}
-        <Select.Item value={team.Slug} label={team.Name}
-          >{team.Name}</Select.Item
-        >
+        <Select.Item value={team.Slug} label={team.Name}>
+          <img
+            src="https://api.dicebear.com/7.x/initials/svg?seed={team.Slug}"
+            alt={team.Name}
+            class="w-5 h-5 rounded-full mr-2"
+          />
+          {team.Name}
+        </Select.Item>
       {/each}
     </Select.Group>
   </Select.Content>
