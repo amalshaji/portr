@@ -42,11 +42,15 @@
     }),
     table.column({
       accessor: (item: Invite) => {
-        const { Email, FirstName, LastName } = item.InvitedByTeamUser.User;
+        const {
+          InvitedByEmail,
+          InvitedByFirstName: FirstName,
+          InvitedByLastName: LastName,
+        } = item;
         if (FirstName) {
           return `${FirstName} ${LastName}`;
         }
-        return Email;
+        return InvitedByEmail;
       },
       header: "Invited by",
     }),

@@ -36,7 +36,12 @@ func (s *Service) sendInviteNotification(ctx context.Context, invite *db.Invite,
 	return nil
 }
 
-func (s *Service) CreateInvite(ctx context.Context, input CreateInviteInput, InvitedByTeamMemberID, teamID int64) (*db.Invite, error) {
+func (s *Service) CreateInvite(
+	ctx context.Context,
+	input CreateInviteInput,
+	InvitedByTeamMemberID,
+	teamID int64,
+) (*db.Invite, error) {
 	email := utils.Trim(input.Email)
 	role := utils.Trim(input.Role)
 
@@ -63,6 +68,18 @@ func (s *Service) CreateInvite(ctx context.Context, input CreateInviteInput, Inv
 	defer tx.Rollback()
 
 	qtx := s.db.Queries.WithTx(tx)
+
+	// check for exising email(user)
+	user, err := qtx.GetUserByEmail(ctx, email)
+	if err == nil {
+		// user exists, create team user
+		_, err := s.CreateTeamUser(ctx, user.ID, teamID, role)
+		if err != nil {
+			return nil, err
+		}
+		tx.Commit()
+		return nil, nil
+	}
 
 	invite, err := qtx.CreateInvite(ctx, db.CreateInviteParams{
 		Email:                 email,

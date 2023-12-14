@@ -59,8 +59,9 @@ export type Invite = {
   Email: string;
   Role: "admin" | "member";
   Status: "pending" | "accepted" | "expired";
-  InvitedByTeamUserID: number;
-  InvitedByTeamUser: TeamUser;
+  InvitedByEmail: string;
+  InvitedByFirstName: string;
+  InvitedByLastName: string;
 };
 
 export type ServerAddress = {

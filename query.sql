@@ -123,7 +123,9 @@ SELECT
     invites.email,
     invites.role,
     invites.status,
-    users.email AS invited_by_email
+    users.email AS invited_by_email,
+    users.first_name AS invited_by_first_name,
+    users.last_name AS invited_by_last_name
 FROM
     invites
     JOIN team_members ON team_members.id = invites.invited_by_team_member_id
