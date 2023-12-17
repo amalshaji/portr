@@ -2,9 +2,8 @@
   import * as Select from "$lib/components/ui/select";
   import { currentUser } from "$lib/store";
   import type { Team } from "$lib/types";
-  import { BadgePlus } from "lucide-svelte";
   import { getContext, onDestroy } from "svelte";
-  import { Link } from "svelte-routing";
+  import * as Avatar from "$lib/components/ui/avatar";
 
   let team = getContext("team");
 
@@ -30,11 +29,12 @@
 <Select.Root bind:selected onSelectedChange={switchTeams}>
   <Select.Trigger>
     <div class="flex items-center space-x-2">
-      <img
-        src="https://api.dicebear.com/7.x/initials/svg?seed={selected.value}"
-        alt={selected.Label}
-        class="w-5 h-5 rounded-full"
-      />
+      <Avatar.Root class="w-5 h-5 rounded-full">
+        <Avatar.Image
+          src="https://api.dicebear.com/7.x/initials/svg?seed={selected.value}"
+          alt={selected.label}
+        />
+      </Avatar.Root>
       <Select.Value />
     </div>
   </Select.Trigger>

@@ -4,7 +4,6 @@
   import * as Card from "$lib/components/ui/card";
   import { toast } from "svelte-sonner";
   import { Reload } from "radix-icons-svelte";
-  import { navigate } from "svelte-routing";
 
   let teamName: string = "";
 
@@ -42,7 +41,6 @@
     <Card.Root class="rounded-sm">
       <Card.Header class="space-y-3">
         <Card.Title>Enter team name</Card.Title>
-        <Card.Description>Let's create your first team</Card.Description>
       </Card.Header>
       <Card.Content class="space-y-2">
         <div class="sm:col-span-3">
