@@ -166,15 +166,22 @@ LIMIT
 -- name: CreateGlobalSettings :one
 INSERT INTO
     global_settings (
+        smtp_enabled,
         user_invite_email_subject,
         user_invite_email_template
     )
 VALUES
-    (?, ?) RETURNING *;
+    (?, ?, ?) RETURNING *;
 
 -- name: UpdateGlobalSettings :exec
 UPDATE global_settings
 SET
+    smtp_enabled = ?,
+    smtp_host = ?,
+    smtp_port = ?,
+    smtp_username = ?,
+    smtp_password = ?,
+    from_address = ?,
     user_invite_email_subject = ?,
     user_invite_email_template = ?;
 

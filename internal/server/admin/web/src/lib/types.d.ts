@@ -16,6 +16,7 @@ export type User = {
   FirstName: string | null;
   LastName: string | null;
   GithubAvatarUrl: string | null;
+  IsSuperUser: boolean;
   Teams: Team[];
 };
 
@@ -41,6 +42,13 @@ type BaseSettings = {
 export type SettingsForSignup = BaseSettings;
 
 export type Settings = BaseSettings & {
+  SmtpEnabled: boolean;
+  SmtpHost: string;
+  SmtpPort: number;
+  SmtpUsername: string;
+  SmtpPassword: string;
+  FromAddress: string;
+  UserInviteEmailSubject: string;
   UserInviteEmailTemplate: string;
 };
 

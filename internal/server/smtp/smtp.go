@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/amalshaji/localport/internal/server/config"
+	db "github.com/amalshaji/localport/internal/server/db/models"
 	"github.com/amalshaji/localport/internal/utils"
 	"github.com/emersion/go-sasl"
 	"github.com/emersion/go-smtp"
@@ -27,11 +28,11 @@ type SendEmailInput struct {
 	Body    string
 }
 
-func (s *Smtp) SendEmail(input SendEmailInput) error {
-	auth := sasl.NewPlainClient("", s.config.Smtp.Username, s.config.Smtp.Password)
+func (s *Smtp) SendEmail(input SendEmailInput, settings *db.GlobalSetting) error {
+	auth := sasl.NewPlainClient("", settings.SmtpUsername.(string), settings.SmtpPassword.(string))
 	message := fmt.Sprintf("Subject: %s\n\n%s", input.Subject, input.Body)
 	return smtp.SendMail(
-		s.config.Smtp.Address(),
+		settings.SmtpHost.(string)+":"+fmt.Sprint(settings.SmtpPort.(int64)),
 		auth, input.From,
 		[]string{input.To},
 		strings.NewReader(message),

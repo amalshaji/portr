@@ -18,6 +18,12 @@ type Connection struct {
 
 type GlobalSetting struct {
 	ID                      int64
+	SmtpEnabled             bool
+	SmtpHost                interface{}
+	SmtpPort                interface{}
+	SmtpUsername            interface{}
+	SmtpPassword            interface{}
+	FromAddress             interface{}
 	UserInviteEmailSubject  interface{}
 	UserInviteEmailTemplate interface{}
 }

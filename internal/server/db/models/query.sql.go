@@ -26,22 +26,34 @@ func (q *Queries) AcceptInvite(ctx context.Context, id int64) error {
 const createGlobalSettings = `-- name: CreateGlobalSettings :one
 INSERT INTO
     global_settings (
+        smtp_enabled,
         user_invite_email_subject,
         user_invite_email_template
     )
 VALUES
-    (?, ?) RETURNING id, user_invite_email_subject, user_invite_email_template
+    (?, ?, ?) RETURNING id, smtp_enabled, smtp_host, smtp_port, smtp_username, smtp_password, from_address, user_invite_email_subject, user_invite_email_template
 `
 
 type CreateGlobalSettingsParams struct {
+	SmtpEnabled             bool
 	UserInviteEmailSubject  interface{}
 	UserInviteEmailTemplate interface{}
 }
 
 func (q *Queries) CreateGlobalSettings(ctx context.Context, arg CreateGlobalSettingsParams) (GlobalSetting, error) {
-	row := q.db.QueryRowContext(ctx, createGlobalSettings, arg.UserInviteEmailSubject, arg.UserInviteEmailTemplate)
+	row := q.db.QueryRowContext(ctx, createGlobalSettings, arg.SmtpEnabled, arg.UserInviteEmailSubject, arg.UserInviteEmailTemplate)
 	var i GlobalSetting
-	err := row.Scan(&i.ID, &i.UserInviteEmailSubject, &i.UserInviteEmailTemplate)
+	err := row.Scan(
+		&i.ID,
+		&i.SmtpEnabled,
+		&i.SmtpHost,
+		&i.SmtpPort,
+		&i.SmtpUsername,
+		&i.SmtpPassword,
+		&i.FromAddress,
+		&i.UserInviteEmailSubject,
+		&i.UserInviteEmailTemplate,
+	)
 	return i, err
 }
 
@@ -394,7 +406,7 @@ func (q *Queries) GetAtiveInviteByEmail(ctx context.Context, arg GetAtiveInviteB
 
 const getGlobalSettings = `-- name: GetGlobalSettings :one
 SELECT
-    id, user_invite_email_subject, user_invite_email_template
+    id, smtp_enabled, smtp_host, smtp_port, smtp_username, smtp_password, from_address, user_invite_email_subject, user_invite_email_template
 FROM
     global_settings
 LIMIT
@@ -404,7 +416,17 @@ LIMIT
 func (q *Queries) GetGlobalSettings(ctx context.Context) (GlobalSetting, error) {
 	row := q.db.QueryRowContext(ctx, getGlobalSettings)
 	var i GlobalSetting
-	err := row.Scan(&i.ID, &i.UserInviteEmailSubject, &i.UserInviteEmailTemplate)
+	err := row.Scan(
+		&i.ID,
+		&i.SmtpEnabled,
+		&i.SmtpHost,
+		&i.SmtpPort,
+		&i.SmtpUsername,
+		&i.SmtpPassword,
+		&i.FromAddress,
+		&i.UserInviteEmailSubject,
+		&i.UserInviteEmailTemplate,
+	)
 	return i, err
 }
 
@@ -986,17 +1008,38 @@ func (q *Queries) MarkConnectionAsClosed(ctx context.Context, id int64) error {
 const updateGlobalSettings = `-- name: UpdateGlobalSettings :exec
 UPDATE global_settings
 SET
+    smtp_enabled = ?,
+    smtp_host = ?,
+    smtp_port = ?,
+    smtp_username = ?,
+    smtp_password = ?,
+    from_address = ?,
     user_invite_email_subject = ?,
     user_invite_email_template = ?
 `
 
 type UpdateGlobalSettingsParams struct {
+	SmtpEnabled             bool
+	SmtpHost                interface{}
+	SmtpPort                interface{}
+	SmtpUsername            interface{}
+	SmtpPassword            interface{}
+	FromAddress             interface{}
 	UserInviteEmailSubject  interface{}
 	UserInviteEmailTemplate interface{}
 }
 
 func (q *Queries) UpdateGlobalSettings(ctx context.Context, arg UpdateGlobalSettingsParams) error {
-	_, err := q.db.ExecContext(ctx, updateGlobalSettings, arg.UserInviteEmailSubject, arg.UserInviteEmailTemplate)
+	_, err := q.db.ExecContext(ctx, updateGlobalSettings,
+		arg.SmtpEnabled,
+		arg.SmtpHost,
+		arg.SmtpPort,
+		arg.SmtpUsername,
+		arg.SmtpPassword,
+		arg.FromAddress,
+		arg.UserInviteEmailSubject,
+		arg.UserInviteEmailTemplate,
+	)
 	return err
 }
 

@@ -21,8 +21,13 @@ func New() *Db {
 }
 
 var (
-	DefaultUserInviteEmailSubject  = utils.Trim("Invitation to join team {{teamName}} on LocalPort")
-	DefaultUserInviteEmailTemplate = utils.Trim(`Hi {{email}}, you have been invited to join team {{teamName}} on LocalPort. You can now signup using your GitHub account.
+	DefaultSmtpEnabled             = false
+	DefaultUserInviteEmailSubject  = utils.Trim("You've Been Added to Team {{teamName}} on LocalPort!")
+	DefaultUserInviteEmailTemplate = utils.Trim(`Hello {{email}}
+	
+You've been added to team "{{teamName}}" on LocalPort.
+
+To get started, click the link below 
 
 {{appUrl}}`)
 )
@@ -39,13 +44,14 @@ func (d *Db) Connect() {
 
 	d.Queries = db.New(d.Conn)
 	_, err = d.Queries.GetGlobalSettings(ctx)
-	// Populate/update default settings
 
+	// Populate default settings
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			_, err = d.Queries.CreateGlobalSettings(ctx, db.CreateGlobalSettingsParams{
-				UserInviteEmailTemplate: DefaultUserInviteEmailTemplate,
+				SmtpEnabled:             DefaultSmtpEnabled,
 				UserInviteEmailSubject:  DefaultUserInviteEmailSubject,
+				UserInviteEmailTemplate: DefaultUserInviteEmailTemplate,
 			})
 			if err != nil {
 				log.Fatal(err)

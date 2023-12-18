@@ -40,11 +40,15 @@
       });
 
       if (res.ok) {
-        toast.success("Invitation sent");
         const data = await res.json();
-        invites.update((invites) => {
-          return [data, ...invites];
-        });
+        if (data !== null) {
+          invites.update((invites) => {
+            return [data, ...invites];
+          });
+          toast.success("Invitation sent");
+        } else {
+          toast.success("User added to team");
+        }
         open = false;
       } else {
         error = (await res.json()).message;

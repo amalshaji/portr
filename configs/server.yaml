@@ -4,12 +4,6 @@ admin:
   oauth:
     clientId: $GITHUB_CLIENT_ID # this is replaced by the environment var
     clientSecret: $GITHUB_CLIENT_SECRET
-  smtp:
-    host: $SMTP_HOST
-    port: 587
-    username: $SMTP_USERNAME
-    password: $SMTP_PASSWORD
-    fromEmail: $SMTP_FROM_EMAIL
 ssh:
   port: 2222
 proxy:

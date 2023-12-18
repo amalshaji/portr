@@ -16,6 +16,9 @@ func (h *Handler) UpdateEmailSettings(c *fiber.Ctx) error {
 	if err := c.BodyParser(&updatePayload); err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"message": "invalid payload"})
 	}
+	if err := updatePayload.Validate(); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"message": err.Error()})
+	}
 	result, err := h.service.UpdateEmailSettings(c.Context(), updatePayload)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": err.Error()})

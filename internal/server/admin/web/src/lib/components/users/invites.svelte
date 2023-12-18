@@ -13,7 +13,6 @@
     try {
       const response = await fetch(`/api/${team}/invite`);
       invites.set((await response.json()) || []);
-      console.log($invites);
     } catch (err) {
       console.error(err);
     } finally {

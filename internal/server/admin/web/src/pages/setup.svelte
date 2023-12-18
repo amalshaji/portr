@@ -2,6 +2,8 @@
   import Newteam from "$lib/components/newteam.svelte";
 </script>
 
-<div class="lg:w-1/2">
-  <Newteam />
+<div class="grid h-screen place-items-center">
+  <div class="lg:w-1/2">
+    <Newteam />
+  </div>
 </div>

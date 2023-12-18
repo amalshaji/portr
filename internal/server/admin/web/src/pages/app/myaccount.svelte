@@ -63,7 +63,7 @@
       });
       if (res.ok) {
         currentTeamUser.set(await res.json());
-        toast.success("Secret key rotated");
+        toast.success("New secret key generated");
       } else {
         toast.error("Something went wrong");
       }
@@ -75,9 +75,8 @@
   };
 </script>
 
-<p class="text-2xl py-4">My account</p>
 <div class="space-y-4">
-  <Card.Root class="rounded-sm">
+  <Card.Root class="rounded-sm border-none shadow-none">
     <Card.Header class="space-y-3">
       <Card.Title>Profile</Card.Title>
       <Card.Description>Some basic information about you</Card.Description>
@@ -115,7 +114,7 @@
     </Card.Footer>
   </Card.Root>
 
-  <Card.Root class="rounded-sm">
+  <Card.Root class="rounded-sm border-none shadow-none">
     <Card.Header class="space-y-3">
       <Card.Title>Secret key</Card.Title>
       <Card.Description

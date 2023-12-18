@@ -44,8 +44,8 @@ func (h *Handler) RegisterGithubAuthRoutes(group fiber.Router) {
 	group.Get("/is-superuser-signup", h.IsSuperUserSignup)
 }
 
-func (h *Handler) RegisterSettingsRoutes(group fiber.Router) {
-	settingsGroup := group.Group("/setting")
+func (h *Handler) RegisterSettingsRoutes(group fiber.Router, permissionHandler fiber.Handler) {
+	settingsGroup := group.Group("/setting", permissionHandler)
 	settingsGroup.Get("/all", h.ListSettings)
 	settingsGroup.Patch("/email/update", h.UpdateEmailSettings)
 }

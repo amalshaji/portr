@@ -77,7 +77,6 @@
   ]);
 </script>
 
-<p class="text-2xl py-4">{connectionType} connections</p>
 <div class="flex items-center space-x-2 my-6">
   <Checkbox id="terms" bind:checked class="rounded-full" />
   <Label

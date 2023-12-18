@@ -13,24 +13,11 @@ type OAuth struct {
 	ClientSecret string `yaml:"clientSecret"`
 }
 
-type SmtpConfig struct {
-	Host      string
-	Port      int
-	Username  string
-	Password  string
-	FromEmail string `yaml:"fromEmail"`
-}
-
-func (s SmtpConfig) Address() string {
-	return s.Host + ":" + fmt.Sprint(s.Port)
-}
-
 type AdminConfig struct {
 	Host    string
 	Port    int
-	UseVite bool       `yaml:"useVite"`
-	OAuth   OAuth      `yaml:"oauth"`
-	Smtp    SmtpConfig `yaml:"smtp"`
+	UseVite bool  `yaml:"useVite"`
+	OAuth   OAuth `yaml:"oauth"`
 }
 
 func (a AdminConfig) Address() string {

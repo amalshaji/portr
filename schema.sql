@@ -61,6 +61,12 @@ CREATE TABLE
 CREATE TABLE
     IF NOT EXISTS global_settings (
         id INTEGER PRIMARY KEY,
+        smtp_enabled BOOLEAN NOT NULL DEFAULT false,
+        smtp_host TEXT NULL,
+        smtp_port INTEGER NULL,
+        smtp_username TEXT NULL,
+        smtp_password TEXT NULL,
+        from_address TEXT NULL,
         user_invite_email_subject TEXT NULL,
         user_invite_email_template TEXT NULL
     );

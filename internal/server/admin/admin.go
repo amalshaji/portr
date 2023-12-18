@@ -78,7 +78,7 @@ func New(config *config.Config, service *service.Service) *AdminServer {
 
 	apiGroup := app.Group("/api/", apiAuthMiddleware)
 	handler.RegisterUserRoutes(apiGroup)
-	handler.RegisterSettingsRoutes(apiGroup)
+	handler.RegisterSettingsRoutes(apiGroup, superUserPermissionRequired)
 	handler.RegisterTeamRoutes(apiGroup, superUserPermissionRequired)
 
 	handler.RegisterClientConfigRoutes(app, apiAuthMiddleware)
@@ -91,7 +91,6 @@ func New(config *config.Config, service *service.Service) *AdminServer {
 	// handle initial setup
 	app.Use(func(c *fiber.Ctx) error {
 		user := c.Locals("user").(*db.UserWithTeams)
-
 		if user != nil && len(user.Teams) == 0 && c.Path() != "/setup" {
 			return c.Redirect("/setup")
 		}

@@ -37,9 +37,9 @@ tunnels:
   });
 </script>
 
-<p class="text-2xl py-4">Client setup</p>
+<p class="text-xl py-2">Client setup</p>
 
-<div class="px-6 mt-4">
+<div class="px-6 mt-2">
   <ul class="list-decimal space-y-4">
     <li>
       Download the localport client from <a

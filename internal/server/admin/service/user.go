@@ -171,7 +171,7 @@ func (s *Service) GetOrCreateUserForGithubLogin(ctx context.Context, accessToken
 		return nil, err
 	}
 
-	for _, invite := range s.TeamsInvitedTo(ctx, user.Email) {
+	for _, invite := range s.TeamsInvitedTo(ctx, newUser.Email) {
 		_, err := s.CreateTeamUser(ctx, newUser.ID, invite.TeamID, invite.Role)
 		if err != nil {
 			s.log.Error("error while creating team user", "error", err)
@@ -196,12 +196,15 @@ func (s *Service) TeamsInvitedTo(ctx context.Context, email string) []db.Invite 
 }
 
 func (s *Service) CreateTeamUser(ctx context.Context, userID, teamID int64, role string) (*db.TeamMember, error) {
-	teamUser, _ := s.db.Queries.CreateTeamMember(ctx, db.CreateTeamMemberParams{
+	teamUser, err := s.db.Queries.CreateTeamMember(ctx, db.CreateTeamMemberParams{
 		TeamID:    teamID,
 		UserID:    userID,
 		Role:      role,
 		SecretKey: utils.GenerateSecretKeyForUser(),
 	})
+	if err != nil {
+		return nil, err
+	}
 	return &teamUser, nil
 }
 

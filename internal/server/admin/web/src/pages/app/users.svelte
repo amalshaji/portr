@@ -13,8 +13,7 @@
 
 <InviteUser bind:open={inviteUserModalOpen} />
 
-<div class="flex justify-between items-center">
-  <p class="text-2xl py-4">Users</p>
+<div class="py-2">
   {#if currentTab === "invites"}
     <Button
       on:click={() => (inviteUserModalOpen = !inviteUserModalOpen)}
@@ -22,6 +21,7 @@
     >
   {/if}
 </div>
+
 <Tabs.Root bind:value={currentTab} class="mx-auto">
   <Tabs.List class="grid w-full grid-cols-2">
     <Tabs.Trigger value="members">Members</Tabs.Trigger>

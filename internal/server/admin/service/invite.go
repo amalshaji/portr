@@ -10,29 +10,38 @@ import (
 	"github.com/valyala/fasttemplate"
 )
 
-func (s *Service) sendInviteNotification(ctx context.Context, invite *db.Invite, teamName string) error {
+func (s *Service) sendInviteNotification(ctx context.Context, invite *db.Invite, settings *db.GlobalSetting) error {
 	// get email template
-	settings := s.ListSettings(ctx)
+	team, _ := s.db.Queries.GetTeamById(ctx, invite.TeamID)
 
-	t := fasttemplate.New(settings.UserInviteEmailTemplate.(string), "{{", "}}")
+	t := fasttemplate.New(settings.UserInviteEmailSubject.(string), "{{", "}}")
+	renderedSubject := t.ExecuteString(map[string]interface{}{
+		"appUrl":   s.config.AdminUrl(),
+		"email":    invite.Email,
+		"role":     invite.Role,
+		"teamName": team.Name,
+	})
+
+	t = fasttemplate.New(settings.UserInviteEmailTemplate.(string), "{{", "}}")
 	renderedText := t.ExecuteString(map[string]interface{}{
 		"appUrl":   s.config.AdminUrl(),
 		"email":    invite.Email,
 		"role":     invite.Role,
-		"teamName": teamName,
+		"teamName": team.Name,
 	})
 
 	smtpInput := smtp.SendEmailInput{
-		From:    s.config.Admin.Smtp.FromEmail,
+		From:    settings.FromAddress.(string),
 		To:      invite.Email,
-		Subject: "Invitation to join Localport",
+		Subject: renderedSubject,
 		Body:    renderedText,
 	}
 
-	if err := s.smtp.SendEmail(smtpInput); err != nil {
+	if err := s.smtp.SendEmail(smtpInput, settings); err != nil {
 		s.log.Error("failed to send invite notification", "error", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -44,7 +53,6 @@ func (s *Service) CreateInvite(
 ) (*db.Invite, error) {
 	email := utils.Trim(input.Email)
 	role := utils.Trim(input.Role)
-
 	// check if user is part of team
 	getTeamMemberResult, err := s.db.Queries.GetTeamMemberByEmail(ctx, email)
 	if err == nil {
@@ -52,7 +60,6 @@ func (s *Service) CreateInvite(
 			return nil, fmt.Errorf("user is already a member")
 		}
 	}
-
 	// check if invite exists
 	count, _ := s.db.Queries.GetNumberOfExistingTeamInvitesForUser(
 		ctx,
@@ -71,6 +78,7 @@ func (s *Service) CreateInvite(
 
 	// check for exising email(user)
 	user, err := qtx.GetUserByEmail(ctx, email)
+
 	if err == nil {
 		// user exists, create team user
 		_, err := s.CreateTeamUser(ctx, user.ID, teamID, role)
@@ -92,13 +100,14 @@ func (s *Service) CreateInvite(
 		return nil, err
 	}
 
-	team, _ := qtx.GetTeamById(ctx, teamID)
+	settings := s.ListSettings(ctx)
 
 	// send invite email
-	if err := s.sendInviteNotification(ctx, &invite, team.Name); err != nil {
-		return nil, err
+	if settings.SmtpEnabled {
+		if err := s.sendInviteNotification(ctx, &invite, &settings); err != nil {
+			return nil, err
+		}
 	}
-
 	tx.Commit()
 	return &invite, nil
 }

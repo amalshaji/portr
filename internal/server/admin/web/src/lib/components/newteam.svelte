@@ -36,7 +36,6 @@
 </script>
 
 <div class="container mt-4">
-  <p class="text-2xl py-4">Team setup</p>
   <div class="space-y-4">
     <Card.Root class="rounded-sm">
       <Card.Header class="space-y-3">
