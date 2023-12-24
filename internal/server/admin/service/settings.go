@@ -13,14 +13,14 @@ func (s *Service) ListSettings(ctx context.Context) db.GlobalSetting {
 
 func (s *Service) UpdateEmailSettings(ctx context.Context, updateSettingsInput UpdateEmailSettingsInput) (db.GlobalSetting, error) {
 	err := s.db.Queries.UpdateGlobalSettings(ctx, db.UpdateGlobalSettingsParams{
-		SmtpEnabled:             updateSettingsInput.SmtpEnabled,
-		SmtpHost:                updateSettingsInput.SmtpHost,
-		SmtpPort:                updateSettingsInput.SmtpPort,
-		SmtpUsername:            updateSettingsInput.SmtpUsername,
-		SmtpPassword:            updateSettingsInput.SmtpPassword,
-		FromAddress:             updateSettingsInput.FromAddress,
-		UserInviteEmailTemplate: updateSettingsInput.UserInviteEmailTemplate,
-		UserInviteEmailSubject:  updateSettingsInput.UserInviteEmailSubject,
+		SmtpEnabled:            updateSettingsInput.SmtpEnabled,
+		SmtpHost:               updateSettingsInput.SmtpHost,
+		SmtpPort:               updateSettingsInput.SmtpPort,
+		SmtpUsername:           updateSettingsInput.SmtpUsername,
+		SmtpPassword:           updateSettingsInput.SmtpPassword,
+		FromAddress:            updateSettingsInput.FromAddress,
+		AddMemberEmailSubject:  updateSettingsInput.AddMemberEmailSubject,
+		AddMemberEmailTemplate: updateSettingsInput.AddMemberEmailTemplate,
 	})
 	if err != nil {
 		return db.GlobalSetting{}, err

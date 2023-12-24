@@ -48,8 +48,8 @@ export type Settings = BaseSettings & {
   SmtpUsername: string;
   SmtpPassword: string;
   FromAddress: string;
-  UserInviteEmailSubject: string;
-  UserInviteEmailTemplate: string;
+  AddMemberEmailSubject: string;
+  AddMemberEmailTemplate: string;
 };
 
 export type Connection = {

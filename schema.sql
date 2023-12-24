@@ -25,6 +25,7 @@ CREATE TABLE
         team_id INTEGER NOT NULL REFERENCES teams (id),
         secret_key TEXT NOT NULL,
         role TEXT NOT NULL,
+        added_by_user_id INTEGER NULL REFERENCES users (id),
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         UNIQUE (user_id, team_id)
     );
@@ -35,18 +36,6 @@ CREATE TABLE
         user_id INTEGER NOT NULL REFERENCES users (id),
         token TEXT NOT NULL UNIQUE,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );
-
-CREATE TABLE
-    IF NOT EXISTS invites (
-        id INTEGER PRIMARY KEY,
-        email TEXT NOT NULL,
-        role TEXT NOT NULL,
-        status TEXT NOT NULL,
-        invited_by_team_member_id INTEGER NOT NULL REFERENCES team_members (id),
-        team_id INTEGER NOT NULL REFERENCES teams (id),
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE (email, team_id)
     );
 
 CREATE TABLE
@@ -67,6 +56,6 @@ CREATE TABLE
         smtp_username TEXT NULL,
         smtp_password TEXT NULL,
         from_address TEXT NULL,
-        user_invite_email_subject TEXT NULL,
-        user_invite_email_template TEXT NULL
+        add_member_email_subject TEXT NULL,
+        add_member_email_template TEXT NULL
     );

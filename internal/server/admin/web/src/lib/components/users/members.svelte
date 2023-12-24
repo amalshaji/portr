@@ -5,7 +5,7 @@
   import { users, usersLoading } from "$lib/store";
   import { getContext, onMount } from "svelte";
   import Avatar from "./avatar.svelte";
-  import type { TeamUser, User } from "$lib/types";
+  import type { TeamUser } from "$lib/types";
 
   let team = getContext("team");
 
@@ -24,10 +24,6 @@
   const table = createTable(users);
 
   const columns = table.createColumns([
-    // table.column({
-    //   accessor: "ID",
-    //   header: "ID",
-    // }),
     table.column({
       accessor: "Email",
       header: "Email",

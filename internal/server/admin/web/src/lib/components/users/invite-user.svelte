@@ -8,7 +8,7 @@
 
   import * as Select from "$lib/components/ui/select";
   import { toast } from "svelte-sonner";
-  import { invites } from "$lib/store";
+  import { invites, users } from "$lib/store";
   import { getContext } from "svelte";
 
   const roles = [
@@ -27,11 +27,11 @@
 
   let team = getContext("team");
 
-  const invite = async () => {
+  const add_member = async () => {
     error = "";
     isLoading = true;
     try {
-      const res = await fetch(`/api/${team}/invite`, {
+      const res = await fetch(`/api/${team}/user/add`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -42,12 +42,10 @@
       if (res.ok) {
         const data = await res.json();
         if (data !== null) {
-          invites.update((invites) => {
-            return [data, ...invites];
+          users.update((users) => {
+            return [...users, data];
           });
-          toast.success("Invitation sent");
-        } else {
-          toast.success("User added to team");
+          toast.success(`${email} added to team`);
         }
         open = false;
       } else {
@@ -64,7 +62,7 @@
 <AlertDialog.Root bind:open>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title>Invite user</AlertDialog.Title>
+      <AlertDialog.Title>Add member</AlertDialog.Title>
       <AlertDialog.Description>
         <div class="mt-4 space-y-4">
           {#if error}
@@ -110,11 +108,11 @@
     </AlertDialog.Header>
     <AlertDialog.Footer>
       <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-      <Button on:click={invite} disabled={isLoading}>
+      <Button on:click={add_member} disabled={isLoading}>
         {#if isLoading}
           <Reload class="mr-2 h-4 w-4 animate-spin" />
         {/if}
-        Invite
+        Add
       </Button>
     </AlertDialog.Footer>
   </AlertDialog.Content>

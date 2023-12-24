@@ -8,8 +8,8 @@ var (
 	ErrSmtpUsernameRequired            = errors.New("smtp username is required")
 	ErrSmtpPasswordRequired            = errors.New("smtp password is required")
 	ErrSmtpFromAddressRequired         = errors.New("smtp from address is required")
-	ErrSmtpInviteEmailTemplateRequired = errors.New("smtp invite email template is required")
 	ErrSmtpInviteEmailSubjectRequired  = errors.New("smtp invite email subject is required")
+	ErrSmtpInviteEmailTemplateRequired = errors.New("smtp invite email template is required")
 )
 
 type UpdateSignupSettingsInput struct {
@@ -19,14 +19,14 @@ type UpdateSignupSettingsInput struct {
 }
 
 type UpdateEmailSettingsInput struct {
-	SmtpEnabled             bool
-	SmtpHost                string
-	SmtpPort                int32
-	SmtpUsername            string
-	SmtpPassword            string
-	FromAddress             string
-	UserInviteEmailTemplate string
-	UserInviteEmailSubject  string
+	SmtpEnabled            bool
+	SmtpHost               string
+	SmtpPort               int32
+	SmtpUsername           string
+	SmtpPassword           string
+	FromAddress            string
+	AddMemberEmailTemplate string
+	AddMemberEmailSubject  string
 }
 
 func (u UpdateEmailSettingsInput) Validate() error {
@@ -46,17 +46,17 @@ func (u UpdateEmailSettingsInput) Validate() error {
 		if u.FromAddress == "" {
 			return ErrSmtpFromAddressRequired
 		}
-		if u.UserInviteEmailTemplate == "" {
-			return ErrSmtpInviteEmailTemplateRequired
-		}
-		if u.UserInviteEmailSubject == "" {
+		if u.AddMemberEmailSubject == "" {
 			return ErrSmtpInviteEmailSubjectRequired
+		}
+		if u.AddMemberEmailTemplate == "" {
+			return ErrSmtpInviteEmailTemplateRequired
 		}
 	}
 	return nil
 }
 
-type CreateInviteInput struct {
+type AddMemberInput struct {
 	Email string
 	Role  string
 }

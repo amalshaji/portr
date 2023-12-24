@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	ErrRequiresInvite   = fmt.Errorf("requires invite")
+	ErrUserNotFound     = fmt.Errorf("user not found")
 	ErrDomainNotAllowed = fmt.Errorf("domain not allowed")
 	ErrPrivateEmail     = fmt.Errorf("private email")
 )
@@ -103,14 +103,6 @@ func (s *Service) CreateUser(
 	return &user, nil
 }
 
-func (s *Service) checkEligibleSignup(ctx context.Context, userDetails GithubUserDetails) error {
-	result, _ := s.db.Queries.GetActiveTeamInvitesForUser(ctx, userDetails.Email)
-	if len(result) == 0 {
-		return ErrRequiresInvite
-	}
-	return nil
-}
-
 func (s *Service) GetOrCreateUserForGithubLogin(ctx context.Context, accessToken string) (*db.User, error) {
 	userDetails, err := s.GetGithubUserDetails(accessToken)
 	if err != nil {
@@ -153,46 +145,21 @@ func (s *Service) GetOrCreateUserForGithubLogin(ctx context.Context, accessToken
 	defer tx.Rollback()
 
 	user, err := s.db.Queries.GetUserByEmail(ctx, userDetails.Email)
-	if err == nil {
-		return &user, nil
+	if err != nil && errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrUserNotFound
 	}
 
-	// assume the error is sql.ErrNoRows
-
-	// No user found, signup
-	// check for user restrictions
-	if err = s.checkEligibleSignup(ctx, userDetails); err != nil {
-		return nil, err
-	}
-
-	newUser, err := s.CreateUser(ctx, userDetails, accessToken, false)
+	err = s.db.Queries.UpdateUser(ctx, db.UpdateUserParams{
+		ID:                user.ID,
+		GithubAccessToken: accessToken,
+		GithubAvatarUrl:   userDetails.AvatarUrl,
+	})
 	if err != nil {
-		s.log.Error("error while creating user", "error", err)
 		return nil, err
-	}
-
-	for _, invite := range s.TeamsInvitedTo(ctx, newUser.Email) {
-		_, err := s.CreateTeamUser(ctx, newUser.ID, invite.TeamID, invite.Role)
-		if err != nil {
-			s.log.Error("error while creating team user", "error", err)
-			return nil, err
-		}
-		// mark invite as accepted
-		err = s.db.Queries.AcceptInvite(ctx, invite.ID)
-		if err != nil {
-			s.log.Error("error while updating invite", "error", err)
-			return nil, err
-		}
 	}
 
 	tx.Commit()
-	// TODO: update github details
 	return &user, nil
-}
-
-func (s *Service) TeamsInvitedTo(ctx context.Context, email string) []db.Invite {
-	teamsInvitedTo, _ := s.db.Queries.GetActiveTeamInvitesForUser(ctx, email)
-	return teamsInvitedTo
 }
 
 func (s *Service) CreateTeamUser(ctx context.Context, userID, teamID int64, role string) (*db.TeamMember, error) {

@@ -84,9 +84,8 @@ func New(config *config.Config, service *service.Service) *AdminServer {
 	handler.RegisterClientConfigRoutes(app, apiAuthMiddleware)
 
 	teamApiGroup := app.Group("/api/:teamName", gleanTeamUser, apiTeamAuthMiddleware)
-	handler.RegisterTeamUserRoutes(teamApiGroup)
+	handler.RegisterTeamUserRoutes(teamApiGroup, adminPermissionRequired)
 	handler.RegisterConnectionRoutes(teamApiGroup)
-	handler.RegisterInviteRoutes(teamApiGroup, adminPermissionRequired)
 
 	// handle initial setup
 	app.Use(func(c *fiber.Ctx) error {

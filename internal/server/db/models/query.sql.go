@@ -10,38 +10,25 @@ import (
 	"time"
 )
 
-const acceptInvite = `-- name: AcceptInvite :exec
-UPDATE invites
-SET
-    status = 'accepted'
-WHERE
-    id = ?
-`
-
-func (q *Queries) AcceptInvite(ctx context.Context, id int64) error {
-	_, err := q.db.ExecContext(ctx, acceptInvite, id)
-	return err
-}
-
 const createGlobalSettings = `-- name: CreateGlobalSettings :one
 INSERT INTO
     global_settings (
         smtp_enabled,
-        user_invite_email_subject,
-        user_invite_email_template
+        add_member_email_subject,
+        add_member_email_template
     )
 VALUES
-    (?, ?, ?) RETURNING id, smtp_enabled, smtp_host, smtp_port, smtp_username, smtp_password, from_address, user_invite_email_subject, user_invite_email_template
+    (?, ?, ?) RETURNING id, smtp_enabled, smtp_host, smtp_port, smtp_username, smtp_password, from_address, add_member_email_subject, add_member_email_template
 `
 
 type CreateGlobalSettingsParams struct {
-	SmtpEnabled             bool
-	UserInviteEmailSubject  interface{}
-	UserInviteEmailTemplate interface{}
+	SmtpEnabled            bool
+	AddMemberEmailSubject  interface{}
+	AddMemberEmailTemplate interface{}
 }
 
 func (q *Queries) CreateGlobalSettings(ctx context.Context, arg CreateGlobalSettingsParams) (GlobalSetting, error) {
-	row := q.db.QueryRowContext(ctx, createGlobalSettings, arg.SmtpEnabled, arg.UserInviteEmailSubject, arg.UserInviteEmailTemplate)
+	row := q.db.QueryRowContext(ctx, createGlobalSettings, arg.SmtpEnabled, arg.AddMemberEmailSubject, arg.AddMemberEmailTemplate)
 	var i GlobalSetting
 	err := row.Scan(
 		&i.ID,
@@ -51,50 +38,8 @@ func (q *Queries) CreateGlobalSettings(ctx context.Context, arg CreateGlobalSett
 		&i.SmtpUsername,
 		&i.SmtpPassword,
 		&i.FromAddress,
-		&i.UserInviteEmailSubject,
-		&i.UserInviteEmailTemplate,
-	)
-	return i, err
-}
-
-const createInvite = `-- name: CreateInvite :one
-INSERT INTO
-    invites (
-        email,
-        role,
-        status,
-        invited_by_team_member_id,
-        team_id
-    )
-VALUES
-    (?, ?, ?, ?, ?) RETURNING id, email, role, status, invited_by_team_member_id, team_id, created_at
-`
-
-type CreateInviteParams struct {
-	Email                 string
-	Role                  string
-	Status                string
-	InvitedByTeamMemberID int64
-	TeamID                int64
-}
-
-func (q *Queries) CreateInvite(ctx context.Context, arg CreateInviteParams) (Invite, error) {
-	row := q.db.QueryRowContext(ctx, createInvite,
-		arg.Email,
-		arg.Role,
-		arg.Status,
-		arg.InvitedByTeamMemberID,
-		arg.TeamID,
-	)
-	var i Invite
-	err := row.Scan(
-		&i.ID,
-		&i.Email,
-		&i.Role,
-		&i.Status,
-		&i.InvitedByTeamMemberID,
-		&i.TeamID,
-		&i.CreatedAt,
+		&i.AddMemberEmailSubject,
+		&i.AddMemberEmailTemplate,
 	)
 	return i, err
 }
@@ -176,7 +121,7 @@ const createTeamMember = `-- name: CreateTeamMember :one
 INSERT INTO
     team_members (user_id, team_id, role, secret_key)
 VALUES
-    (?, ?, ?, ?) RETURNING id, user_id, team_id, secret_key, role, created_at
+    (?, ?, ?, ?) RETURNING id, user_id, team_id, secret_key, role, added_by_user_id, created_at
 `
 
 type CreateTeamMemberParams struct {
@@ -200,6 +145,7 @@ func (q *Queries) CreateTeamMember(ctx context.Context, arg CreateTeamMemberPara
 		&i.TeamID,
 		&i.SecretKey,
 		&i.Role,
+		&i.AddedByUserID,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -332,81 +278,9 @@ func (q *Queries) GetActiveConnectionsForTeam(ctx context.Context, teamID int64)
 	return items, nil
 }
 
-const getActiveTeamInvitesForUser = `-- name: GetActiveTeamInvitesForUser :many
-SELECT
-    id, email, role, status, invited_by_team_member_id, team_id, created_at
-FROM
-    invites
-WHERE
-    email = ?
-    AND status = 'active'
-`
-
-func (q *Queries) GetActiveTeamInvitesForUser(ctx context.Context, email string) ([]Invite, error) {
-	rows, err := q.db.QueryContext(ctx, getActiveTeamInvitesForUser, email)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Invite
-	for rows.Next() {
-		var i Invite
-		if err := rows.Scan(
-			&i.ID,
-			&i.Email,
-			&i.Role,
-			&i.Status,
-			&i.InvitedByTeamMemberID,
-			&i.TeamID,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getAtiveInviteByEmail = `-- name: GetAtiveInviteByEmail :one
-SELECT
-    id, email, role, status, invited_by_team_member_id, team_id, created_at
-FROM
-    invites
-WHERE
-    email = ?
-    AND team_id = ?
-    AND status = 'active'
-`
-
-type GetAtiveInviteByEmailParams struct {
-	Email  string
-	TeamID int64
-}
-
-func (q *Queries) GetAtiveInviteByEmail(ctx context.Context, arg GetAtiveInviteByEmailParams) (Invite, error) {
-	row := q.db.QueryRowContext(ctx, getAtiveInviteByEmail, arg.Email, arg.TeamID)
-	var i Invite
-	err := row.Scan(
-		&i.ID,
-		&i.Email,
-		&i.Role,
-		&i.Status,
-		&i.InvitedByTeamMemberID,
-		&i.TeamID,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
 const getGlobalSettings = `-- name: GetGlobalSettings :one
 SELECT
-    id, smtp_enabled, smtp_host, smtp_port, smtp_username, smtp_password, from_address, user_invite_email_subject, user_invite_email_template
+    id, smtp_enabled, smtp_host, smtp_port, smtp_username, smtp_password, from_address, add_member_email_subject, add_member_email_template
 FROM
     global_settings
 LIMIT
@@ -424,88 +298,10 @@ func (q *Queries) GetGlobalSettings(ctx context.Context) (GlobalSetting, error) 
 		&i.SmtpUsername,
 		&i.SmtpPassword,
 		&i.FromAddress,
-		&i.UserInviteEmailSubject,
-		&i.UserInviteEmailTemplate,
+		&i.AddMemberEmailSubject,
+		&i.AddMemberEmailTemplate,
 	)
 	return i, err
-}
-
-const getInvitesForTeam = `-- name: GetInvitesForTeam :many
-SELECT
-    invites.email,
-    invites.role,
-    invites.status,
-    users.email AS invited_by_email,
-    users.first_name AS invited_by_first_name,
-    users.last_name AS invited_by_last_name
-FROM
-    invites
-    JOIN team_members ON team_members.id = invites.invited_by_team_member_id
-    JOIN users ON users.id = team_members.user_id
-WHERE
-    invites.team_id = ?
-`
-
-type GetInvitesForTeamRow struct {
-	Email              string
-	Role               string
-	Status             string
-	InvitedByEmail     string
-	InvitedByFirstName interface{}
-	InvitedByLastName  interface{}
-}
-
-func (q *Queries) GetInvitesForTeam(ctx context.Context, teamID int64) ([]GetInvitesForTeamRow, error) {
-	rows, err := q.db.QueryContext(ctx, getInvitesForTeam, teamID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetInvitesForTeamRow
-	for rows.Next() {
-		var i GetInvitesForTeamRow
-		if err := rows.Scan(
-			&i.Email,
-			&i.Role,
-			&i.Status,
-			&i.InvitedByEmail,
-			&i.InvitedByFirstName,
-			&i.InvitedByLastName,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getNumberOfExistingTeamInvitesForUser = `-- name: GetNumberOfExistingTeamInvitesForUser :one
-SELECT
-    COUNT(*)
-FROM
-    invites
-WHERE
-    email = ?
-    AND team_id = ?
-    AND status = 'active'
-`
-
-type GetNumberOfExistingTeamInvitesForUserParams struct {
-	Email  string
-	TeamID int64
-}
-
-func (q *Queries) GetNumberOfExistingTeamInvitesForUser(ctx context.Context, arg GetNumberOfExistingTeamInvitesForUserParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getNumberOfExistingTeamInvitesForUser, arg.Email, arg.TeamID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
 }
 
 const getRecentConnectionsForTeam = `-- name: GetRecentConnectionsForTeam :many
@@ -602,7 +398,7 @@ func (q *Queries) GetTeamById(ctx context.Context, id int64) (Team, error) {
 
 const getTeamMemberByEmail = `-- name: GetTeamMemberByEmail :one
 SELECT
-    team_members.id, user_id, team_id, secret_key, role, team_members.created_at, users.id, email, first_name, last_name, is_super_user, github_access_token, github_avatar_url, users.created_at
+    team_members.id, user_id, team_id, secret_key, role, added_by_user_id, team_members.created_at, users.id, email, first_name, last_name, is_super_user, github_access_token, github_avatar_url, users.created_at
 FROM
     team_members
     JOIN users ON users.id = team_members.user_id
@@ -618,6 +414,7 @@ type GetTeamMemberByEmailRow struct {
 	TeamID            int64
 	SecretKey         string
 	Role              string
+	AddedByUserID     interface{}
 	CreatedAt         time.Time
 	ID_2              int64
 	Email             string
@@ -638,6 +435,7 @@ func (q *Queries) GetTeamMemberByEmail(ctx context.Context, email string) (GetTe
 		&i.TeamID,
 		&i.SecretKey,
 		&i.Role,
+		&i.AddedByUserID,
 		&i.CreatedAt,
 		&i.ID_2,
 		&i.Email,
@@ -653,7 +451,7 @@ func (q *Queries) GetTeamMemberByEmail(ctx context.Context, email string) (GetTe
 
 const getTeamMemberById = `-- name: GetTeamMemberById :one
 SELECT
-    team_members.id, team_members.user_id, team_members.team_id, team_members.secret_key, team_members.role, team_members.created_at,
+    team_members.id, team_members.user_id, team_members.team_id, team_members.secret_key, team_members.role, team_members.added_by_user_id, team_members.created_at,
     users.id, users.email, users.first_name, users.last_name, users.is_super_user, users.github_access_token, users.github_avatar_url, users.created_at
 FROM
     team_members
@@ -670,6 +468,7 @@ type GetTeamMemberByIdRow struct {
 	TeamID            int64
 	SecretKey         string
 	Role              string
+	AddedByUserID     interface{}
 	CreatedAt         time.Time
 	ID_2              int64
 	Email             string
@@ -690,6 +489,7 @@ func (q *Queries) GetTeamMemberById(ctx context.Context, id int64) (GetTeamMembe
 		&i.TeamID,
 		&i.SecretKey,
 		&i.Role,
+		&i.AddedByUserID,
 		&i.CreatedAt,
 		&i.ID_2,
 		&i.Email,
@@ -705,7 +505,7 @@ func (q *Queries) GetTeamMemberById(ctx context.Context, id int64) (GetTeamMembe
 
 const getTeamMemberByUserIdAndTeamSlug = `-- name: GetTeamMemberByUserIdAndTeamSlug :one
 SELECT
-    team_members.id, team_members.user_id, team_members.team_id, team_members.secret_key, team_members.role, team_members.created_at,
+    team_members.id, team_members.user_id, team_members.team_id, team_members.secret_key, team_members.role, team_members.added_by_user_id, team_members.created_at,
     users.id, users.email, users.first_name, users.last_name, users.is_super_user, users.github_access_token, users.github_avatar_url, users.created_at
 FROM
     team_members
@@ -729,6 +529,7 @@ type GetTeamMemberByUserIdAndTeamSlugRow struct {
 	TeamID            int64
 	SecretKey         string
 	Role              string
+	AddedByUserID     interface{}
 	CreatedAt         time.Time
 	ID_2              int64
 	Email             string
@@ -749,6 +550,7 @@ func (q *Queries) GetTeamMemberByUserIdAndTeamSlug(ctx context.Context, arg GetT
 		&i.TeamID,
 		&i.SecretKey,
 		&i.Role,
+		&i.AddedByUserID,
 		&i.CreatedAt,
 		&i.ID_2,
 		&i.Email,
@@ -805,7 +607,7 @@ func (q *Queries) GetTeamMembers(ctx context.Context, teamID int64) ([]GetTeamMe
 
 const getTeamUserBySecretKey = `-- name: GetTeamUserBySecretKey :one
 SELECT
-    id, user_id, team_id, secret_key, role, created_at
+    id, user_id, team_id, secret_key, role, added_by_user_id, created_at
 FROM
     team_members
 WHERE
@@ -823,6 +625,7 @@ func (q *Queries) GetTeamUserBySecretKey(ctx context.Context, secretKey string) 
 		&i.TeamID,
 		&i.SecretKey,
 		&i.Role,
+		&i.AddedByUserID,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -1014,19 +817,19 @@ SET
     smtp_username = ?,
     smtp_password = ?,
     from_address = ?,
-    user_invite_email_subject = ?,
-    user_invite_email_template = ?
+    add_member_email_subject = ?,
+    add_member_email_template = ?
 `
 
 type UpdateGlobalSettingsParams struct {
-	SmtpEnabled             bool
-	SmtpHost                interface{}
-	SmtpPort                interface{}
-	SmtpUsername            interface{}
-	SmtpPassword            interface{}
-	FromAddress             interface{}
-	UserInviteEmailSubject  interface{}
-	UserInviteEmailTemplate interface{}
+	SmtpEnabled            bool
+	SmtpHost               interface{}
+	SmtpPort               interface{}
+	SmtpUsername           interface{}
+	SmtpPassword           interface{}
+	FromAddress            interface{}
+	AddMemberEmailSubject  interface{}
+	AddMemberEmailTemplate interface{}
 }
 
 func (q *Queries) UpdateGlobalSettings(ctx context.Context, arg UpdateGlobalSettingsParams) error {
@@ -1037,8 +840,8 @@ func (q *Queries) UpdateGlobalSettings(ctx context.Context, arg UpdateGlobalSett
 		arg.SmtpUsername,
 		arg.SmtpPassword,
 		arg.FromAddress,
-		arg.UserInviteEmailSubject,
-		arg.UserInviteEmailTemplate,
+		arg.AddMemberEmailSubject,
+		arg.AddMemberEmailTemplate,
 	)
 	return err
 }
@@ -1064,19 +867,29 @@ func (q *Queries) UpdateSecretKey(ctx context.Context, arg UpdateSecretKeyParams
 const updateUser = `-- name: UpdateUser :exec
 UPDATE users
 SET
-    first_name = ?,
-    last_name = ?
+    first_name = COALESCE(?, first_name),
+    last_name = COALESCE(?, last_name),
+    github_access_token = COALESCE(?, github_access_token),
+    github_avatar_url = COALESCE(?, github_avatar_url)
 WHERE
     id = ?
 `
 
 type UpdateUserParams struct {
-	FirstName interface{}
-	LastName  interface{}
-	ID        int64
+	FirstName         interface{}
+	LastName          interface{}
+	GithubAccessToken interface{}
+	GithubAvatarUrl   interface{}
+	ID                int64
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
-	_, err := q.db.ExecContext(ctx, updateUser, arg.FirstName, arg.LastName, arg.ID)
+	_, err := q.db.ExecContext(ctx, updateUser,
+		arg.FirstName,
+		arg.LastName,
+		arg.GithubAccessToken,
+		arg.GithubAvatarUrl,
+		arg.ID,
+	)
 	return err
 }

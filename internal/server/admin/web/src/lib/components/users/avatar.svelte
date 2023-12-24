@@ -5,6 +5,8 @@
 </script>
 
 <Avatar.Root>
-  <Avatar.Image src={url} alt={fallback} />
-  <Avatar.Fallback>{fallback}</Avatar.Fallback>
+  <Avatar.Image
+    src={url ? url : `https://api.dicebear.com/7.x/rings/svg?seed=${fallback}`}
+    alt={fallback}
+  />
 </Avatar.Root>

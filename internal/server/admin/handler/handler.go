@@ -19,11 +19,12 @@ func New(config *config.Config, service *service.Service) *Handler {
 	return &Handler{config: config, service: service, log: utils.GetLogger()}
 }
 
-func (h *Handler) RegisterTeamUserRoutes(group fiber.Router) {
+func (h *Handler) RegisterTeamUserRoutes(group fiber.Router, permissionHandler fiber.Handler) {
 	userGroup := group.Group("/user")
 	userGroup.Get("/", h.ListTeamUsers)
+	userGroup.Post("/add", h.AddMember)
 	userGroup.Get("/me", h.MeInTeam)
-	userGroup.Patch("/me/rotate-secret-key", h.RotateSecretKey)
+	userGroup.Patch("/me/rotate-secret-key", permissionHandler, h.RotateSecretKey)
 }
 
 func (h *Handler) RegisterUserRoutes(group fiber.Router) {
@@ -48,15 +49,6 @@ func (h *Handler) RegisterSettingsRoutes(group fiber.Router, permissionHandler f
 	settingsGroup := group.Group("/setting", permissionHandler)
 	settingsGroup.Get("/all", h.ListSettings)
 	settingsGroup.Patch("/email/update", h.UpdateEmailSettings)
-}
-
-func (h *Handler) RegisterInviteRoutes(
-	group fiber.Router,
-	permissionHandler fiber.Handler,
-) {
-	inviteGroup := group.Group("/invite")
-	inviteGroup.Get("/", h.ListInvites)
-	inviteGroup.Post("/", permissionHandler, h.CreateInvite)
 }
 
 func (h *Handler) RegisterClientConfigRoutes(app *fiber.App, authMiddleware fiber.Handler) {

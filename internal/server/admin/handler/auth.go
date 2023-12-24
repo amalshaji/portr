@@ -51,8 +51,8 @@ func (h *Handler) GithubAuthCallback(c *fiber.Ctx) error {
 	user, err := h.service.GetOrCreateUserForGithubLogin(c.Context(), token.AccessToken)
 	if err != nil {
 		h.log.Error("error while creating user", "error", err)
-		if errors.Is(err, service.ErrRequiresInvite) {
-			return c.Redirect("/?code=requires-invite")
+		if errors.Is(err, service.ErrUserNotFound) {
+			return c.Redirect("/?code=user-not-found")
 		} else if errors.Is(err, service.ErrDomainNotAllowed) {
 			return c.Redirect("/?code=domain-not-allowed")
 		} else if errors.Is(err, service.ErrPrivateEmail) {

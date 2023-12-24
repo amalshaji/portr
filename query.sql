@@ -118,43 +118,6 @@ SET
 WHERE
     id = ?;
 
--- name: GetInvitesForTeam :many
-SELECT
-    invites.email,
-    invites.role,
-    invites.status,
-    users.email AS invited_by_email,
-    users.first_name AS invited_by_first_name,
-    users.last_name AS invited_by_last_name
-FROM
-    invites
-    JOIN team_members ON team_members.id = invites.invited_by_team_member_id
-    JOIN users ON users.id = team_members.user_id
-WHERE
-    invites.team_id = ?;
-
--- name: GetAtiveInviteByEmail :one
-SELECT
-    *
-FROM
-    invites
-WHERE
-    email = ?
-    AND team_id = ?
-    AND status = 'active';
-
--- name: CreateInvite :one
-INSERT INTO
-    invites (
-        email,
-        role,
-        status,
-        invited_by_team_member_id,
-        team_id
-    )
-VALUES
-    (?, ?, ?, ?, ?) RETURNING *;
-
 -- name: GetGlobalSettings :one
 SELECT
     *
@@ -167,8 +130,8 @@ LIMIT
 INSERT INTO
     global_settings (
         smtp_enabled,
-        user_invite_email_subject,
-        user_invite_email_template
+        add_member_email_subject,
+        add_member_email_template
     )
 VALUES
     (?, ?, ?) RETURNING *;
@@ -182,8 +145,8 @@ SET
     smtp_username = ?,
     smtp_password = ?,
     from_address = ?,
-    user_invite_email_subject = ?,
-    user_invite_email_template = ?;
+    add_member_email_subject = ?,
+    add_member_email_template = ?;
 
 -- name: GetTeamMembers :many
 SELECT
@@ -209,37 +172,10 @@ INSERT INTO
 VALUES
     (?, ?, ?, ?, ?, ?) RETURNING *;
 
--- name: GetActiveTeamInvitesForUser :many
-SELECT
-    *
-FROM
-    invites
-WHERE
-    email = ?
-    AND status = 'active';
-
--- name: GetNumberOfExistingTeamInvitesForUser :one
-SELECT
-    COUNT(*)
-FROM
-    invites
-WHERE
-    email = ?
-    AND team_id = ?
-    AND status = 'active';
-
 -- name: DeleteSession :exec
 DELETE FROM sessions
 WHERE
     token = ?;
-
--- name: UpdateUser :exec
-UPDATE users
-SET
-    first_name = ?,
-    last_name = ?
-WHERE
-    id = ?;
 
 -- name: UpdateSecretKey :exec
 UPDATE team_members
@@ -257,13 +193,6 @@ WHERE
     email = ?
 LIMIT
     1;
-
--- name: AcceptInvite :exec
-UPDATE invites
-SET
-    status = 'accepted'
-WHERE
-    id = ?;
 
 -- name: GetTeamsOfUser :many
 SELECT
@@ -311,3 +240,13 @@ WHERE
     id = ?
 LIMIT
     1;
+
+-- name: UpdateUser :exec
+UPDATE users
+SET
+    first_name = COALESCE(?, first_name),
+    last_name = COALESCE(?, last_name),
+    github_access_token = COALESCE(?, github_access_token),
+    github_avatar_url = COALESCE(?, github_avatar_url)
+WHERE
+    id = ?;

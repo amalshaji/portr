@@ -12,8 +12,8 @@
 
   let smtpEnabled: boolean;
 
-  let userInviteEmailTemplate: string,
-    userInviteEmailSubject: string,
+  let addMemberEmailTemplate: string,
+    addMemberEmailSubject: string,
     isUpdating = false;
   let smtpHost = "",
     smtpPort: number;
@@ -25,8 +25,8 @@
     smtpUsernameError = "",
     smtpPasswordError = "",
     fromAddressError = "",
-    userInviteEmailSubjectError = "",
-    userInviteEmailTemplateError = "";
+    addMemberEmailSubjectError = "",
+    addMemberEmailTemplateError = "";
 
   const validateForm = () => {
     let hasErrors = false;
@@ -47,12 +47,12 @@
         fromAddressError = "From address is required";
         hasErrors = true;
       }
-      if (!userInviteEmailSubject) {
-        userInviteEmailSubjectError = "Email subject is required";
+      if (!addMemberEmailSubject) {
+        addMemberEmailSubjectError = "Email subject is required";
         hasErrors = true;
       }
-      if (!userInviteEmailTemplate) {
-        userInviteEmailTemplateError = "Email template is required";
+      if (!addMemberEmailTemplate) {
+        addMemberEmailTemplateError = "Email template is required";
         hasErrors = true;
       }
     }
@@ -64,13 +64,13 @@
     smtpUsernameError = "";
     smtpPasswordError = "";
     fromAddressError = "";
-    userInviteEmailSubjectError = "";
-    userInviteEmailTemplateError = "";
+    addMemberEmailSubjectError = "";
+    addMemberEmailTemplateError = "";
   };
 
   let settingsUnSubscriber = settings.subscribe((settings) => {
-    userInviteEmailTemplate = settings?.UserInviteEmailTemplate || "";
-    userInviteEmailSubject = settings?.UserInviteEmailSubject || "";
+    addMemberEmailTemplate = settings?.AddMemberEmailTemplate || "";
+    addMemberEmailSubject = settings?.AddMemberEmailSubject || "";
     smtpEnabled = settings?.SmtpEnabled || false;
     smtpHost = settings?.SmtpHost || "";
     smtpPort = settings?.SmtpPort || 587;
@@ -96,8 +96,8 @@
           SmtpUsername: smtpUsername,
           SmtpPassword: smtpPassword,
           FromAddress: fromAddress,
-          UserInviteEmailSubject: userInviteEmailSubject,
-          UserInviteEmailTemplate: userInviteEmailTemplate,
+          addMemberEmailSubject: addMemberEmailSubject,
+          addMemberEmailTemplate: addMemberEmailTemplate,
         }),
       });
       if (res.ok) {
@@ -198,20 +198,21 @@
         {/if}
       </div>
       <div>
-        <Label for="invite_email_template_subject">Invite email subject</Label>
+        <Label for="add_member_template_subject">Add member email subject</Label
+        >
         <Input
           disabled={!smtpEnabled}
-          bind:value={userInviteEmailSubject}
-          id="invite_email_template_subject"
+          bind:value={addMemberEmailSubject}
+          id="add_member_template_subject"
         />
       </div>
       <div>
-        <Label for="invite_email_template_body">Invite email body</Label>
+        <Label for="add_member_template_body">Add member email body</Label>
         <Textarea
           disabled={!smtpEnabled}
           rows={10}
-          bind:value={userInviteEmailTemplate}
-          id="invite_email_template_body"
+          bind:value={addMemberEmailTemplate}
+          id="add_member_template_body"
         />
       </div>
     </div>

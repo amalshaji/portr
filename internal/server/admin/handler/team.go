@@ -20,3 +20,17 @@ func (h *Handler) CreateTeam(c *fiber.Ctx) error {
 	}
 	return c.JSON(team)
 }
+
+func (h *Handler) AddMember(c *fiber.Ctx) error {
+	var payload service.AddMemberInput
+	if err := c.BodyParser(&payload); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"message": "invalid payload"})
+	}
+	teamUser := c.Locals("teamUser").(*db.GetTeamMemberByUserIdAndTeamSlugRow)
+	result, err := h.service.AddMember(c.Context(), payload, teamUser.TeamID, teamUser.ID)
+	if err != nil {
+		h.log.Error("error while logging out", "error", err)
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"message": err.Error()})
+	}
+	return c.JSON(result)
+}

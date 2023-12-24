@@ -3,7 +3,6 @@
 
   import {
     ExclamationTriangle,
-    CheckCircled,
     LockClosed,
     GithubLogo,
   } from "radix-icons-svelte";
@@ -18,9 +17,8 @@
     const codes: Map<string, string> = {
       // @ts-expect-error
       "github-oauth-error": "There was an error authenticating with GitHub.",
-      "invalid-invite": "The invite is invalid/expired.",
-      "requires-invite": "Signup requires an invite.",
-      "private-email": "Your email is private. Please make it public.",
+      "user-not-found": "You are not a member of any team.",
+      "private-email": "Failed to verify github email. Please try again later.",
     };
     return (
       // @ts-expect-error
@@ -61,17 +59,13 @@
 
 <div class="grid h-screen place-items-center">
   <div
-    class="w-full max-w-sm p-6 m-auto mx-auto bg-slate-50 shadow rounded-md border dark:bg-gray-800 py-8"
+    class="w-full max-w-sm p-6 m-auto mx-auto border rounded-md shadow-none dark:bg-gray-800 py-8"
   >
-    <div class="flex justify-center mx-auto py-8">
-      <img class="w-auto h-7 sm:h-8" src="/static/logo.svg" alt="" />
+    <div class="flex justify-center mx-auto py-8 items-center">
+      <img class="w-auto h-12" src="/static/logo.svg" alt="" />
     </div>
 
-    <div class="flex items-center justify-between mt-4">
-      <span class="border-b dark:border-gray-600 w-full"></span>
-    </div>
-
-    <Button class="w-full" href="/auth/github">
+    <Button variant="outline" class="w-full" href="/auth/github">
       <GithubLogo class="mr-2 h-4 w-4" />
       Continue with GitHub
     </Button>
@@ -84,22 +78,17 @@
           {#if isSuperUserSignup}
             You are signing up as a superuser.
           {:else}
-            You need an invite to sign up.
+            You need to be part of a team to continue.
           {/if}
         </Alert.Description>
       </Alert.Root>
     </div>
 
     {#if message}
-      <div class="my-4 bg-white">
+      <div class="mt-4">
         <Alert.Root>
-          {#if messageType === "success"}
-            <CheckCircled class="h-4 w-4" />
-            <Alert.Title>Success</Alert.Title>
-          {:else}
-            <ExclamationTriangle class="h-4 w-4" />
-            <Alert.Title>Error</Alert.Title>
-          {/if}
+          <ExclamationTriangle class="h-4 w-4" />
+          <Alert.Title>Error</Alert.Title>
           <Alert.Description>
             {message}
           </Alert.Description>

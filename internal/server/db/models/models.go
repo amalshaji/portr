@@ -17,25 +17,15 @@ type Connection struct {
 }
 
 type GlobalSetting struct {
-	ID                      int64
-	SmtpEnabled             bool
-	SmtpHost                interface{}
-	SmtpPort                interface{}
-	SmtpUsername            interface{}
-	SmtpPassword            interface{}
-	FromAddress             interface{}
-	UserInviteEmailSubject  interface{}
-	UserInviteEmailTemplate interface{}
-}
-
-type Invite struct {
-	ID                    int64
-	Email                 string
-	Role                  string
-	Status                string
-	InvitedByTeamMemberID int64
-	TeamID                int64
-	CreatedAt             time.Time
+	ID                     int64
+	SmtpEnabled            bool
+	SmtpHost               interface{}
+	SmtpPort               interface{}
+	SmtpUsername           interface{}
+	SmtpPassword           interface{}
+	FromAddress            interface{}
+	AddMemberEmailSubject  interface{}
+	AddMemberEmailTemplate interface{}
 }
 
 type Session struct {
@@ -53,12 +43,13 @@ type Team struct {
 }
 
 type TeamMember struct {
-	ID        int64
-	UserID    int64
-	TeamID    int64
-	SecretKey string
-	Role      string
-	CreatedAt time.Time
+	ID            int64
+	UserID        int64
+	TeamID        int64
+	SecretKey     string
+	Role          string
+	AddedByUserID interface{}
+	CreatedAt     time.Time
 }
 
 type User struct {

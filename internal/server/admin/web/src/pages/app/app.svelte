@@ -68,29 +68,29 @@
       <nav class="flex-1 -mx-3 space-y-2">
         <Sidebarlink url="/{team}/overview">
           <Home strokeWidth={1.5} class="h-4 w-4" />
-          <span class="mx-2 text-sm">Overview</span>
+          <span class="mx-2">Overview</span>
         </Sidebarlink>
 
         <Sidebarlink url="/{team}/connections">
           <ArrowUpDown strokeWidth={1.5} class="h-4 w-4" />
-          <span class="mx-2 text-sm">Connections</span>
+          <span class="mx-2">Connections</span>
         </Sidebarlink>
 
         <Sidebarlink url="/{team}/users">
           <Users strokeWidth={1.5} class="h-4 w-4" />
-          <span class="mx-2 text-sm">Users</span>
+          <span class="mx-2">Users</span>
         </Sidebarlink>
 
         <Separator />
 
         <Sidebarlink url="/{team}/my-account">
           <User strokeWidth={1.5} class="h-4 w-4" />
-          <span class="mx-2 text-sm">My account</span>
+          <span class="mx-2">My account</span>
         </Sidebarlink>
         {#if $currentUser?.IsSuperUser}
           <Sidebarlink url="/{team}/settings">
             <Settings strokeWidth={1.5} class="h-4 w-4" />
-            <span class="mx-2 text-sm">Settings</span>
+            <span class="mx-2">Settings</span>
           </Sidebarlink>
         {/if}
       </nav>
@@ -124,13 +124,13 @@
               <DropdownMenu.Item class="hover:cursor-pointer">
                 <Link to={`/${team}/new-team`} class="flex w-full items-center">
                   <BadgePlus strokeWidth={1.5} class="h-4 w-4" />
-                  <span class="mx-2 text-sm">New team</span>
+                  <span class="mx-2">New team</span>
                 </Link>
               </DropdownMenu.Item>
               <Separator />
               <DropdownMenu.Item on:click={logout} class="hover:cursor-pointer">
                 <LogOut strokeWidth={1.5} class="h-4 w-4" />
-                <span class="mx-2 text-sm">Logout</span>
+                <span class="mx-2">Logout</span>
               </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Root>
