@@ -61,7 +61,7 @@ var superUserPermissionRequired = func(c *fiber.Ctx) error {
 	user := c.Locals("user").(*db.UserWithTeams)
 	if !user.IsSuperUser {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"message": "you need admin permissions to perform this action",
+			"message": "you need superuser permissions to perform this action",
 		})
 	}
 	return c.Next()

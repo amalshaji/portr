@@ -1,15 +1,15 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
   import * as AlertDialog from "$lib/components/ui/alert-dialog";
-  import { ExclamationTriangle, Reload } from "radix-icons-svelte";
-  import * as Alert from "$lib/components/ui/alert";
+  import { Reload } from "radix-icons-svelte";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
 
   import * as Select from "$lib/components/ui/select";
   import { toast } from "svelte-sonner";
-  import { invites, users } from "$lib/store";
+  import { users } from "$lib/store";
   import { getContext } from "svelte";
+  import ApiError from "../ApiError.svelte";
 
   const roles = [
     { value: "member", label: "Member" },
@@ -66,13 +66,7 @@
       <AlertDialog.Description>
         <div class="mt-4 space-y-4">
           {#if error}
-            <Alert.Root>
-              <ExclamationTriangle class="h-4 w-4" />
-              <Alert.Title>Error</Alert.Title>
-              <Alert.Description>
-                {error}
-              </Alert.Description>
-            </Alert.Root>
+            <ApiError {error} />
           {/if}
           <div class="sm:col-span-3 space-y-2">
             <Label for="email">Email</Label>

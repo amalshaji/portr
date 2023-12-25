@@ -67,29 +67,29 @@
     <div class="flex flex-col justify-between flex-1 mt-6">
       <nav class="flex-1 -mx-3 space-y-2">
         <Sidebarlink url="/{team}/overview">
-          <Home strokeWidth={1.5} class="h-4 w-4" />
+          <Home class="h-4 w-4" />
           <span class="mx-2">Overview</span>
         </Sidebarlink>
 
         <Sidebarlink url="/{team}/connections">
-          <ArrowUpDown strokeWidth={1.5} class="h-4 w-4" />
+          <ArrowUpDown class="h-4 w-4" />
           <span class="mx-2">Connections</span>
         </Sidebarlink>
 
         <Sidebarlink url="/{team}/users">
-          <Users strokeWidth={1.5} class="h-4 w-4" />
+          <Users class="h-4 w-4" />
           <span class="mx-2">Users</span>
         </Sidebarlink>
 
         <Separator />
 
         <Sidebarlink url="/{team}/my-account">
-          <User strokeWidth={1.5} class="h-4 w-4" />
+          <User class="h-4 w-4" />
           <span class="mx-2">My account</span>
         </Sidebarlink>
         {#if $currentUser?.IsSuperUser}
           <Sidebarlink url="/{team}/settings">
-            <Settings strokeWidth={1.5} class="h-4 w-4" />
+            <Settings class="h-4 w-4" />
             <span class="mx-2">Settings</span>
           </Sidebarlink>
         {/if}
@@ -121,13 +121,18 @@
               </Button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content class="w-52 space-y-2">
-              <DropdownMenu.Item class="hover:cursor-pointer">
-                <Link to={`/${team}/new-team`} class="flex w-full items-center">
-                  <BadgePlus strokeWidth={1.5} class="h-4 w-4" />
-                  <span class="mx-2">New team</span>
-                </Link>
-              </DropdownMenu.Item>
-              <Separator />
+              {#if $currentUser?.IsSuperUser}
+                <DropdownMenu.Item class="hover:cursor-pointer">
+                  <Link
+                    to={`/${team}/new-team`}
+                    class="flex w-full items-center"
+                  >
+                    <BadgePlus strokeWidth={1.5} class="h-4 w-4" />
+                    <span class="mx-2">New team</span>
+                  </Link>
+                </DropdownMenu.Item>
+                <Separator />
+              {/if}
               <DropdownMenu.Item on:click={logout} class="hover:cursor-pointer">
                 <LogOut strokeWidth={1.5} class="h-4 w-4" />
                 <span class="mx-2">Logout</span>

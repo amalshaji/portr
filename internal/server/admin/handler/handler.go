@@ -24,7 +24,7 @@ func (h *Handler) RegisterTeamUserRoutes(group fiber.Router, permissionHandler f
 	userGroup.Get("/", h.ListTeamUsers)
 	userGroup.Post("/add", h.AddMember)
 	userGroup.Get("/me", h.MeInTeam)
-	userGroup.Patch("/me/rotate-secret-key", permissionHandler, h.RotateSecretKey)
+	userGroup.Patch("/me/rotate-secret-key", h.RotateSecretKey)
 }
 
 func (h *Handler) RegisterUserRoutes(group fiber.Router) {

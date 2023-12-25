@@ -130,7 +130,11 @@
       />
     </Card.Content>
     <Card.Footer>
-      <Button on:click={rotateSecretKey} disabled={isRotatingSecretKey}>
+      <Button
+        variant="outline"
+        on:click={rotateSecretKey}
+        disabled={isRotatingSecretKey}
+      >
         {#if isRotatingSecretKey}
           <Reload class="mr-2 h-4 w-4 animate-spin" />
         {/if}

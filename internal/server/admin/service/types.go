@@ -57,6 +57,6 @@ func (u UpdateEmailSettingsInput) Validate() error {
 }
 
 type AddMemberInput struct {
-	Email string
-	Role  string
+	Email string `validate:"required|email"`
+	Role  string `validate:"required"`
 }

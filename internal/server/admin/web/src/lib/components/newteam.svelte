@@ -4,12 +4,18 @@
   import * as Card from "$lib/components/ui/card";
   import { toast } from "svelte-sonner";
   import { Reload } from "radix-icons-svelte";
+  import ErrorText from "./ErrorText.svelte";
 
-  let teamName: string = "";
+  let teamName: string = "",
+    teamNameError = "";
 
   let isUpdating = false;
 
   const createTeam = async () => {
+    if (!teamName) {
+      teamNameError = "Team name is required";
+      return;
+    }
     isUpdating = true;
     try {
       const res = await fetch("/api/team", {
@@ -25,6 +31,7 @@
         const data = await res.json();
         location.href = `/${data.Slug}/overview`;
       } else {
+        teamNameError = (await res.json()).message;
         toast.error("Something went wrong");
       }
     } catch (err) {
@@ -48,7 +55,11 @@
             id="team_name"
             placeholder="localport"
             bind:value={teamName}
+            class={teamNameError ? "border-red-500" : ""}
           />
+          {#if teamNameError}
+            <ErrorText error={teamNameError} />
+          {/if}
         </div>
       </Card.Content>
       <Card.Footer>

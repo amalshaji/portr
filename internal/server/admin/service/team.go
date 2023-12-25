@@ -8,11 +8,12 @@ import (
 	db "github.com/amalshaji/localport/internal/server/db/models"
 	"github.com/amalshaji/localport/internal/server/smtp"
 	"github.com/amalshaji/localport/internal/utils"
+	"github.com/mattn/go-sqlite3"
 	"github.com/valyala/fasttemplate"
 )
 
 type CreateTeamInput struct {
-	Name string `json:"name"`
+	Name string `validate:"required|min_len:4"`
 }
 
 func (s *Service) CreateTeam(ctx context.Context, createTeamInput CreateTeamInput) (db.Team, error) {
@@ -28,6 +29,9 @@ func (s *Service) CreateFirstTeam(ctx context.Context, createTeamInput CreateTea
 
 	team, err := s.CreateTeam(ctx, createTeamInput)
 	if err != nil {
+		if errors.Is(err.(sqlite3.Error).ExtendedCode, sqlite3.ErrConstraintUnique) {
+			return nil, errors.New("team name already exists")
+		}
 		return nil, err
 	}
 

@@ -3,7 +3,7 @@
   import { shell, yaml } from "svelte-highlight/languages";
   import { toast } from "svelte-sonner";
   import "svelte-highlight/styles/stackoverflow-light.css";
-  import { currentUser, serverAddress, currentTeamUser } from "$lib/store";
+  import { serverAddress, currentTeamUser } from "$lib/store";
   import { onMount } from "svelte";
 
   const editConfigCommand = "localport config edit";

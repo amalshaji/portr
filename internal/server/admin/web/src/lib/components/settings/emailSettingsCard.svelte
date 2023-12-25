@@ -9,6 +9,7 @@
   import { Reload } from "radix-icons-svelte";
   import { Switch } from "$lib/components/ui/switch";
   import { Input } from "$lib/components/ui/input";
+  import ErrorText from "../ErrorText.svelte";
 
   let smtpEnabled: boolean;
 
@@ -204,7 +205,11 @@
           disabled={!smtpEnabled}
           bind:value={addMemberEmailSubject}
           id="add_member_template_subject"
+          class={addMemberEmailSubjectError && "border-red-500"}
         />
+        {#if addMemberEmailSubjectError}
+          <ErrorText error={addMemberEmailSubjectError} />
+        {/if}
       </div>
       <div>
         <Label for="add_member_template_body">Add member email body</Label>
@@ -213,7 +218,11 @@
           rows={10}
           bind:value={addMemberEmailTemplate}
           id="add_member_template_body"
+          class={addMemberEmailTemplateError && "border-red-500"}
         />
+        {#if addMemberEmailTemplateError}
+          <ErrorText error={addMemberEmailTemplateError} />
+        {/if}
       </div>
     </div>
   </Card.Content>
