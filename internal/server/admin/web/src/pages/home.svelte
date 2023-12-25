@@ -59,13 +59,13 @@
 
 <div class="grid h-screen place-items-center">
   <div
-    class="w-full max-w-sm p-6 m-auto mx-auto border rounded-md shadow-none dark:bg-gray-800 py-8"
+    class="w-full max-w-sm p-6 m-auto mx-auto rounded-md shadow-none dark:bg-gray-800 py-8"
   >
     <div class="flex justify-center mx-auto py-8 items-center">
       <img class="w-auto h-12" src="/static/logo.svg" alt="" />
     </div>
 
-    <Button variant="outline" class="w-full" href="/auth/github">
+    <Button variant="secondary" class="w-full" href="/auth/github">
       <GithubLogo class="mr-2 h-4 w-4" />
       Continue with GitHub
     </Button>
