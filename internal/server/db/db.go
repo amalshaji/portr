@@ -22,7 +22,7 @@ func New() *Db {
 
 var (
 	DefaultSmtpEnabled            = false
-	DefaultAddMemberEmailSubject  = utils.Trim("You've Been Added to Team {{teamName}} on LocalPort!")
+	DefaultAddMemberEmailSubject  = utils.Trim("You've been added to team {{teamName}} on LocalPort!")
 	DefaultAddMemberEmailTemplate = utils.Trim(`Hello {{email}}
 	
 You've been added to team "{{teamName}}" on LocalPort.
