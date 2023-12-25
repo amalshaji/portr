@@ -210,8 +210,14 @@ func (q *Queries) DeleteSession(ctx context.Context, token string) error {
 
 const getActiveConnectionsForTeam = `-- name: GetActiveConnectionsForTeam :many
 SELECT
-    connections.id, connections.subdomain, connections.team_member_id, connections.created_at, connections.closed_at,
-    users.id, users.email, users.first_name, users.last_name, users.is_super_user, users.github_access_token, users.github_avatar_url, users.created_at
+    connections.id,
+    connections.subdomain,
+    connections.created_at,
+    connections.closed_at,
+    users.email,
+    users.first_name,
+    users.last_name,
+    users.github_avatar_url
 FROM
     connections
     JOIN team_members ON team_members.id = connections.team_member_id
@@ -226,19 +232,14 @@ LIMIT
 `
 
 type GetActiveConnectionsForTeamRow struct {
-	ID                int64
-	Subdomain         string
-	TeamMemberID      int64
-	CreatedAt         time.Time
-	ClosedAt          interface{}
-	ID_2              int64
-	Email             string
-	FirstName         interface{}
-	LastName          interface{}
-	IsSuperUser       bool
-	GithubAccessToken interface{}
-	GithubAvatarUrl   interface{}
-	CreatedAt_2       time.Time
+	ID              int64
+	Subdomain       string
+	CreatedAt       time.Time
+	ClosedAt        interface{}
+	Email           string
+	FirstName       interface{}
+	LastName        interface{}
+	GithubAvatarUrl interface{}
 }
 
 func (q *Queries) GetActiveConnectionsForTeam(ctx context.Context, teamID int64) ([]GetActiveConnectionsForTeamRow, error) {
@@ -253,17 +254,12 @@ func (q *Queries) GetActiveConnectionsForTeam(ctx context.Context, teamID int64)
 		if err := rows.Scan(
 			&i.ID,
 			&i.Subdomain,
-			&i.TeamMemberID,
 			&i.CreatedAt,
 			&i.ClosedAt,
-			&i.ID_2,
 			&i.Email,
 			&i.FirstName,
 			&i.LastName,
-			&i.IsSuperUser,
-			&i.GithubAccessToken,
 			&i.GithubAvatarUrl,
-			&i.CreatedAt_2,
 		); err != nil {
 			return nil, err
 		}
@@ -306,8 +302,14 @@ func (q *Queries) GetGlobalSettings(ctx context.Context) (GlobalSetting, error) 
 
 const getRecentConnectionsForTeam = `-- name: GetRecentConnectionsForTeam :many
 SELECT
-    connections.id, connections.subdomain, connections.team_member_id, connections.created_at, connections.closed_at,
-    users.id, users.email, users.first_name, users.last_name, users.is_super_user, users.github_access_token, users.github_avatar_url, users.created_at
+    connections.id,
+    connections.subdomain,
+    connections.created_at,
+    connections.closed_at,
+    users.email,
+    users.first_name,
+    users.last_name,
+    users.github_avatar_url
 FROM
     connections
     JOIN team_members ON team_members.id = connections.team_member_id
@@ -321,19 +323,14 @@ LIMIT
 `
 
 type GetRecentConnectionsForTeamRow struct {
-	ID                int64
-	Subdomain         string
-	TeamMemberID      int64
-	CreatedAt         time.Time
-	ClosedAt          interface{}
-	ID_2              int64
-	Email             string
-	FirstName         interface{}
-	LastName          interface{}
-	IsSuperUser       bool
-	GithubAccessToken interface{}
-	GithubAvatarUrl   interface{}
-	CreatedAt_2       time.Time
+	ID              int64
+	Subdomain       string
+	CreatedAt       time.Time
+	ClosedAt        interface{}
+	Email           string
+	FirstName       interface{}
+	LastName        interface{}
+	GithubAvatarUrl interface{}
 }
 
 func (q *Queries) GetRecentConnectionsForTeam(ctx context.Context, teamID int64) ([]GetRecentConnectionsForTeamRow, error) {
@@ -348,17 +345,12 @@ func (q *Queries) GetRecentConnectionsForTeam(ctx context.Context, teamID int64)
 		if err := rows.Scan(
 			&i.ID,
 			&i.Subdomain,
-			&i.TeamMemberID,
 			&i.CreatedAt,
 			&i.ClosedAt,
-			&i.ID_2,
 			&i.Email,
 			&i.FirstName,
 			&i.LastName,
-			&i.IsSuperUser,
-			&i.GithubAccessToken,
 			&i.GithubAvatarUrl,
-			&i.CreatedAt_2,
 		); err != nil {
 			return nil, err
 		}

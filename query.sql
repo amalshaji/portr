@@ -76,8 +76,14 @@ LIMIT
 
 -- name: GetActiveConnectionsForTeam :many
 SELECT
-    connections.*,
-    users.*
+    connections.id,
+    connections.subdomain,
+    connections.created_at,
+    connections.closed_at,
+    users.email,
+    users.first_name,
+    users.last_name,
+    users.github_avatar_url
 FROM
     connections
     JOIN team_members ON team_members.id = connections.team_member_id
@@ -92,8 +98,14 @@ LIMIT
 
 -- name: GetRecentConnectionsForTeam :many
 SELECT
-    connections.*,
-    users.*
+    connections.id,
+    connections.subdomain,
+    connections.created_at,
+    connections.closed_at,
+    users.email,
+    users.first_name,
+    users.last_name,
+    users.github_avatar_url
 FROM
     connections
     JOIN team_members ON team_members.id = connections.team_member_id

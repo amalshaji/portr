@@ -96,7 +96,7 @@ func (s *SshServer) Start() {
 
 			go func() {
 				<-ctx.Done()
-				err = s.service.MarkConnectionAsClosed(ctx, connection)
+				err = s.service.MarkConnectionAsClosed(context.Background(), connection)
 				if err != nil {
 					s.log.Error("failed to mark connection as closed", "error", err)
 				}

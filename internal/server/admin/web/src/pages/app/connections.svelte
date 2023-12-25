@@ -1,22 +1,20 @@
 <script lang="ts">
   import DataTable from "$lib/components/data-table.svelte";
   // @ts-expect-error
-  import { createTable } from "svelte-headless-table";
+  import { createTable, createRender } from "svelte-headless-table";
   import { humanizeTimeMs } from "$lib/humanize";
   import { Checkbox } from "$lib/components/ui/checkbox";
   import Label from "$lib/components/ui/label/label.svelte";
   import { connections, connectionsLoading } from "$lib/store";
-  import type { Connection, User } from "$lib/types";
+  import type { Connection } from "$lib/types";
   import { getContext } from "svelte";
+  import ConnectionStatus from "$lib/components/ConnectionStatus.svelte";
+
   let checked = false;
 
-  let connectionType = "Recent";
-
   $: if (checked) {
-    connectionType = "Active";
     getConnections("active");
   } else {
-    connectionType = "Recent";
     getConnections("recent");
   }
 
@@ -42,9 +40,10 @@
       header: "Subdomain",
     }),
     table.column({
-      accessor: ({ ClosedAt }: { ClosedAt: string | null }) =>
-        ClosedAt === null ? "Active" : "Inactive",
+      accessor: (item: any) => item,
       header: "Status",
+      cell: ({ value: { ClosedAt } }: { value: { ClosedAt: string | null } }) =>
+        createRender(ConnectionStatus, { ClosedAt }),
     }),
     table.column({
       header: "Created at",
@@ -65,8 +64,8 @@
       header: "Duration",
     }),
     table.column({
-      accessor: ({ User }: { User: User }) => {
-        const { Email, FirstName, LastName } = User;
+      accessor: (item: any) => {
+        const { Email, FirstName, LastName } = item;
         if (FirstName) {
           return `${FirstName} ${LastName}`;
         }
