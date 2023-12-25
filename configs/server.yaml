@@ -7,7 +7,9 @@ ssh:
   port: 2222
 proxy:
   port: 8001
+database:
+  url: $DATABASE_URL
+  autoMigrate: true
 useLocalhost: true
 debug: true
 domain: $DOMAIN
-databaseUrl: $DATABASE_URL

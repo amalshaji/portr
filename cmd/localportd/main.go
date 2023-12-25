@@ -38,6 +38,22 @@ func main() {
 					return nil
 				},
 			},
+			{
+				Name:  "migrate",
+				Usage: "Run database migrations",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "config",
+						Aliases: []string{"c"},
+						Usage:   "config file",
+						Value:   "config.yaml",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					migrate(c.String("config"))
+					return nil
+				},
+			},
 		},
 	}
 
@@ -52,8 +68,11 @@ func start(configFilePath string) {
 		log.Fatal(err)
 	}
 
-	db := db.New()
-	db.Connect(config)
+	db := db.New(&config.Database)
+	db.Connect()
+	if config.Database.AutoMigrate {
+		db.Migrate()
+	}
 
 	smtp := smtp.New(&config.Admin)
 
@@ -66,4 +85,15 @@ func start(configFilePath string) {
 	go proxyServer.Start()
 	go sshServer.Start()
 	adminServer.Start()
+}
+
+func migrate(configFilePath string) {
+	config, err := config.Load(configFilePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	db := db.New(&config.Database)
+	db.Connect()
+	db.Migrate()
 }

@@ -10,6 +10,7 @@ require (
 	github.com/gofiber/template/django/v3 v3.1.7
 	github.com/gookit/validate v1.5.1
 	github.com/labstack/gommon v0.4.2
+	github.com/lopezator/migrator v0.3.1
 	github.com/matoous/go-nanoid/v2 v2.0.0
 	github.com/tursodatabase/libsql-client-go v0.0.0-20231216154754-8383a53d618f
 	github.com/urfave/cli/v2 v2.26.0
@@ -27,6 +28,7 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.3 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/flosch/pongo2/v6 v6.0.0 // indirect
+	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/gofiber/template v1.8.2 // indirect
 	github.com/gofiber/utils v1.1.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
@@ -34,6 +36,7 @@ require (
 	github.com/google/uuid v1.5.0 // indirect
 	github.com/gookit/filter v1.2.0 // indirect
 	github.com/gookit/goutil v0.6.14 // indirect
+	github.com/jackc/pgx/v4 v4.18.1 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/libsql/sqlite-antlr4-parser v0.0.0-20230802215326-5cb5bb604475 // indirect

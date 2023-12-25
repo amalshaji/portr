@@ -47,14 +47,19 @@ func (p ProxyConfig) Address() string {
 	return p.Host + ":" + fmt.Sprint(p.Port)
 }
 
+type DatabaseConfig struct {
+	Url         string `yaml:"url"`
+	AutoMigrate bool   `yaml:"autoMigrate"`
+}
+
 type Config struct {
-	Admin        AdminConfig `yaml:"admin"`
-	Ssh          SshConfig   `yaml:"ssh"`
-	Proxy        ProxyConfig `yaml:"proxy"`
-	Domain       string      `yaml:"domain"`
-	UseLocalHost bool        `yaml:"useLocalhost"`
-	Debug        bool        `yaml:"debug"`
-	DatabaseUrl  string      `yaml:"databaseUrl"`
+	Admin        AdminConfig    `yaml:"admin"`
+	Ssh          SshConfig      `yaml:"ssh"`
+	Proxy        ProxyConfig    `yaml:"proxy"`
+	Domain       string         `yaml:"domain"`
+	UseLocalHost bool           `yaml:"useLocalhost"`
+	Debug        bool           `yaml:"debug"`
+	Database     DatabaseConfig `yaml:"database"`
 }
 
 func new() *Config {
@@ -80,7 +85,10 @@ func new() *Config {
 		Domain:       "",
 		UseLocalHost: false,
 		Debug:        false,
-		DatabaseUrl:  "file:./data/db.sqlite",
+		Database: DatabaseConfig{
+			Url:         "file:./data/db.sqlite",
+			AutoMigrate: false,
+		},
 	}
 }
 
