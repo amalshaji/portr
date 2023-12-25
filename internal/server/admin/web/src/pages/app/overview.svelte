@@ -55,7 +55,7 @@ tunnels:
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-static-element-interactions -->
       <div
-        class="border rounded-sm"
+        class="border rounded-sm text-sm"
         on:click={() => copyCodeToClipboard(editConfigCommand)}
       >
         <Highlight language={shell} code={"$ " + editConfigCommand} />
@@ -66,7 +66,7 @@ tunnels:
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-static-element-interactions -->
       <div
-        class="border rounded-sm"
+        class="border rounded-sm text-sm"
         on:click={() => copyCodeToClipboard(config)}
       >
         <Highlight language={yaml} code={config} />
@@ -80,7 +80,7 @@ tunnels:
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-static-element-interactions -->
       <div
-        class="border rounded-sm"
+        class="border rounded-sm text-sm"
         on:click={() => copyCodeToClipboard(validateConfigCommand)}
       >
         <Highlight language={shell} code={"$ " + validateConfigCommand} />
