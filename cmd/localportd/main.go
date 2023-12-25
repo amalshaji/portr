@@ -53,7 +53,7 @@ func start(configFilePath string) {
 	}
 
 	db := db.New()
-	db.Connect()
+	db.Connect(config)
 
 	smtp := smtp.New(&config.Admin)
 

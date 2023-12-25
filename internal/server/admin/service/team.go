@@ -8,7 +8,6 @@ import (
 	db "github.com/amalshaji/localport/internal/server/db/models"
 	"github.com/amalshaji/localport/internal/server/smtp"
 	"github.com/amalshaji/localport/internal/utils"
-	"github.com/mattn/go-sqlite3"
 	"github.com/valyala/fasttemplate"
 )
 
@@ -29,7 +28,7 @@ func (s *Service) CreateFirstTeam(ctx context.Context, createTeamInput CreateTea
 
 	team, err := s.CreateTeam(ctx, createTeamInput)
 	if err != nil {
-		if errors.Is(err.(sqlite3.Error).ExtendedCode, sqlite3.ErrConstraintUnique) {
+		if utils.IsSqliteUniqueConstraintError(err) {
 			return nil, errors.New("team name already exists")
 		}
 		return nil, err

@@ -54,6 +54,7 @@ type Config struct {
 	Domain       string      `yaml:"domain"`
 	UseLocalHost bool        `yaml:"useLocalhost"`
 	Debug        bool        `yaml:"debug"`
+	DatabaseUrl  string      `yaml:"databaseUrl"`
 }
 
 func new() *Config {
@@ -79,6 +80,7 @@ func new() *Config {
 		Domain:       "",
 		UseLocalHost: false,
 		Debug:        false,
+		DatabaseUrl:  "file:./data/db.sqlite",
 	}
 }
 

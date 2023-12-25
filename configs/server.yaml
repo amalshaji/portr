@@ -1,6 +1,5 @@
 admin:
   port: 8000
-  useVite: false
   oauth:
     clientId: $GITHUB_CLIENT_ID # this is replaced by the environment var
     clientSecret: $GITHUB_CLIENT_SECRET
@@ -11,3 +10,4 @@ proxy:
 useLocalhost: true
 debug: true
 domain: $DOMAIN
+databaseUrl: $DATABASE_URL

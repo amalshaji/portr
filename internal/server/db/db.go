@@ -6,9 +6,11 @@ import (
 	"errors"
 	"log"
 
+	"github.com/amalshaji/localport/internal/server/config"
 	db "github.com/amalshaji/localport/internal/server/db/models"
 	"github.com/amalshaji/localport/internal/utils"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/tursodatabase/libsql-client-go/libsql"
+	_ "modernc.org/sqlite"
 )
 
 type Db struct {
@@ -30,10 +32,10 @@ You've been added to team "{{teamName}}" on LocalPort.
 Get started by signing in with your github account at {{appUrl}}`)
 )
 
-func (d *Db) Connect() {
+func (d *Db) Connect(config *config.Config) {
 	var err error
 
-	d.Conn, err = sql.Open("sqlite3", "./data/db.sqlite")
+	d.Conn, err = sql.Open("libsql", config.DatabaseUrl)
 	if err != nil {
 		log.Fatal(err)
 	}
