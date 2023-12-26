@@ -43,7 +43,7 @@
         const data = await res.json();
         if (data !== null) {
           users.update((users) => {
-            return [...users, data];
+            return [...users, { ...data, Role: role.value }];
           });
           toast.success(`${email} added to team`);
         }
