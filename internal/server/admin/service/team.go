@@ -75,7 +75,12 @@ func (s *Service) sendAddMemberNotification(ctx context.Context, user *db.User, 
 	return nil
 }
 
-func (s *Service) AddMember(ctx context.Context, addMemberInput AddMemberInput, addedToTeamId, addByTeamUserId int64) (*db.User, error) {
+func (s *Service) AddMember(
+	ctx context.Context,
+	addMemberInput AddMemberInput,
+	addedToTeamId,
+	addByTeamUserId int64,
+) (*db.User, error) {
 	user, err := s.db.Queries.GetUserByEmail(ctx, addMemberInput.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
