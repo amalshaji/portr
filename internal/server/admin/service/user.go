@@ -141,9 +141,6 @@ func (s *Service) GetOrCreateUserForGithubLogin(ctx context.Context, accessToken
 		return s.CreateUser(ctx, userDetails, accessToken, true)
 	}
 
-	tx, _ := s.db.Conn.Begin()
-	defer tx.Rollback()
-
 	user, err := s.db.Queries.GetUserByEmail(ctx, userDetails.Email)
 	if err != nil && errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrUserNotFound
@@ -158,7 +155,6 @@ func (s *Service) GetOrCreateUserForGithubLogin(ctx context.Context, accessToken
 		return nil, err
 	}
 
-	tx.Commit()
 	return &user, nil
 }
 
