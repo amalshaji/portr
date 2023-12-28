@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,6 +9,7 @@ import (
 
 	db "github.com/amalshaji/localport/internal/server/db/models"
 	"github.com/amalshaji/localport/internal/utils"
+	"github.com/go-resty/resty/v2"
 	"golang.org/x/oauth2"
 )
 
@@ -34,41 +34,24 @@ func (s *Service) GetAccessToken(code, state string) (string, error) {
 		"client_secret": s.config.Admin.OAuth.ClientSecret,
 		"code":          code,
 	}
-	requestJSON, _ := json.Marshal(requestBodyMap)
 
-	req, err := http.NewRequest(
-		"POST",
-		"https://github.com/login/oauth/access_token",
-		bytes.NewBuffer(requestJSON),
-	)
-	if err != nil {
-		return "", err
-	}
-
-	req.Header.Set("Accept", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	var response struct {
+	var response = struct {
 		AccessToken string `json:"access_token"`
 		Scope       string `json:"scope"`
 		TokenType   string `json:"token_type"`
-	}
+	}{}
 
-	err = json.Unmarshal(body, &response)
+	client := resty.New()
+	resp, err := client.R().
+		SetHeader("Accept", "application/json").
+		SetBody(requestBodyMap).
+		SetResult(response).
+		Post("https://github.com/login/oauth/access_token")
 	if err != nil {
 		return "", err
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return "", fmt.Errorf("github api returned status code %d", resp.StatusCode())
 	}
 
 	return response.AccessToken, nil
@@ -80,37 +63,20 @@ type GithubUserDetails struct {
 }
 
 func (s *Service) GetGithubUserDetails(accessToken string) (GithubUserDetails, error) {
-	url := "https://api.github.com/user"
-	client := &http.Client{}
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return GithubUserDetails{}, err
-	}
-
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", accessToken))
-	req.Header.Add("Accept", "application/vnd.github+json")
-	req.Header.Add("X-GitHub-Api-Version", "2022-11-28")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return GithubUserDetails{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return GithubUserDetails{}, fmt.Errorf("github api returned status code %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return GithubUserDetails{}, err
-	}
-
 	var result GithubUserDetails
-	err = json.Unmarshal(body, &result)
+
+	client := resty.New()
+	resp, err := client.R().
+		SetResult(&result).
+		SetHeader("Authorization", fmt.Sprintf("Bearer %s", accessToken)).
+		SetHeader("Accept", "application/vnd.github+json").
+		SetHeader("X-GitHub-Api-Version", "2022-11-28").
+		Get("https://api.github.com/user")
 	if err != nil {
 		return GithubUserDetails{}, err
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return GithubUserDetails{}, fmt.Errorf("github api returned status code %d", resp.StatusCode())
 	}
 
 	return result, nil

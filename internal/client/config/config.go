@@ -1,16 +1,14 @@
 package config
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
 
 	"github.com/amalshaji/localport/internal/utils"
+	"github.com/go-resty/resty/v2"
 	"gopkg.in/yaml.v3"
 )
 
@@ -182,28 +180,19 @@ func (c Config) ValidateConfig() error {
 	payloadMap := map[string]string{
 		"key": c.SecretKey,
 	}
-	payload, err := json.Marshal(payloadMap)
+
+	client := resty.New()
+
+	resp, err := client.R().SetBody(payloadMap).Post(c.GetAdminAddress() + "/config/validate")
 	if err != nil {
 		return err
 	}
 
-	resp, err := http.Post(
-		c.GetAdminAddress()+"/config/validate",
-		"application/json",
-		bytes.NewBuffer(payload),
-	)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode() != http.StatusOK {
 		return fmt.Errorf("config validation failed")
 	}
 
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
+	body := resp.Body()
 
 	_, err = os.Stat(DefaultKeyDir)
 	if os.IsNotExist(err) {
