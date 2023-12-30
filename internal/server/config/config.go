@@ -49,6 +49,7 @@ func (p ProxyConfig) Address() string {
 
 type DatabaseConfig struct {
 	Url         string `yaml:"url"`
+	Driver      string `yaml:"driver"`
 	AutoMigrate bool   `yaml:"autoMigrate"`
 }
 
@@ -86,7 +87,8 @@ func new() *Config {
 		UseLocalHost: false,
 		Debug:        false,
 		Database: DatabaseConfig{
-			Url:         "file:./data/db.sqlite",
+			Url:         "./data/db.sqlite",
+			Driver:      "sqlite3",
 			AutoMigrate: false,
 		},
 	}

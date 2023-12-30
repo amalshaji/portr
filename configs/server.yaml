@@ -9,6 +9,7 @@ proxy:
   port: 8001
 database:
   url: $DATABASE_URL
+  driver: sqlite3
   autoMigrate: true
 useLocalhost: true
 debug: true

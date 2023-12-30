@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/amalshaji/localport/internal/server/admin/service"
 	"github.com/amalshaji/localport/internal/server/config"
 	"github.com/amalshaji/localport/internal/server/db"
+
 	"github.com/amalshaji/localport/internal/server/proxy"
 	"github.com/amalshaji/localport/internal/server/smtp"
 	sshd "github.com/amalshaji/localport/internal/server/ssh"
@@ -68,15 +70,20 @@ func start(configFilePath string) {
 		log.Fatal(err)
 	}
 
-	db := db.New(&config.Database)
-	db.Connect()
+	_db := db.New(&config.Database)
+	_db.Connect()
+	migrator := db.NewMigrator(_db, &config.Database)
+
 	if config.Database.AutoMigrate {
-		db.Migrate()
+		if err := migrator.Migrate(); err != nil {
+			log.Fatal(err)
+		}
+		_db.PopulateDefaultSettings(context.Background())
 	}
 
 	smtp := smtp.New(&config.Admin)
 
-	service := service.New(db, config, smtp)
+	service := service.New(_db, config, smtp)
 
 	proxyServer := proxy.New(config)
 	sshServer := sshd.New(&config.Ssh, proxyServer, service)
@@ -93,7 +100,11 @@ func migrate(configFilePath string) {
 		log.Fatal(err)
 	}
 
-	db := db.New(&config.Database)
-	db.Connect()
-	db.Migrate()
+	_db := db.New(&config.Database)
+	_db.Connect()
+	migrator := db.NewMigrator(_db, &config.Database)
+	if err := migrator.Migrate(); err != nil {
+		log.Fatal(err)
+	}
+	_db.PopulateDefaultSettings(context.Background())
 }

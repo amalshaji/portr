@@ -1,10 +1,9 @@
 package utils
 
 import (
-	"modernc.org/sqlite"
-	sqlitelib "modernc.org/sqlite/lib"
+	"github.com/mattn/go-sqlite3"
 )
 
 func IsSqliteUniqueConstraintError(err error) bool {
-	return err.(*sqlite.Error).Code() == sqlitelib.SQLITE_CONSTRAINT_UNIQUE
+	return err.(sqlite3.Error).ExtendedCode == sqlite3.ErrConstraintUnique
 }

@@ -1,15 +1,4 @@
-package migrations
-
-import (
-	"database/sql"
-
-	"github.com/amalshaji/localport/internal/utils"
-)
-
-func V_001(tx *sql.Tx) (sql.Result, error) {
-	return tx.Exec(utils.Trim(`
-CREATE TABLE
-    IF NOT EXISTS users (
+CREATE TABLE users (
         id INTEGER PRIMARY KEY,
         email TEXT NOT NULL UNIQUE,
         first_name TEXT NULL,
@@ -19,17 +8,13 @@ CREATE TABLE
         github_avatar_url TEXT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
-
-CREATE TABLE
-    IF NOT EXISTS teams (
+CREATE TABLE teams (
         id INTEGER PRIMARY KEY,
         NAME TEXT NOT NULL UNIQUE,
         slug TEXT NOT NULL UNIQUE,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
-
-CREATE TABLE
-    IF NOT EXISTS team_members (
+CREATE TABLE team_members (
         id INTEGER PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users (id),
         team_id INTEGER NOT NULL REFERENCES teams (id),
@@ -39,26 +24,20 @@ CREATE TABLE
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         UNIQUE (user_id, team_id)
     );
-
-CREATE TABLE
-    IF NOT EXISTS sessions (
+CREATE TABLE sessions (
         id INTEGER PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users (id),
         token TEXT NOT NULL UNIQUE,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
-
-CREATE TABLE
-    IF NOT EXISTS connections (
+CREATE TABLE connections (
         id INTEGER PRIMARY KEY,
         subdomain TEXT NOT NULL,
         team_member_id INTEGER NOT NULL REFERENCES team_members (id),
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         closed_at TIMESTAMP NULL
     );
-
-CREATE TABLE
-    IF NOT EXISTS global_settings (
+CREATE TABLE global_settings (
         id INTEGER PRIMARY KEY,
         smtp_enabled BOOLEAN NOT NULL DEFAULT false,
         smtp_host TEXT NULL,
@@ -68,5 +47,14 @@ CREATE TABLE
         from_address TEXT NULL,
         add_member_email_subject TEXT NULL,
         add_member_email_template TEXT NULL
-    );`))
-}
+    );
+CREATE TABLE schema_migrations (version uint64,dirty bool);
+CREATE UNIQUE INDEX version_unique ON schema_migrations (version);
+CREATE TABLE migrations (
+			id INT8 NOT NULL,
+			version VARCHAR(255) NOT NULL,
+			PRIMARY KEY (id)
+		);
+-- Dbmate schema migrations
+INSERT INTO "schema_migrations" (version) VALUES
+  (20231230090812);

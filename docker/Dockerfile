@@ -18,7 +18,7 @@ RUN go mod download
 
 COPY . /app/
 
-RUN go build -ldflags="-s -w -linkmode external -extldflags \"-static\"" -o localportd ./cmd/localportd
+RUN CGO_ENABLED=1 go build -ldflags="-s -w -linkmode external -extldflags \"-static\"" -o localportd ./cmd/localportd
 
 # Build client
 RUN go build -ldflags="-s -w" -o localport cmd/localport/*.go && zip localport.zip localport
