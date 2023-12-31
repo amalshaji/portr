@@ -1,3 +1,4 @@
+-- migrate:up
 CREATE TABLE
     IF NOT EXISTS users (
         id INTEGER PRIMARY KEY,
@@ -59,3 +60,16 @@ CREATE TABLE
         add_member_email_subject TEXT NULL,
         add_member_email_template TEXT NULL
     );
+
+-- migrate:down
+DROP TABLE IF EXISTS global_settings;
+
+DROP TABLE IF EXISTS connections;
+
+DROP TABLE IF EXISTS sessions;
+
+DROP TABLE IF EXISTS team_members;
+
+DROP TABLE IF EXISTS teams;
+
+DROP TABLE IF EXISTS users;
