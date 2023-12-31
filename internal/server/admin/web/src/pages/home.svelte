@@ -46,14 +46,8 @@
     isSuperUserSignup = data.isSuperUserSignup;
   };
 
-  const getSettingsForSignup = async () => {
-    const resp = await fetch("/api/setting/signup");
-    settingsForSignup.set(await resp.json());
-  };
-
   onMount(() => {
     checkIfSuperuserSignup();
-    getSettingsForSignup();
   });
 </script>
 
