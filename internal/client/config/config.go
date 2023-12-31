@@ -89,6 +89,15 @@ func (c *ClientConfig) GetAddr() string {
 	return protocol + "://" + c.Tunnel.Subdomain + "." + c.TunnelUrl
 }
 
+func (c *ClientConfig) GetServerAddr() string {
+	protocol := "http"
+	if !c.UseLocalHost {
+		protocol = "https"
+	}
+
+	return protocol + "://" + c.ServerUrl
+}
+
 func Load(configFile string) (Config, error) {
 	var config Config
 

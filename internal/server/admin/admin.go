@@ -76,6 +76,9 @@ func New(config *config.Config, service *service.Service) *AdminServer {
 	githubAuthGroup := app.Group("/auth/github")
 	handler.RegisterGithubAuthRoutes(githubAuthGroup)
 
+	connectionForClientGroup := app.Group("/api/")
+	handler.RegisterConnectionRoutesForClient(connectionForClientGroup)
+
 	apiGroup := app.Group("/api/", apiAuthMiddleware)
 	handler.RegisterUserRoutes(apiGroup)
 	handler.RegisterSettingsRoutes(apiGroup, superUserPermissionRequired)

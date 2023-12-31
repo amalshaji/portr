@@ -46,18 +46,19 @@ func (q *Queries) CreateGlobalSettings(ctx context.Context, arg CreateGlobalSett
 
 const createNewConnection = `-- name: CreateNewConnection :one
 INSERT INTO
-    connections (subdomain, team_member_id)
+    connections (subdomain, team_member_id, team_id)
 VALUES
-    (?, ?) RETURNING id, subdomain, team_member_id, created_at, closed_at
+    (?, ?, ?) RETURNING id, subdomain, team_member_id, created_at, closed_at, status, started_at, team_id
 `
 
 type CreateNewConnectionParams struct {
 	Subdomain    string
 	TeamMemberID int64
+	TeamID       interface{}
 }
 
 func (q *Queries) CreateNewConnection(ctx context.Context, arg CreateNewConnectionParams) (Connection, error) {
-	row := q.db.QueryRowContext(ctx, createNewConnection, arg.Subdomain, arg.TeamMemberID)
+	row := q.db.QueryRowContext(ctx, createNewConnection, arg.Subdomain, arg.TeamMemberID, arg.TeamID)
 	var i Connection
 	err := row.Scan(
 		&i.ID,
@@ -65,6 +66,9 @@ func (q *Queries) CreateNewConnection(ctx context.Context, arg CreateNewConnecti
 		&i.TeamMemberID,
 		&i.CreatedAt,
 		&i.ClosedAt,
+		&i.Status,
+		&i.StartedAt,
+		&i.TeamID,
 	)
 	return i, err
 }
@@ -197,6 +201,17 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const deleteExpiredSessions = `-- name: DeleteExpiredSessions :exec
+DELETE FROM sessions
+WHERE
+    strftime ('%s', 'now') - strftime ('%s', created_at) > 24 * 60 * 60
+`
+
+func (q *Queries) DeleteExpiredSessions(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteExpiredSessions)
+	return err
+}
+
 const deleteSession = `-- name: DeleteSession :exec
 DELETE FROM sessions
 WHERE
@@ -206,6 +221,78 @@ WHERE
 func (q *Queries) DeleteSession(ctx context.Context, token string) error {
 	_, err := q.db.ExecContext(ctx, deleteSession, token)
 	return err
+}
+
+const deleteUnclaimedConnections = `-- name: DeleteUnclaimedConnections :exec
+DELETE FROM connections
+WHERE
+    status = 'reserved'
+    AND strftime ('%s', 'now') - strftime ('%s', created_at) > 10
+`
+
+func (q *Queries) DeleteUnclaimedConnections(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteUnclaimedConnections)
+	return err
+}
+
+const getActiveConnectionForSubdomain = `-- name: GetActiveConnectionForSubdomain :one
+SELECT
+    connections.id, subdomain, team_member_id, connections.created_at, closed_at, status, started_at, connections.team_id, team_members.id, user_id, team_members.team_id, secret_key, role, added_by_user_id, team_members.created_at
+FROM
+    connections
+    JOIN team_members ON team_members.id = connections.team_member_id
+WHERE
+    subdomain = ?
+    AND team_members.secret_key = ?
+    AND status IN ('active', 'reserved')
+LIMIT
+    1
+`
+
+type GetActiveConnectionForSubdomainParams struct {
+	Subdomain string
+	SecretKey string
+}
+
+type GetActiveConnectionForSubdomainRow struct {
+	ID            int64
+	Subdomain     string
+	TeamMemberID  int64
+	CreatedAt     time.Time
+	ClosedAt      interface{}
+	Status        string
+	StartedAt     interface{}
+	TeamID        int64
+	ID_2          int64
+	UserID        int64
+	TeamID_2      int64
+	SecretKey     string
+	Role          string
+	AddedByUserID interface{}
+	CreatedAt_2   time.Time
+}
+
+func (q *Queries) GetActiveConnectionForSubdomain(ctx context.Context, arg GetActiveConnectionForSubdomainParams) (GetActiveConnectionForSubdomainRow, error) {
+	row := q.db.QueryRowContext(ctx, getActiveConnectionForSubdomain, arg.Subdomain, arg.SecretKey)
+	var i GetActiveConnectionForSubdomainRow
+	err := row.Scan(
+		&i.ID,
+		&i.Subdomain,
+		&i.TeamMemberID,
+		&i.CreatedAt,
+		&i.ClosedAt,
+		&i.Status,
+		&i.StartedAt,
+		&i.TeamID,
+		&i.ID_2,
+		&i.UserID,
+		&i.TeamID_2,
+		&i.SecretKey,
+		&i.Role,
+		&i.AddedByUserID,
+		&i.CreatedAt_2,
+	)
+	return i, err
 }
 
 const getActiveConnectionsForTeam = `-- name: GetActiveConnectionsForTeam :many
@@ -223,8 +310,8 @@ FROM
     JOIN team_members ON team_members.id = connections.team_member_id
     JOIN users ON users.id = team_members.user_id
 WHERE
-    team_id = ?
-    AND closed_at IS NULL
+    connections.team_id = ?
+    AND status = 'active'
 ORDER BY
     connections.id DESC
 LIMIT
@@ -242,7 +329,7 @@ type GetActiveConnectionsForTeamRow struct {
 	GithubAvatarUrl interface{}
 }
 
-func (q *Queries) GetActiveConnectionsForTeam(ctx context.Context, teamID int64) ([]GetActiveConnectionsForTeamRow, error) {
+func (q *Queries) GetActiveConnectionsForTeam(ctx context.Context, teamID interface{}) ([]GetActiveConnectionsForTeamRow, error) {
 	rows, err := q.db.QueryContext(ctx, getActiveConnectionsForTeam, teamID)
 	if err != nil {
 		return nil, err
@@ -315,7 +402,8 @@ FROM
     JOIN team_members ON team_members.id = connections.team_member_id
     JOIN users ON users.id = team_members.user_id
 WHERE
-    team_id = ?
+    connections.team_id = ?
+    AND status != 'reserved'
 ORDER BY
     connections.id DESC
 LIMIT
@@ -333,7 +421,7 @@ type GetRecentConnectionsForTeamRow struct {
 	GithubAvatarUrl interface{}
 }
 
-func (q *Queries) GetRecentConnectionsForTeam(ctx context.Context, teamID int64) ([]GetRecentConnectionsForTeamRow, error) {
+func (q *Queries) GetRecentConnectionsForTeam(ctx context.Context, teamID interface{}) ([]GetRecentConnectionsForTeamRow, error) {
 	rows, err := q.db.QueryContext(ctx, getRecentConnectionsForTeam, teamID)
 	if err != nil {
 		return nil, err
@@ -787,9 +875,24 @@ func (q *Queries) GetUsersCount(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const markConnectionAsActive = `-- name: MarkConnectionAsActive :exec
+UPDATE connections
+SET
+    status = 'active',
+    started_at = CURRENT_TIMESTAMP
+WHERE
+    id = ?
+`
+
+func (q *Queries) MarkConnectionAsActive(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, markConnectionAsActive, id)
+	return err
+}
+
 const markConnectionAsClosed = `-- name: MarkConnectionAsClosed :exec
 UPDATE connections
 SET
+    status = 'closed',
     closed_at = CURRENT_TIMESTAMP
 WHERE
     id = ?

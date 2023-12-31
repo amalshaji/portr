@@ -8,6 +8,7 @@ import (
 	"github.com/amalshaji/localport/internal/server/admin"
 	"github.com/amalshaji/localport/internal/server/admin/service"
 	"github.com/amalshaji/localport/internal/server/config"
+	"github.com/amalshaji/localport/internal/server/cron"
 	"github.com/amalshaji/localport/internal/server/db"
 
 	"github.com/amalshaji/localport/internal/server/proxy"
@@ -88,9 +89,11 @@ func start(configFilePath string) {
 	proxyServer := proxy.New(config)
 	sshServer := sshd.New(&config.Ssh, proxyServer, service)
 	adminServer := admin.New(config, service)
+	cron := cron.New(_db)
 
 	go proxyServer.Start()
 	go sshServer.Start()
+	go cron.Start()
 	adminServer.Start()
 }
 

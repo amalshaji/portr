@@ -36,7 +36,7 @@ CREATE TABLE connections (
         team_member_id INTEGER NOT NULL REFERENCES team_members (id),
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         closed_at TIMESTAMP NULL
-    );
+    , status TEXT NOT NULL DEFAULT 'reserved', started_at TIMESTAMP NULL, team_id INTEGER NULL REFERENCES teams (id));
 CREATE TABLE global_settings (
         id INTEGER PRIMARY KEY,
         smtp_enabled BOOLEAN NOT NULL DEFAULT false,
@@ -55,6 +55,10 @@ CREATE TABLE migrations (
 			version VARCHAR(255) NOT NULL,
 			PRIMARY KEY (id)
 		);
+CREATE UNIQUE INDEX idx_team_members_secret_key ON team_members (secret_key);
 -- Dbmate schema migrations
 INSERT INTO "schema_migrations" (version) VALUES
-  (20231230090812);
+  (20231230090812),
+  (20231230135330),
+  (20231230135656),
+  (20231230162518);

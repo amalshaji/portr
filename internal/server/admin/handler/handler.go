@@ -39,6 +39,11 @@ func (h *Handler) RegisterConnectionRoutes(group fiber.Router) {
 	connectionGroup.Get("/", h.ListConnections)
 }
 
+func (h *Handler) RegisterConnectionRoutesForClient(group fiber.Router) {
+	connectionGroup := group.Group("/connection")
+	connectionGroup.Post("/create", h.CreateConnection)
+}
+
 func (h *Handler) RegisterGithubAuthRoutes(group fiber.Router) {
 	group.Get("/", h.StartGithubAuth)
 	group.Get("/callback", h.GithubAuthCallback)

@@ -89,8 +89,8 @@ FROM
     JOIN team_members ON team_members.id = connections.team_member_id
     JOIN users ON users.id = team_members.user_id
 WHERE
-    team_id = ?
-    AND closed_at IS NULL
+    connections.team_id = ?
+    AND status = 'active'
 ORDER BY
     connections.id DESC
 LIMIT
@@ -111,7 +111,8 @@ FROM
     JOIN team_members ON team_members.id = connections.team_member_id
     JOIN users ON users.id = team_members.user_id
 WHERE
-    team_id = ?
+    connections.team_id = ?
+    AND status != 'reserved'
 ORDER BY
     connections.id DESC
 LIMIT
@@ -119,13 +120,22 @@ LIMIT
 
 -- name: CreateNewConnection :one
 INSERT INTO
-    connections (subdomain, team_member_id)
+    connections (subdomain, team_member_id, team_id)
 VALUES
-    (?, ?) RETURNING *;
+    (?, ?, ?) RETURNING *;
+
+-- name: MarkConnectionAsActive :exec
+UPDATE connections
+SET
+    status = 'active',
+    started_at = CURRENT_TIMESTAMP
+WHERE
+    id = ?;
 
 -- name: MarkConnectionAsClosed :exec
 UPDATE connections
 SET
+    status = 'closed',
     closed_at = CURRENT_TIMESTAMP
 WHERE
     id = ?;
@@ -262,3 +272,27 @@ SET
     github_avatar_url = COALESCE(?, github_avatar_url)
 WHERE
     id = ?;
+
+-- name: DeleteExpiredSessions :exec
+DELETE FROM sessions
+WHERE
+    strftime ('%s', 'now') - strftime ('%s', created_at) > 24 * 60 * 60;
+
+-- name: DeleteUnclaimedConnections :exec
+DELETE FROM connections
+WHERE
+    status = 'reserved'
+    AND strftime ('%s', 'now') - strftime ('%s', created_at) > 10;
+
+-- name: GetActiveConnectionForSubdomain :one
+SELECT
+    *
+FROM
+    connections
+    JOIN team_members ON team_members.id = connections.team_member_id
+WHERE
+    subdomain = ?
+    AND team_members.secret_key = ?
+    AND status IN ('active', 'reserved')
+LIMIT
+    1;

@@ -68,8 +68,6 @@ func (s *SshServer) Start() {
 		}),
 		ReversePortForwardingCallback: ssh.ReversePortForwardingCallback(func(ctx ssh.Context, host string, port uint32) bool {
 			user := ctx.User()
-			// get user based on user(secretKey value)
-			// accept/reject
 			proxyTarget := fmt.Sprintf("%s:%d", host, port)
 
 			secretKey, subdomain := parseSshUsername(user)
@@ -82,9 +80,15 @@ func (s *SshServer) Start() {
 				return false
 			}
 
-			connection, err := s.service.RegisterNewConnection(ctx, subdomain, secretKey)
+			reservedConnection, err := s.service.GetReservedConnectionForSubdomain(ctx, subdomain, secretKey)
 			if err != nil {
-				s.log.Error("failed to register connection", "error", err)
+				s.log.Error("failed to get reserved connection", "error", err)
+				return false
+			}
+
+			err = s.service.MarkConnectionAsActive(ctx, reservedConnection.ID)
+			if err != nil {
+				s.log.Error("failed to mark connection as active", "error", err)
 				return false
 			}
 
@@ -96,7 +100,7 @@ func (s *SshServer) Start() {
 
 			go func() {
 				<-ctx.Done()
-				err = s.service.MarkConnectionAsClosed(context.Background(), connection)
+				err = s.service.MarkConnectionAsClosed(context.Background(), reservedConnection.ID)
 				if err != nil {
 					s.log.Error("failed to mark connection as closed", "error", err)
 				}
@@ -106,6 +110,7 @@ func (s *SshServer) Start() {
 					s.log.Error("failed to remove route", "error", err)
 				}
 			}()
+
 			return true
 		}),
 

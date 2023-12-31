@@ -14,6 +14,9 @@ type Connection struct {
 	TeamMemberID int64
 	CreatedAt    time.Time
 	ClosedAt     interface{}
+	Status       string
+	StartedAt    interface{}
+	TeamID       interface{}
 }
 
 type GlobalSetting struct {

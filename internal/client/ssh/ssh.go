@@ -14,6 +14,7 @@ import (
 
 	"github.com/amalshaji/localport/internal/client/config"
 	"github.com/amalshaji/localport/internal/utils"
+	"github.com/go-resty/resty/v2"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -59,7 +60,31 @@ func (s *SshClient) getSshSigner() ssh.Signer {
 	return signer
 }
 
+func (s *SshClient) createNewConnection() error {
+	client := resty.New()
+	var reqErr struct {
+		Message string `json:"message"`
+	}
+
+	resp, err := client.R().
+		SetHeader("X-Subdomain", s.config.Tunnel.Subdomain).
+		SetHeader("X-SecretKey", s.config.SecretKey).
+		SetError(&reqErr).
+		Post(s.config.GetServerAddr() + "/api/connection/create")
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode() != 201 {
+		return fmt.Errorf(reqErr.Message)
+	}
+	return nil
+}
+
 func (s *SshClient) startListenerForClient() error {
+	if err := s.createNewConnection(); err != nil {
+		return err
+	}
+
 	signer := s.getSshSigner()
 
 	sshConfig := &ssh.ClientConfig{
@@ -78,7 +103,7 @@ func (s *SshClient) startListenerForClient() error {
 
 	localEndpoint := s.config.Tunnel.GetAddr() // Local address to forward to
 
-	randomPorts := utils.GenerateRandomHttpPorts()[:1]
+	randomPorts := utils.GenerateRandomHttpPorts()[:100]
 
 	// try to connect to 100 random ports (too much??)
 	for _, port := range randomPorts {
