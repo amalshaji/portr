@@ -300,7 +300,9 @@ SELECT
     connections.id,
     connections.subdomain,
     connections.created_at,
+    connections.started_at,
     connections.closed_at,
+    connections.status,
     users.email,
     users.first_name,
     users.last_name,
@@ -322,7 +324,9 @@ type GetActiveConnectionsForTeamRow struct {
 	ID              int64
 	Subdomain       string
 	CreatedAt       time.Time
+	StartedAt       interface{}
 	ClosedAt        interface{}
+	Status          string
 	Email           string
 	FirstName       interface{}
 	LastName        interface{}
@@ -342,7 +346,9 @@ func (q *Queries) GetActiveConnectionsForTeam(ctx context.Context, teamID interf
 			&i.ID,
 			&i.Subdomain,
 			&i.CreatedAt,
+			&i.StartedAt,
 			&i.ClosedAt,
+			&i.Status,
 			&i.Email,
 			&i.FirstName,
 			&i.LastName,
@@ -392,7 +398,9 @@ SELECT
     connections.id,
     connections.subdomain,
     connections.created_at,
+    connections.started_at,
     connections.closed_at,
+    connections.status,
     users.email,
     users.first_name,
     users.last_name,
@@ -414,7 +422,9 @@ type GetRecentConnectionsForTeamRow struct {
 	ID              int64
 	Subdomain       string
 	CreatedAt       time.Time
+	StartedAt       interface{}
 	ClosedAt        interface{}
+	Status          string
 	Email           string
 	FirstName       interface{}
 	LastName        interface{}
@@ -434,7 +444,9 @@ func (q *Queries) GetRecentConnectionsForTeam(ctx context.Context, teamID interf
 			&i.ID,
 			&i.Subdomain,
 			&i.CreatedAt,
+			&i.StartedAt,
 			&i.ClosedAt,
+			&i.Status,
 			&i.Email,
 			&i.FirstName,
 			&i.LastName,

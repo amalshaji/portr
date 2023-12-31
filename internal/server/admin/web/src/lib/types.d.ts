@@ -52,13 +52,15 @@ export type Settings = BaseSettings & {
   AddMemberEmailTemplate: string;
 };
 
+export type ConnectionStatus = "reserved" | "active" | "closed";
+
 export type Connection = {
   ID: number;
-  CreatedAt: string;
-  UpdatedAt: string | null;
-  DeletedAt: string | null;
   Subdomain: string;
+  CreatedAt: string;
+  StartedAt: string | null;
   ClosedAt: string | null;
+  Status: ConnectionStatus;
   UserID: number;
   User: User;
 };

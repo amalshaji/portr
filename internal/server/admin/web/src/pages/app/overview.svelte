@@ -1,6 +1,7 @@
 <script lang="ts">
   import Highlight from "svelte-highlight";
-  import { shell, yaml } from "svelte-highlight/languages";
+  import shell from "svelte-highlight/languages/shell";
+  import yaml from "svelte-highlight/languages/yaml";
   import { toast } from "svelte-sonner";
   import "svelte-highlight/styles/stackoverflow-light.css";
   import { serverAddress, currentTeamUser } from "$lib/store";

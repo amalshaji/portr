@@ -40,10 +40,10 @@
       header: "Subdomain",
     }),
     table.column({
-      accessor: (item: any) => item,
+      accessor: (item: Connection) => item,
       header: "Status",
-      cell: ({ value: { ClosedAt } }: { value: { ClosedAt: string | null } }) =>
-        createRender(ConnectionStatus, { ClosedAt }),
+      cell: ({ value: { Status } }: { value: { Status: string } }) =>
+        createRender(ConnectionStatus, { Status }),
     }),
     table.column({
       header: "Created at",
@@ -52,13 +52,13 @@
     }),
     table.column({
       accessor: (item: Connection) => {
-        const { CreatedAt, ClosedAt } = item;
-        if (ClosedAt === null) {
+        const { StartedAt, ClosedAt, Status } = item;
+        if (Status === "active") {
           return "-";
         }
-        const createdAt = new Date(CreatedAt);
+        const startedAt = new Date(StartedAt as string);
         const closedAt = new Date(ClosedAt);
-        const diff = closedAt.getTime() - createdAt.getTime();
+        const diff = closedAt.getTime() - startedAt.getTime();
         return humanizeTimeMs(diff);
       },
       header: "Duration",
