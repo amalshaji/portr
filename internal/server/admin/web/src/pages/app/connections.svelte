@@ -57,7 +57,7 @@
           return "-";
         }
         const startedAt = new Date(StartedAt as string);
-        const closedAt = new Date(ClosedAt);
+        const closedAt = new Date(ClosedAt as string);
         const diff = closedAt.getTime() - startedAt.getTime();
         return humanizeTimeMs(diff);
       },
