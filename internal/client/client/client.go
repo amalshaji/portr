@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/amalshaji/localport/internal/client/config"
+	"github.com/amalshaji/localport/internal/client/db"
 	"github.com/amalshaji/localport/internal/client/ssh"
 )
 
@@ -28,9 +29,9 @@ func NewClient(configFile string) *Client {
 }
 
 func (c *Client) Start(ctx context.Context, services ...string) {
-	c.config.SetDefaults()
-
 	var clientConfigs []config.ClientConfig
+
+	db := db.New()
 
 	for _, tunnel := range c.config.Tunnels {
 		if len(services) > 0 && !slices.Contains(services, tunnel.Name) {
@@ -48,7 +49,7 @@ func (c *Client) Start(ctx context.Context, services ...string) {
 	}
 
 	for _, clientConfig := range clientConfigs {
-		sshc := ssh.New(clientConfig)
+		sshc := ssh.New(clientConfig, db)
 		c.Add(sshc)
 		go sshc.Start(ctx)
 	}

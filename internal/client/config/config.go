@@ -6,21 +6,28 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 
+	"github.com/amalshaji/localport/internal/constants"
 	"github.com/amalshaji/localport/internal/utils"
 	"github.com/go-resty/resty/v2"
 	"gopkg.in/yaml.v3"
 )
 
 type Tunnel struct {
-	Name      string `yaml:"name"`
-	Subdomain string `yaml:"subdomain"`
-	Port      int    `yaml:"port"`
-	Host      string `yaml:"host"`
+	Name      string                   `yaml:"name"`
+	Subdomain string                   `yaml:"subdomain"`
+	Port      int                      `yaml:"port"`
+	Host      string                   `yaml:"host"`
+	Type      constants.ConnectionType `yaml:"type"`
 }
 
 func (t *Tunnel) setDefaults() {
-	if t.Subdomain == "" {
+	if t.Type == "" {
+		t.Type = constants.Http
+	}
+
+	if t.Type == constants.Http && t.Subdomain == "" {
 		t.Subdomain = utils.GenerateTunnelSubdomain()
 	}
 
@@ -29,7 +36,7 @@ func (t *Tunnel) setDefaults() {
 	}
 }
 
-func (t *Tunnel) GetAddr() string {
+func (t *Tunnel) GetLocalAddr() string {
 	return t.Host + ":" + fmt.Sprint(t.Port)
 }
 
@@ -80,13 +87,24 @@ type ClientConfig struct {
 	Debug        bool
 }
 
-func (c *ClientConfig) GetAddr() string {
+func (c *ClientConfig) GetHttpTunnelAddr() string {
 	protocol := "http"
 	if !c.UseLocalHost {
 		protocol = "https"
 	}
 
 	return protocol + "://" + c.Tunnel.Subdomain + "." + c.TunnelUrl
+}
+
+func (c *ClientConfig) GetTcpTunnelAddr(port int) string {
+	protocol := "http"
+	if !c.UseLocalHost {
+		protocol = "https"
+	}
+
+	split := strings.Split(c.TunnelUrl, ":")
+
+	return protocol + "://" + split[0] + ":" + fmt.Sprint(port)
 }
 
 func (c *ClientConfig) GetServerAddr() string {

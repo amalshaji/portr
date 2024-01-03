@@ -9,13 +9,15 @@ import (
 )
 
 type Connection struct {
-	ID           int64
-	Subdomain    string
+	ID           string
+	Type         string
+	Subdomain    interface{}
+	Port         interface{}
+	Status       string
 	TeamMemberID int64
 	CreatedAt    time.Time
-	ClosedAt     interface{}
-	Status       string
 	StartedAt    interface{}
+	ClosedAt     interface{}
 	TeamID       interface{}
 }
 

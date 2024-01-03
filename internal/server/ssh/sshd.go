@@ -8,10 +8,10 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
+	"github.com/amalshaji/localport/internal/constants"
 	"github.com/amalshaji/localport/internal/server/admin/service"
 	"github.com/amalshaji/localport/internal/server/config"
 	"github.com/amalshaji/localport/internal/server/proxy"
@@ -48,14 +48,6 @@ func (s *SshServer) getSshPublicKey() ssh.PublicKey {
 	return key
 }
 
-func parseSshUsername(user string) (string, string) {
-	output := strings.Split(user, ":")
-	if len(output) != 2 {
-		log.Fatal("invalid username format")
-	}
-	return output[0], output[1]
-}
-
 func (s *SshServer) Start() {
 	forwardHandler := &ssh.ForwardedTCPHandler{}
 
@@ -67,23 +59,21 @@ func (s *SshServer) Start() {
 			select {}
 		}),
 		ReversePortForwardingCallback: ssh.ReversePortForwardingCallback(func(ctx ssh.Context, host string, port uint32) bool {
-			user := ctx.User()
+			connectionId := ctx.User()
 			proxyTarget := fmt.Sprintf("%s:%d", host, port)
 
-			secretKey, subdomain := parseSshUsername(user)
-			if secretKey == "" {
-				s.log.Error("missing secret key")
-				return false
-			}
-			if subdomain == "" {
-				s.log.Error("missing subdomain")
-				return false
-			}
-
-			reservedConnection, err := s.service.GetReservedConnectionForSubdomain(ctx, subdomain, secretKey)
+			reservedConnection, err := s.service.GetReservedOrActiveConnectionById(ctx, connectionId)
 			if err != nil {
 				s.log.Error("failed to get reserved connection", "error", err)
 				return false
+			}
+
+			if reservedConnection.Type == string(constants.Tcp) {
+				err = s.service.AddPortToConnection(ctx, reservedConnection.ID, port)
+				if err != nil {
+					s.log.Error("failed to add port to connection", "error", err)
+					return false
+				}
 			}
 
 			err = s.service.MarkConnectionAsActive(ctx, reservedConnection.ID)
@@ -92,10 +82,12 @@ func (s *SshServer) Start() {
 				return false
 			}
 
-			err = s.proxy.AddRoute(subdomain, proxyTarget)
-			if err != nil {
-				s.log.Error("failed to add route", "error", err)
-				return false
+			if reservedConnection.Type == string(constants.Http) {
+				err = s.proxy.AddRoute(reservedConnection.Subdomain.(string), proxyTarget)
+				if err != nil {
+					s.log.Error("failed to add route", "error", err)
+					return false
+				}
 			}
 
 			go func() {
@@ -105,9 +97,11 @@ func (s *SshServer) Start() {
 					s.log.Error("failed to mark connection as closed", "error", err)
 				}
 
-				err := s.proxy.RemoveRoute(subdomain)
-				if err != nil {
-					s.log.Error("failed to remove route", "error", err)
+				if reservedConnection.Subdomain == string(constants.Http) {
+					err := s.proxy.RemoveRoute(reservedConnection.Subdomain.(string))
+					if err != nil {
+						s.log.Error("failed to remove route", "error", err)
+					}
 				}
 			}()
 

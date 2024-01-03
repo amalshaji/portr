@@ -1,3 +1,4 @@
+CREATE TABLE IF NOT EXISTS "schema_migrations" (version varchar(128) primary key);
 CREATE TABLE users (
         id INTEGER PRIMARY KEY,
         email TEXT NOT NULL UNIQUE,
@@ -18,7 +19,7 @@ CREATE TABLE team_members (
         id INTEGER PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users (id),
         team_id INTEGER NOT NULL REFERENCES teams (id),
-        secret_key TEXT NOT NULL,
+        secret_key TEXT NOT NULL UNIQUE,
         role TEXT NOT NULL,
         added_by_user_id INTEGER NULL REFERENCES users (id),
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -31,12 +32,17 @@ CREATE TABLE sessions (
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 CREATE TABLE connections (
-        id INTEGER PRIMARY KEY,
-        subdomain TEXT NOT NULL,
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL DEFAULT 'http', -- http, tcp
+        subdomain TEXT NULL,
+        port INTEGER NULL,
+        status TEXT NOT NULL DEFAULT 'reserved', -- reserved, active, closed
         team_member_id INTEGER NOT NULL REFERENCES team_members (id),
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        closed_at TIMESTAMP NULL
-    , status TEXT NOT NULL DEFAULT 'reserved', started_at TIMESTAMP NULL, team_id INTEGER NULL REFERENCES teams (id));
+        started_at TIMESTAMP NULL,
+        closed_at TIMESTAMP NULL,
+        team_id INTEGER NULL REFERENCES teams (id)
+    );
 CREATE TABLE global_settings (
         id INTEGER PRIMARY KEY,
         smtp_enabled BOOLEAN NOT NULL DEFAULT false,
@@ -48,17 +54,6 @@ CREATE TABLE global_settings (
         add_member_email_subject TEXT NULL,
         add_member_email_template TEXT NULL
     );
-CREATE TABLE schema_migrations (version uint64,dirty bool);
-CREATE UNIQUE INDEX version_unique ON schema_migrations (version);
-CREATE TABLE migrations (
-			id INT8 NOT NULL,
-			version VARCHAR(255) NOT NULL,
-			PRIMARY KEY (id)
-		);
-CREATE UNIQUE INDEX idx_team_members_secret_key ON team_members (secret_key);
 -- Dbmate schema migrations
 INSERT INTO "schema_migrations" (version) VALUES
-  (20231230090812),
-  (20231230135330),
-  (20231230135656),
-  (20231230162518);
+  ('20231230090812');

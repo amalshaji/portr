@@ -77,6 +77,8 @@ LIMIT
 -- name: GetActiveConnectionsForTeam :many
 SELECT
     connections.id,
+    connections.type,
+    connections.port,
     connections.subdomain,
     connections.created_at,
     connections.started_at,
@@ -101,6 +103,8 @@ LIMIT
 -- name: GetRecentConnectionsForTeam :many
 SELECT
     connections.id,
+    connections.type,
+    connections.port,
     connections.subdomain,
     connections.created_at,
     connections.started_at,
@@ -122,11 +126,17 @@ ORDER BY
 LIMIT
     20;
 
--- name: CreateNewConnection :one
+-- name: CreateNewHttpConnection :one
 INSERT INTO
-    connections (subdomain, team_member_id, team_id)
+    connections (id, type, subdomain, team_member_id, team_id)
 VALUES
-    (?, ?, ?) RETURNING *;
+    (?, "http", ?, ?, ?) RETURNING *;
+
+-- name: CreateNewTcpConnection :one
+INSERT INTO
+    connections (id, type, port, team_member_id, team_id)
+VALUES
+    (?, "tcp", ?, ?, ?) RETURNING *;
 
 -- name: MarkConnectionAsActive :exec
 UPDATE connections
@@ -288,7 +298,26 @@ WHERE
     status = 'reserved'
     AND strftime ('%s', 'now') - strftime ('%s', created_at) > 10;
 
--- name: GetActiveConnectionForSubdomain :one
+-- name: GetReservedOrActiveConnectionById :one
+SELECT
+    *
+FROM
+    connections
+    JOIN team_members ON team_members.id = connections.team_member_id
+WHERE
+    connections.id = ?
+    AND status IN ('active', 'reserved')
+LIMIT
+    1;
+
+-- name: AddPortToConnection :exec
+UPDATE connections
+SET
+    port = ?
+WHERE
+    id = ?;
+
+-- name: GetReservedOrActiveConnectionForSubdomain :one
 SELECT
     *
 FROM
@@ -296,6 +325,19 @@ FROM
     JOIN team_members ON team_members.id = connections.team_member_id
 WHERE
     subdomain = ?
+    AND team_members.secret_key = ?
+    AND status IN ('active', 'reserved')
+LIMIT
+    1;
+
+-- name: GetReservedOrActiveConnectionForPort :one
+SELECT
+    *
+FROM
+    connections
+    JOIN team_members ON team_members.id = connections.team_member_id
+WHERE
+    port = ?
     AND team_members.secret_key = ?
     AND status IN ('active', 'reserved')
 LIMIT

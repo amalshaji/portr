@@ -24,7 +24,7 @@ CREATE TABLE
         id INTEGER PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users (id),
         team_id INTEGER NOT NULL REFERENCES teams (id),
-        secret_key TEXT NOT NULL,
+        secret_key TEXT NOT NULL UNIQUE,
         role TEXT NOT NULL,
         added_by_user_id INTEGER NULL REFERENCES users (id),
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -41,11 +41,16 @@ CREATE TABLE
 
 CREATE TABLE
     IF NOT EXISTS connections (
-        id INTEGER PRIMARY KEY,
-        subdomain TEXT NOT NULL,
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL DEFAULT 'http', -- http, tcp
+        subdomain TEXT NULL,
+        port INTEGER NULL,
+        status TEXT NOT NULL DEFAULT 'reserved', -- reserved, active, closed
         team_member_id INTEGER NOT NULL REFERENCES team_members (id),
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        closed_at TIMESTAMP NULL
+        started_at TIMESTAMP NULL,
+        closed_at TIMESTAMP NULL,
+        team_id INTEGER NULL REFERENCES teams (id)
     );
 
 CREATE TABLE

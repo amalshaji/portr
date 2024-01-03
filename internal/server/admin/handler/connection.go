@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/amalshaji/localport/internal/constants"
 	db "github.com/amalshaji/localport/internal/server/db/models"
 	"github.com/amalshaji/localport/internal/utils"
 	"github.com/gofiber/fiber/v2"
@@ -17,8 +18,18 @@ func (h *Handler) ListConnections(c *fiber.Ctx) error {
 
 func (h *Handler) CreateConnection(c *fiber.Ctx) error {
 	subdomain := c.Get("X-Subdomain")
-	if subdomain == "" {
-		return utils.ErrBadRequest(c, "subdomain is required")
+	connectionType := c.Get("X-Connection-Type")
+
+	var err error
+
+	if connectionType == "" {
+		return utils.ErrBadRequest(c, "connection type is required")
+	}
+
+	if connectionType == string(constants.Http) {
+		if subdomain == "" {
+			return utils.ErrBadRequest(c, "subdomain is required")
+		}
 	}
 
 	secretKey := c.Get("X-SecretKey")
@@ -26,10 +37,19 @@ func (h *Handler) CreateConnection(c *fiber.Ctx) error {
 		return utils.ErrBadRequest(c, "secret key is required")
 	}
 
-	_, err := h.service.RegisterNewConnection(c.Context(), subdomain, secretKey)
+	var connection db.Connection
+
+	if connectionType == string(constants.Http) {
+		connection, err = h.service.RegisterNewHttpConnection(c.Context(), subdomain, secretKey)
+	} else {
+		connection, err = h.service.RegisterNewTcpConnection(c.Context(), secretKey)
+	}
+
 	if err != nil {
 		return utils.ErrBadRequest(c, err.Error())
 	}
 
-	return c.SendStatus(fiber.StatusCreated)
+	return c.JSON(fiber.Map{
+		"connectionId": connection.ID,
+	})
 }

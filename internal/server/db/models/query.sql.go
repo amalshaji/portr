@@ -10,6 +10,24 @@ import (
 	"time"
 )
 
+const addPortToConnection = `-- name: AddPortToConnection :exec
+UPDATE connections
+SET
+    port = ?
+WHERE
+    id = ?
+`
+
+type AddPortToConnectionParams struct {
+	Port interface{}
+	ID   string
+}
+
+func (q *Queries) AddPortToConnection(ctx context.Context, arg AddPortToConnectionParams) error {
+	_, err := q.db.ExecContext(ctx, addPortToConnection, arg.Port, arg.ID)
+	return err
+}
+
 const createGlobalSettings = `-- name: CreateGlobalSettings :one
 INSERT INTO
     global_settings (
@@ -44,30 +62,75 @@ func (q *Queries) CreateGlobalSettings(ctx context.Context, arg CreateGlobalSett
 	return i, err
 }
 
-const createNewConnection = `-- name: CreateNewConnection :one
+const createNewHttpConnection = `-- name: CreateNewHttpConnection :one
 INSERT INTO
-    connections (subdomain, team_member_id, team_id)
+    connections (id, type, subdomain, team_member_id, team_id)
 VALUES
-    (?, ?, ?) RETURNING id, subdomain, team_member_id, created_at, closed_at, status, started_at, team_id
+    (?, "http", ?, ?, ?) RETURNING id, type, subdomain, port, status, team_member_id, created_at, started_at, closed_at, team_id
 `
 
-type CreateNewConnectionParams struct {
-	Subdomain    string
+type CreateNewHttpConnectionParams struct {
+	ID           string
+	Subdomain    interface{}
 	TeamMemberID int64
 	TeamID       interface{}
 }
 
-func (q *Queries) CreateNewConnection(ctx context.Context, arg CreateNewConnectionParams) (Connection, error) {
-	row := q.db.QueryRowContext(ctx, createNewConnection, arg.Subdomain, arg.TeamMemberID, arg.TeamID)
+func (q *Queries) CreateNewHttpConnection(ctx context.Context, arg CreateNewHttpConnectionParams) (Connection, error) {
+	row := q.db.QueryRowContext(ctx, createNewHttpConnection,
+		arg.ID,
+		arg.Subdomain,
+		arg.TeamMemberID,
+		arg.TeamID,
+	)
 	var i Connection
 	err := row.Scan(
 		&i.ID,
+		&i.Type,
 		&i.Subdomain,
+		&i.Port,
+		&i.Status,
 		&i.TeamMemberID,
 		&i.CreatedAt,
-		&i.ClosedAt,
-		&i.Status,
 		&i.StartedAt,
+		&i.ClosedAt,
+		&i.TeamID,
+	)
+	return i, err
+}
+
+const createNewTcpConnection = `-- name: CreateNewTcpConnection :one
+INSERT INTO
+    connections (id, type, port, team_member_id, team_id)
+VALUES
+    (?, "tcp", ?, ?, ?) RETURNING id, type, subdomain, port, status, team_member_id, created_at, started_at, closed_at, team_id
+`
+
+type CreateNewTcpConnectionParams struct {
+	ID           string
+	Port         interface{}
+	TeamMemberID int64
+	TeamID       interface{}
+}
+
+func (q *Queries) CreateNewTcpConnection(ctx context.Context, arg CreateNewTcpConnectionParams) (Connection, error) {
+	row := q.db.QueryRowContext(ctx, createNewTcpConnection,
+		arg.ID,
+		arg.Port,
+		arg.TeamMemberID,
+		arg.TeamID,
+	)
+	var i Connection
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Subdomain,
+		&i.Port,
+		&i.Status,
+		&i.TeamMemberID,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.ClosedAt,
 		&i.TeamID,
 	)
 	return i, err
@@ -235,69 +298,11 @@ func (q *Queries) DeleteUnclaimedConnections(ctx context.Context) error {
 	return err
 }
 
-const getActiveConnectionForSubdomain = `-- name: GetActiveConnectionForSubdomain :one
-SELECT
-    connections.id, subdomain, team_member_id, connections.created_at, closed_at, status, started_at, connections.team_id, team_members.id, user_id, team_members.team_id, secret_key, role, added_by_user_id, team_members.created_at
-FROM
-    connections
-    JOIN team_members ON team_members.id = connections.team_member_id
-WHERE
-    subdomain = ?
-    AND team_members.secret_key = ?
-    AND status IN ('active', 'reserved')
-LIMIT
-    1
-`
-
-type GetActiveConnectionForSubdomainParams struct {
-	Subdomain string
-	SecretKey string
-}
-
-type GetActiveConnectionForSubdomainRow struct {
-	ID            int64
-	Subdomain     string
-	TeamMemberID  int64
-	CreatedAt     time.Time
-	ClosedAt      interface{}
-	Status        string
-	StartedAt     interface{}
-	TeamID        int64
-	ID_2          int64
-	UserID        int64
-	TeamID_2      int64
-	SecretKey     string
-	Role          string
-	AddedByUserID interface{}
-	CreatedAt_2   time.Time
-}
-
-func (q *Queries) GetActiveConnectionForSubdomain(ctx context.Context, arg GetActiveConnectionForSubdomainParams) (GetActiveConnectionForSubdomainRow, error) {
-	row := q.db.QueryRowContext(ctx, getActiveConnectionForSubdomain, arg.Subdomain, arg.SecretKey)
-	var i GetActiveConnectionForSubdomainRow
-	err := row.Scan(
-		&i.ID,
-		&i.Subdomain,
-		&i.TeamMemberID,
-		&i.CreatedAt,
-		&i.ClosedAt,
-		&i.Status,
-		&i.StartedAt,
-		&i.TeamID,
-		&i.ID_2,
-		&i.UserID,
-		&i.TeamID_2,
-		&i.SecretKey,
-		&i.Role,
-		&i.AddedByUserID,
-		&i.CreatedAt_2,
-	)
-	return i, err
-}
-
 const getActiveConnectionsForTeam = `-- name: GetActiveConnectionsForTeam :many
 SELECT
     connections.id,
+    connections.type,
+    connections.port,
     connections.subdomain,
     connections.created_at,
     connections.started_at,
@@ -321,8 +326,10 @@ LIMIT
 `
 
 type GetActiveConnectionsForTeamRow struct {
-	ID              int64
-	Subdomain       string
+	ID              string
+	Type            string
+	Port            interface{}
+	Subdomain       interface{}
 	CreatedAt       time.Time
 	StartedAt       interface{}
 	ClosedAt        interface{}
@@ -344,6 +351,8 @@ func (q *Queries) GetActiveConnectionsForTeam(ctx context.Context, teamID interf
 		var i GetActiveConnectionsForTeamRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.Type,
+			&i.Port,
 			&i.Subdomain,
 			&i.CreatedAt,
 			&i.StartedAt,
@@ -396,6 +405,8 @@ func (q *Queries) GetGlobalSettings(ctx context.Context) (GlobalSetting, error) 
 const getRecentConnectionsForTeam = `-- name: GetRecentConnectionsForTeam :many
 SELECT
     connections.id,
+    connections.type,
+    connections.port,
     connections.subdomain,
     connections.created_at,
     connections.started_at,
@@ -419,8 +430,10 @@ LIMIT
 `
 
 type GetRecentConnectionsForTeamRow struct {
-	ID              int64
-	Subdomain       string
+	ID              string
+	Type            string
+	Port            interface{}
+	Subdomain       interface{}
 	CreatedAt       time.Time
 	StartedAt       interface{}
 	ClosedAt        interface{}
@@ -442,6 +455,8 @@ func (q *Queries) GetRecentConnectionsForTeam(ctx context.Context, teamID interf
 		var i GetRecentConnectionsForTeamRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.Type,
+			&i.Port,
 			&i.Subdomain,
 			&i.CreatedAt,
 			&i.StartedAt,
@@ -463,6 +478,192 @@ func (q *Queries) GetRecentConnectionsForTeam(ctx context.Context, teamID interf
 		return nil, err
 	}
 	return items, nil
+}
+
+const getReservedOrActiveConnectionById = `-- name: GetReservedOrActiveConnectionById :one
+SELECT
+    connections.id, type, subdomain, port, status, team_member_id, connections.created_at, started_at, closed_at, connections.team_id, team_members.id, user_id, team_members.team_id, secret_key, role, added_by_user_id, team_members.created_at
+FROM
+    connections
+    JOIN team_members ON team_members.id = connections.team_member_id
+WHERE
+    connections.id = ?
+    AND status IN ('active', 'reserved')
+LIMIT
+    1
+`
+
+type GetReservedOrActiveConnectionByIdRow struct {
+	ID            string
+	Type          string
+	Subdomain     interface{}
+	Port          interface{}
+	Status        string
+	TeamMemberID  int64
+	CreatedAt     time.Time
+	StartedAt     interface{}
+	ClosedAt      interface{}
+	TeamID        int64
+	ID_2          int64
+	UserID        int64
+	TeamID_2      int64
+	SecretKey     string
+	Role          string
+	AddedByUserID interface{}
+	CreatedAt_2   time.Time
+}
+
+func (q *Queries) GetReservedOrActiveConnectionById(ctx context.Context, id string) (GetReservedOrActiveConnectionByIdRow, error) {
+	row := q.db.QueryRowContext(ctx, getReservedOrActiveConnectionById, id)
+	var i GetReservedOrActiveConnectionByIdRow
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Subdomain,
+		&i.Port,
+		&i.Status,
+		&i.TeamMemberID,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.ClosedAt,
+		&i.TeamID,
+		&i.ID_2,
+		&i.UserID,
+		&i.TeamID_2,
+		&i.SecretKey,
+		&i.Role,
+		&i.AddedByUserID,
+		&i.CreatedAt_2,
+	)
+	return i, err
+}
+
+const getReservedOrActiveConnectionForPort = `-- name: GetReservedOrActiveConnectionForPort :one
+SELECT
+    connections.id, type, subdomain, port, status, team_member_id, connections.created_at, started_at, closed_at, connections.team_id, team_members.id, user_id, team_members.team_id, secret_key, role, added_by_user_id, team_members.created_at
+FROM
+    connections
+    JOIN team_members ON team_members.id = connections.team_member_id
+WHERE
+    port = ?
+    AND team_members.secret_key = ?
+    AND status IN ('active', 'reserved')
+LIMIT
+    1
+`
+
+type GetReservedOrActiveConnectionForPortParams struct {
+	Port      interface{}
+	SecretKey string
+}
+
+type GetReservedOrActiveConnectionForPortRow struct {
+	ID            string
+	Type          string
+	Subdomain     interface{}
+	Port          interface{}
+	Status        string
+	TeamMemberID  int64
+	CreatedAt     time.Time
+	StartedAt     interface{}
+	ClosedAt      interface{}
+	TeamID        int64
+	ID_2          int64
+	UserID        int64
+	TeamID_2      int64
+	SecretKey     string
+	Role          string
+	AddedByUserID interface{}
+	CreatedAt_2   time.Time
+}
+
+func (q *Queries) GetReservedOrActiveConnectionForPort(ctx context.Context, arg GetReservedOrActiveConnectionForPortParams) (GetReservedOrActiveConnectionForPortRow, error) {
+	row := q.db.QueryRowContext(ctx, getReservedOrActiveConnectionForPort, arg.Port, arg.SecretKey)
+	var i GetReservedOrActiveConnectionForPortRow
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Subdomain,
+		&i.Port,
+		&i.Status,
+		&i.TeamMemberID,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.ClosedAt,
+		&i.TeamID,
+		&i.ID_2,
+		&i.UserID,
+		&i.TeamID_2,
+		&i.SecretKey,
+		&i.Role,
+		&i.AddedByUserID,
+		&i.CreatedAt_2,
+	)
+	return i, err
+}
+
+const getReservedOrActiveConnectionForSubdomain = `-- name: GetReservedOrActiveConnectionForSubdomain :one
+SELECT
+    connections.id, type, subdomain, port, status, team_member_id, connections.created_at, started_at, closed_at, connections.team_id, team_members.id, user_id, team_members.team_id, secret_key, role, added_by_user_id, team_members.created_at
+FROM
+    connections
+    JOIN team_members ON team_members.id = connections.team_member_id
+WHERE
+    subdomain = ?
+    AND team_members.secret_key = ?
+    AND status IN ('active', 'reserved')
+LIMIT
+    1
+`
+
+type GetReservedOrActiveConnectionForSubdomainParams struct {
+	Subdomain interface{}
+	SecretKey string
+}
+
+type GetReservedOrActiveConnectionForSubdomainRow struct {
+	ID            string
+	Type          string
+	Subdomain     interface{}
+	Port          interface{}
+	Status        string
+	TeamMemberID  int64
+	CreatedAt     time.Time
+	StartedAt     interface{}
+	ClosedAt      interface{}
+	TeamID        int64
+	ID_2          int64
+	UserID        int64
+	TeamID_2      int64
+	SecretKey     string
+	Role          string
+	AddedByUserID interface{}
+	CreatedAt_2   time.Time
+}
+
+func (q *Queries) GetReservedOrActiveConnectionForSubdomain(ctx context.Context, arg GetReservedOrActiveConnectionForSubdomainParams) (GetReservedOrActiveConnectionForSubdomainRow, error) {
+	row := q.db.QueryRowContext(ctx, getReservedOrActiveConnectionForSubdomain, arg.Subdomain, arg.SecretKey)
+	var i GetReservedOrActiveConnectionForSubdomainRow
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Subdomain,
+		&i.Port,
+		&i.Status,
+		&i.TeamMemberID,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.ClosedAt,
+		&i.TeamID,
+		&i.ID_2,
+		&i.UserID,
+		&i.TeamID_2,
+		&i.SecretKey,
+		&i.Role,
+		&i.AddedByUserID,
+		&i.CreatedAt_2,
+	)
+	return i, err
 }
 
 const getTeamById = `-- name: GetTeamById :one
@@ -896,7 +1097,7 @@ WHERE
     id = ?
 `
 
-func (q *Queries) MarkConnectionAsActive(ctx context.Context, id int64) error {
+func (q *Queries) MarkConnectionAsActive(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, markConnectionAsActive, id)
 	return err
 }
@@ -910,7 +1111,7 @@ WHERE
     id = ?
 `
 
-func (q *Queries) MarkConnectionAsClosed(ctx context.Context, id int64) error {
+func (q *Queries) MarkConnectionAsClosed(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, markConnectionAsClosed, id)
 	return err
 }

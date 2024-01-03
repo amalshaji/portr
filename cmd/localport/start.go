@@ -32,14 +32,6 @@ func startCmd() *cli.Command {
 	return &cli.Command{
 		Name:  "start",
 		Usage: "Start the tunnels from the config file",
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:    "config",
-				Aliases: []string{"c"},
-				Usage:   "Config file",
-				Value:   config.DefaultConfigPath,
-			},
-		},
 		Action: func(c *cli.Context) error {
 			return startTunnels(c, nil)
 		},

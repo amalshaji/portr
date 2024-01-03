@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/amalshaji/localport/internal/client/config"
 	"github.com/labstack/gommon/color"
 	"github.com/urfave/cli/v2"
 )
@@ -15,6 +16,14 @@ func main() {
 		Name:    "localport",
 		Usage:   "Expose local http/tcp servers to the internet",
 		Version: VERSION,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "config",
+				Aliases: []string{"c"},
+				Usage:   "Config file",
+				Value:   config.DefaultConfigPath,
+			},
+		},
 		Commands: []*cli.Command{
 			startCmd(),
 			configCmd(),

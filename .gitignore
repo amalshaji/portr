@@ -5,3 +5,4 @@ db.sqlite
 *.fiber.gz
 tmp
 localport
+!**/localport/
