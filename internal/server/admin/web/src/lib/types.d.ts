@@ -54,8 +54,12 @@ export type Settings = BaseSettings & {
 
 export type ConnectionStatus = "reserved" | "active" | "closed";
 
+export type ConnectionType = "http" | "tcp";
+
 export type Connection = {
   ID: number;
+  Type: ConnectionType;
+  Port: number;
   Subdomain: string;
   CreatedAt: string;
   StartedAt: string | null;

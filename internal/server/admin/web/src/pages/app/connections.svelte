@@ -9,6 +9,7 @@
   import type { Connection } from "$lib/types";
   import { getContext } from "svelte";
   import ConnectionStatus from "$lib/components/ConnectionStatus.svelte";
+  import ConnectionType from "$lib/components/ConnectionType.svelte";
 
   let checked = false;
 
@@ -36,8 +37,24 @@
 
   const columns = table.createColumns([
     table.column({
-      accessor: "Subdomain",
+      header: "Type",
+      accessor: (item: Connection) => item,
+      cell: ({ value: { Type } }: { value: { Type: string } }) =>
+        createRender(ConnectionType, { Type }),
+    }),
+    table.column({
+      header: "Port",
+      accessor: (item: Connection) => {
+        const { Port } = item;
+        return Port ? Port : "-";
+      },
+    }),
+    table.column({
       header: "Subdomain",
+      accessor: (item: Connection) => {
+        const { Subdomain } = item;
+        return Subdomain ? Subdomain : "-";
+      },
     }),
     table.column({
       accessor: (item: Connection) => item,
