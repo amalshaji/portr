@@ -136,7 +136,7 @@ func (s *SshClient) startListenerForClient() error {
 
 	// try to connect to 100 random ports (too much??)
 	for _, port := range randomPorts {
-		s.listener, err = sshClient.Listen("tcp", "localhost:"+fmt.Sprint(port))
+		s.listener, err = sshClient.Listen("tcp", "0.0.0.0:"+fmt.Sprint(port))
 		remotePort = port
 		if err == nil {
 			break
