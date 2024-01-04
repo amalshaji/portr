@@ -9,6 +9,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - caddy_data:/data
     restart: unless-stopped
+    network_mode: "host"
 
   localport:
     build:
@@ -19,11 +20,7 @@ services:
       - ./server.yaml:/app/config.yaml
       - ./data:/app/data/
       - ./keys:/app/keys/
-    ports:
-      - 8000:8000
-      - 8001:8001
-      - 2222:2222
-      - "30001-40001"
+    network_mode: "host"
     env_file: .env
     restart: unless-stopped
     labels:
