@@ -6,3 +6,4 @@ db.sqlite
 tmp
 localport
 !**/localport/
+postgres-data

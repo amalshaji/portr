@@ -97,14 +97,8 @@ func (c *ClientConfig) GetHttpTunnelAddr() string {
 }
 
 func (c *ClientConfig) GetTcpTunnelAddr(port int) string {
-	protocol := "http"
-	if !c.UseLocalHost {
-		protocol = "https"
-	}
-
 	split := strings.Split(c.TunnelUrl, ":")
-
-	return protocol + "://" + split[0] + ":" + fmt.Sprint(port)
+	return split[0] + ":" + fmt.Sprint(port)
 }
 
 func (c *ClientConfig) GetServerAddr() string {
