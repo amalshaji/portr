@@ -22,7 +22,7 @@ type Tunnel struct {
 	Type      constants.ConnectionType `yaml:"type"`
 }
 
-func (t *Tunnel) setDefaults() {
+func (t *Tunnel) SetDefaults() {
 	if t.Type == "" {
 		t.Type = constants.Http
 	}
@@ -64,7 +64,7 @@ func (c *Config) SetDefaults() {
 	}
 
 	for i := range c.Tunnels {
-		c.Tunnels[i].setDefaults()
+		c.Tunnels[i].SetDefaults()
 	}
 }
 

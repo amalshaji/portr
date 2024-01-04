@@ -13,6 +13,8 @@ import (
 func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 	_c := client.NewClient(c.String("config"))
 
+	tunnelFromCli.SetDefaults()
+
 	if tunnelFromCli != nil {
 		_c.ReplaceTunnelsFromCli(*tunnelFromCli)
 		_c.Start(c.Context)
