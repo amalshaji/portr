@@ -23,6 +23,7 @@ services:
       - 8000:8000
       - 8001:8001
       - 2222:2222
+      - "30001-40001"
     env_file: .env
     restart: unless-stopped
     labels:
