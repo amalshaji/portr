@@ -21,7 +21,7 @@ COPY . /app/
 RUN CGO_ENABLED=1 go build -ldflags="-s -w -linkmode external -extldflags \"-static\"" -o localportd ./cmd/localportd
 
 # Build client
-RUN go build -ldflags="-s -w" -o localport cmd/localport/*.go && zip localport.zip localport
+RUN GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o localport cmd/localport/*.go && zip localport.zip localport
 
 FROM alpine:3.18.4 
 
