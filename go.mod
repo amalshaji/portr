@@ -9,8 +9,8 @@ require (
 	github.com/glebarez/sqlite v1.10.0
 	github.com/gliderlabs/ssh v0.3.6
 	github.com/go-resty/resty/v2 v2.11.0
-	github.com/gofiber/fiber/v2 v2.51.0
-	github.com/gofiber/template/django/v3 v3.1.7
+	github.com/gofiber/fiber/v2 v2.52.0
+	github.com/gofiber/template/django/v3 v3.1.9
 	github.com/gookit/validate v1.5.1
 	github.com/labstack/gommon v0.4.2
 	github.com/matoous/go-nanoid/v2 v2.0.0
