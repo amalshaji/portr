@@ -31,6 +31,8 @@ type AdminServer struct {
 
 func New(config *config.Config, service *service.Service) *AdminServer {
 	engine := django.New("./internal/server/admin/templates", ".html")
+	engine.SetAutoEscape(false)
+
 	app := fiber.New(fiber.Config{
 		DisableStartupMessage: true,
 		Views:                 engine,
