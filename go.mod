@@ -1,6 +1,6 @@
 module github.com/amalshaji/localport
 
-go 1.21.5
+go 1.21.6
 
 require (
 	github.com/amacneil/dbmate/v2 v2.10.0

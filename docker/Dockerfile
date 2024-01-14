@@ -6,7 +6,7 @@ COPY internal/server/admin/web .
 
 RUN npm i -g pnpm && pnpm i && pnpm build
 
-FROM golang:1.21.5 AS builder
+FROM golang:1.21.6 AS builder
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ RUN CGO_ENABLED=1 go build -ldflags="-s -w -linkmode external -extldflags \"-sta
 # Build client
 RUN go build -ldflags="-s -w" -o localport cmd/localport/*.go && zip localport.zip localport
 
-FROM alpine:3.18.4 
+FROM alpine:3.18.4 as final
 
 WORKDIR /app
 
