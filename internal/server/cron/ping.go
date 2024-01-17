@@ -19,8 +19,6 @@ func (c *Cron) pingHttpConnection(connection models.Connection) error {
 	if err != nil {
 		return nil
 	}
-	fmt.Println(resp.StatusCode())
-	fmt.Println(resp.Header().Get("X-LocalPort-Error"))
 	if resp.StatusCode() == 404 && resp.Header().Get("X-LocalPort-Error") == "true" {
 		return ErrInactiveTunnel
 	}
