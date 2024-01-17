@@ -94,6 +94,20 @@ func new() *Config {
 	}
 }
 
+func (c *Config) HttpTunnelUrl(subdomain string) string {
+	if !c.UseLocalHost {
+		return "https://" + subdomain + "." + c.Domain
+	}
+	return "http://" + subdomain + "." + c.Proxy.Address()
+}
+
+func (c *Config) TcpTunnelUrl(port int64) string {
+	if !c.UseLocalHost {
+		return c.Domain + ":" + fmt.Sprint(port)
+	}
+	return "localhost:" + fmt.Sprint(port)
+}
+
 func (c *Config) setDefaults() {
 	if c.UseLocalHost {
 		c.Domain = c.Admin.Address()

@@ -342,3 +342,11 @@ WHERE
     AND status IN ('active', 'reserved')
 LIMIT
     1;
+
+-- name: GetAllActiveConnections :many
+SELECT
+    *
+FROM
+    connections
+WHERE
+    status = 'active';

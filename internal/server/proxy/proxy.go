@@ -84,6 +84,7 @@ func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 	target, err := p.GetRoute(subdomain)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
+		w.Header().Set("X-LocalPort-Error", "true")
 		w.Write([]byte(utils.UnregisteredSubdomain(subdomain)))
 		return
 	}

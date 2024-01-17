@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/amalshaji/localport/internal/server/config"
 	"github.com/amalshaji/localport/internal/server/db"
 	"github.com/amalshaji/localport/internal/utils"
 )
@@ -15,10 +16,11 @@ import (
 type Cron struct {
 	db     *db.Db
 	logger *slog.Logger
+	config *config.Config
 }
 
-func New(db *db.Db) *Cron {
-	return &Cron{db: db, logger: utils.GetLogger()}
+func New(db *db.Db, config *config.Config) *Cron {
+	return &Cron{db: db, config: config, logger: utils.GetLogger()}
 }
 
 func (c *Cron) Start() {
@@ -32,7 +34,7 @@ func (c *Cron) Start() {
 				select {
 				case <-ticker.C:
 					c.logger.Debug("Running cron job: " + job.Name)
-					job.Function(c.db, c.logger)
+					job.Function(c)
 				case <-ctx.Done():
 					ticker.Stop()
 					return
