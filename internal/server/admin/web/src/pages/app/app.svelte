@@ -144,7 +144,7 @@
     </div>
   </aside>
   <aside class="w-full">
-    <div class="mx-auto py-16 w-full lg:w-4/5">
+    <div class="mx-auto py-16 w-full px-16">
       <Router {url}>
         <Route path="/overview"><Overview /></Route>
         <Route path="/connections"><Connections /></Route>

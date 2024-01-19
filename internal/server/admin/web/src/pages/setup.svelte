@@ -3,7 +3,7 @@
 </script>
 
 <div class="grid h-screen place-items-center">
-  <div class="lg:w-1/2">
+  <div class="lg:w-3/4">
     <Newteam />
   </div>
 </div>
