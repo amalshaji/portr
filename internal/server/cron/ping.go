@@ -39,7 +39,6 @@ func (c *Cron) pingTcpConnection(connection models.Connection) error {
 func (c *Cron) pingActiveConnections(ctx context.Context) {
 	var err error
 	connections, err := c.db.Queries.GetAllActiveConnections(ctx)
-	fmt.Printf("connections: %d\n", len(connections))
 	if err != nil {
 		c.logger.Error("error getting active connections", "error", err)
 		return
