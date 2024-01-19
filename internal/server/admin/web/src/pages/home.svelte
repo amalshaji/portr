@@ -58,7 +58,7 @@
       <img class="w-auto h-12" src="/static/logo.svg" alt="" />
     </div>
 
-    <Button variant="secondary" class="w-full" href="/auth/github">
+    <Button variant="default" class="w-full" href="/auth/github">
       <GithubLogo class="mr-2 h-4 w-4" />
       Continue with GitHub
     </Button>

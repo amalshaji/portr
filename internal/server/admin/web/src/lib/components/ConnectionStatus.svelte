@@ -6,7 +6,7 @@
 </script>
 
 {#if Status === "closed"}
-  <Badge variant="destructive">Closed</Badge>
+  <Badge variant="outline" class="border-red-300">closed</Badge>
 {:else}
-  <Badge variant="secondary">Active</Badge>
+  <Badge variant="outline" class="border-gray-300">active</Badge>
 {/if}

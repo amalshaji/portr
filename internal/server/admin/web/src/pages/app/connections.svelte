@@ -10,6 +10,7 @@
   import { getContext } from "svelte";
   import ConnectionStatus from "$lib/components/ConnectionStatus.svelte";
   import ConnectionType from "$lib/components/ConnectionType.svelte";
+  import DateField from "$lib/components/DateField.svelte";
 
   let checked = false;
 
@@ -63,9 +64,10 @@
         createRender(ConnectionStatus, { Status }),
     }),
     table.column({
+      accessor: (item: Connection) => item,
       header: "Created at",
-      accessor: ({ CreatedAt }: { CreatedAt: string }) =>
-        new Date(CreatedAt).toLocaleString("en-US"),
+      cell: ({ value: { CreatedAt } }: { value: { CreatedAt: string } }) =>
+        createRender(DateField, { Date: CreatedAt }),
     }),
     table.column({
       accessor: (item: Connection) => {
