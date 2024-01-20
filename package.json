@@ -1,0 +1,7 @@
+{
+  "name": "localport",
+  "private": true,
+  "workspaces": [
+    "internal/server/admin/*"
+  ]
+}

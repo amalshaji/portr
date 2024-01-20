@@ -1,10 +1,10 @@
-FROM node:20-alpine3.18 as frontend-builder
+FROM oven/bun:1 as frontend-builder
 
 WORKDIR /app
 
 COPY internal/server/admin/web .
 
-RUN npm i -g pnpm && pnpm i && pnpm build
+RUN bun i && bun run build
 
 FROM golang:1.21.6 AS builder
 

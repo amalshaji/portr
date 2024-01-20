@@ -7,3 +7,4 @@ tmp
 localport
 !**/localport/
 postgres-data
+node_modules
