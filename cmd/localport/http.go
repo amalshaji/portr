@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/amalshaji/localport/internal/client/config"
@@ -14,22 +15,19 @@ func httpCmd() *cli.Command {
 		Usage: "Expose http/ws port",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     "port",
-				Aliases:  []string{"p"},
-				Usage:    "Port to expose",
-				Required: true,
-			},
-			&cli.StringFlag{
 				Name:    "subdomain",
 				Aliases: []string{"s"},
 				Usage:   "Subdomain to tunnel to",
 			},
 		},
 		Action: func(c *cli.Context) error {
-			port, err := strconv.Atoi(c.String("port"))
+			portStr := c.Args().First()
+
+			port, err := strconv.Atoi(portStr)
 			if err != nil {
-				return err
+				return fmt.Errorf("please specify a valid port")
 			}
+
 			return startTunnels(c, &config.Tunnel{
 				Port:      port,
 				Subdomain: c.String("subdomain"),

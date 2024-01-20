@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/amalshaji/localport/internal/client/config"
@@ -12,19 +13,14 @@ func tcpCmd() *cli.Command {
 	return &cli.Command{
 		Name:  "tcp",
 		Usage: "Expose tcp port",
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:     "port",
-				Aliases:  []string{"p"},
-				Usage:    "Port to expose",
-				Required: true,
-			},
-		},
 		Action: func(c *cli.Context) error {
-			port, err := strconv.Atoi(c.String("port"))
+			portStr := c.Args().First()
+
+			port, err := strconv.Atoi(portStr)
 			if err != nil {
-				return err
+				return fmt.Errorf("please specify a valid port")
 			}
+
 			return startTunnels(c, &config.Tunnel{
 				Port:      port,
 				Subdomain: "",
