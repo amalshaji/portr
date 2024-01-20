@@ -6,7 +6,7 @@
 </script>
 
 {#if Type === "http"}
-  <Badge variant="outline" class="border-blue-300">HTTP</Badge>
+  <Badge variant="outline" class="border-blue-300 font-normal">HTTP</Badge>
 {:else}
-  <Badge variant="outline" class="border-green-300">TCP</Badge>
+  <Badge variant="outline" class="border-green-300 font-normal">TCP</Badge>
 {/if}
