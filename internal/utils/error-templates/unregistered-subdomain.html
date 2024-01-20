@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Localport - Tunnel Subdomain Not Registered</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        font-family: "Inter";
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      class="min-h-screen bg-gray-50 flex flex-col justify-center items-center px-4"
+    >
+      <div class="max-w-2xl w-full bg-white p-8 rounded-lg shadow-2xl">
+        <h1 class="text-4xl font-bold text-center text-gray-900 mb-8">
+          Tunnel Subdomain Unregistered
+        </h1>
+        <p class="text-xl text-center text-gray-600 mb-6">
+          Initiate a new tunnel connection with the command below:
+        </p>
+        <div class="bg-gray-100 rounded-lg p-6 font-mono text-base mb-8">
+          <p>localport http 8000 -s {{subdomain}}</p>
+        </div>
+        <p class="text-center text-gray-600">
+          Visit
+          <a
+            class="text-green-500 hover:underline"
+            href="https://localport.app"
+            target="_blank"
+          >
+            localport.app
+          </a>
+          for more information
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

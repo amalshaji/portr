@@ -183,7 +183,11 @@ func (s *SshClient) startListenerForClient() error {
 			// serve local html if the local server is not available
 			// change this to a beautiful template
 			if tunnelType == constants.Http {
-				remoteConn.Write([]byte(utils.LocalServerNotOnline(localEndpoint)))
+				htmlContent := utils.LocalServerNotOnline(localEndpoint)
+				fmt.Fprintf(remoteConn, "HTTP/1.1 503 Service Unavailable\r\n")
+				fmt.Fprintf(remoteConn, "Content-Length: %d\r\n", len(htmlContent))
+				fmt.Fprintf(remoteConn, "Content-Type: text/html\r\n\r\n")
+				fmt.Fprint(remoteConn, htmlContent)
 			}
 			remoteConn.Close()
 			continue
