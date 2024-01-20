@@ -60,11 +60,11 @@
 
 <div class="flex">
   <aside
-    class="sticky top-0 flex flex-col w-64 h-screen px-5 py-8 overflow-y-auto bg-white border-r rtl:border-r-0 rtl:border-l dark:bg-gray-900 dark:border-gray-700"
+    class="sticky top-0 flex flex-col w-80 h-screen px-5 py-8 overflow-y-auto bg-white border-r rtl:border-r-0 rtl:border-l dark:bg-gray-900 dark:border-gray-700"
   >
     <TeamSelector />
 
-    <div class="flex flex-col justify-between flex-1 mt-6">
+    <div class="flex flex-col justify-between flex-1 mt-6 mx-4">
       <nav class="flex-1 -mx-3 space-y-2">
         <Sidebarlink url="/{team}/overview">
           <Home class="h-4 w-4" />
