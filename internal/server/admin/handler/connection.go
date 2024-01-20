@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"strconv"
+
 	"github.com/amalshaji/localport/internal/constants"
+	"github.com/amalshaji/localport/internal/server/admin/service"
 	db "github.com/amalshaji/localport/internal/server/db/models"
 	"github.com/amalshaji/localport/internal/utils"
 	"github.com/gofiber/fiber/v2"
@@ -9,11 +12,41 @@ import (
 
 func (h *Handler) ListConnections(c *fiber.Ctx) error {
 	connection_type := c.Query("type")
+
+	pageNoStr := c.Query("pageNo")
+	pageNo, err := strconv.Atoi(pageNoStr)
+	if err != nil {
+		pageNo = 1
+	}
+
+	var output any
+
 	teamUser := c.Locals("teamUser").(*db.GetTeamMemberByUserIdAndTeamSlugRow)
 	if connection_type == "active" {
-		return c.JSON(h.service.ListActiveConnections(c.Context(), teamUser.TeamID))
+		activeConnections := h.service.ListActiveConnections(c.Context(), teamUser.TeamID, int64(pageNo))
+		count := h.service.GetActiveConnectionCount(c.Context(), teamUser.TeamID)
+		output = PaginatedResponse[db.GetActiveConnectionsForTeamRow]{
+			Data: activeConnections,
+			Pagination: Pagination{
+				Page:     pageNo,
+				PageSize: service.DefaultPageSize,
+				Total:    int(count),
+			},
+		}
+	} else {
+		recentConnections := h.service.ListRecentConnections(c.Context(), teamUser.TeamID, int64(pageNo))
+		count := h.service.GetRecentConnectionCount(c.Context(), teamUser.TeamID)
+		output = PaginatedResponse[db.GetRecentConnectionsForTeamRow]{
+			Data: recentConnections,
+			Pagination: Pagination{
+				Page:     pageNo,
+				PageSize: service.DefaultPageSize,
+				Total:    int(count),
+			},
+		}
 	}
-	return c.JSON(h.service.ListRecentConnections(c.Context(), teamUser.TeamID))
+
+	return c.JSON(output)
 }
 
 func (h *Handler) CreateConnection(c *fiber.Ctx) error {

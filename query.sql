@@ -98,7 +98,18 @@ WHERE
 ORDER BY
     connections.id DESC
 LIMIT
-    20;
+    10
+OFFSET
+    ?;
+
+-- name: GetActiveConnectionCountForTeam :one
+SELECT
+    count(*)
+FROM
+    connections
+WHERE
+    connections.team_id = ?
+    AND status = 'active';
 
 -- name: GetRecentConnectionsForTeam :many
 SELECT
@@ -124,7 +135,18 @@ WHERE
 ORDER BY
     connections.id DESC
 LIMIT
-    20;
+    10
+OFFSET
+    ?;
+
+-- name: GetRecentConnectionCountForTeam :one
+SELECT
+    count(*)
+FROM
+    connections
+WHERE
+    connections.team_id = ?
+    AND status != 'reserved';
 
 -- name: CreateNewHttpConnection :one
 INSERT INTO

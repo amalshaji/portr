@@ -11,22 +11,54 @@
   import ConnectionStatus from "$lib/components/ConnectionStatus.svelte";
   import ConnectionType from "$lib/components/ConnectionType.svelte";
   import DateField from "$lib/components/DateField.svelte";
+  import Pagination from "$lib/components/Pagination.svelte";
+  import { writable } from "svelte/store";
+
+  const updateQueryParam = (key: string, value: string) => {
+    urlParams.set(key, value);
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+    window.history.pushState({}, "", newUrl);
+  };
 
   let checked = false;
+  const urlParams = new URLSearchParams(window.location.search);
+  let connectionType = urlParams.get("type") || "recent";
+
+  let pageNo = writable(1);
+  let pageNoStr = urlParams.get("pageNo") || "1";
+  pageNo.set(parseInt(pageNoStr, 10) || 1);
 
   $: if (checked) {
-    getConnections("active");
+    connectionType = "active";
+    $pageNo = 1;
   } else {
-    getConnections("recent");
+    connectionType = "recent";
+    $pageNo = 1;
   }
 
-  let team = getContext("team");
+  $: updateQueryParam("type", connectionType);
+  $: updateQueryParam("pageNo", $pageNo.toString());
+  $: getConnections(connectionType, $pageNo.toString());
 
-  const getConnections = async (type: string = "") => {
+  let team = getContext("team");
+  let pagination = {
+    pageNo: 1,
+    pageSize: 10,
+    total: 0,
+  };
+
+  const getConnections = async (
+    type: string = "recent",
+    pageNo: string = "1"
+  ) => {
     connectionsLoading.set(true);
     try {
-      const response = await fetch(`/api/${team}/connection?type=${type}`);
-      connections.set((await response.json()) || []);
+      const response = await fetch(
+        `/api/${team}/connection?type=${type}&pageNo=${pageNo}`
+      );
+      const responseData = await response.json();
+      connections.set(responseData["data"] || []);
+      pagination = responseData["pagination"];
     } catch (err) {
       console.error(err);
     } finally {
@@ -95,14 +127,23 @@
   ]);
 </script>
 
-<div class="flex items-center space-x-2 my-6">
-  <Checkbox id="terms" bind:checked class="rounded-full" />
-  <Label
-    for="terms"
-    class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-  >
-    Show active connections
-  </Label>
+<div class="flex items-center my-6 justify-between w-full">
+  <div class="flex items-center space-x-2">
+    <Checkbox id="terms" bind:checked class="rounded-full" />
+    <Label
+      for="terms"
+      class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+    >
+      Show active connections
+    </Label>
+  </div>
+  <div>
+    <Pagination
+      count={pagination.total}
+      perPage={pagination.pageSize}
+      currentPage={pageNo}
+    />
+  </div>
 </div>
 
 <DataTable {table} {columns} isLoading={$connectionsLoading} />

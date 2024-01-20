@@ -298,6 +298,23 @@ func (q *Queries) DeleteUnclaimedConnections(ctx context.Context) error {
 	return err
 }
 
+const getActiveConnectionCountForTeam = `-- name: GetActiveConnectionCountForTeam :one
+SELECT
+    count(*)
+FROM
+    connections
+WHERE
+    connections.team_id = ?
+    AND status = 'active'
+`
+
+func (q *Queries) GetActiveConnectionCountForTeam(ctx context.Context, teamID interface{}) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getActiveConnectionCountForTeam, teamID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getActiveConnectionsForTeam = `-- name: GetActiveConnectionsForTeam :many
 SELECT
     connections.id,
@@ -322,8 +339,15 @@ WHERE
 ORDER BY
     connections.id DESC
 LIMIT
-    20
+    10
+OFFSET
+    ?
 `
+
+type GetActiveConnectionsForTeamParams struct {
+	TeamID interface{}
+	Offset int64
+}
 
 type GetActiveConnectionsForTeamRow struct {
 	ID              string
@@ -340,8 +364,8 @@ type GetActiveConnectionsForTeamRow struct {
 	GithubAvatarUrl interface{}
 }
 
-func (q *Queries) GetActiveConnectionsForTeam(ctx context.Context, teamID interface{}) ([]GetActiveConnectionsForTeamRow, error) {
-	rows, err := q.db.QueryContext(ctx, getActiveConnectionsForTeam, teamID)
+func (q *Queries) GetActiveConnectionsForTeam(ctx context.Context, arg GetActiveConnectionsForTeamParams) ([]GetActiveConnectionsForTeamRow, error) {
+	rows, err := q.db.QueryContext(ctx, getActiveConnectionsForTeam, arg.TeamID, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -445,6 +469,23 @@ func (q *Queries) GetGlobalSettings(ctx context.Context) (GlobalSetting, error) 
 	return i, err
 }
 
+const getRecentConnectionCountForTeam = `-- name: GetRecentConnectionCountForTeam :one
+SELECT
+    count(*)
+FROM
+    connections
+WHERE
+    connections.team_id = ?
+    AND status != 'reserved'
+`
+
+func (q *Queries) GetRecentConnectionCountForTeam(ctx context.Context, teamID interface{}) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getRecentConnectionCountForTeam, teamID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getRecentConnectionsForTeam = `-- name: GetRecentConnectionsForTeam :many
 SELECT
     connections.id,
@@ -469,8 +510,15 @@ WHERE
 ORDER BY
     connections.id DESC
 LIMIT
-    20
+    10
+OFFSET
+    ?
 `
+
+type GetRecentConnectionsForTeamParams struct {
+	TeamID interface{}
+	Offset int64
+}
 
 type GetRecentConnectionsForTeamRow struct {
 	ID              string
@@ -487,8 +535,8 @@ type GetRecentConnectionsForTeamRow struct {
 	GithubAvatarUrl interface{}
 }
 
-func (q *Queries) GetRecentConnectionsForTeam(ctx context.Context, teamID interface{}) ([]GetRecentConnectionsForTeamRow, error) {
-	rows, err := q.db.QueryContext(ctx, getRecentConnectionsForTeam, teamID)
+func (q *Queries) GetRecentConnectionsForTeam(ctx context.Context, arg GetRecentConnectionsForTeamParams) ([]GetRecentConnectionsForTeamRow, error) {
+	rows, err := q.db.QueryContext(ctx, getRecentConnectionsForTeam, arg.TeamID, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

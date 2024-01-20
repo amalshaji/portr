@@ -10,8 +10,11 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
-func (s *Service) ListActiveConnections(ctx context.Context, teamID int64) []db.GetActiveConnectionsForTeamRow {
-	result, err := s.db.Queries.GetActiveConnectionsForTeam(ctx, teamID)
+func (s *Service) ListActiveConnections(ctx context.Context, teamID, pageNo int64) []db.GetActiveConnectionsForTeamRow {
+	result, err := s.db.Queries.GetActiveConnectionsForTeam(ctx, db.GetActiveConnectionsForTeamParams{
+		TeamID: teamID,
+		Offset: (pageNo - 1) * int64(DefaultPageSize),
+	})
 	if err != nil {
 		s.log.Error("error while fetching active connections", "error", err)
 		return []db.GetActiveConnectionsForTeamRow{}
@@ -19,11 +22,32 @@ func (s *Service) ListActiveConnections(ctx context.Context, teamID int64) []db.
 	return result
 }
 
-func (s *Service) ListRecentConnections(ctx context.Context, teamID int64) []db.GetRecentConnectionsForTeamRow {
-	result, err := s.db.Queries.GetRecentConnectionsForTeam(ctx, teamID)
+func (s *Service) GetActiveConnectionCount(ctx context.Context, teamID int64) int64 {
+	result, err := s.db.Queries.GetActiveConnectionCountForTeam(ctx, teamID)
+	if err != nil {
+		s.log.Error("error while fetching active connection count", "error", err)
+		return 0
+	}
+	return result
+}
+
+func (s *Service) ListRecentConnections(ctx context.Context, teamID, pageSize int64) []db.GetRecentConnectionsForTeamRow {
+	result, err := s.db.Queries.GetRecentConnectionsForTeam(ctx, db.GetRecentConnectionsForTeamParams{
+		TeamID: teamID,
+		Offset: (pageSize - 1) * int64(DefaultPageSize),
+	})
 	if err != nil {
 		s.log.Error("error while fetching active connections", "error", err)
 		return []db.GetRecentConnectionsForTeamRow{}
+	}
+	return result
+}
+
+func (s *Service) GetRecentConnectionCount(ctx context.Context, teamID int64) int64 {
+	result, err := s.db.Queries.GetRecentConnectionCountForTeam(ctx, teamID)
+	if err != nil {
+		s.log.Error("error while fetching recent connection count", "error", err)
+		return 0
 	}
 	return result
 }
