@@ -75,17 +75,28 @@ func (p *Proxy) RemoveRoute(src string) error {
 	return nil
 }
 
+func unregisteredSubdomainError(w http.ResponseWriter, subdomain string) {
+	w.Header().Set("X-LocalPort-Error", "true")
+	w.WriteHeader(http.StatusNotFound)
+	w.Write([]byte(utils.UnregisteredSubdomain(subdomain)))
+}
+
+func (p *Proxy) ErrHandle(res http.ResponseWriter, req *http.Request, err error) {
+	p.RemoveRoute(p.config.ExtractSubdomain(req.Host))
+	unregisteredSubdomainError(res, p.config.ExtractSubdomain(req.Host))
+}
+
 func (p *Proxy) reverseProxy(target *url.URL) *httputil.ReverseProxy {
-	return httputil.NewSingleHostReverseProxy(target)
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	proxy.ErrorHandler = p.ErrHandle
+	return proxy
 }
 
 func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 	subdomain := p.config.ExtractSubdomain(r.Host)
 	target, err := p.GetRoute(subdomain)
 	if err != nil {
-		w.Header().Set("X-LocalPort-Error", "true")
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(utils.UnregisteredSubdomain(subdomain)))
+		unregisteredSubdomainError(w, subdomain)
 		return
 	}
 
