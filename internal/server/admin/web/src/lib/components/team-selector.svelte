@@ -31,8 +31,9 @@
     <div class="flex items-center space-x-2">
       <Avatar.Root class="w-5 h-5 rounded-full">
         <Avatar.Image
-          src="https://api.dicebear.com/7.x/initials/svg?seed={selected.value}"
+          src="https://api.dicebear.com/7.x/initials/svg?seed={selected.value}&backgroundColor=transparent&textColor=000000"
           alt={selected.label}
+          class="w-5 h-5 rounded-full border mr-2"
         />
       </Avatar.Root>
       <Select.Value />
@@ -44,9 +45,9 @@
       {#each teams as team}
         <Select.Item value={team.Slug} label={team.Name}>
           <img
-            src="https://api.dicebear.com/7.x/initials/svg?seed={team.Slug}"
+            src="https://api.dicebear.com/7.x/initials/svg?seed={team.Slug}&backgroundColor=transparent&textColor=000000"
             alt={team.Name}
-            class="w-5 h-5 rounded-full mr-2"
+            class="w-5 h-5 rounded-full border mr-2"
           />
           {team.Name}
         </Select.Item>

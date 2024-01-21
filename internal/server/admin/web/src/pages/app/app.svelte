@@ -60,7 +60,8 @@
 
 <div class="flex">
   <aside
-    class="sticky top-0 flex flex-col w-80 h-screen px-5 py-8 overflow-y-auto bg-white border-r rtl:border-r-0 rtl:border-l dark:bg-gray-900 dark:border-gray-700"
+    class="sticky top-0 flex flex-col w-64 h-screen px-2 py-8 overflow-y-auto border-r rtl:border-r-0 rtl:border-l dark:bg-gray-900 dark:border-gray-700"
+    style="background-color: #FCFCFD;"
   >
     <TeamSelector />
 
@@ -80,8 +81,6 @@
           <Users class="h-4 w-4" />
           <span class="mx-2">Users</span>
         </Sidebarlink>
-
-        <Separator />
 
         <Sidebarlink url="/{team}/my-account">
           <User class="h-4 w-4" />
