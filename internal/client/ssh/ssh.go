@@ -32,18 +32,20 @@ var (
 )
 
 type SshClient struct {
-	config   config.ClientConfig
-	listener net.Listener
-	log      *slog.Logger
-	db       *db.Db
+	config    config.ClientConfig
+	listener  net.Listener
+	log       *slog.Logger
+	db        *db.Db
+	connected chan bool
 }
 
 func New(config config.ClientConfig, db *db.Db) *SshClient {
 	return &SshClient{
-		config:   config,
-		listener: nil,
-		log:      slog.New(slog.NewTextHandler(os.Stdout, nil)),
-		db:       db,
+		config:    config,
+		listener:  nil,
+		log:       slog.New(slog.NewTextHandler(os.Stdout, nil)),
+		db:        db,
+		connected: make(chan bool),
 	}
 }
 
@@ -149,20 +151,20 @@ func (s *SshClient) startListenerForClient() error {
 
 	defer s.listener.Close()
 
+	s.connected <- true
+
+	fmt.Println()
+
 	if tunnelType == constants.Http {
-		s.log.Info(
-			"listening on remote endpoint",
-			"remote",
+		fmt.Printf(
+			"Tunnel connected: %s -> 🌐 -> %s\n",
 			s.config.GetHttpTunnelAddr(),
-			"local",
 			s.config.Tunnel.GetLocalAddr(),
 		)
 	} else {
-		s.log.Info(
-			"listening on remote endpoint",
-			"remote",
+		fmt.Printf(
+			"Tunnel connected: %s -> 🌐 -> %s\n",
 			s.config.GetTcpTunnelAddr(remotePort),
-			"local",
 			s.config.Tunnel.GetLocalAddr(),
 		)
 	}
@@ -360,6 +362,8 @@ func (s *SshClient) Shutdown(ctx context.Context) error {
 }
 
 func (s *SshClient) Start(_ context.Context) {
+	utils.ShowLoading("Tunnel connecting", s.connected)
+
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
