@@ -3,9 +3,9 @@ package handler
 import (
 	"log/slog"
 
-	"github.com/amalshaji/localport/internal/server/admin/service"
-	"github.com/amalshaji/localport/internal/server/config"
-	"github.com/amalshaji/localport/internal/utils"
+	"github.com/amalshaji/portr/internal/server/admin/service"
+	"github.com/amalshaji/portr/internal/server/config"
+	"github.com/amalshaji/portr/internal/utils"
 	"github.com/gofiber/fiber/v2"
 )
 

@@ -137,7 +137,7 @@
             disabled={!smtpEnabled}
             bind:value={smtpHost}
             id="smtp_host"
-            placeholder="smtp.localport.app"
+            placeholder="smtp.portr.dev"
             required
             class={smtpHostError && "border-red-500"}
           />
@@ -163,7 +163,7 @@
             disabled={!smtpEnabled}
             bind:value={smtpUsername}
             id="smtp_username"
-            placeholder="localport"
+            placeholder="portr"
             class={smtpUsernameError && "border-red-500"}
           />
           {#if smtpUsernameError}
@@ -191,7 +191,7 @@
           disabled={!smtpEnabled}
           bind:value={fromAddress}
           id="from_address"
-          placeholder="hey@localport.app"
+          placeholder="hey@portr.dev"
           class={fromAddressError && "border-red-500"}
         />
         {#if fromAddressError}

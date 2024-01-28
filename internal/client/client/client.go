@@ -5,9 +5,9 @@ import (
 	"log"
 	"slices"
 
-	"github.com/amalshaji/localport/internal/client/config"
-	"github.com/amalshaji/localport/internal/client/db"
-	"github.com/amalshaji/localport/internal/client/ssh"
+	"github.com/amalshaji/portr/internal/client/config"
+	"github.com/amalshaji/portr/internal/client/db"
+	"github.com/amalshaji/portr/internal/client/ssh"
 )
 
 type Client struct {

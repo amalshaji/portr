@@ -3,10 +3,10 @@ package service
 import (
 	"log/slog"
 
-	"github.com/amalshaji/localport/internal/server/config"
-	"github.com/amalshaji/localport/internal/server/db"
-	"github.com/amalshaji/localport/internal/server/smtp"
-	"github.com/amalshaji/localport/internal/utils"
+	"github.com/amalshaji/portr/internal/server/config"
+	"github.com/amalshaji/portr/internal/server/db"
+	"github.com/amalshaji/portr/internal/server/smtp"
+	"github.com/amalshaji/portr/internal/utils"
 )
 
 type Service struct {

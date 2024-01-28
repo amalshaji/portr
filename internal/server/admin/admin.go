@@ -11,12 +11,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/amalshaji/localport/internal/server/admin/handler"
-	"github.com/amalshaji/localport/internal/server/admin/service"
+	"github.com/amalshaji/portr/internal/server/admin/handler"
+	"github.com/amalshaji/portr/internal/server/admin/service"
 
-	"github.com/amalshaji/localport/internal/server/config"
-	db "github.com/amalshaji/localport/internal/server/db/models"
-	"github.com/amalshaji/localport/internal/utils"
+	"github.com/amalshaji/portr/internal/server/config"
+	db "github.com/amalshaji/portr/internal/server/db/models"
+	"github.com/amalshaji/portr/internal/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
@@ -54,7 +54,7 @@ func New(config *config.Config, service *service.Service) *AdminServer {
 	clientPages := []string{"/connections", "/overview", "/settings", "/users", "/my-account", "/new-team"}
 
 	app.Use(func(c *fiber.Ctx) error {
-		token := c.Cookies("localport-session")
+		token := c.Cookies("portr-session")
 		user, _ := service.GetUserBySession(ctx, token)
 
 		c.Locals("user", user)

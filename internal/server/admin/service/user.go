@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	db "github.com/amalshaji/localport/internal/server/db/models"
-	"github.com/amalshaji/localport/internal/utils"
+	db "github.com/amalshaji/portr/internal/server/db/models"
+	"github.com/amalshaji/portr/internal/utils"
 )
 
 var (

@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"errors"
 
-	db "github.com/amalshaji/localport/internal/server/db/models"
-	"github.com/amalshaji/localport/internal/server/smtp"
-	"github.com/amalshaji/localport/internal/utils"
+	db "github.com/amalshaji/portr/internal/server/db/models"
+	"github.com/amalshaji/portr/internal/server/smtp"
+	"github.com/amalshaji/portr/internal/utils"
 	"github.com/valyala/fasttemplate"
 )
 

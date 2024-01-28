@@ -8,8 +8,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/amalshaji/localport/internal/constants"
-	"github.com/amalshaji/localport/internal/utils"
+	"github.com/amalshaji/portr/internal/constants"
+	"github.com/amalshaji/portr/internal/utils"
 	"github.com/go-resty/resty/v2"
 	"gopkg.in/yaml.v3"
 )
@@ -129,7 +129,7 @@ func Load(configFile string) (Config, error) {
 }
 
 var homedir, _ = os.UserHomeDir()
-var DefaultConfigDir = homedir + "/.localport"
+var DefaultConfigDir = homedir + "/.portr"
 var DefaultConfigPath = DefaultConfigDir + "/config.yaml"
 var DefaultKeyDir = DefaultConfigDir + "/keys"
 var DefaultKeyPath = DefaultKeyDir + "/id_rsa"

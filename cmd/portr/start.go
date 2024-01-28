@@ -5,8 +5,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/amalshaji/localport/internal/client/client"
-	"github.com/amalshaji/localport/internal/client/config"
+	"github.com/amalshaji/portr/internal/client/client"
+	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/urfave/cli/v2"
 )
 

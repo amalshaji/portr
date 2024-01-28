@@ -6,9 +6,9 @@ import (
 	"errors"
 	"log"
 
-	"github.com/amalshaji/localport/internal/server/config"
-	db "github.com/amalshaji/localport/internal/server/db/models"
-	"github.com/amalshaji/localport/internal/utils"
+	"github.com/amalshaji/portr/internal/server/config"
+	db "github.com/amalshaji/portr/internal/server/db/models"
+	"github.com/amalshaji/portr/internal/utils"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -26,10 +26,10 @@ func New(config *config.DatabaseConfig) *Db {
 
 var (
 	DefaultSmtpEnabled            = false
-	DefaultAddMemberEmailSubject  = utils.Trim("You've been added to team {{teamName}} on LocalPort!")
+	DefaultAddMemberEmailSubject  = utils.Trim("You've been added to team {{teamName}} on Portr!")
 	DefaultAddMemberEmailTemplate = utils.Trim(`Hello {{email}}
 	
-You've been added to team "{{teamName}}" on LocalPort.
+You've been added to team "{{teamName}}" on Portr.
 
 Get started by signing in with your github account at {{appUrl}}`)
 )

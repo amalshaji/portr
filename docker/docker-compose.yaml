@@ -11,7 +11,7 @@ services:
     restart: unless-stopped
     network_mode: "host"
 
-  localport:
+  portr:
     build:
       # use an image
       context: .

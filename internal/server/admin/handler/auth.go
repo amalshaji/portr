@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/amalshaji/localport/internal/server/admin/service"
-	"github.com/amalshaji/localport/internal/utils"
+	"github.com/amalshaji/portr/internal/server/admin/service"
+	"github.com/amalshaji/portr/internal/utils"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -15,7 +15,7 @@ func (h *Handler) StartGithubAuth(c *fiber.Ctx) error {
 	url := oauth2Client.AuthCodeURL(state)
 
 	c.Cookie(&fiber.Cookie{
-		Name:     "localport-oauth-state",
+		Name:     "portr-oauth-state",
 		Value:    state,
 		HTTPOnly: true,
 		Path:     "/",
@@ -26,13 +26,13 @@ func (h *Handler) StartGithubAuth(c *fiber.Ctx) error {
 }
 
 func (h *Handler) GithubAuthCallback(c *fiber.Ctx) error {
-	state := c.Cookies("localport-oauth-state")
+	state := c.Cookies("portr-oauth-state")
 	if state == "" {
 		h.log.Error("malformed oauth flow", "error", "missing state in cookie")
 		return c.Redirect("/?code=github-oauth-error")
 	}
 
-	c.ClearCookie("localport-oauth-state")
+	c.ClearCookie("portr-oauth-state")
 
 	code := c.Query("code")
 	if code == "" {
@@ -62,7 +62,7 @@ func (h *Handler) GithubAuthCallback(c *fiber.Ctx) error {
 
 	session, _ := h.service.LoginUser(c.Context(), user)
 	c.Cookie(&fiber.Cookie{
-		Name:     "localport-session",
+		Name:     "portr-session",
 		Value:    session.Token,
 		HTTPOnly: true,
 		Path:     "/",

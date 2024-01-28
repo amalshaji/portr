@@ -1,5 +1,6 @@
 admin:
   port: 8000
+  useVite: true
   oauth:
     clientId: $GITHUB_CLIENT_ID # this is replaced by the environment var
     clientSecret: $GITHUB_CLIENT_SECRET

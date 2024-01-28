@@ -6,7 +6,7 @@ import (
 
 	"github.com/amacneil/dbmate/v2/pkg/dbmate"
 	_ "github.com/amacneil/dbmate/v2/pkg/driver/sqlite"
-	"github.com/amalshaji/localport/internal/server/config"
+	"github.com/amalshaji/portr/internal/server/config"
 )
 
 //go:embed migrations/*.sql

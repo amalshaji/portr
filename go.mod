@@ -1,4 +1,4 @@
-module github.com/amalshaji/localport
+module github.com/amalshaji/portr
 
 go 1.21.6
 

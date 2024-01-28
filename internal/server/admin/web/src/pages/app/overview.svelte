@@ -7,9 +7,9 @@
   import { serverAddress, currentTeamUser } from "$lib/store";
   import { onMount } from "svelte";
 
-  const editConfigCommand = "localport config edit";
-  const validateConfigCommand = "localport config validate";
-  const helpCommand = "localport -h";
+  const editConfigCommand = "portr config edit";
+  const validateConfigCommand = "portr config validate";
+  const helpCommand = "portr -h";
 
   let config: string;
 
@@ -18,8 +18,8 @@ serverUrl: ${$serverAddress?.AdminUrl}
 sshUrl: ${$serverAddress?.SshUrl}
 secretKey: ${$currentTeamUser?.SecretKey} 
 tunnels:
-  - name: localport
-    subdomain: localport
+  - name: portr
+    subdomain: portr
     port: 4321  
 `.trim();
 
@@ -43,14 +43,14 @@ tunnels:
 <div class="px-6 mt-2">
   <ul class="list-decimal space-y-4">
     <li>
-      Download the localport client from <a
-        href="/static/localport.zip"
+      Download the portr client from <a
+        href="/static/portr.zip"
         class="underline">here</a
       >
     </li>
     <li class="space-y-2">
       <span
-        >Edit the localport client config file using the following command. This
+        >Edit the portr client config file using the following command. This
         will open the default config file</span
       >
       <!-- svelte-ignore a11y-click-events-have-key-events -->

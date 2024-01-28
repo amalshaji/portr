@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	db "github.com/amalshaji/localport/internal/server/db/models"
+	db "github.com/amalshaji/portr/internal/server/db/models"
 	"github.com/gofiber/fiber/v2"
 )
 

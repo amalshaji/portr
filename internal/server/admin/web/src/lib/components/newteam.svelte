@@ -53,7 +53,7 @@
           <Input
             type="text"
             id="team_name"
-            placeholder="localport"
+            placeholder="portr"
             bind:value={teamName}
             class={teamNameError ? "border-red-500" : ""}
           />

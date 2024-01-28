@@ -16,10 +16,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/amalshaji/localport/internal/client/config"
-	"github.com/amalshaji/localport/internal/client/db"
-	"github.com/amalshaji/localport/internal/constants"
-	"github.com/amalshaji/localport/internal/utils"
+	"github.com/amalshaji/portr/internal/client/config"
+	"github.com/amalshaji/portr/internal/client/db"
+	"github.com/amalshaji/portr/internal/constants"
+	"github.com/amalshaji/portr/internal/utils"
 	"github.com/go-resty/resty/v2"
 	"gorm.io/datatypes"
 
@@ -51,7 +51,7 @@ func New(config config.ClientConfig, db *db.Db) *SshClient {
 
 func (s *SshClient) getSshSigner() ssh.Signer {
 	homeDir, _ := os.UserHomeDir()
-	pemBytes, err := os.ReadFile(homeDir + "/.localport/keys/id_rsa")
+	pemBytes, err := os.ReadFile(homeDir + "/.portr/keys/id_rsa")
 	if err != nil {
 		if s.config.Debug {
 			s.log.Error("failed to read ssh key", "error", err)

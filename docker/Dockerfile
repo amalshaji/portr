@@ -16,13 +16,13 @@ RUN go mod download
 
 COPY . /app/
 
-RUN CGO_ENABLED=1 go build -ldflags="-s -w -linkmode external -extldflags \"-static\"" -o localportd ./cmd/localportd
+RUN CGO_ENABLED=1 go build -ldflags="-s -w -linkmode external -extldflags \"-static\"" -o portrd ./cmd/portrd
 
 FROM alpine:3.18.4 as final
 
 WORKDIR /app
 
-COPY --from=builder /app/localportd /app/
+COPY --from=builder /app/portrd /app/
 COPY --from=builder /app/internal/server/admin/templates/ /app/internal/server/admin/templates/
 COPY --from=builder /app/internal/server/admin/static/ /app/internal/server/admin/static/
 COPY --from=frontend-builder /app/dist/ ./internal/server/admin/web/dist/
@@ -30,5 +30,5 @@ COPY --from=frontend-builder /app/dist/ ./internal/server/admin/web/dist/
 VOLUME [ "/app/configs" ]
 VOLUME [ "/app/data" ]
 
-ENTRYPOINT ["./localportd", "start"]
+ENTRYPOINT ["./portrd", "start"]
 CMD [ "--config", "/app/config.yaml" ]

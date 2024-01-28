@@ -7,8 +7,8 @@ import (
 	"io"
 	"net/http"
 
-	db "github.com/amalshaji/localport/internal/server/db/models"
-	"github.com/amalshaji/localport/internal/utils"
+	db "github.com/amalshaji/portr/internal/server/db/models"
+	"github.com/amalshaji/portr/internal/utils"
 	"github.com/go-resty/resty/v2"
 	"golang.org/x/oauth2"
 )

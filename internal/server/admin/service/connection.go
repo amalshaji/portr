@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	db "github.com/amalshaji/localport/internal/server/db/models"
+	db "github.com/amalshaji/portr/internal/server/db/models"
 	"github.com/oklog/ulid/v2"
 )
 

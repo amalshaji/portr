@@ -1,10 +1,11 @@
 serverUrl: localhost:8000
 sshUrl: localhost:2222
 tunnelUrl: localhost:8001
-secretKey: LS4cmVvT17ut2nBodeqNzcFzx6p1fCoQshCCOyg4Ip
+secretKey: 57b4L4I4XcU-Wcu548rnqaahGbyykszmdD72y-dVI9
 useLocalhost: true
 debug: true
 tunnels:
-  - name: localport
-    subdomain: localport
+  - name: portr
+    subdomain: portr
     port: 4321
+    type: tcp

@@ -15,7 +15,7 @@ type Db struct {
 
 func New() *Db {
 	homeDir, _ := os.UserHomeDir()
-	db, err := gorm.Open(sqlite.Open(homeDir+"/.localport/db.sqlite"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(homeDir+"/.portr/db.sqlite"), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("failed to connect database: %v", err)
 	}

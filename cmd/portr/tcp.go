@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/amalshaji/localport/internal/client/config"
-	"github.com/amalshaji/localport/internal/constants"
+	"github.com/amalshaji/portr/internal/client/config"
+	"github.com/amalshaji/portr/internal/constants"
 	"github.com/urfave/cli/v2"
 )
 

@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/amalshaji/localport/internal/server/admin/service"
+	"github.com/amalshaji/portr/internal/server/admin/service"
 	"github.com/gofiber/fiber/v2"
 )
 

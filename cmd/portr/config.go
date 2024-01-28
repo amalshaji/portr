@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/amalshaji/localport/internal/client/config"
+	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/labstack/gommon/color"
 	"github.com/urfave/cli/v2"
 )
@@ -11,7 +11,7 @@ import (
 func configCmd() *cli.Command {
 	return &cli.Command{
 		Name:  "config",
-		Usage: "Edit the localport config file",
+		Usage: "Edit the portr config file",
 		Subcommands: []*cli.Command{
 			{
 				Name:  "edit",

@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	db "github.com/amalshaji/localport/internal/server/db/models"
+	db "github.com/amalshaji/portr/internal/server/db/models"
 )
 
 func (s *Service) ListSettings(ctx context.Context) db.GlobalSetting {

@@ -11,11 +11,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/amalshaji/localport/internal/constants"
-	"github.com/amalshaji/localport/internal/server/admin/service"
-	"github.com/amalshaji/localport/internal/server/config"
-	"github.com/amalshaji/localport/internal/server/proxy"
-	"github.com/amalshaji/localport/internal/utils"
+	"github.com/amalshaji/portr/internal/constants"
+	"github.com/amalshaji/portr/internal/server/admin/service"
+	"github.com/amalshaji/portr/internal/server/config"
+	"github.com/amalshaji/portr/internal/server/proxy"
+	"github.com/amalshaji/portr/internal/utils"
 	"github.com/gliderlabs/ssh"
 )
 

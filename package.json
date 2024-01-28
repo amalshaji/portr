@@ -1,5 +1,5 @@
 {
-  "name": "localport",
+  "name": "portr",
   "private": true,
   "workspaces": [
     "internal/server/admin/*"

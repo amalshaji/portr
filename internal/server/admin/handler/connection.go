@@ -3,10 +3,10 @@ package handler
 import (
 	"strconv"
 
-	"github.com/amalshaji/localport/internal/constants"
-	"github.com/amalshaji/localport/internal/server/admin/service"
-	db "github.com/amalshaji/localport/internal/server/db/models"
-	"github.com/amalshaji/localport/internal/utils"
+	"github.com/amalshaji/portr/internal/constants"
+	"github.com/amalshaji/portr/internal/server/admin/service"
+	db "github.com/amalshaji/portr/internal/server/db/models"
+	"github.com/amalshaji/portr/internal/utils"
 	"github.com/gofiber/fiber/v2"
 )
 

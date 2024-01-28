@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	models "github.com/amalshaji/localport/internal/server/db/models"
+	models "github.com/amalshaji/portr/internal/server/db/models"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -19,7 +19,7 @@ func (c *Cron) pingHttpConnection(connection models.Connection) error {
 	if err != nil {
 		return nil
 	}
-	if resp.StatusCode() == 404 && resp.Header().Get("X-LocalPort-Error") == "true" {
+	if resp.StatusCode() == 404 && resp.Header().Get("X-Portr-Error") == "true" {
 		return ErrInactiveTunnel
 	}
 	return nil

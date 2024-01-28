@@ -14,8 +14,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/amalshaji/localport/internal/server/config"
-	"github.com/amalshaji/localport/internal/utils"
+	"github.com/amalshaji/portr/internal/server/config"
+	"github.com/amalshaji/portr/internal/utils"
 )
 
 type Proxy struct {
@@ -76,7 +76,7 @@ func (p *Proxy) RemoveRoute(src string) error {
 }
 
 func unregisteredSubdomainError(w http.ResponseWriter, subdomain string) {
-	w.Header().Set("X-LocalPort-Error", "true")
+	w.Header().Set("X-Portr-Error", "true")
 	w.WriteHeader(http.StatusNotFound)
 	w.Write([]byte(utils.UnregisteredSubdomain(subdomain)))
 }

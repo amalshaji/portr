@@ -8,9 +8,9 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/amalshaji/localport/internal/server/config"
-	"github.com/amalshaji/localport/internal/server/db"
-	"github.com/amalshaji/localport/internal/utils"
+	"github.com/amalshaji/portr/internal/server/config"
+	"github.com/amalshaji/portr/internal/server/db"
+	"github.com/amalshaji/portr/internal/utils"
 )
 
 type Cron struct {

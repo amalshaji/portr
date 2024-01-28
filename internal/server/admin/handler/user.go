@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	db "github.com/amalshaji/localport/internal/server/db/models"
+	db "github.com/amalshaji/portr/internal/server/db/models"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -39,7 +39,7 @@ func (h *Handler) MeUpdate(c *fiber.Ctx) error {
 func (h *Handler) Logout(c *fiber.Ctx) error {
 	// expire all keys!
 	c.ClearCookie()
-	err := h.service.Logout(c.Context(), c.Cookies("localport-session"))
+	err := h.service.Logout(c.Context(), c.Cookies("portr-session"))
 	if err != nil {
 		h.log.Error("error while logging out", "error", err)
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "internal server error"})

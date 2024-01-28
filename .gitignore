@@ -4,7 +4,7 @@ db.sqlite
 .env
 *.fiber.gz
 tmp
-localport
-!**/localport/
+portr
+!**/portr/
 postgres-data
 node_modules
