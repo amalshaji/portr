@@ -2,9 +2,6 @@ services:
   caddy:
     # use a different tag than main
     image: ghcr.io/amalshaji/caddy-docker-proxy-cf:main
-    ports:
-      - 80:80
-      - 443:443
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - caddy_data:/data
