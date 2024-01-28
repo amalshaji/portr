@@ -54,8 +54,9 @@
   <div
     class="w-full max-w-sm p-6 m-auto mx-auto rounded-md dark:bg-gray-800 py-8 border"
   >
-    <div class="flex justify-center mx-auto py-8 items-center">
-      <img class="w-auto h-12" src="/static/logo.svg" alt="" />
+    <div class="flex justify-center mx-auto py-8 items-center space-x-2">
+      <img class="w-auto h-6" src="/static/favicon.svg" alt="" />
+      <p class="text-xl font-semibold">Portr</p>
     </div>
 
     <Button variant="default" class="w-full" href="/auth/github">
