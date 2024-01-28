@@ -8,7 +8,11 @@
 
 <Tooltip.Root>
   <Tooltip.Trigger asChild let:builder>
-    <Button builders={[builder]} variant="ghost" class="">
+    <Button
+      builders={[builder]}
+      variant="ghost"
+      class="p-0 hover:bg-transparent"
+    >
       {moment(Date).fromNow()}</Button
     >
   </Tooltip.Trigger>
