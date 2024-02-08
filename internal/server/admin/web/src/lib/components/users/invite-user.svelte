@@ -47,6 +47,8 @@
           });
           toast.success(`${email} added to team`);
         }
+        role = roles[0];
+        email = "";
         open = false;
       } else {
         error = (await res.json()).message;
