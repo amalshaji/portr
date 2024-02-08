@@ -28,3 +28,6 @@ const (
 	Http ConnectionType = "http"
 	Tcp  ConnectionType = "tcp"
 )
+
+const AdminViteDistDir = "./internal/server/admin/web/dist/static/.vite/manifest.json"
+const ClientUiViteDistDir = "./internal/client/dashboard/ui/dist/static/.vite/manifest.json"

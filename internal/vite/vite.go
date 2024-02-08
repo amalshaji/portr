@@ -1,12 +1,10 @@
-package admin
+package vite
 
 import (
 	"encoding/json"
 	"log"
 	"os"
 )
-
-const viteDistDir = "./internal/server/admin/web/dist"
 
 type manifest struct {
 	IndexHTML struct {
@@ -17,8 +15,8 @@ type manifest struct {
 	} `json:"index.html"`
 }
 
-func getViteTags() string {
-	manifestFileContents, err := os.ReadFile(viteDistDir + "/static/.vite/manifest.json")
+func GenerateViteTags(manifestPath string) string {
+	manifestFileContents, err := os.ReadFile(manifestPath)
 	if err != nil {
 		log.Fatal(err)
 	}

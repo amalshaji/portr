@@ -48,6 +48,7 @@ type Config struct {
 	Tunnels      []Tunnel `yaml:"tunnels"`
 	UseLocalHost bool     `yaml:"useLocalhost"`
 	Debug        bool     `yaml:"debug"`
+	UseVite      bool     `yaml:"useVite"`
 }
 
 func (c *Config) SetDefaults() {

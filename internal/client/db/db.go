@@ -20,7 +20,7 @@ func New() *Db {
 		log.Fatalf("failed to connect database: %v", err)
 	}
 
-	db.AutoMigrate(&Request{}, &Response{})
+	db.AutoMigrate(&Request{})
 
 	return &Db{
 		Conn: db,
@@ -28,17 +28,14 @@ func New() *Db {
 }
 
 type Request struct {
-	ID        string `gorm:"primaryKey"`
-	Subdomain string
-	Localport int
-	Url       string
-	Method    string
-	Headers   datatypes.JSON
-	Body      []byte
-}
-
-type Response struct {
-	ID      string `gorm:"primaryKey"`
-	Headers datatypes.JSON
-	Body    []byte
+	ID              string `gorm:"primaryKey"`
+	Subdomain       string
+	Localport       int
+	Url             string
+	Method          string
+	Headers         datatypes.JSON
+	Body            []byte
+	ResponseStatus  int
+	ResponseHeaders datatypes.JSON
+	ResponseBody    []byte
 }

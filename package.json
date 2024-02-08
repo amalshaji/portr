@@ -2,6 +2,7 @@
   "name": "portr",
   "private": true,
   "workspaces": [
-    "internal/server/admin/*"
+    "internal/server/admin/*",
+    "internal/client/dashboard/*"
   ]
 }

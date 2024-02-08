@@ -11,8 +11,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/amalshaji/portr/internal/constants"
 	"github.com/amalshaji/portr/internal/server/admin/handler"
 	"github.com/amalshaji/portr/internal/server/admin/service"
+	"github.com/amalshaji/portr/internal/vite"
 
 	"github.com/amalshaji/portr/internal/server/config"
 	db "github.com/amalshaji/portr/internal/server/db/models"
@@ -109,7 +111,7 @@ func New(config *config.Config, service *service.Service) *AdminServer {
 	rootTemplateView := func(c *fiber.Ctx) error {
 		return c.Render("index", fiber.Map{
 			"UseVite":  config.Admin.UseVite,
-			"ViteTags": getViteTags(),
+			"ViteTags": vite.GenerateViteTags(constants.AdminViteDistDir),
 		})
 	}
 
