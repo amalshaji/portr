@@ -44,7 +44,6 @@ func (s *Service) CreateFirstTeam(ctx context.Context, createTeamInput CreateTea
 }
 
 func (s *Service) sendAddMemberNotification(ctx context.Context, user *db.User, role string, teamId int64, settings *db.GlobalSetting) error {
-	// get email template
 	team, _ := s.db.Queries.GetTeamById(ctx, teamId)
 
 	context := map[string]interface{}{
@@ -102,10 +101,12 @@ func (s *Service) AddMember(
 
 	s.CreateTeamUser(ctx, user.ID, addedToTeamId, addMemberInput.Role)
 
-	go func() {
-		settings := s.ListSettings(ctx)
-		s.sendAddMemberNotification(ctx, &user, addMemberInput.Role, addedToTeamId, &settings)
-	}()
+	settings := s.ListSettings(ctx)
+	if settings.SmtpEnabled {
+		go func() {
+			s.sendAddMemberNotification(ctx, &user, addMemberInput.Role, addedToTeamId, &settings)
+		}()
+	}
 
 	return &user, nil
 }
