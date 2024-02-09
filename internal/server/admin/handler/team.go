@@ -28,8 +28,7 @@ func (h *Handler) AddMember(c *fiber.Ctx) error {
 	teamUser := c.Locals("teamUser").(*db.GetTeamMemberByUserIdAndTeamSlugRow)
 	result, err := h.service.AddMember(c.Context(), payload, teamUser.TeamID, teamUser.ID)
 	if err != nil {
-		h.log.Error("error while logging out", "error", err)
-		return utils.ErrInternalServerError(c, "internal server error")
+		return utils.ErrBadRequest(c, err.Error())
 	}
 	return c.JSON(result)
 }

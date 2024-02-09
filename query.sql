@@ -23,6 +23,7 @@ FROM
     JOIN users ON users.id = team_members.user_id
 WHERE
     users.email = ?
+    AND team_members.team_id = ?
 LIMIT
     1;
 

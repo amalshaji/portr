@@ -80,6 +80,14 @@ func (s *Service) AddMember(
 	addedToTeamId,
 	addByTeamUserId int64,
 ) (*db.User, error) {
+	_, err := s.db.Queries.GetTeamMemberByEmail(ctx, db.GetTeamMemberByEmailParams{
+		Email:  addMemberInput.Email,
+		TeamID: addedToTeamId,
+	})
+	if err == nil {
+		return nil, errors.New("user already part of the team")
+	}
+
 	user, err := s.db.Queries.GetUserByEmail(ctx, addMemberInput.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

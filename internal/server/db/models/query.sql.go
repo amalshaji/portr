@@ -788,9 +788,15 @@ FROM
     JOIN users ON users.id = team_members.user_id
 WHERE
     users.email = ?
+    AND team_members.team_id = ?
 LIMIT
     1
 `
+
+type GetTeamMemberByEmailParams struct {
+	Email  string
+	TeamID int64
+}
 
 type GetTeamMemberByEmailRow struct {
 	ID                int64
@@ -810,8 +816,8 @@ type GetTeamMemberByEmailRow struct {
 	CreatedAt_2       time.Time
 }
 
-func (q *Queries) GetTeamMemberByEmail(ctx context.Context, email string) (GetTeamMemberByEmailRow, error) {
-	row := q.db.QueryRowContext(ctx, getTeamMemberByEmail, email)
+func (q *Queries) GetTeamMemberByEmail(ctx context.Context, arg GetTeamMemberByEmailParams) (GetTeamMemberByEmailRow, error) {
+	row := q.db.QueryRowContext(ctx, getTeamMemberByEmail, arg.Email, arg.TeamID)
 	var i GetTeamMemberByEmailRow
 	err := row.Scan(
 		&i.ID,
