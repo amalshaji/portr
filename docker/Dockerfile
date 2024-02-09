@@ -6,7 +6,7 @@ COPY internal/server/admin/web .
 
 RUN bun i && bun run build
 
-FROM golang:1.21.6 AS builder
+FROM golang:1.22.0 AS builder
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ COPY . /app/
 
 RUN CGO_ENABLED=1 go build -ldflags="-s -w -linkmode external -extldflags \"-static\"" -o portrd ./cmd/portrd
 
-FROM alpine:3.18.4 as final
+FROM alpine:3.19.1 as final
 
 WORKDIR /app
 
