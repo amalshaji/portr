@@ -1,6 +1,6 @@
 module github.com/amalshaji/portr
 
-go 1.21.6
+go 1.22.0
 
 require (
 	github.com/amacneil/dbmate/v2 v2.10.0
