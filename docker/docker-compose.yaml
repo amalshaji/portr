@@ -13,6 +13,7 @@ services:
       # use an image
       context: .
       dockerfile: docker/Dockerfile
+    command: ["start", "all"]
     volumes:
       - ./server.yaml:/app/config.yaml
       - ./data:/app/data/

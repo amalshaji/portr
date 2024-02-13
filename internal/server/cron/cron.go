@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
-	"os/signal"
 	"time"
 
 	"github.com/amalshaji/portr/internal/server/config"
@@ -14,9 +12,10 @@ import (
 )
 
 type Cron struct {
-	db     *db.Db
-	logger *slog.Logger
-	config *config.Config
+	db         *db.Db
+	logger     *slog.Logger
+	config     *config.Config
+	cancelFunc context.CancelFunc
 }
 
 func New(db *db.Db, config *config.Config) *Cron {
@@ -25,6 +24,7 @@ func New(db *db.Db, config *config.Config) *Cron {
 
 func (c *Cron) Start() {
 	ctx, cancel := context.WithCancel(context.Background())
+	c.cancelFunc = cancel
 
 	c.logger.Info(fmt.Sprintf("Starting %d cron jobs", len(crons)))
 	for _, job := range crons {
@@ -42,11 +42,8 @@ func (c *Cron) Start() {
 			}
 		}(job)
 	}
+}
 
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt)
-
-	<-sigCh
-
-	cancel()
+func (c *Cron) Shutdown() {
+	c.cancelFunc()
 }

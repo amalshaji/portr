@@ -4,11 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/amalshaji/portr/internal/server/admin/handler"
@@ -141,20 +139,18 @@ func New(config *config.Config, service *service.Service) *AdminServer {
 func (s *AdminServer) Start() {
 	s.log.Info("starting admin server", "port", s.config.ListenAddress())
 
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	if err := s.app.Listen(s.config.ListenAddress()); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Fatalf("failed to start admin server: %v", err)
+	}
+}
 
-	go func() {
-		if err := s.app.Listen(s.config.ListenAddress()); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			s.log.Error("failed to start admin server", "error", err)
-			done <- nil
-		}
-	}()
-
-	<-done
+func (s *AdminServer) Shutdown() {
 	s.log.Info("stopping admin server")
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+
 	defer func() { cancel() }()
+
 	if err := s.app.ShutdownWithContext(ctx); err != nil {
 		s.log.Error("failed to stop proxy server", "error", err)
 	}

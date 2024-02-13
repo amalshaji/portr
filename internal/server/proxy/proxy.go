@@ -4,14 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/amalshaji/portr/internal/server/config"
@@ -111,21 +109,20 @@ func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) Start() {
 	p.log.Info("starting proxy server", "port", p.GetServerAddr())
 
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
 	http.HandleFunc("/", p.handleRequest)
-	go func() {
-		if err := p.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			p.log.Error("failed to start proxy server", "error", err)
-			done <- nil
-		}
-	}()
 
-	<-done
+	if err := p.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Fatalf("failed to start proxy server: %v", err)
+	}
+}
+
+func (p *Proxy) Shutdown(_ context.Context) {
 	p.log.Info("stopping proxy server")
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+
 	defer func() { cancel() }()
+
 	if err := p.server.Shutdown(ctx); err != nil {
 		p.log.Error("failed to stop proxy server", "error", err)
 	}

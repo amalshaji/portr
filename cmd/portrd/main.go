@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/amalshaji/portr/internal/server/admin"
 	"github.com/amalshaji/portr/internal/server/admin/service"
@@ -19,39 +21,61 @@ import (
 
 const VERSION = "0.0.1-beta"
 
+type ServiceToRun int
+
+const (
+	ADMIN_SERVER  ServiceToRun = iota + 1
+	TUNNEL_SERVER              = iota + 1
+	ALL_SERVERS                = iota + 1
+)
+
 func main() {
 	app := &cli.App{
 		Name:    "portrd",
 		Usage:   "portr server",
 		Version: VERSION,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "config",
+				Aliases: []string{"c"},
+				Usage:   "config file",
+				Value:   "config.yaml",
+			},
+		},
 		Commands: []*cli.Command{
 			{
 				Name:  "start",
-				Usage: "Start the portr server",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:    "config",
-						Aliases: []string{"c"},
-						Usage:   "config file",
-						Value:   "config.yaml",
+				Usage: "Specify the server to start",
+				Subcommands: []*cli.Command{
+					{
+						Name:  "admin",
+						Usage: "Start the admin server",
+						Action: func(c *cli.Context) error {
+							start(c.String("config"), ADMIN_SERVER)
+							return nil
+						},
 					},
-				},
-				Action: func(c *cli.Context) error {
-					start(c.String("config"))
-					return nil
+					{
+						Name:  "tunnel",
+						Usage: "Start the tunnel server",
+						Action: func(c *cli.Context) error {
+							start(c.String("config"), TUNNEL_SERVER)
+							return nil
+						},
+					},
+					{
+						Name:  "all",
+						Usage: "Start both admin and tunnel servers",
+						Action: func(c *cli.Context) error {
+							start(c.String("config"), ALL_SERVERS)
+							return nil
+						},
+					},
 				},
 			},
 			{
 				Name:  "migrate",
 				Usage: "Run database migrations",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:    "config",
-						Aliases: []string{"c"},
-						Usage:   "config file",
-						Value:   "config.yaml",
-					},
-				},
 				Action: func(c *cli.Context) error {
 					migrate(c.String("config"))
 					return nil
@@ -65,7 +89,7 @@ func main() {
 	}
 }
 
-func start(configFilePath string) {
+func start(configFilePath string, toRun ServiceToRun) {
 	config, err := config.Load(configFilePath)
 	if err != nil {
 		log.Fatal(err)
@@ -91,10 +115,26 @@ func start(configFilePath string) {
 	adminServer := admin.New(config, service)
 	cron := cron.New(_db, config)
 
-	go proxyServer.Start()
-	go sshServer.Start()
-	go cron.Start()
-	adminServer.Start()
+	if toRun == TUNNEL_SERVER || toRun == ALL_SERVERS {
+		go proxyServer.Start()
+		defer proxyServer.Shutdown(context.TODO())
+
+		go sshServer.Start()
+		defer sshServer.Shutdown(context.TODO())
+	}
+
+	if toRun == ADMIN_SERVER || toRun == ALL_SERVERS {
+		go adminServer.Start()
+		defer adminServer.Shutdown()
+
+		go cron.Start()
+		defer cron.Shutdown()
+	}
+
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	<-done
 }
 
 func migrate(configFilePath string) {

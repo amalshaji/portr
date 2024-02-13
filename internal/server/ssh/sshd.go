@@ -7,8 +7,6 @@ import (
 	"log"
 	"log/slog"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/amalshaji/portr/internal/constants"
@@ -24,6 +22,7 @@ type SshServer struct {
 	log     *slog.Logger
 	proxy   *proxy.Proxy
 	service *service.Service
+	server  *ssh.Server
 }
 
 func New(config *config.SshConfig, proxy *proxy.Proxy, service *service.Service) *SshServer {
@@ -117,23 +116,23 @@ func (s *SshServer) Start() {
 		},
 	}
 
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	s.server = &server
 
 	s.log.Info("starting SSH server", "port", s.GetServerAddr())
 
-	go func() {
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
-			s.log.Error("failed to start SSH server", "error", err)
-			done <- nil
-		}
-	}()
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
+		log.Fatalf("failed to start SSH server: %v", err)
+	}
+}
 
-	<-done
+func (s *SshServer) Shutdown(_ context.Context) {
 	s.log.Info("stopping SSH server")
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+
 	defer func() { cancel() }()
-	if err := server.Shutdown(ctx); err != nil {
+
+	if err := s.server.Shutdown(ctx); err != nil {
 		s.log.Error("failed to stop SSH server", "error", err)
 	}
 }

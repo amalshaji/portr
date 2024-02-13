@@ -30,5 +30,5 @@ COPY --from=frontend-builder /app/dist/ ./internal/server/admin/web/dist/
 VOLUME [ "/app/configs" ]
 VOLUME [ "/app/data" ]
 
-ENTRYPOINT ["./portrd", "start"]
-CMD [ "--config", "/app/config.yaml" ]
+ENTRYPOINT ["./portrd", "--config", "/app/config.yaml"]
+

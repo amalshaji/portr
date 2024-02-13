@@ -3,6 +3,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+    command: ["start", "all"]
     volumes:
       - ../configs/server.yaml:/app/config.yaml
       - ../data:/app/data/

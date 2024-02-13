@@ -4,7 +4,7 @@ tmp_dir = "tmp"
 
 [build]
 args_bin = []
-bin = "./tmp/main start -c configs/server.yaml"
+bin = "./tmp/main -c configs/server.yaml start all"
 cmd = "go build -o ./tmp/main cmd/portrd/main.go"
 delay = 1000
 exclude_dir = [
