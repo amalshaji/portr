@@ -56,7 +56,6 @@
   >
     <div class="flex justify-center mx-auto py-8 items-center space-x-2">
       <img class="w-auto h-8" src="/static/logo.svg" alt="" />
-      <p class="text-3xl font-bold">Portr</p>
     </div>
 
     <Button variant="default" class="w-full" href="/auth/github">
