@@ -19,7 +19,7 @@ env:
   USE_VITE: true
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     defaults:
       run:
