@@ -32,11 +32,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python3 -m venv .venv
           export PATH=".venv/bin:$PATH"
+          python3 -m venv .venv
           . .venv/bin/activate
-          sed '/-e/d' requirements.lock > requirements.txt && pip install --no-cache-dir -r requirements.txt
-          sed '/-e/d' requirements-dev.lock > requirements-dev.txt && pip install --no-cache-dir -r requirements-dev.txt
+          sed '/-e/d' requirements.lock > requirements.txt && python -m pip install --no-cache-dir -r requirements.txt
+          sed '/-e/d' requirements-dev.lock > requirements-dev.txt && python -m pip install --no-cache-dir -r requirements-dev.txt
       - name: Test with pytest
         run: |
           pytest
