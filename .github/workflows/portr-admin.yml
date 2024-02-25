@@ -37,6 +37,6 @@ jobs:
           python -m pip install --upgrade pip
           sed '/-e/d' requirements.lock > requirements.txt && python -m pip install --no-cache-dir -r requirements.txt
           sed '/-e/d' requirements-dev.lock > requirements-dev.txt && python -m pip install --no-cache-dir -r requirements-dev.txt
-      - name: Test with pytest
+      - name: Run tests
         run: |
           pytest
