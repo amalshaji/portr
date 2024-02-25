@@ -1,0 +1,30 @@
+repos:
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: "v0.2.2"
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        exclude: "(^.*/migrations/|^client/)"
+      - id: ruff-format
+        exclude: "(^.*/migrations/|^client/)"
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: "(^.*/migrations/|^client/)"
+      - id: check-merge-conflict
+      - id: debug-statements
+      - id: check-added-large-files
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        args:
+          - --follow-imports=skip
+          - --ignore-missing-imports
+          - --show-column-numbers
+          - --no-pretty
+          - --check-untyped-defs
+        exclude: '(^.*/migrations/|^client/|_tests\.py$)'

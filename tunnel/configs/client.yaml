@@ -1,0 +1,11 @@
+serverUrl: localhost:8000
+sshUrl: localhost:2222
+tunnelUrl: localhost:8001
+secretKey: Zq5Zk5gP5qHGg28nixeqRIOMM9Zo3EUgWnFAEnJnwC
+useLocalhost: true
+debug: true
+tunnels:
+  - name: portr
+    subdomain: portr
+    port: 4321
+    type: tcp
