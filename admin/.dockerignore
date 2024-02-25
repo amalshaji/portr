@@ -1,0 +1,7 @@
+.mypy_cache
+.pytest_cache
+.venv
+tmp
+.env
+**/__pycache__
+**/node_modules

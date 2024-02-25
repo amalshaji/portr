@@ -1,0 +1,10 @@
+ssh:
+  port: $SSH_PORT
+proxy:
+  port: $PROXY_PORT
+database:
+  url: $DB_URL
+  driver: $DB_DRIVER
+useLocalhost: $USE_LOCALHOST
+debug: $DEBUG
+domain: $DOMAIN
