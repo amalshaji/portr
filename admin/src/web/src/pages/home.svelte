@@ -63,7 +63,7 @@
     <Button
       variant="default"
       class="w-full"
-      href={encodeURIComponent(next) === "null"
+      href={encodeURIComponent(next) !== "null"
         ? `/api/v1/auth/github?next=${encodeURIComponent(next)}`
         : `/api/v1/auth/github`}
     >
