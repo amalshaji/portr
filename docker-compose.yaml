@@ -24,6 +24,7 @@ services:
     build:
       # use an image
       context: tunnel
+    command: ["start"]
     network_mode: "host"
     env_file: .env
     restart: unless-stopped
@@ -35,6 +36,7 @@ services:
 
   postgres:
     image: postgres:16.2
+    network_mode: "host"
     environment:
       POSTGRES_USER: $POSTGRES_USER
       POSTGRES_PASSWORD: $POSTGRES_PASSWORD
