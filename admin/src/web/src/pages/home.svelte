@@ -63,7 +63,9 @@
     <Button
       variant="default"
       class="w-full"
-      href={`/api/v1/auth/github?next=${encodeURIComponent(next) || ""}`}
+      href={encodeURIComponent(next)
+        ? `/api/v1/auth/github?next=${encodeURIComponent(next)}`
+        : `/api/v1/auth/github`}
     >
       <GithubLogo class="mr-2 h-4 w-4" />
       Continue with GitHub
