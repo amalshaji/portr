@@ -13,7 +13,7 @@ services:
       # use an image
       context: admin
     network_mode: "host"
-    env_file: admin/.env
+    env_file: .env
     restart: unless-stopped
     labels:
       caddy_0: $DOMAIN
@@ -25,7 +25,7 @@ services:
       # use an image
       context: tunnel
     network_mode: "host"
-    env_file: tunnel/.env
+    env_file: .env
     restart: unless-stopped
     labels:
       caddy_1: "*.$DOMAIN"
