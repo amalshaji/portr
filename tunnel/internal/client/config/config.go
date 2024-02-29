@@ -41,12 +41,12 @@ func (t *Tunnel) GetLocalAddr() string {
 }
 
 type Config struct {
-	ServerUrl    string   `yaml:"serverUrl"`
-	SshUrl       string   `yaml:"sshUrl"`
-	TunnelUrl    string   `yaml:"tunnelUrl"`
-	SecretKey    string   `yaml:"secretKey"`
+	ServerUrl    string   `yaml:"server_url"`
+	SshUrl       string   `yaml:"ssh_url"`
+	TunnelUrl    string   `yaml:"tunnel_url"`
+	SecretKey    string   `yaml:"secret_key"`
 	Tunnels      []Tunnel `yaml:"tunnels"`
-	UseLocalHost bool     `yaml:"useLocalhost"`
+	UseLocalHost bool     `yaml:"use_localhost"`
 	Debug        bool     `yaml:"debug"`
 }
 

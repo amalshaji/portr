@@ -1,8 +1,8 @@
-serverUrl: localhost:8000
-sshUrl: localhost:2222
-tunnelUrl: localhost:8001
-secretKey: Zq5Zk5gP5qHGg28nixeqRIOMM9Zo3EUgWnFAEnJnwC
-useLocalhost: true
+server_url: localhost:8000
+ssh_url: localhost:2222
+tunnel_url: localhost:8001
+secret_key: Zq5Zk5gP5qHGg28nixeqRIOMM9Zo3EUgWnFAEnJnwC
+use_localhost: true
 debug: true
 tunnels:
   - name: portr
