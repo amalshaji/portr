@@ -1,47 +1,40 @@
 <script lang="ts">
   import Highlight from "svelte-highlight";
   import shell from "svelte-highlight/languages/shell";
-  import yaml from "svelte-highlight/languages/yaml";
   import { toast } from "svelte-sonner";
   import "svelte-highlight/styles/stackoverflow-light.css";
-  import { serverAddress, currentUser } from "$lib/store";
-  import { onMount } from "svelte";
+  import { setupScript } from "$lib/store";
+  import { getContext, onMount } from "svelte";
 
-  const editConfigCommand = "portr config edit";
-  const validateConfigCommand = "portr config validate";
   const helpCommand = "portr -h";
 
   let config: string;
 
-  $: config = `
-serverUrl: ${$serverAddress?.AdminUrl}
-sshUrl: ${$serverAddress?.SshUrl}
-secretKey: ${$currentUser?.secret_key}
-tunnels:
-  - name: portr
-    subdomain: portr
-    port: 4321
-`.trim();
+  let team = getContext("team") as string;
 
   const copyCodeToClipboard = (code: string) => {
     navigator.clipboard.writeText(code);
     toast.success("Code copied to clipboard");
   };
 
-  const getServerAddress = async () => {
-    const res = await fetch("/config/address");
-    serverAddress.set(await res.json());
+  const getSetupScript = async () => {
+    const res = await fetch("/api/v1/config/setup-script", {
+      headers: {
+        "x-team-slug": team,
+      },
+    });
+    setupScript.set((await res.json())["message"]);
   };
 
   onMount(() => {
-    getServerAddress();
+    getSetupScript();
   });
 </script>
 
 <p class="text-xl py-2">Client setup</p>
 
 <div class="px-6 mt-2">
-  <ul class="list-decimal space-y-4">
+  <ul class="list-decimal space-y-6">
     <li>
       Download the portr client from <a
         href="/static/portr.zip"
@@ -49,43 +42,19 @@ tunnels:
       >
     </li>
     <li class="space-y-2">
-      <span
-        >Edit the portr client config file using the following command. This
-        will open the default config file</span
-      >
+      <span>Run the following command to setup portr client auth</span>
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-static-element-interactions -->
       <div
         class="border rounded-sm text-sm"
-        on:click={() => copyCodeToClipboard(editConfigCommand)}
+        on:click={() => copyCodeToClipboard($setupScript)}
       >
-        <Highlight language={shell} code={"$ " + editConfigCommand} />
+        <Highlight language={shell} code={"$ " + $setupScript} />
       </div>
-    </li>
-    <li class="space-y-2">
-      <span>Paste the following into the config file and save it.</span>
-      <!-- svelte-ignore a11y-click-events-have-key-events -->
-      <!-- svelte-ignore a11y-no-static-element-interactions -->
-      <div
-        class="border rounded-sm text-sm"
-        on:click={() => copyCodeToClipboard(config)}
-      >
-        <Highlight language={yaml} code={config} />
-      </div>
-    </li>
-    <li class="space-y-2">
-      <span
-        >Validate the config file by running the following command. This will
-        validate the key and pull necessary credentials for the tunnel to work.
-      </span>
-      <!-- svelte-ignore a11y-click-events-have-key-events -->
-      <!-- svelte-ignore a11y-no-static-element-interactions -->
-      <div
-        class="border rounded-sm text-sm"
-        on:click={() => copyCodeToClipboard(validateConfigCommand)}
-      >
-        <Highlight language={shell} code={"$ " + validateConfigCommand} />
-      </div>
+      <p class="mt-4 text-sm">
+        Note: use <code>portr</code> instead of <code>./portr</code> if the binary
+        is set in $PATH
+      </p>
     </li>
     <li>
       You're ready to use the tunnel, run <code

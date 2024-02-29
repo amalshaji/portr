@@ -131,8 +131,6 @@ func Load(configFile string) (Config, error) {
 var homedir, _ = os.UserHomeDir()
 var DefaultConfigDir = homedir + "/.portr"
 var DefaultConfigPath = DefaultConfigDir + "/config.yaml"
-var DefaultKeyDir = DefaultConfigDir + "/keys"
-var DefaultKeyPath = DefaultKeyDir + "/id_rsa"
 
 func checkDefaultConfigFileExists() bool {
 	_, err := os.Stat(DefaultConfigPath)
@@ -190,7 +188,7 @@ func EditConfig() error {
 	return nil
 }
 
-func (c Config) ValidateConfig() error {
+func SetConfig(config string) error {
 	if !checkDefaultConfigFileExists() {
 		err := initConfig()
 		if err != nil {
@@ -198,34 +196,36 @@ func (c Config) ValidateConfig() error {
 		}
 	}
 
+	return os.WriteFile(DefaultConfigPath, []byte(config), 0644)
+}
+
+func GetConfig(token string, remote string) error {
 	payloadMap := map[string]string{
-		"key": c.SecretKey,
+		"secret_key": token,
 	}
 
 	client := resty.New()
 
-	resp, err := client.R().SetBody(payloadMap).Post(c.GetAdminAddress() + "/internal/config/validate")
+	if !(strings.HasPrefix(remote, "http://") || strings.HasPrefix(remote, "https://")) {
+		if strings.HasPrefix(remote, "localhost:") {
+			remote = "http://" + remote
+		} else {
+			remote = "https://" + remote
+		}
+	}
+
+	var response struct {
+		Message string `json:"message"`
+	}
+
+	resp, err := client.R().SetError(&response).SetResult(&response).SetBody(payloadMap).Post(remote + "/api/v1/config/download")
 	if err != nil {
 		return err
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("config validation failed")
+		return fmt.Errorf(response.Message)
 	}
 
-	body := resp.Body()
-
-	_, err = os.Stat(DefaultKeyDir)
-	if os.IsNotExist(err) {
-		err = os.MkdirAll(DefaultKeyDir, os.ModePerm)
-		if err != nil {
-			return err
-		}
-	}
-	err = os.WriteFile(DefaultKeyPath, body, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to setup credentials: %s", err)
-	}
-
-	return nil
+	return SetConfig(response.Message)
 }

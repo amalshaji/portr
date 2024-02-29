@@ -1,7 +1,9 @@
 from portr_admin.models.user import GithubUser, Role, Team, TeamUser, User
+from portr_admin.utils.exception import ServiceError
 from portr_admin.utils.github_auth import GithubOauth
 from portr_admin.config import settings
 from tortoise import transactions
+from tortoise.exceptions import ValidationError
 
 
 @transactions.atomic()
@@ -50,4 +52,9 @@ async def create_team_user(team: Team, user: User, role: Role) -> TeamUser:
 
 
 async def get_team_user_by_secret_key(secret_key: str) -> TeamUser | None:
-    return await TeamUser.filter(secret_key=secret_key).select_related("team").first()
+    try:
+        return (
+            await TeamUser.filter(secret_key=secret_key).select_related("team").first()
+        )
+    except ValidationError:
+        raise ServiceError("Invalid secret key")

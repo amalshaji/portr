@@ -29,6 +29,7 @@ func main() {
 			configCmd(),
 			httpCmd(),
 			tcpCmd(),
+			authCmd(),
 		},
 	}
 

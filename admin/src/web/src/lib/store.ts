@@ -25,4 +25,6 @@ export const invitesLoading = writable(false);
 
 export const settingsForSignup = writable<SettingsForSignup | null>(null);
 
-export const serverAddress = writable<ServerAddress | null>(null);
+export const setupScript = writable<string>(
+  "./portr auth set --token ************************ --remote **************"
+);
