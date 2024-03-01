@@ -1,9 +1,12 @@
 from portr_admin.services import user as user_service
+from portr_admin.services import settings as settings_service
 from portr_admin.models.user import Role, Team, TeamUser, User
 from tortoise import transactions
-
+from portr_admin.config import settings
 from portr_admin.utils.exception import ServiceError
 from tortoise.exceptions import IntegrityError
+from string import Template
+from portr_admin.utils import smtp
 
 
 @transactions.atomic()
@@ -15,6 +18,10 @@ async def create_team(name: str, user: User) -> Team:
 
     _ = await user_service.create_team_user(team, user, Role.admin)
     return team
+
+
+async def send_notification(team_user: TeamUser):
+    pass
 
 
 @transactions.atomic()
@@ -31,8 +38,22 @@ async def add_user_to_team(
     created_team_user = await user_service.create_team_user(
         team=team, user=user, role=role
     )
-    return (
+    team_user = (
         await TeamUser.filter(id=created_team_user.pk)
         .select_related("user", "user__github_user")
         .first()  # type: ignore
     )
+
+    global_settings = await settings_service.get_global_settings()
+
+    if global_settings.smtp_enabled:
+        context = {
+            "teamName": team.name,
+            "email": email,
+            "appUrl": f"{settings.domain_address()}/{team.name}/overview",
+        }
+        subject = Template(global_settings.add_user_email_subject).substitute(**context)
+        body = Template(global_settings.add_user_email_body).substitute(**context)
+        await smtp.send_mail(to=email, subject=subject, body=body)
+
+    return team_user  # type: ignore

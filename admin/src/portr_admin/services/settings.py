@@ -26,3 +26,10 @@ async def populate_global_settings():
             add_user_email_body=DEFAULT_ADD_USER_EMAIL_BODY,
         )
     return settings
+
+
+async def get_global_settings() -> GlobalSettings:
+    settings = await GlobalSettings.first()
+    if not settings:
+        raise Exception("Global settings not found")
+    return settings
