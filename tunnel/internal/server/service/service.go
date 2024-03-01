@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/amalshaji/portr/internal/server/db"
 	"github.com/amalshaji/portr/internal/utils"
@@ -44,11 +45,15 @@ func (s *Service) AddPortToConnection(ctx context.Context, connectionId string, 
 }
 
 func (s *Service) MarkConnectionAsActive(ctx context.Context, connectionId string) error {
-	return s.db.Conn.Model(&db.Connection{}).Where("id = ?", connectionId).Update("status", "active").Error
+	return s.db.Conn.Model(&db.Connection{}).
+		Where("id = ?", connectionId).
+		Updates(map[string]any{"status": "active", "started_at": time.Now().UTC()}).Error
 }
 
 func (s *Service) MarkConnectionAsClosed(ctx context.Context, connectionId string) error {
-	return s.db.Conn.Model(&db.Connection{}).Where("id = ?", connectionId).Update("status", "closed").Error
+	return s.db.Conn.Model(&db.Connection{}).
+		Where("id = ?", connectionId).
+		Updates(map[string]any{"status": "closed", "closed_at": time.Now().UTC()}).Error
 }
 
 func (s *Service) GetAllActiveConnections(ctx context.Context) []db.Connection {
