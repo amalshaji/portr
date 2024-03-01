@@ -35,7 +35,9 @@
           },
         }
       );
-      users.set((await response.json())["data"]);
+      const resp = await response.json();
+      users.set(resp["data"]);
+      totalItems = resp["count"];
     } catch (err) {
       console.error(err);
     } finally {
