@@ -10,6 +10,10 @@
   import { updateQueryParam } from "$lib/utils";
   import { writable } from "svelte/store";
   import Pagination from "../Pagination.svelte";
+  import InviteUser from "$lib/components/users/invite-user.svelte";
+  import { currentUser } from "$lib/store";
+  let addMemberModalOpen = false;
+  import { Button } from "$lib/components/ui/button";
 
   const urlParams = new URLSearchParams(window.location.search);
 
@@ -78,8 +82,15 @@
   });
 </script>
 
+<InviteUser bind:open={addMemberModalOpen} />
+
 <div class="flex w-full justify-between items-center py-4">
-  <div></div>
+  <div>
+    <Button
+      on:click={() => (addMemberModalOpen = !addMemberModalOpen)}
+      disabled={$currentUser?.role === "member"}>Add member</Button
+    >
+  </div>
   <div>
     <Pagination count={totalItems} perPage={10} currentPage={pageNo} />
   </div>
