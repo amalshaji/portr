@@ -8,6 +8,8 @@
 #   with-sources: false
 
 -e file:.
+aiosmtplib==3.0.1
+    # via portr-admin
 aiosqlite==0.17.0
     # via tortoise-orm
 annotated-types==0.6.0
