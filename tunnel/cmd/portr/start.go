@@ -13,13 +13,18 @@ import (
 func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 	_c := client.NewClient(c.String("config"))
 
-	tunnelFromCli.SetDefaults()
+	var err error
 
 	if tunnelFromCli != nil {
+		tunnelFromCli.SetDefaults()
 		_c.ReplaceTunnelsFromCli(*tunnelFromCli)
-		_c.Start(c.Context)
+		err = _c.Start(c.Context)
 	} else {
-		_c.Start(c.Context, c.Args().Slice()...)
+		err = _c.Start(c.Context, c.Args().Slice()...)
+	}
+
+	if err != nil {
+		return err
 	}
 
 	signalCh := make(chan os.Signal, 1)
