@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"slices"
 
@@ -28,7 +29,7 @@ func NewClient(configFile string) *Client {
 	}
 }
 
-func (c *Client) Start(ctx context.Context, services ...string) {
+func (c *Client) Start(ctx context.Context, services ...string) error {
 	var clientConfigs []config.ClientConfig
 
 	db := db.New()
@@ -48,11 +49,17 @@ func (c *Client) Start(ctx context.Context, services ...string) {
 		})
 	}
 
+	if len(clientConfigs) == 0 {
+		return fmt.Errorf("please enter a valid service name")
+	}
+
 	for _, clientConfig := range clientConfigs {
 		sshc := ssh.New(clientConfig, db)
 		c.Add(sshc)
 		go sshc.Start(ctx)
 	}
+
+	return nil
 }
 
 func (c *Client) Add(sshc *ssh.SshClient) {
