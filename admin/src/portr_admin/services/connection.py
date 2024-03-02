@@ -1,4 +1,4 @@
-from portr_admin.models.connection import Connection, ConnectionType
+from portr_admin.models.connection import Connection, ConnectionStatus, ConnectionType
 from portr_admin.models.user import TeamUser
 from portr_admin.utils.exception import ServiceError
 
@@ -11,6 +11,13 @@ async def create_new_connection(
 ) -> Connection:
     if type == ConnectionType.http and not subdomain:
         raise ServiceError("subdomain is required for http connections")
+
+    if type == ConnectionType.http:
+        active_connection = await Connection.filter(
+            subdomain=subdomain, status=ConnectionStatus.active.value
+        ).first()
+        if active_connection:
+            raise ServiceError("Subdomain already in use")
 
     return await Connection.create(
         type=type,
