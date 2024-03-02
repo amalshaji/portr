@@ -56,6 +56,24 @@ class ConnectionTests(test.TestCase):
         assert resp.status_code == 400
         assert resp.json() == {"message": "Invalid secret key"}
 
+    async def test_create_new_connection_with_active_subdomain_should_fail(self):
+        await ConnectionFactory.create(
+            type="http",
+            subdomain="test-subdomain",
+            team=self.team_user.team,
+            status=ConnectionStatus.active,
+        )
+        resp = self.client.post(
+            "/api/v1/connections/",
+            json={
+                "connection_type": "http",
+                "secret_key": self.team_user.secret_key,
+                "subdomain": "test-subdomain",
+            },
+        )
+        assert resp.status_code == 400
+        assert resp.json() == {"message": "Subdomain already in use"}
+
     async def test_list_active_connections(self):
         resp = self.team_user_client.get(
             "/api/v1/connections/",
