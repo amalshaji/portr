@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 from portr_admin.models.connection import ConnectionType
 import pytest
 from tortoise.contrib.test import SimpleTestCase
@@ -20,9 +20,14 @@ class ConnectionServiceTests(SimpleTestCase):
         assert str(e.value) == "subdomain is required for http connections"
 
     @patch("portr_admin.models.connection.Connection.create")
+    @patch("portr_admin.models.connection.Connection.filter")
     async def test_create_http_connection_with_subdomain_should_succeed(
-        self, create_fn
+        self, filter_fn, create_fn
     ):
+        first_mock = AsyncMock()
+        first_mock.return_value = None
+        filter_fn.return_value.first = first_mock
+
         await connection_service.create_new_connection(
             type=ConnectionType.http,
             created_by=self.team_user,
