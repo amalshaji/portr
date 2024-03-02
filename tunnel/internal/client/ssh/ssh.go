@@ -12,15 +12,13 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/amalshaji/portr/internal/utils"
 	"github.com/go-resty/resty/v2"
+	"github.com/labstack/gommon/color"
 	"gorm.io/datatypes"
 
 	"github.com/oklog/ulid/v2"
@@ -32,27 +30,25 @@ var (
 )
 
 type SshClient struct {
-	config    config.ClientConfig
-	listener  net.Listener
-	log       *slog.Logger
-	db        *db.Db
-	connected chan bool
+	config   config.ClientConfig
+	listener net.Listener
+	log      *slog.Logger
+	db       *db.Db
 }
 
 func New(config config.ClientConfig, db *db.Db) *SshClient {
 	return &SshClient{
-		config:    config,
-		listener:  nil,
-		log:       slog.New(slog.NewTextHandler(os.Stdout, nil)),
-		db:        db,
-		connected: make(chan bool),
+		config:   config,
+		listener: nil,
+		log:      slog.New(slog.NewTextHandler(os.Stdout, nil)),
+		db:       db,
 	}
 }
 
 func (s *SshClient) createNewConnection() (string, error) {
 	client := resty.New()
 	var reqErr struct {
-		Detail any `json:"detail"`
+		Message string `json:"message"`
 	}
 	var response struct {
 		ConnectionId string `json:"connection_id"`
@@ -78,8 +74,10 @@ func (s *SshClient) createNewConnection() (string, error) {
 	}
 
 	if resp.StatusCode() != 200 {
-		s.log.Error("failed to create new connection", "error", reqErr)
-		return "", fmt.Errorf("failed to create new connection")
+		if s.config.Debug {
+			s.log.Error("failed to create new connection", "error", reqErr)
+		}
+		return "", fmt.Errorf(reqErr.Message)
 	}
 	return response.ConnectionId, nil
 }
@@ -133,10 +131,6 @@ func (s *SshClient) startListenerForClient() error {
 	}
 
 	defer s.listener.Close()
-
-	s.connected <- true
-
-	fmt.Println()
 
 	if tunnelType == constants.Http {
 		fmt.Printf(
@@ -336,6 +330,10 @@ func (s *SshClient) tcpTunnel(src, dst net.Conn) {
 }
 
 func (s *SshClient) Shutdown(ctx context.Context) error {
+	if s.listener == nil {
+		return nil
+	}
+
 	err := s.listener.Close()
 	if err != nil {
 		return err
@@ -345,23 +343,12 @@ func (s *SshClient) Shutdown(ctx context.Context) error {
 }
 
 func (s *SshClient) Start(_ context.Context) {
-	utils.ShowLoading("Tunnel connecting", s.connected)
+	fmt.Println("Tunnel connecting...")
+	fmt.Println(s.config.Tunnel)
 
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		if err := s.startListenerForClient(); err != nil {
-			log.Fatalf("failed to establish tunnel connection: error=%v\n", err)
-		}
-	}()
-
-	<-done
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer func() { cancel() }()
-	if err := s.Shutdown(ctx); err != nil {
-		if s.config.Debug {
-			s.log.Error("failed to stop tunnel client", "error", err)
-		}
+	if err := s.startListenerForClient(); err != nil {
+		fmt.Println()
+		fmt.Println(color.Red(err))
+		os.Exit(1)
 	}
 }
