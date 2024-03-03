@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends
 from portr_admin.apis import security
-from portr_admin.models.settings import GlobalSettings
-
+from portr_admin.services import settings as settings_service
 from portr_admin.schemas.settings import SettingsSchema
 
 api = APIRouter(prefix="/settings", tags=["settings"])
@@ -9,18 +8,12 @@ api = APIRouter(prefix="/settings", tags=["settings"])
 
 @api.get("/", response_model=SettingsSchema)
 async def get_settings(_=Depends(security.requires_superuser)):
-    settings = await GlobalSettings.first()
-    if not settings:
-        raise Exception("Global settings not found")
-
-    return settings
+    return await settings_service.get_global_settings()
 
 
 @api.patch("/", response_model=SettingsSchema)
 async def update_settings(data: SettingsSchema, _=Depends(security.requires_superuser)):
-    settings = await GlobalSettings.first()
-    if not settings:
-        raise Exception("Global settings not found")
+    settings = await settings_service.get_global_settings()
 
     if data.smtp_enabled is False:
         settings.smtp_enabled = False
