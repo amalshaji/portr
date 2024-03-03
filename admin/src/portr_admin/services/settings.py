@@ -4,14 +4,14 @@ import logging
 
 DEFAULT_SMTP_ENABLED = False
 DEFAULT_ADD_USER_EMAIL_SUBJECT = """
-You've been added to team {{teamName}} on Portr!
+You've been added to team $teamName on Portr!
 """.strip()
 DEFAULT_ADD_USER_EMAIL_BODY = """
-Hello {{email}}
+Hello $email
 
-You've been added to team "{{teamName}}" on Portr.
+You've been added to team "$teamName" on Portr.
 
-Get started by signing in with your github account at {{appUrl}}
+Get started by signing in with your github account at $dashboardUrl
 """.strip()
 
 

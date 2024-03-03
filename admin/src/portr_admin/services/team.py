@@ -50,7 +50,8 @@ async def add_user_to_team(
         context = {
             "teamName": team.name,
             "email": email,
-            "appUrl": f"{settings.domain_address()}/{team.name}/overview",
+            "appUrl": settings.domain_address(),
+            "dashboardUrl": f"{settings.domain_address()}/{team.name}/overview",
         }
         subject = Template(global_settings.add_user_email_subject).substitute(**context)
         body = Template(global_settings.add_user_email_body).substitute(**context)
