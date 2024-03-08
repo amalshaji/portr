@@ -1,0 +1,62 @@
+builds:
+  - id: "portr"
+    main: ./cmd/portr
+    binary: "portr"
+    dir: tunnel
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.build={{.Version}}
+
+archives:
+  - format: zip
+    name_template: >-
+      {{ .Binary }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    id: portr
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  name_template: "v{{ .Version }}"
+  draft: true
+  footer: |
+    ## Server docker images
+
+    https://hub.docker.com/r/amalshaji/portr/tags
+
+brews:
+  - name: portr
+    ids:
+      - portr
+    homepage: https://github.com/amalshaji/portr
+    repository:
+      owner: amalshaji
+      name: homebrew-taps
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    commit_author:
+      name: Amal Shaji
+      email: amalshajid@gmail.com

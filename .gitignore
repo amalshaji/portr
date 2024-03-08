@@ -10,3 +10,4 @@ postgres-data
 node_modules
 .mypy_cache
 data/
+dist
