@@ -5,8 +5,8 @@ from tortoise import transactions
 from portr_admin.config import settings
 from portr_admin.utils.exception import ServiceError
 from tortoise.exceptions import IntegrityError
-from string import Template
 from portr_admin.utils import smtp
+from portr_admin.utils.template_renderer import render_template
 
 
 @transactions.atomic()
@@ -53,8 +53,10 @@ async def add_user_to_team(
             "appUrl": settings.domain_address(),
             "dashboardUrl": f"{settings.domain_address()}/{team.name}/overview",
         }
-        subject = Template(global_settings.add_user_email_subject).substitute(**context)
-        body = Template(global_settings.add_user_email_body).substitute(**context)
+
+        subject = render_template(global_settings.add_user_email_subject, context)
+        body = render_template(global_settings.add_user_email_body, context)
+
         await smtp.send_mail(to=email, subject=subject, body=body)
 
     return team_user  # type: ignore
