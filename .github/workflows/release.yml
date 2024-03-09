@@ -36,41 +36,50 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-#   docker:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v3
-#         with:
-#           fetch-depth: 0
+  docker:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - dockerfile: ./admin/Dockerfile
+            image: amalshaji/portr-admin
+            context: ./admin
+          - dockerfile: ./tunnel/Dockerfile
+            image: amalshaji/portr-tunnel
+            context: ./tunnel
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-#       - name: Set up QEMU
-#         uses: docker/setup-qemu-action@v2
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
 
-#       - name: Set up Docker Buildx
-#         uses: docker/setup-buildx-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-#       - name: Docker meta
-#         id: meta
-#         uses: docker/metadata-action@v4
-#         with:
-#           images: |
-#             amalshaji/beaver
-#           tags: |
-#             type=semver,pattern={{version}}
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ matrix.image }}
+          tags: |
+            type=semver,pattern={{version}}
 
-#       - name: Login to Docker Hub
-#         uses: docker/login-action@v2
-#         with:
-#           username: amalshaji
-#           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: amalshaji
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-#       - name: Build and push
-#         uses: docker/build-push-action@v4
-#         with:
-#           context: .
-#           push: true
-#           tags: ${{ steps.meta.outputs.tags }}
-#           platforms: |
-#             linux/amd64
-#             linux/arm64
-#           file: deployments/Dockerfile
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          platforms: |
+            linux/amd64
+            linux/arm64
+          file: ${{ matrix.dockerfile }}
