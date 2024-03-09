@@ -26,6 +26,8 @@
   import { LogOut } from "lucide-svelte";
   import NewTeam from "./new-team.svelte";
   import Separator from "$lib/components/ui/separator/separator.svelte";
+  import Theme from "$lib/components/theme.svelte";
+  import IssueLink from "$lib/components/issue-link.svelte";
 
   export let url = "";
   export let team: string;
@@ -142,6 +144,13 @@
     </div>
   </aside>
   <aside class="w-full">
+    <div class="py-2 px-8 flex justify-between border-b">
+      <div></div>
+      <div class="flex items-center space-x-2">
+        <IssueLink />
+        <Theme />
+      </div>
+    </div>
     <div class="mx-auto pb-16 pt-6 w-full px-16">
       <Router {url}>
         <Route path="/overview"><Overview /></Route>
