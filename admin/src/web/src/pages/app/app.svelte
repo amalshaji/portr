@@ -61,8 +61,7 @@
 
 <div class="flex">
   <aside
-    class="sticky top-0 flex flex-col w-64 h-screen px-2 py-8 overflow-y-auto border-r rtl:border-r-0 rtl:border-l dark:bg-gray-900 dark:border-gray-700"
-    style="background-color: #FCFCFD;"
+    class="sticky top-0 flex flex-col w-64 h-screen px-2 py-8 overflow-y-auto border-r rtl:border-r-0 rtl:border-l"
   >
     <TeamSelector />
 

@@ -49,7 +49,7 @@
         class="border rounded-sm text-sm"
         on:click={() => copyCodeToClipboard($setupScript)}
       >
-        <Highlight language={shell} code={"$ " + $setupScript} />
+        <pre class="px-4 py-3">{"$ " + $setupScript}</pre>
       </div>
       <p class="mt-4 text-sm">
         Note: use <code>portr</code> instead of <code>./portr</code> if the binary

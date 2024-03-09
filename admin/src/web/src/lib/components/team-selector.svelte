@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as Select from "$lib/components/ui/select";
   import { currentUserTeams } from "$lib/store";
-  import type { Team } from "$lib/types";
+  import { mode } from "mode-watcher";
   import { getContext, onDestroy, onMount } from "svelte";
   import * as Avatar from "$lib/components/ui/avatar";
 
@@ -39,7 +39,10 @@
     <div class="flex items-center space-x-2">
       <Avatar.Root class="w-5 h-5 rounded-full">
         <Avatar.Image
-          src="https://api.dicebear.com/7.x/initials/svg?seed={selected.value}&backgroundColor=transparent&textColor=000000"
+          src="https://api.dicebear.com/7.x/initials/svg?seed={selected.value}&backgroundColor=transparent&textColor={$mode ===
+          'light'
+            ? '000000'
+            : 'ffffff'}"
           alt={selected.label}
           class="w-5 h-5 rounded-full border mr-2"
         />
@@ -53,7 +56,10 @@
       {#each $currentUserTeams as team}
         <Select.Item value={team.slug} label={team.name}>
           <img
-            src="https://api.dicebear.com/7.x/initials/svg?seed={team.slug}&backgroundColor=transparent&textColor=000000"
+            src="https://api.dicebear.com/7.x/initials/svg?seed={team.slug}&backgroundColor=transparent&textColor={$mode ===
+            'light'
+              ? '000000'
+              : 'ffffff'}"
             alt={team.name}
             class="w-5 h-5 rounded-full border mr-2"
           />
