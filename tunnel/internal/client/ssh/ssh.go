@@ -344,7 +344,6 @@ func (s *SshClient) Shutdown(ctx context.Context) error {
 
 func (s *SshClient) Start(_ context.Context) {
 	fmt.Println("Tunnel connecting...")
-	fmt.Println(s.config.Tunnel)
 
 	if err := s.startListenerForClient(); err != nil {
 		fmt.Println()
