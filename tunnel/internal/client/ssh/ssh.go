@@ -277,25 +277,8 @@ func (s *SshClient) logHttpRequest(
 		return
 	}
 
-	req := db.Request{
-		ID:        id,
-		Url:       request.URL.String(),
-		Subdomain: s.config.Tunnel.Subdomain,
-		Localport: s.config.Tunnel.Port,
-		Method:    request.Method,
-		Headers:   datatypes.JSON(requestHeadersBytes),
-		Body:      requestBody,
-	}
-	result := s.db.Conn.Create(&req)
-	if result.Error != nil {
-		if s.config.Debug {
-			s.log.Error("failed to log request", "error", result.Error)
-		}
-		return
-	}
-
 	responseHeaders := make(map[string][]string)
-	for key, values := range request.Header {
+	for key, values := range response.Header {
 		responseHeaders[key] = values
 	}
 
@@ -307,15 +290,21 @@ func (s *SshClient) logHttpRequest(
 		return
 	}
 
-	resp := db.Response{
-		ID:      id,
-		Headers: responseHeadersBytes,
-		Body:    responseBody,
+	req := db.Request{
+		ID:              id,
+		Url:             request.URL.String(),
+		Subdomain:       s.config.Tunnel.Subdomain,
+		Localport:       s.config.Tunnel.Port,
+		Method:          request.Method,
+		Headers:         datatypes.JSON(requestHeadersBytes),
+		Body:            requestBody,
+		ResponseHeaders: datatypes.JSON(responseHeadersBytes),
+		ResponseBody:    responseBody,
 	}
-	result = s.db.Conn.Create(&resp)
+	result := s.db.Conn.Create(&req)
 	if result.Error != nil {
 		if s.config.Debug {
-			s.log.Error("failed to log response", "error", result.Error)
+			s.log.Error("failed to log request", "error", result.Error)
 		}
 		return
 	}
