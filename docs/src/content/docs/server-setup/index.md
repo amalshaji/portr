@@ -16,12 +16,12 @@ For quick setup, use the `docker-compose.yml` at the root of the project.
 
 [https://github.com/amalshaji/portr/blob/main/docker-compose.yaml](https://github.com/amalshaji/portr/blob/main/docker-compose.yaml)
 
-The compose file contains 4 services
+The compose file has 4 services
 
-- caddy: the reverse proxy
-- admin: the admin server
-- tunnel: the tunnel server
-- postgres: the postgres database
+- caddy - the reverse proxy
+- admin - the admin server
+- tunnel - the tunnel server
+- postgres - the postgres database
 
 ### Setup environment variables
 
