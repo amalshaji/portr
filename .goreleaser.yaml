@@ -46,7 +46,8 @@ release:
   footer: |
     ## Server docker images
 
-    https://hub.docker.com/r/amalshaji/portr/tags
+    Admin - https://hub.docker.com/r/amalshaji/portr-admin/tags
+    Tunnel - https://hub.docker.com/r/amalshaji/portr-tunnel/tags
 
 brews:
   - name: portr
