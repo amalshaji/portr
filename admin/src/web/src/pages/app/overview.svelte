@@ -1,6 +1,4 @@
 <script lang="ts">
-  import Highlight from "svelte-highlight";
-  import shell from "svelte-highlight/languages/shell";
   import { toast } from "svelte-sonner";
   import "svelte-highlight/styles/stackoverflow-light.css";
   import { setupScript } from "$lib/store";
@@ -60,7 +58,12 @@
       You're ready to use the tunnel, run <code
         class="border px-2 py-1 rounded-sm">{helpCommand}</code
       >
-      or checkout the <a href="#" class="underline">cli docs</a> for more info.
+      or checkout the
+      <a
+        href="https://portr.dev/client-setup/"
+        target="_blank"
+        class="underline">cli docs</a
+      > for more info.
     </li>
   </ul>
 </div>
