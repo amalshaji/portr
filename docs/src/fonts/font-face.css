@@ -1,0 +1,8 @@
+@font-face {
+    font-family: 'Geist Sans';
+    /* Use a relative path to the local font file in `url()`. */
+    src: url('./Geist-Regular.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}

@@ -1,0 +1,32 @@
+---
+title: Portr
+description: A simple, self-hosted tunnel designed for teams
+template: splash
+hero:
+  tagline: A simple, self-hosted tunnel designed for teams. Expose local http/tcp connections to the public internet.
+  image:
+    file: ../../assets/logo.svg
+  actions:
+    - text: Read the docs
+      link: /getting-started/
+      icon: right-arrow
+      variant: primary
+    - text: Github
+      link: https://git.new/portr
+      icon: external
+	  target: _blank
+---
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+
+## Features
+
+<CardGrid>
+  <Card title="Self hosted" icon="laptop">
+    Run `docker compose up` on your own infra.
+  </Card>
+  <Card title="Admin Dashboard" icon="rocket">
+    Admin dashboard to monitor connections, manage team members, and setup email
+    invites.
+  </Card>
+</CardGrid>
