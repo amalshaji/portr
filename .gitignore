@@ -11,3 +11,4 @@ node_modules
 .mypy_cache
 data/
 dist
+!tunnel/internal/client/dashboard/dist

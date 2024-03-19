@@ -3,7 +3,6 @@ package vite
 import (
 	"encoding/json"
 	"log"
-	"os"
 )
 
 type manifest struct {
@@ -15,14 +14,9 @@ type manifest struct {
 	} `json:"index.html"`
 }
 
-func GenerateViteTags(manifestPath string) string {
-	manifestFileContents, err := os.ReadFile(manifestPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+func GenerateViteTags(manifestString string) string {
 	var manifest manifest
-	if err := json.Unmarshal(manifestFileContents, &manifest); err != nil {
+	if err := json.Unmarshal([]byte(manifestString), &manifest); err != nil {
 		log.Fatal(err)
 	}
 
