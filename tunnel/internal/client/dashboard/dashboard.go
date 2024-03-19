@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"context"
+	"embed"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -15,7 +16,6 @@ import (
 	"github.com/amalshaji/portr/internal/client/dashboard/ui/dist"
 	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/amalshaji/portr/internal/client/vite"
-	"github.com/amalshaji/portr/internal/constants"
 	"github.com/amalshaji/portr/internal/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
@@ -31,8 +31,18 @@ type Dashboard struct {
 	port   int
 }
 
+//go:embed templates
+var templatesFS embed.FS
+
 func New(db *db.Db, config *config.Config) *Dashboard {
-	engine := django.New("./internal/client/dashboard/templates", ".html")
+	var engine *django.Engine
+
+	if config.UseVite {
+		engine = django.New("./internal/client/dashboard/templates", ".html")
+	} else {
+		engine = django.NewPathForwardingFileSystem(http.FS(templatesFS), "/templates", ".html")
+	}
+
 	engine.SetAutoEscape(false)
 
 	app := fiber.New(fiber.Config{
@@ -43,20 +53,22 @@ func New(db *db.Db, config *config.Config) *Dashboard {
 	app.Use(recover.New())
 
 	if config.UseVite {
-		app.Static("/", "./internal/server/admin/web/dist")
 		app.Static("/static", "./internal/client/dashboard/static")
 	} else {
 		app.Use("/static", filesystem.New(filesystem.Config{
-			Root:       http.FS(dist.EmbededDirStatic),
+			Root:       http.FS(dist.EmbeddedDirStatic),
 			PathPrefix: "static",
 		}))
 	}
 
 	rootTemplateView := func(c *fiber.Ctx) error {
-		return c.Render("index", fiber.Map{
-			"UseVite":  config.UseVite,
-			"ViteTags": vite.GenerateViteTags(constants.ClientUiViteDistDir),
-		})
+		context := fiber.Map{
+			"UseVite": config.UseVite,
+		}
+		if !config.UseVite {
+			context["ViteTags"] = vite.GenerateViteTags(dist.ManifestString)
+		}
+		return c.Render("index", context)
 	}
 
 	service := service.New(db, config)
