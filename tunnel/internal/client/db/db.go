@@ -28,13 +28,14 @@ func New() *Db {
 }
 
 type Request struct {
-	ID              string `gorm:"primaryKey"`
-	Subdomain       string
-	Localport       int
-	Url             string
-	Method          string
-	Headers         datatypes.JSON
-	Body            []byte
-	ResponseHeaders datatypes.JSON
-	ResponseBody    []byte
+	ID                 string `gorm:"primaryKey"`
+	Subdomain          string
+	Localport          int
+	Url                string
+	Method             string
+	Headers            datatypes.JSON
+	Body               []byte
+	ResponseHeaders    datatypes.JSON
+	ResponseBody       []byte
+	ResponseStatusCode int
 }

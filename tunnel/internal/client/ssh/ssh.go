@@ -291,15 +291,16 @@ func (s *SshClient) logHttpRequest(
 	}
 
 	req := db.Request{
-		ID:              id,
-		Url:             request.URL.String(),
-		Subdomain:       s.config.Tunnel.Subdomain,
-		Localport:       s.config.Tunnel.Port,
-		Method:          request.Method,
-		Headers:         datatypes.JSON(requestHeadersBytes),
-		Body:            requestBody,
-		ResponseHeaders: datatypes.JSON(responseHeadersBytes),
-		ResponseBody:    responseBody,
+		ID:                 id,
+		Url:                request.URL.String(),
+		Subdomain:          s.config.Tunnel.Subdomain,
+		Localport:          s.config.Tunnel.Port,
+		Method:             request.Method,
+		Headers:            datatypes.JSON(requestHeadersBytes),
+		Body:               requestBody,
+		ResponseHeaders:    datatypes.JSON(responseHeadersBytes),
+		ResponseBody:       responseBody,
+		ResponseStatusCode: response.StatusCode,
 	}
 	result := s.db.Conn.Create(&req)
 	if result.Error != nil {
