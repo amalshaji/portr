@@ -14,9 +14,10 @@ import (
 type Client struct {
 	config *config.Config
 	sshcs  []*ssh.SshClient
+	db     *db.Db
 }
 
-func NewClient(configFile string) *Client {
+func NewClient(configFile string, db *db.Db) *Client {
 	config, err := config.Load(configFile)
 
 	if err != nil {
@@ -26,13 +27,16 @@ func NewClient(configFile string) *Client {
 	return &Client{
 		config: &config,
 		sshcs:  make([]*ssh.SshClient, 0),
+		db:     db,
 	}
+}
+
+func (c *Client) GetConfig() *config.Config {
+	return c.config
 }
 
 func (c *Client) Start(ctx context.Context, services ...string) error {
 	var clientConfigs []config.ClientConfig
-
-	db := db.New()
 
 	for _, tunnel := range c.config.Tunnels {
 		if len(services) > 0 && !slices.Contains(services, tunnel.Name) {
@@ -54,7 +58,7 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 	}
 
 	for _, clientConfig := range clientConfigs {
-		sshc := ssh.New(clientConfig, db)
+		sshc := ssh.New(clientConfig, c.db)
 		c.Add(sshc)
 		go sshc.Start(ctx)
 	}

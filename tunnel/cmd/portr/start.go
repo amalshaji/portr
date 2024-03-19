@@ -7,11 +7,15 @@ import (
 
 	"github.com/amalshaji/portr/internal/client/client"
 	"github.com/amalshaji/portr/internal/client/config"
+	"github.com/amalshaji/portr/internal/client/dashboard"
+	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/urfave/cli/v2"
 )
 
 func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
-	_c := client.NewClient(c.String("config"))
+	db := db.New()
+
+	_c := client.NewClient(c.String("config"), db)
 
 	var err error
 
@@ -27,11 +31,15 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 		return err
 	}
 
+	dash := dashboard.New(db, _c.GetConfig())
+	dash.Start()
+
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
 	<-signalCh
 
 	_c.Shutdown(c.Context)
+	dash.Shutdown()
 	return nil
 }
 

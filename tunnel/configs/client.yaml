@@ -4,6 +4,7 @@ tunnel_url: localhost:8001
 secret_key: Zq5Zk5gP5qHGg28nixeqRIOMM9Zo3EUgWnFAEnJnwC
 use_localhost: true
 debug: true
+use_vite: true
 tunnels:
   - name: portr
     subdomain: portr
