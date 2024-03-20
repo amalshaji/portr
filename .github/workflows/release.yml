@@ -27,6 +27,18 @@ jobs:
           cache: true
           cache-dependency-path: tunnel/go.sum
 
+      - name: Setup client
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8.7.5
+          run_install: false
+
+      - name: Install client dependencies
+        run: pnpm --dir tunnel/internal/client/dashboard/ui install
+
+      - name: Build client
+        run: pnpm --dir tunnel/internal/client/dashboard/ui build
+
       - name: Publish packages
         uses: goreleaser/goreleaser-action@v4
         with:
