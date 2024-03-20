@@ -5,8 +5,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/glebarez/sqlite"
 	"gorm.io/datatypes"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
