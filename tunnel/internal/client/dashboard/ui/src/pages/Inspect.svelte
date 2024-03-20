@@ -39,6 +39,11 @@
     filteredRequests = requests.filter((request) => {
       return request.Url.includes(search);
     });
+    if (filteredRequests.length === 0) {
+      currentRequest.set(null);
+    } else {
+      currentRequest.set(filteredRequests[0]);
+    }
   };
 
   let interval: number | undefined;
