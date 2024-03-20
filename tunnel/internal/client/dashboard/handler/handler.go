@@ -26,5 +26,6 @@ func New(config *config.Config, service *service.Service) *Handler {
 func (h *Handler) RegisterTunnelRoutes(group fiber.Router) {
 	group.Get("/", h.GetTunnels)
 	group.Get("/render/:id", h.RenderResponse)
+	group.Get("/replay/:id", h.ReplayRequest)
 	group.Get("/:subdomain/:port", h.GetRequests)
 }

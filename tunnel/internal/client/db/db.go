@@ -32,6 +32,7 @@ type Request struct {
 	ID                 string `gorm:"primaryKey"`
 	Subdomain          string
 	Localport          int
+	Host               string
 	Url                string
 	Method             string
 	Headers            datatypes.JSON

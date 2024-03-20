@@ -298,6 +298,7 @@ func (s *SshClient) logHttpRequest(
 
 	req := db.Request{
 		ID:                 id,
+		Host:               request.Host,
 		Url:                request.URL.String(),
 		Subdomain:          s.config.Tunnel.Subdomain,
 		Localport:          s.config.Tunnel.Port,
