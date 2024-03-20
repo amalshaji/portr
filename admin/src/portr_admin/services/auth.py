@@ -9,4 +9,4 @@ async def login_user(user: User) -> str:
 
 
 async def process_github_webhook(data: Any):
-    pass
+    print(data)
