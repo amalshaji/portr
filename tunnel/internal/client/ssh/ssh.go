@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
@@ -266,6 +267,11 @@ func (s *SshClient) logHttpRequest(
 ) {
 	requestHeaders := make(map[string][]string)
 	for key, values := range request.Header {
+		if key == "X-Portr-Ping-Request" && len(values) > 0 {
+			if values[0] == "true" {
+				return
+			}
+		}
 		requestHeaders[key] = values
 	}
 
@@ -301,6 +307,7 @@ func (s *SshClient) logHttpRequest(
 		ResponseHeaders:    datatypes.JSON(responseHeadersBytes),
 		ResponseBody:       responseBody,
 		ResponseStatusCode: response.StatusCode,
+		LoggedAt:           time.Now().UTC(),
 	}
 	result := s.db.Conn.Create(&req)
 	if result.Error != nil {

@@ -10,7 +10,7 @@ func (s *Service) GetTunnels() ([]*db.Request, error) {
 
 func (s *Service) GetRequests(subdomain string, port string) (*[]db.Request, error) {
 	var result []db.Request
-	s.db.Conn.Where("subdomain = ? AND localport = ?", subdomain, port).Find(&result)
+	s.db.Conn.Where("subdomain = ? AND localport = ?", subdomain, port).Order("logged_at desc").Find(&result)
 	return &result, nil
 }
 
