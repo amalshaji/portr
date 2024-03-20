@@ -5,6 +5,7 @@
   import type { Request } from "$lib/types";
   import { currentRequest } from "$lib/store";
   import RequestDetails from "./RequestDetails.svelte";
+  import { Link } from "svelte-routing";
 
   export let id: string;
 
@@ -43,6 +44,7 @@
   let interval: number | undefined;
 
   onMount(() => {
+    currentRequest.set(null);
     getRequests();
     interval = setInterval(getRequests, 2000);
   });
@@ -56,9 +58,12 @@
   <header
     class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-800 bg-white dark:bg-gray-800"
   >
-    <h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-200">
+    <Link
+      to="/"
+      class="text-3xl font-semibold text-gray-800 dark:text-gray-200"
+    >
       Portr Inspector 🚨
-    </h1>
+    </Link>
     <div class="flex items-center space-x-4">
       <input
         class="flex h-10 rounded-md border bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 w-64"

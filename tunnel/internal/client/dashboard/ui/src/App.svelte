@@ -1,9 +1,13 @@
 <script>
-  import { Router, Link, Route } from "svelte-routing";
+  import { Router, Route } from "svelte-routing";
   import Home from "./pages/Home.svelte";
   import Inspect from "./pages/Inspect.svelte";
+  import { Toaster } from "svelte-sonner";
+
   export let url = "";
 </script>
+
+<Toaster position="top-center" />
 
 <Router {url}>
   <div>

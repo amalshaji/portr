@@ -1,6 +1,8 @@
 <script lang="ts">
   import { currentRequest } from "$lib/store";
   import { Button } from "$lib/components/ui/button";
+  import { toast } from "svelte-sonner";
+  import { RotateCw } from "lucide-svelte";
 
   const convertJsonToSingleValue = (data: any) => {
     const jsonKeyValue: any = {};
@@ -10,11 +12,26 @@
     return jsonKeyValue;
   };
 
-  //   const getRequestResponse = async (id: string) => {
-  //     const response = await fetch(`/api/tunnels/render/${id}`);
-  //     const requests = (await response..json())["requests"];
-  //     currentRequest.set(requests[0]);
-  //   };
+  let replaying = false;
+
+  const replayRequest = async () => {
+    replaying = true;
+
+    try {
+      const response = await fetch(
+        `/api/tunnels/replay/${$currentRequest?.ID}`
+      );
+      if (!response.ok) {
+        toast.error("Failed to replay request");
+        return;
+      }
+      toast.success("Request replayed successfully");
+    } catch (error) {
+      toast.error("Failed to replay request");
+    } finally {
+      replaying = false;
+    }
+  };
 </script>
 
 <div class="flex-1 p-6 overflow-y-auto bg-white dark:bg-gray-800">
@@ -26,7 +43,12 @@
       <code class="font-light text-lg">{$currentRequest?.Url}</code>
     </div>
     <div>
-      <Button>Replay</Button>
+      <Button disabled={replaying} on:click={replayRequest}>
+        {#if replaying}
+          <RotateCw class="mr-2 w-4 h-4 animate-spin" />
+        {/if}
+        Replay
+      </Button>
     </div>
   </h2>
   <div class="space-y-6">
