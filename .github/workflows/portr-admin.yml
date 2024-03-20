@@ -17,7 +17,7 @@ env:
   SERVER_URL: localhost:8000
   SSH_URL: localhost:2222
   USE_VITE: true
-  ENCRYPTION_KEY: ""
+  ENCRYPTION_KEY: "mj-qoeMhLQp_cHnMU9nsLfCMnNkZ6XBcFefy4VxzOe8="
 
 jobs:
   test:
