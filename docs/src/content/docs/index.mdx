@@ -3,7 +3,7 @@ title: Portr
 description: A simple, self-hosted tunnel designed for teams
 template: splash
 hero:
-  tagline: A simple, self-hosted tunnel designed for teams. Expose local http/tcp connections to the public internet.
+  tagline: A simple, self-hosted tunnel designed for teams.
   image:
     file: ../../assets/logo.svg
   actions:
@@ -26,7 +26,16 @@ import { Card, CardGrid } from "@astrojs/starlight/components";
     Run `docker compose up` on your own servers.
   </Card>
   <Card title="Admin Dashboard" icon="rocket">
-    Admin dashboard to monitor connections, manage team members, and setup email
-    invites.
+    Admin dashboard to monitor connections, manage teams and members, and setup
+    email invites.{" "}
+    <a target="_blank" href="https://youtu.be/VyVlx0dvBAk">
+      watch video
+    </a>
+  </Card>
+  <Card title="Client dashboard" icon="magnifier">
+    Client dashboard to inspect and replay http requests{" "}
+    <a target="_blank" href="https://youtu.be/C9Sz2KdRTKY">
+      watch video
+    </a>
   </Card>
 </CardGrid>

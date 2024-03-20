@@ -24,7 +24,10 @@ export default defineConfig({
                   label: "Cloudflare API token",
                   link: "/server-setup/cloudflare-api-token/",
                 },
-                { label: "Github app", link: "/server-setup/github-app/" },
+                {
+                  label: "Github oauth app",
+                  link: "/server-setup/github-oauth-app/",
+                },
               ],
             },
             { label: "Client Setup", link: "/client-setup/" },

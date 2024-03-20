@@ -11,13 +11,13 @@ description: Guide to setting up portr server
 ### Prerequisites
 
 - [Cloudflare API token](/server-setup/cloudflare-api-token/) - Required for wildcard subdomain SSL setup
-- [Github app](/server-setup/github-app/) - Required for user login
+- [Github oauth app credentials](/server-setup/github-oauth-app/) - Required for admin dashboard login
 - Port `2222` open on the server to accept incoming ssh connections
-- Port range `30001-40001` open on the server to accept incoming tcp connections
+- Port range `30001-40001` open on the server to accept incoming tcp connections (only if you intend to use tcp tunnels)
 
 ### Quick setup
 
-For quick setup, use the `docker-compose.yml` at the root of the project.
+For quick setup, use the `docker-compose.yml`.
 
 [https://github.com/amalshaji/portr/blob/main/docker-compose.yaml](https://github.com/amalshaji/portr/blob/main/docker-compose.yaml)
 
@@ -55,3 +55,4 @@ If you want to run postgres separately and not as a service, you can exclude the
 - POSTGRES_DB
 
 Run `docker compose up` to start the servers. Once the servers are up, go to example.com and login in to the admin.
+First login will be treated as a superuser.
