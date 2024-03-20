@@ -14,7 +14,7 @@ var ErrInactiveTunnel = fmt.Errorf("inactive tunnel")
 
 func (c *Cron) pingHttpConnection(connection db.Connection) error {
 	client := resty.New().R()
-	resp, err := client.Get(c.config.HttpTunnelUrl(*connection.Subdomain))
+	resp, err := client.SetHeader("X-Portr-Ping-Request", "true").Get(c.config.HttpTunnelUrl(*connection.Subdomain))
 	// don't care about the error, just care about the response
 	if err != nil {
 		return nil
