@@ -3,6 +3,7 @@ package db
 import (
 	"log"
 	"os"
+	"time"
 
 	"gorm.io/datatypes"
 	"gorm.io/driver/sqlite"
@@ -38,4 +39,5 @@ type Request struct {
 	ResponseHeaders    datatypes.JSON
 	ResponseBody       []byte
 	ResponseStatusCode int
+	LoggedAt           time.Time
 }
