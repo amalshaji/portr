@@ -24,8 +24,12 @@ asyncpg==0.29.0
 certifi==2024.2.2
     # via httpcore
     # via httpx
+cffi==1.16.0
+    # via cryptography
 click==8.1.7
     # via uvicorn
+cryptography==42.0.5
+    # via portr-admin
 dnspython==2.6.1
     # via email-validator
 email-validator==2.1.0.post1
@@ -51,6 +55,8 @@ markupsafe==2.1.5
     # via jinja2
 nanoid==2.0.0
     # via portr-admin
+pycparser==2.21
+    # via cffi
 pydantic==2.6.1
     # via fastapi
     # via portr-admin

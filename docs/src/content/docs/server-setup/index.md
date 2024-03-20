@@ -39,6 +39,8 @@ GITHUB_APP_CLIENT_SECRET=
 DOMAIN=example.com
 DB_URL=postgres://postgres:postgres@localhost:5432/postgres
 
+ENCRYPTION_KEY=
+
 SERVER_URL=example.com
 SSH_URL=example.com:2222
 CLOUDFLARE_API_TOKEN=
@@ -46,6 +48,12 @@ CLOUDFLARE_API_TOKEN=
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_DB=postgres
+```
+
+Generate a random encryption key using the following command
+
+```shell
+python -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
 ```
 
 If you want to run postgres separately and not as a service, you can exclude the following environment values

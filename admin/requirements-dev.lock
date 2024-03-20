@@ -26,10 +26,14 @@ asyncpg==0.29.0
 certifi==2024.2.2
     # via httpcore
     # via httpx
+cffi==1.16.0
+    # via cryptography
 cfgv==3.4.0
     # via pre-commit
 click==8.1.7
     # via uvicorn
+cryptography==42.0.5
+    # via portr-admin
 distlib==0.3.8
     # via virtualenv
 dnspython==2.6.1
@@ -77,6 +81,8 @@ platformdirs==4.2.0
 pluggy==1.4.0
     # via pytest
 pre-commit==3.6.2
+pycparser==2.21
+    # via cffi
 pydantic==2.6.1
     # via fastapi
     # via portr-admin

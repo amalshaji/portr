@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     db_url: str = "sqlite://db.sqlite"
     domain: str
     use_vite: bool = False
+    encryption_key: str
 
     github_app_client_id: str
     github_app_client_secret: str
