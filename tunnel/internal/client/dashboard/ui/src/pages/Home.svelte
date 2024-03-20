@@ -20,7 +20,7 @@
   });
 </script>
 
-<div class="grid h-screen place-items-center w-1/2 mx-auto">
+<div class="h-screen place-items-center w-1/2 mx-auto py-8">
   <Table.Root>
     <Table.Header>
       <Table.Row>
