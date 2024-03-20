@@ -52,7 +52,6 @@ class SettingsTests(test.TestCase):
         assert data["smtp_host"] is None
         assert data["smtp_port"] is None
         assert data["smtp_username"] is None
-        assert data["smtp_password"] is None
         assert data["from_address"] is None
         assert data["add_user_email_subject"] == DEFAULT_ADD_USER_EMAIL_SUBJECT
         assert data["add_user_email_body"] == DEFAULT_ADD_USER_EMAIL_BODY
