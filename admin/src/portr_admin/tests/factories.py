@@ -1,6 +1,6 @@
 from portr_admin.models.auth import Session
 from portr_admin.models.connection import Connection, ConnectionStatus, ConnectionType
-from portr_admin.models.user import Team, TeamUser, User
+from portr_admin.models.user import Team, TeamSettings, TeamUser, User
 from factory import SubFactory, Sequence, LazyAttribute  # type: ignore
 from async_factory_boy.factory.tortoise import AsyncTortoiseFactory  # type: ignore
 import mimesis
@@ -35,6 +35,13 @@ class TeamUserFactory(AsyncTortoiseFactory):
     user = SubFactory(UserFactory)
     team = SubFactory(TeamFactory)
     role = "admin"
+
+
+class TeamSettingsFactory(AsyncTortoiseFactory):
+    class Meta:
+        model = TeamSettings
+
+    team = SubFactory(TeamFactory)
 
 
 class ConnectionFactory(AsyncTortoiseFactory):
