@@ -1,4 +1,4 @@
-import nanoid
+import nanoid  # type: ignore
 from ulid import ULID
 
 

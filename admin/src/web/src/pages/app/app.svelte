@@ -7,6 +7,7 @@
     User,
     MoreVertical,
     BadgePlus,
+    Settings2Icon,
   } from "lucide-svelte";
 
   import { Router, Route, navigate, Link } from "svelte-routing";
@@ -121,6 +122,16 @@
             </DropdownMenu.Trigger>
             <DropdownMenu.Content class="w-52 space-y-2">
               {#if $currentUser?.user.is_superuser}
+                <DropdownMenu.Item class="hover:cursor-pointer">
+                  <Link
+                    to="/instance-settings"
+                    class="flex w-full items-center"
+                  >
+                    <Settings2Icon strokeWidth={1.5} class="h-4 w-4" />
+                    <span class="mx-2">Instance settings</span>
+                  </Link>
+                </DropdownMenu.Item>
+                <Separator />
                 <DropdownMenu.Item class="hover:cursor-pointer">
                   <Link
                     to={`/${team}/new-team`}
