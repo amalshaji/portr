@@ -2,6 +2,7 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { cubicOut } from "svelte/easing";
 import type { TransitionConfig } from "svelte/transition";
+import { toast } from "svelte-sonner";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -69,4 +70,9 @@ export const updateQueryParam = (
   urlParams.set(key, value);
   const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
   window.history.pushState({}, "", newUrl);
+};
+
+export const copyCodeToClipboard = (code: string) => {
+  navigator.clipboard.writeText(code);
+  toast.success("Code copied to clipboard");
 };

@@ -63,7 +63,7 @@ async def get_team_events_wh_url(
     team_user: TeamUser = Depends(security.requires_admin),
 ):
     return {
-        "message": f"{settings.domain_address()}/api/v1/org_events/?team={team_user.team.slug}"
+        "url": f"{settings.domain_address()}/api/v1/org_events/?team={team_user.team.slug}"
     }
 
 

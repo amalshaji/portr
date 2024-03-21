@@ -3,17 +3,11 @@
   import "svelte-highlight/styles/stackoverflow-light.css";
   import { setupScript } from "$lib/store";
   import { getContext, onMount } from "svelte";
+  import { copyCodeToClipboard } from "$lib/utils";
 
   const helpCommand = "portr -h";
 
-  let config: string;
-
   let team = getContext("team") as string;
-
-  const copyCodeToClipboard = (code: string) => {
-    navigator.clipboard.writeText(code);
-    toast.success("Code copied to clipboard");
-  };
 
   const getSetupScript = async () => {
     const res = await fetch("/api/v1/config/setup-script", {
