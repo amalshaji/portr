@@ -65,12 +65,15 @@ async def render_index_template(
 
 
 @app.get("/new-team")
+@app.get("/instance-settings")
 async def render_index_template_for_setup_route(
     request: Request,
     portr_session: Annotated[str | None, Cookie()] = None,
 ):
     try:
-        _ = await get_current_user(portr_session)
+        user = await get_current_user(portr_session)
+        if not user.is_superuser:
+            return RedirectResponse(url="/")
     except NotAuthenticated:
         next_url = request.url.path + "?" + request.url.query
         next_url_encoded = urllib.parse.urlencode({"next": next_url})

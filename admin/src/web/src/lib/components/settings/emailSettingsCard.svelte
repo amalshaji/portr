@@ -3,7 +3,7 @@
   import { Button } from "$lib/components/ui/button";
   import * as Card from "$lib/components/ui/card";
   import { Textarea } from "$lib/components/ui/textarea";
-  import { settings } from "$lib/store";
+  import { instanceSettings } from "$lib/store";
   import { onDestroy } from "svelte";
   import { toast } from "svelte-sonner";
   import { Reload } from "radix-icons-svelte";
@@ -69,7 +69,7 @@
     addMemberEmailTemplateError = "";
   };
 
-  let settingsUnSubscriber = settings.subscribe((settings) => {
+  let settingsUnSubscriber = instanceSettings.subscribe((settings) => {
     addMemberEmailTemplate = settings?.add_user_email_body || "";
     addMemberEmailSubject = settings?.add_user_email_subject || "";
     smtpEnabled = settings?.smtp_enabled || false;
@@ -85,7 +85,7 @@
     if (!validateForm()) return;
     isUpdating = true;
     try {
-      const res = await fetch("/api/v1/settings/", {
+      const res = await fetch("/api/v1/instance-settings/", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -102,7 +102,7 @@
         }),
       });
       if (res.ok) {
-        settings.set(await res.json());
+        instanceSettings.set(await res.json());
         toast.success("Email settings updated");
       } else {
         toast.error("Something went wrong");
@@ -119,7 +119,7 @@
   });
 </script>
 
-<Card.Root class="rounded-sm border-none shadow-none">
+<Card.Root class="rounded-sm border-none shadow-none w-1/2">
   <Card.Header class="space-y-3">
     <Card.Title>Email Settings</Card.Title>
     <Card.Description>Configure email settings</Card.Description>

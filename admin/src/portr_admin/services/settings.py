@@ -1,4 +1,4 @@
-from portr_admin.models.settings import GlobalSettings
+from portr_admin.models.settings import InstanceSettings
 import logging
 
 
@@ -15,12 +15,12 @@ Get started by signing in with your github account at {{dashboardUrl}}
 """.strip()
 
 
-async def populate_global_settings():
+async def populate_instance_settings():
     logger = logging.getLogger()
-    settings = await GlobalSettings.first()
+    settings = await InstanceSettings.first()
     if not settings:
         logger.info("Creating default global settings")
-        settings = await GlobalSettings.create(
+        settings = await InstanceSettings.create(
             smtp_enabled=DEFAULT_SMTP_ENABLED,
             add_user_email_subject=DEFAULT_ADD_USER_EMAIL_SUBJECT,
             add_user_email_body=DEFAULT_ADD_USER_EMAIL_BODY,
@@ -28,8 +28,8 @@ async def populate_global_settings():
     return settings
 
 
-async def get_global_settings() -> GlobalSettings:
-    settings = await GlobalSettings.first()
+async def get_instance_settings() -> InstanceSettings:
+    settings = await InstanceSettings.filter().select_related("updated_by").first()
     if not settings:
         raise Exception("Global settings not found")
     return settings

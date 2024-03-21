@@ -1,7 +1,7 @@
-from portr_admin.models.settings import GlobalSettings
+from portr_admin.models.settings import InstanceSettings
 from portr_admin.services import user as user_service
 from portr_admin.services import settings as settings_service
-from portr_admin.models.user import Role, Team, TeamUser, User
+from portr_admin.models.user import Role, Team, TeamSettings, TeamUser, User
 from tortoise import transactions
 from portr_admin.config import settings
 from portr_admin.utils.exception import ServiceError
@@ -18,10 +18,11 @@ async def create_team(name: str, user: User) -> Team:
         raise ServiceError("Team with this name already exists")
 
     _ = await user_service.create_team_user(team, user, Role.admin)
+    _ = await TeamSettings.create(team=team)
     return team
 
 
-async def send_notification(email: str, team: Team, global_settings: GlobalSettings):
+async def send_notification(email: str, team: Team, global_settings: InstanceSettings):
     context = {
         "teamName": team.name,
         "email": email,
@@ -55,7 +56,7 @@ async def add_user_to_team(
         .first()  # type: ignore
     )
 
-    global_settings = await settings_service.get_global_settings()
+    global_settings = await settings_service.get_instance_settings()
 
     if global_settings.smtp_enabled:
         await send_notification(email, team, global_settings)

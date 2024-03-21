@@ -7,6 +7,7 @@
   import Notfound from "./pages/notfound.svelte";
   import App from "./pages/app/app.svelte";
   import Setup from "./pages/setup.svelte";
+  import InstanceSettings from "./pages/instance-settings.svelte";
   export let url = "";
 </script>
 
@@ -16,6 +17,7 @@
 
 <Router {url}>
   <Route path="/"><Home /></Route>
+  <Route path="/instance-settings"><InstanceSettings /></Route>
   <Route path="/new-team"><Setup /></Route>
   <Route path="/:team/*" let:params><App team={params.team} /></Route>
   <Route path=""><Notfound /></Route>

@@ -1,15 +1,15 @@
-from portr_admin.models.settings import GlobalSettings
+from portr_admin.models.settings import InstanceSettings
 from portr_admin.services.settings import (
     DEFAULT_ADD_USER_EMAIL_BODY,
     DEFAULT_ADD_USER_EMAIL_SUBJECT,
-    populate_global_settings,
+    populate_instance_settings,
 )
 from portr_admin.tests import TestClient
 from tortoise.contrib import test
 from portr_admin.tests.factories import UserFactory
 
 
-class SettingsTests(test.TestCase):
+class InstanceSettingsTests(test.TestCase):
     async def asyncSetUp(self) -> None:
         await super().asyncSetUp()
         self.client = await TestClient.get_client()
@@ -21,30 +21,30 @@ class SettingsTests(test.TestCase):
         )
 
         # move this to conftest.py
-        await populate_global_settings()
+        await populate_instance_settings()
 
     async def test_get_settings_with_no_login_should_fail(self):
-        resp = self.client.get("/api/v1/settings/")
+        resp = self.client.get("/api/v1/instance-settings/")
         assert resp.status_code == 401
         assert resp.json() == {"message": "Not authenticated"}
 
     async def test_get_settings_with_non_superuser_should_fail(self):
-        resp = self.non_superuser_client.get("/api/v1/settings/")
+        resp = self.non_superuser_client.get("/api/v1/instance-settings/")
         assert resp.status_code == 403
         assert resp.json() == {"message": "Only superuser can perform this action"}
 
     async def test_update_settings_with_no_login_should_fail(self):
-        resp = self.client.patch("/api/v1/settings/")
+        resp = self.client.patch("/api/v1/instance-settings/")
         assert resp.status_code == 401
         assert resp.json() == {"message": "Not authenticated"}
 
     async def test_update_settings_with_non_superuser_should_fail(self):
-        resp = self.non_superuser_client.patch("/api/v1/settings/")
+        resp = self.non_superuser_client.patch("/api/v1/instance-settings/")
         assert resp.status_code == 403
         assert resp.json() == {"message": "Only superuser can perform this action"}
 
     async def test_get_settings_with_superuser_should_pass(self):
-        resp = self.superuser_client.get("/api/v1/settings/")
+        resp = self.superuser_client.get("/api/v1/instance-settings/")
         assert resp.status_code == 200
         data = resp.json()
 
@@ -58,12 +58,12 @@ class SettingsTests(test.TestCase):
 
     async def test_update_settings_with_superuser_should_pass(self):
         resp = self.superuser_client.patch(
-            "/api/v1/settings/", json={"smtp_enabled": True}
+            "/api/v1/instance-settings/", json={"smtp_enabled": True}
         )
         assert resp.status_code == 200
         data = resp.json()
 
         assert data["smtp_enabled"] is True
 
-        updated_settings = await GlobalSettings.first()
+        updated_settings = await InstanceSettings.first()
         assert updated_settings.smtp_enabled is True

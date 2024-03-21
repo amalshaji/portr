@@ -89,7 +89,7 @@
 <div class="space-y-4">
   <Card.Root class="rounded-sm border-none shadow-none">
     <Card.Header class="space-y-3">
-      <Card.Title>Profile</Card.Title>
+      <Card.Title class="text-lg">Profile</Card.Title>
       <Card.Description>Some basic information about you</Card.Description>
     </Card.Header>
     <Card.Content class="space-y-2">
@@ -127,7 +127,7 @@
 
   <Card.Root class="rounded-sm border-none shadow-none">
     <Card.Header class="space-y-3">
-      <Card.Title>Secret key</Card.Title>
+      <Card.Title class="text-lg">Secret key</Card.Title>
       <Card.Description
         >The secret key to authenticate client connection</Card.Description
       >

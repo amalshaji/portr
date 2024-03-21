@@ -36,15 +36,7 @@ export type TeamUser = {
   secret_key: string;
 };
 
-type BaseSettings = {
-  AllowRandomUserSignup: boolean;
-  RandomUserSignupAllowedDomains: string;
-  SignupRequiresInvite: boolean;
-};
-
-export type SettingsForSignup = BaseSettings;
-
-export type Settings = BaseSettings & {
+export type InstanceSettings = {
   smtp_enabled: boolean;
   smtp_host: string;
   smtp_port: number;
@@ -53,6 +45,10 @@ export type Settings = BaseSettings & {
   from_address: string;
   add_user_email_subject: string;
   add_user_email_body: string;
+};
+
+export type TeamSettings = {
+  auto_invite_github_org_members: boolean;
 };
 
 export type ConnectionStatus = "reserved" | "active" | "closed";

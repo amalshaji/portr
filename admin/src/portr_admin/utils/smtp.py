@@ -4,7 +4,7 @@ from portr_admin.services import settings as settings_service
 
 
 async def send_mail(to: str, subject: str, body: str):
-    settings = await settings_service.get_global_settings()
+    settings = await settings_service.get_instance_settings()
 
     message = EmailMessage()
     message["From"] = settings.from_address  # type: ignore
