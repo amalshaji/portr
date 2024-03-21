@@ -11,11 +11,13 @@
   import { Reload } from "radix-icons-svelte";
   import { Switch } from "$lib/components/ui/switch";
   import { Input } from "$lib/components/ui/input";
+  import { copyCodeToClipboard } from "$lib/utils";
 
   let githubOrgWebhookSecret: string,
     githubOrgPat: string,
     isUpdating = false,
-    autoInviteOrgMembers: boolean;
+    autoInviteOrgMembers: boolean,
+    gh_webhook_url: string = "";
 
   let settingsUnSubscriber = teamSettings.subscribe((settings) => {
     // @ts-ignore
@@ -61,6 +63,16 @@
     }
   };
 
+  const getGhWebhookUrl = async () => {
+    const res = await fetch("/api/v1/team/github_events_wh_url", {
+      headers: {
+        "x-team-slug": team,
+      },
+    });
+    const data = await res.json();
+    gh_webhook_url = data.url;
+  };
+
   onDestroy(() => {
     settingsUnSubscriber();
   });
@@ -76,6 +88,7 @@
 
   onMount(() => {
     getSettings();
+    getGhWebhookUrl();
   });
 </script>
 
@@ -89,6 +102,22 @@
       <div class="flex items-center gap-4">
         <Label for="auto_invite_org_members">Auto invite org members</Label>
         <Switch bind:checked={autoInviteOrgMembers} />
+      </div>
+      <div>
+        <Label for="github_org_webhook_url"
+          >GitHub organization webhook URL. <a
+            class="underline"
+            href="https://github.com/organizations/portrhq/settings/hooks"
+            target="_blank">Create a webhook</a
+          > using this URL as callback</Label
+        >
+        <Input
+          bind:value={gh_webhook_url}
+          on:click={() => copyCodeToClipboard(gh_webhook_url)}
+          readonly
+          placeholder="••••••••"
+          id="github_org_webhook_url"
+        />
       </div>
       <div>
         <Label for="github_org_webhook_secret"

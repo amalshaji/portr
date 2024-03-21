@@ -1,5 +1,4 @@
 <script lang="ts">
-  // @ts-expect-error
   import { Link } from "svelte-routing";
 </script>
 
