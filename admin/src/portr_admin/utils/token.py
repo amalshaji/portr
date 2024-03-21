@@ -3,7 +3,7 @@ from ulid import ULID
 
 
 def generate_secret_key() -> str:
-    return nanoid.generate(size=42)
+    return f"portr_{nanoid.generate(size=36)}"
 
 
 def generate_oauth_state() -> str:
