@@ -115,7 +115,6 @@
           bind:value={gh_webhook_url}
           on:click={() => copyCodeToClipboard(gh_webhook_url)}
           readonly
-          placeholder="••••••••"
           id="github_org_webhook_url"
         />
       </div>
