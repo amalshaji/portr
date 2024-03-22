@@ -9,7 +9,11 @@
 
   export let id: string;
 
-  const [subdomain, localport] = id.split("-");
+  const idLastDashIndex = id.lastIndexOf("-");
+  const [subdomain, localport] = [
+    id.substring(0, idLastDashIndex),
+    id.substring(idLastDashIndex + 1),
+  ];
 
   let requests: Request[] = [];
   let filteredRequests: Request[] = [];
