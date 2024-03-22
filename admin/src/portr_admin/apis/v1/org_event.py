@@ -2,8 +2,8 @@ import hashlib
 import hmac
 import logging
 from fastapi import APIRouter, BackgroundTasks, Header, Request, Response
+from portr_admin.models.user import TeamSettings
 from portr_admin.services import auth as auth_service
-from portr_admin.config import settings
 
 api = APIRouter(prefix="/org_events", tags=["org_events"])
 
@@ -12,11 +12,16 @@ api = APIRouter(prefix="/org_events", tags=["org_events"])
 async def github_webhook_events(
     request: Request,
     background_tasks: BackgroundTasks,
+    team: str,
     x_hub_signature_256: str = Header(alias="X-Hub-Signature-256"),
 ):
+    team_settings = await TeamSettings.get_or_none(team__slug=team)
+    if not team_settings:
+        return Response(status_code=401)
+
     body = await request.body()
     hash_object = hmac.new(
-        settings.github_webhook_secret.encode("utf-8"),
+        team_settings.github_org_webhook_secret.encode("utf-8"),  # type: ignore
         msg=body,
         digestmod=hashlib.sha256,
     )

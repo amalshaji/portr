@@ -10,7 +10,6 @@ class Settings(BaseSettings):
 
     github_app_client_id: str
     github_app_client_secret: str
-    github_webhook_secret: str
 
     server_url: str
     ssh_url: str
