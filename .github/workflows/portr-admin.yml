@@ -3,8 +3,12 @@ name: Portr admin
 on:
   push:
     branches: ["main"]
+    paths:
+      - "admin/**"
   pull_request:
     branches: ["main"]
+    paths:
+      - "admin/**"
 
 permissions:
   contents: read
