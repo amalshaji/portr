@@ -42,34 +42,30 @@
   };
 </script>
 
-<div class="container mt-4">
-  <div class="space-y-4">
-    <Card.Root class="rounded-sm">
-      <Card.Header class="space-y-3">
-        <Card.Title>Enter team name</Card.Title>
-      </Card.Header>
-      <Card.Content class="space-y-2">
-        <div class="sm:col-span-3">
-          <Input
-            type="text"
-            id="team_name"
-            placeholder="portr"
-            bind:value={teamName}
-            class={teamNameError ? "border-red-500" : ""}
-          />
-          {#if teamNameError}
-            <ErrorText error={teamNameError} />
-          {/if}
-        </div>
-      </Card.Content>
-      <Card.Footer>
-        <Button on:click={createTeam} disabled={isUpdating}>
-          {#if isUpdating}
-            <Reload class="mr-2 h-4 w-4 animate-spin" />
-          {/if}
-          Create team
-        </Button>
-      </Card.Footer>
-    </Card.Root>
-  </div>
-</div>
+<Card.Root class="border-none shadow-none w-1/2">
+  <Card.Header class="space-y-3">
+    <Card.Title>Enter team name</Card.Title>
+  </Card.Header>
+  <Card.Content class="space-y-2">
+    <div class="sm:col-span-3">
+      <Input
+        type="text"
+        id="team_name"
+        placeholder="portr"
+        bind:value={teamName}
+        class={teamNameError ? "border-red-500" : ""}
+      />
+      {#if teamNameError}
+        <ErrorText error={teamNameError} />
+      {/if}
+    </div>
+  </Card.Content>
+  <Card.Footer>
+    <Button on:click={createTeam} disabled={isUpdating}>
+      {#if isUpdating}
+        <Reload class="mr-2 h-4 w-4 animate-spin" />
+      {/if}
+      Create team
+    </Button>
+  </Card.Footer>
+</Card.Root>

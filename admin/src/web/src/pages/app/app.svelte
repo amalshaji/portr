@@ -1,34 +1,31 @@
 <script lang="ts">
   import {
-    Settings,
-    Users,
-    Home,
     ArrowUpDown,
-    User,
-    MoreVertical,
     BadgePlus,
+    Home,
+    MoreVertical,
+    Settings,
     Settings2Icon,
+    User,
+    Users,
   } from "lucide-svelte";
 
-  import { Router, Route, navigate, Link } from "svelte-routing";
-  import SettingsPage from "./settings.svelte";
-  import Connections from "./connections.svelte";
-  import Notfound from "./notfound.svelte";
-  import UsersPage from "./users.svelte";
-  import { onMount } from "svelte";
-  import { currentUser } from "$lib/store";
-  import MyAccount from "./myaccount.svelte";
+  import Sidebarlink from "$lib/components/sidebarlink.svelte";
+  import TeamSelector from "$lib/components/team-selector.svelte";
   import { Button } from "$lib/components/ui/button";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
-  import Sidebarlink from "$lib/components/sidebarlink.svelte";
-  import Overview from "./overview.svelte";
-  import { setContext } from "svelte";
-  import TeamSelector from "$lib/components/team-selector.svelte";
-  import { LogOut } from "lucide-svelte";
-  import NewTeam from "./new-team.svelte";
   import Separator from "$lib/components/ui/separator/separator.svelte";
-  import Theme from "$lib/components/theme.svelte";
-  import IssueLink from "$lib/components/issue-link.svelte";
+  import { currentUser } from "$lib/store";
+  import { LogOut } from "lucide-svelte";
+  import { onMount, setContext } from "svelte";
+  import { Link, Route, Router, navigate } from "svelte-routing";
+  import AppLayout from "../app-layout.svelte";
+  import Connections from "./connections.svelte";
+  import MyAccount from "./myaccount.svelte";
+  import Notfound from "./notfound.svelte";
+  import Overview from "./overview.svelte";
+  import SettingsPage from "./settings.svelte";
+  import UsersPage from "./users.svelte";
 
   export let url = "";
   export let team: string;
@@ -60,10 +57,8 @@
   });
 </script>
 
-<div class="flex">
-  <aside
-    class="sticky top-0 flex flex-col w-64 h-screen px-2 py-8 overflow-y-auto border-r rtl:border-r-0 rtl:border-l bg-[#FBFBFB] dark:bg-gray-900"
-  >
+<AppLayout>
+  <div slot="sidebar" class="flex flex-col h-full">
     <TeamSelector />
 
     <div class="flex flex-col justify-between flex-1 mt-6 mx-4">
@@ -133,10 +128,7 @@
                 </DropdownMenu.Item>
                 <Separator />
                 <DropdownMenu.Item class="hover:cursor-pointer">
-                  <Link
-                    to={`/${team}/new-team`}
-                    class="flex w-full items-center"
-                  >
+                  <Link to="/new-team" class="flex w-full items-center">
                     <BadgePlus strokeWidth={1.5} class="h-4 w-4" />
                     <span class="mx-2">New team</span>
                   </Link>
@@ -152,27 +144,16 @@
         </div>
       </div>
     </div>
-  </aside>
-  <aside class="w-full">
-    <div
-      class="py-2 px-8 flex justify-between border-b bg-[#FBFBFB] dark:bg-gray-900"
-    >
-      <div></div>
-      <div class="flex items-center space-x-2">
-        <IssueLink />
-        <Theme />
-      </div>
-    </div>
-    <div class="mx-auto pb-16 pt-6 w-full px-16">
-      <Router {url}>
-        <Route path="/overview"><Overview /></Route>
-        <Route path="/connections"><Connections /></Route>
-        <Route path="/settings"><SettingsPage /></Route>
-        <Route path="/my-account"><MyAccount /></Route>
-        <Route path="/users"><UsersPage /></Route>
-        <Route path="/new-team"><NewTeam /></Route>
-        <Route path="*"><Notfound /></Route>
-      </Router>
-    </div>
-  </aside>
-</div>
+  </div>
+
+  <span slot="body">
+    <Router {url}>
+      <Route path="/overview"><Overview /></Route>
+      <Route path="/connections"><Connections /></Route>
+      <Route path="/settings"><SettingsPage /></Route>
+      <Route path="/my-account"><MyAccount /></Route>
+      <Route path="/users"><UsersPage /></Route>
+      <Route path="*"><Notfound /></Route>
+    </Router>
+  </span>
+</AppLayout>
