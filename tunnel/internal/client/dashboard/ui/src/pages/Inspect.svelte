@@ -75,7 +75,7 @@
     </Link>
     <div class="flex items-center space-x-4">
       <input
-        class="flex h-10 rounded-md border bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 w-64"
+        class="flex h-10 rounded-md border outline-none px-3 py-2 text-sm w-64"
         placeholder="Filter requests"
         bind:value={search}
         on:input={(e) => filterRequestsBasedOnUrl()}
@@ -94,15 +94,15 @@
             class="p-4 rounded-md bg-gray-100 {$currentRequest?.ID ===
             request.ID
               ? 'border border-gray-950'
-              : ''} dark:bg-gray-700 m-1 hover:cursor-pointer"
+              : ''} dark:bg-gray-700 m-1 hover:cursor-pointer space-y-2"
             on:click={() => setCurrentRequest(request)}
           >
             <div
-              class="font-medium text-gray-800 dark:text-gray-200 flex justify-between"
+              class="text-sm text-gray-800 dark:text-gray-200 flex justify-between items-center text-clip"
             >
               <span>{request.Method}</span>
-              <span class="font-light text-sm overflow-clip"
-                ><code>{request.Url}</code></span
+              <span class="overflow-clip h-6 w-40 text-right"
+                >{request.Url}</span
               >
             </div>
             <div class="text-xs text-gray-500 dark:text-gray-400">

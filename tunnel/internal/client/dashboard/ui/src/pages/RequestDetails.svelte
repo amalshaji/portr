@@ -3,6 +3,7 @@
   import { Button } from "$lib/components/ui/button";
   import { toast } from "svelte-sonner";
   import { RotateCw } from "lucide-svelte";
+  import RenderContent from "$lib/components/RenderContent.svelte";
 
   const convertJsonToSingleValue = (data: any) => {
     const jsonKeyValue: any = {};
@@ -38,9 +39,9 @@
   <h2
     class="text-2xl font-semibold mb-4 text-gray-800 dark:text-gray-200 flex justify-between"
   >
-    <div>
-      {$currentRequest?.Method}
-      <code class="font-light text-lg">{$currentRequest?.Url}</code>
+    <div class="flex space-x-4 items-center">
+      <div class="font-normal">{$currentRequest?.Method}</div>
+      <div><code class="font-light text-lg">{$currentRequest?.Url}</code></div>
     </div>
     <div>
       <Button disabled={replaying} on:click={replayRequest}>
@@ -93,15 +94,7 @@
         Response Body
       </h3>
       <div class="rounded-md border p-4 mt-2">
-        <!-- <pre
-          class="text-sm font-mono text-gray-800 dark:text-gray-200">{byteArrayToText(
-            $currentRequest?.ResponseBody
-          )}</pre> -->
-        <embed
-          src="/api/tunnels/render/{$currentRequest?.ID}"
-          width="100%"
-          height="500px"
-        />
+        <RenderContent type="response" />
       </div>
     </div>
   </div>
