@@ -17,6 +17,7 @@ class User(PkModelMixin, TimestampModelMixin, Model):  # type: ignore
 
 
 class GithubUser(PkModelMixin, Model):  # type: ignore
+    github_id = fields.BigIntField(unique=True, index=True)
     github_access_token = fields.CharField(max_length=255)
     github_avatar_url = fields.CharField(max_length=255)
     user: fields.OneToOneRelation[User] = fields.OneToOneField(

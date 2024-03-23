@@ -6,6 +6,14 @@ from tortoise import transactions
 from tortoise.exceptions import ValidationError
 
 
+class UserNotFoundError(ServiceError):
+    pass
+
+
+class EmailFetchError(ServiceError):
+    pass
+
+
 @transactions.atomic()
 async def get_or_create_user_from_github(code: str):
     client = GithubOauth(
@@ -24,7 +32,14 @@ async def get_or_create_user_from_github(code: str):
                 github_user["email"] = email["email"]
                 break
 
+    if not github_user["email"]:
+        raise EmailFetchError("No verified email found")
+
     is_superuser = await User.filter().count() == 0
+
+    if not is_superuser:
+        if not await TeamUser.filter(user__email=github_user["email"]).exists():
+            raise UserNotFoundError("User not part of any team")
 
     user, _ = await User.get_or_create(
         email=github_user["email"],
@@ -34,12 +49,14 @@ async def get_or_create_user_from_github(code: str):
     github_user_obj, created = await GithubUser.get_or_create(
         user=user,
         defaults={
+            "github_id": github_user["id"],
             "github_access_token": token,
             "github_avatar_url": github_user["avatar_url"],
         },
     )
 
     if not created:
+        github_user_obj.github_id = github_user["id"]
         github_user_obj.github_access_token = token
         github_user_obj.github_avatar_url = github_user["avatar_url"]
         await github_user_obj.save()

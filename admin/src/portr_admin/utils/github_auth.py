@@ -3,6 +3,7 @@ import httpx
 
 
 class GithubUser(TypedDict):
+    id: int
     email: str
     avatar_url: str
 

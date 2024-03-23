@@ -57,7 +57,13 @@ async def github_callback(request: Request, code: str, state: str):
     if state != existing_state:
         return Response(status_code=400, content="Invalid state")
 
-    user = await user_service.get_or_create_user_from_github(code)
+    try:
+        user = await user_service.get_or_create_user_from_github(code)
+    except user_service.UserNotFoundError:
+        return RedirectResponse(url="/?code=user-not-found")
+    except user_service.EmailFetchError:
+        return RedirectResponse(url="/?code=private-email")
+
     token = await auth_service.login_user(user)
 
     next_url_encoded = request.cookies.get("portr_next_url")
