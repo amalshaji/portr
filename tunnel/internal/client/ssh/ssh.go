@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"net"
 	"net/http"
@@ -118,7 +117,7 @@ func (s *SshClient) startListenerForClient() error {
 
 	var remotePort int
 
-	// try to connect to 100 random ports (too much??)
+	// try to connect to 10 random ports
 	for _, port := range randomPorts {
 		s.listener, err = sshClient.Listen("tcp", "0.0.0.0:"+fmt.Sprint(port))
 		remotePort = port
@@ -128,7 +127,7 @@ func (s *SshClient) startListenerForClient() error {
 	}
 
 	if s.listener == nil {
-		log.Fatal("failed to listen on remote endpoint")
+		return fmt.Errorf("failed to listen on remote endpoint")
 	}
 
 	defer s.listener.Close()
