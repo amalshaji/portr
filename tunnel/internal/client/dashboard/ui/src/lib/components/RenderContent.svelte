@@ -40,7 +40,9 @@
 </script>
 
 {#if $currentRequest}
-  {#if contentType.startsWith("application/json")}
+  {#if contentLength === "0"}
+    <div class="text-gray-500 dark:text-gray-400">No content</div>
+  {:else if contentType.startsWith("application/json")}
     {#await loadResponse(`/api/tunnels/render/${$currentRequest?.ID}`) then response}
       <pre class="text-sm">{JSON.stringify(JSON.parse(response), null, 2)}</pre>
     {/await}
