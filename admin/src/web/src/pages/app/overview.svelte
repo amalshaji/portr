@@ -28,9 +28,10 @@
 <div class="px-6 mt-2">
   <ul class="list-decimal space-y-6">
     <li>
-      Download the portr client from <a
-        href="/static/portr.zip"
-        class="underline">here</a
+      Setup up the portr client from the <a
+        href="https://portr.dev/client-setup/"
+        target="_blank"
+        class="underline">docs</a
       >
     </li>
     <li class="space-y-2">
@@ -38,7 +39,7 @@
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-static-element-interactions -->
       <div
-        class="border rounded-sm text-sm"
+        class="border rounded-lg w-3/4 bg-zinc-100 dark:bg-zinc-800 text-sm"
         on:click={() => copyCodeToClipboard($setupScript)}
       >
         <pre class="px-4 py-3">{"$ " + $setupScript}</pre>
@@ -56,7 +57,7 @@
       <a
         href="https://portr.dev/client-setup/"
         target="_blank"
-        class="underline">cli docs</a
+        class="underline">client docs</a
       > for more info.
     </li>
   </ul>

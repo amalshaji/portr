@@ -1,9 +1,12 @@
+import string
 import nanoid  # type: ignore
 from ulid import ULID
 
+NANOID_ALPHABETS = string.ascii_letters + string.digits
+
 
 def generate_secret_key() -> str:
-    return f"portr_{nanoid.generate(size=36)}"
+    return f"portr_{nanoid.generate(size=36, alphabet=NANOID_ALPHABETS)}"
 
 
 def generate_oauth_state() -> str:

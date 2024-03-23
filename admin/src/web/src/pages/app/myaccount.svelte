@@ -12,13 +12,13 @@
 
   let firstName: string = "",
     lastName: string = "";
+
   currentUser.subscribe((currentTeamUser) => {
     firstName = currentTeamUser?.user.first_name || "";
     lastName = currentTeamUser?.user.last_name || "";
   });
 
-  let isUpdating = false,
-    isRotatingSecretKey = false;
+  let isUpdating = false;
 
   const updateProfile = async () => {
     isUpdating = true;
@@ -49,39 +49,6 @@
       throw err;
     } finally {
       isUpdating = false;
-    }
-  };
-
-  const copySecretToClipboard = () => {
-    navigator.clipboard.writeText($currentUser?.secret_key as string);
-    toast.success("Secret key copied to clipboard");
-  };
-
-  const rotateSecretKey = async () => {
-    isRotatingSecretKey = true;
-    try {
-      const res = await fetch(`/api/v1/user/me/rotate-secret-key`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "x-team-slug": team,
-        },
-      });
-      if (res.ok) {
-        const secret_key = (await res.json()).secret_key;
-        // @ts-ignore
-        $currentUser = {
-          ...$currentUser,
-          secret_key: secret_key,
-        };
-        toast.success("New secret key generated");
-      } else {
-        toast.error("Something went wrong");
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      isRotatingSecretKey = false;
     }
   };
 </script>
@@ -121,35 +88,6 @@
           <Reload class="mr-2 h-4 w-4 animate-spin" />
         {/if}
         Save changes
-      </Button>
-    </Card.Footer>
-  </Card.Root>
-
-  <Card.Root class="rounded-sm border-none shadow-none">
-    <Card.Header class="space-y-3">
-      <Card.Title class="text-lg">Secret key</Card.Title>
-      <Card.Description
-        >The secret key to authenticate client connection</Card.Description
-      >
-    </Card.Header>
-    <Card.Content class="space-y-2 flex items-center">
-      <Input
-        type="text"
-        readonly
-        value={$currentUser?.secret_key}
-        on:click={copySecretToClipboard}
-      />
-    </Card.Content>
-    <Card.Footer>
-      <Button
-        variant="outline"
-        on:click={rotateSecretKey}
-        disabled={isRotatingSecretKey}
-      >
-        {#if isRotatingSecretKey}
-          <Reload class="mr-2 h-4 w-4 animate-spin" />
-        {/if}
-        Rotate key
       </Button>
     </Card.Footer>
   </Card.Root>
