@@ -1,6 +1,6 @@
 from typing import Any
 from portr_admin.models.auth import Session
-from portr_admin.models.user import User
+from portr_admin.models.user import Team, User
 
 
 async def login_user(user: User) -> str:
@@ -8,5 +8,5 @@ async def login_user(user: User) -> str:
     return session.token
 
 
-async def process_github_webhook(data: Any):
+async def process_github_webhook(team: Team, data: Any):
     print(data)

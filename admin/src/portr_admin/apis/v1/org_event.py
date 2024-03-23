@@ -15,7 +15,9 @@ async def github_webhook_events(
     team: str,
     x_hub_signature_256: str = Header(alias="X-Hub-Signature-256"),
 ):
-    team_settings = await TeamSettings.get_or_none(team__slug=team)
+    team_settings = (
+        await TeamSettings.filter().select_related("team").get_or_none(team__slug=team)
+    )
     if not team_settings:
         return Response(status_code=401)
 
@@ -28,7 +30,9 @@ async def github_webhook_events(
     expected_signature = "sha256=" + hash_object.hexdigest()
     if hmac.compare_digest(expected_signature, x_hub_signature_256):
         background_tasks.add_task(
-            auth_service.process_github_webhook, body.decode("utf-8")
+            auth_service.process_github_webhook,
+            team_settings.team,
+            body.decode("utf-8"),
         )
         return Response(status_code=200)
 
