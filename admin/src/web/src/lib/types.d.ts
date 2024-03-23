@@ -47,10 +47,6 @@ export type InstanceSettings = {
   add_user_email_body: string;
 };
 
-export type TeamSettings = {
-  auto_invite_github_org_members: boolean;
-};
-
 export type ConnectionStatus = "reserved" | "active" | "closed";
 
 export type ConnectionType = "http" | "tcp";

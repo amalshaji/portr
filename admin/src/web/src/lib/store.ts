@@ -6,13 +6,11 @@ import type {
   InstanceSettings,
   Team,
   TeamUser,
-  TeamSettings,
 } from "./types";
 
 export const currentUser = writable<CurrentTeamUser | null>(null);
 export const currentUserTeams = writable<Team[]>([]);
 export const instanceSettings = writable<InstanceSettings | null>(null);
-export const teamSettings = writable<TeamSettings | null>(null);
 
 export const connections = writable<Connection[]>([]);
 export const connectionsLoading = writable(false);

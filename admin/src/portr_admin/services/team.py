@@ -1,7 +1,7 @@
 from portr_admin.models.settings import InstanceSettings
 from portr_admin.services import user as user_service
 from portr_admin.services import settings as settings_service
-from portr_admin.models.user import Role, Team, TeamSettings, TeamUser, User
+from portr_admin.models.user import Role, Team, TeamUser, User
 from tortoise import transactions
 from portr_admin.config import settings
 from portr_admin.utils.exception import ServiceError
@@ -18,7 +18,6 @@ async def create_team(name: str, user: User) -> Team:
         raise ServiceError("Team with this name already exists")
 
     _ = await user_service.create_team_user(team, user, Role.admin)
-    _ = await TeamSettings.create(team=team)
     return team
 
 

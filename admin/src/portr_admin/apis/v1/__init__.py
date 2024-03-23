@@ -5,7 +5,6 @@ from portr_admin.apis.v1.user import api as api_v1_user
 from portr_admin.apis.v1.connection import api as api_v1_connection
 from portr_admin.apis.v1.instance_settings import api as api_v1_instance_settings
 from portr_admin.apis.v1.config import api as api_v1_config
-from portr_admin.apis.v1.org_event import api as api_v1_org_event
 
 api = APIRouter(prefix="/v1")
 api.include_router(api_v1_auth)
@@ -14,4 +13,3 @@ api.include_router(api_v1_user)
 api.include_router(api_v1_connection)
 api.include_router(api_v1_instance_settings)
 api.include_router(api_v1_config)
-api.include_router(api_v1_org_event)

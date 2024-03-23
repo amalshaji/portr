@@ -6,15 +6,11 @@
   import { toast } from "svelte-sonner";
   import { Reload } from "radix-icons-svelte";
   import { getContext } from "svelte";
+  import { copyCodeToClipboard } from "$lib/utils";
 
   let team = getContext("team") as string;
 
   let isRotatingSecretKey = false;
-
-  const copySecretToClipboard = () => {
-    navigator.clipboard.writeText($currentUser?.secret_key as string);
-    toast.success("Secret key copied to clipboard");
-  };
 
   const rotateSecretKey = async () => {
     isRotatingSecretKey = true;
@@ -58,7 +54,7 @@
         type="text"
         readonly
         value={$currentUser?.secret_key}
-        on:click={copySecretToClipboard}
+        on:click={() => copyCodeToClipboard($currentUser?.secret_key)}
       />
     </Card.Content>
     <Card.Footer>
