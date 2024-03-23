@@ -1,3 +1,3 @@
-# portr-admin
+# Portr admin
 
-Describe your project here.
+Admin dashboard for portr.
