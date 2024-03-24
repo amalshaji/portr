@@ -21,7 +21,9 @@ async def create_team(name: str, user: User) -> Team:
     return team
 
 
-async def send_notification(email: str, team: Team, global_settings: InstanceSettings):
+async def send_notification(
+    email: str, team: Team, instance_settings: InstanceSettings
+):
     context = {
         "teamName": team.name,
         "email": email,
@@ -29,8 +31,8 @@ async def send_notification(email: str, team: Team, global_settings: InstanceSet
         "dashboardUrl": f"{settings.domain_address()}/{team.name}/overview",
     }
 
-    subject = render_template(global_settings.add_user_email_subject, context)
-    body = render_template(global_settings.add_user_email_body, context)
+    subject = render_template(instance_settings.add_user_email_subject, context)
+    body = render_template(instance_settings.add_user_email_body, context)
 
     await smtp.send_mail(to=email, subject=subject, body=body)
 
@@ -55,9 +57,9 @@ async def add_user_to_team(
         .first()  # type: ignore
     )
 
-    global_settings = await settings_service.get_instance_settings()
+    instance_settings = await settings_service.get_instance_settings()
 
-    if global_settings.smtp_enabled:
-        await send_notification(email, team, global_settings)
+    if instance_settings.smtp_enabled:
+        await send_notification(email, team, instance_settings)
 
     return team_user  # type: ignore

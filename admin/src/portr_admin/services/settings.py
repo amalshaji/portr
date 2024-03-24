@@ -19,7 +19,7 @@ async def populate_instance_settings():
     logger = logging.getLogger()
     settings = await InstanceSettings.first()
     if not settings:
-        logger.info("Creating default global settings")
+        logger.info("Creating default instance settings")
         settings = await InstanceSettings.create(
             smtp_enabled=DEFAULT_SMTP_ENABLED,
             add_user_email_subject=DEFAULT_ADD_USER_EMAIL_SUBJECT,
@@ -31,5 +31,5 @@ async def populate_instance_settings():
 async def get_instance_settings() -> InstanceSettings:
     settings = await InstanceSettings.filter().select_related("updated_by").first()
     if not settings:
-        raise Exception("Global settings not found")
+        raise Exception("Instance settings not found")
     return settings
