@@ -33,21 +33,22 @@ The compose file has 4 services
 Once you copy the compose file, create a `.env` with the following keys.
 
 ```text
-GITHUB_APP_CLIENT_ID=
-GITHUB_APP_CLIENT_SECRET=
+PORTR_ADMIN_GITHUB_CLIENT_ID=
+PORTR_ADMIN_GITHUB_CLIENT_SECRET=
 
-DOMAIN=example.com
-DB_URL=postgres://postgres:postgres@localhost:5432/postgres
+PORTR_DOMAIN=example.com
+PORTR_DB_URL=postgres://postgres:postgres@localhost:5432/postgres
 
-ENCRYPTION_KEY=
+PORTR_SERVER_URL=example.com
+PORTR_SSH_URL=example.com:2222
 
-SERVER_URL=example.com
-SSH_URL=example.com:2222
 CLOUDFLARE_API_TOKEN=
 
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_DB=postgres
+
+PORTR_ADMIN_ENCRYPTION_KEY=
 ```
 
 Generate a random encryption key using the following command
