@@ -76,7 +76,7 @@
     <div class="flex items-center space-x-4">
       <input
         class="flex h-10 rounded-md border outline-none px-3 py-2 text-sm w-64"
-        placeholder="Filter requests"
+        placeholder="Filter URL"
         bind:value={search}
         on:input={(e) => filterRequestsBasedOnUrl()}
       />

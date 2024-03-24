@@ -20,12 +20,12 @@
   });
 </script>
 
-<div class="h-screen place-items-center w-1/2 mx-auto py-8">
+<div class="h-screen place-items-center w-[600px] mx-auto py-8 items-center">
   <Table.Root>
     <Table.Header>
       <Table.Row>
         <Table.Head>Subdomain</Table.Head>
-        <Table.Head>Port</Table.Head>
+        <Table.Head class="text-right">Port</Table.Head>
       </Table.Row>
     </Table.Header>
     <Table.Body>
@@ -35,7 +35,7 @@
           class="hover:cursor-pointer"
         >
           <Table.Cell class="font-medium">{tunnel.Subdomain}</Table.Cell>
-          <Table.Cell>{tunnel.Localport}</Table.Cell>
+          <Table.Cell class="text-right">{tunnel.Localport}</Table.Cell>
         </Table.Row>
       {/each}
     </Table.Body>
