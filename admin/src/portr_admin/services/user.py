@@ -17,8 +17,8 @@ class EmailFetchError(ServiceError):
 @transactions.atomic()
 async def get_or_create_user_from_github(code: str):
     client = GithubOauth(
-        client_id=settings.github_app_client_id,
-        client_secret=settings.github_app_client_secret,
+        client_id=settings.github_client_id,
+        client_secret=settings.github_client_secret,
     )
     token = await client.get_access_token(code)
     github_user = await client.get_user(token)

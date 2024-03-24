@@ -25,8 +25,8 @@ async def github_login(request: Request):
     redirect_uri = f"{settings.domain_address()}{GITHUB_CALLBACK_URL}?state={state}"
 
     client = GithubOauth(
-        client_id=settings.github_app_client_id,
-        client_secret=settings.github_app_client_secret,
+        client_id=settings.github_client_id,
+        client_secret=settings.github_client_secret,
     )
 
     response = RedirectResponse(url=client.auth_url(state, redirect_uri))
