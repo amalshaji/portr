@@ -14,14 +14,13 @@ permissions:
   contents: read
 
 env:
-  DOMAIN: localhost:8000
-  GITHUB_APP_CLIENT_ID: ""
-  GITHUB_APP_CLIENT_SECRET: ""
-  GITHUB_WEBHOOK_SECRET: ""
-  SERVER_URL: localhost:8000
-  SSH_URL: localhost:2222
-  USE_VITE: true
-  ENCRYPTION_KEY: "mj-qoeMhLQp_cHnMU9nsLfCMnNkZ6XBcFefy4VxzOe8="
+  PORTR_DOMAIN: localhost:8000
+  PORTR_ADMIN_GITHUB_CLIENT_ID: ""
+  PORTR_ADMIN_GITHUB_CLIENT_SECRET: ""
+  PORTR_SERVER_URL: localhost:8000
+  PORTR_SSH_URL: localhost:2222
+  PORTR_ADMIN_USE_VITE: true
+  PORTR_ADMIN_ENCRYPTION_KEY: "mj-qoeMhLQp_cHnMU9nsLfCMnNkZ6XBcFefy4VxzOe8="
 
 jobs:
   test:
