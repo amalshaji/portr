@@ -18,7 +18,7 @@ services:
     depends_on:
       - postgres
     labels:
-      caddy_0: $DOMAIN
+      caddy_0: $PORTR_DOMAIN
       caddy_0.reverse_proxy: "{{upstreams http 8000}}"
       caddy_0.encode: gzip
 
@@ -34,7 +34,7 @@ services:
       - admin
       - postgres
     labels:
-      caddy_1: "*.$DOMAIN"
+      caddy_1: "*.$PORTR_DOMAIN"
       caddy_1.reverse_proxy: "{{upstreams http 8001}}"
       caddy_1.tls.dns: "cloudflare $CLOUDFLARE_API_TOKEN"
       caddy_1.encode: gzip
