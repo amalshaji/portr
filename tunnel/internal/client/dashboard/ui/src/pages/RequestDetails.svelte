@@ -91,7 +91,7 @@
       <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
         Response Body
       </h3>
-      <div class="rounded-md border p-4 mt-2">
+      <div class="rounded-md bg-gray-100 p-4 mt-2">
         <RenderContent type="response" />
       </div>
     </div>
