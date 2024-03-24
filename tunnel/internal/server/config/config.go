@@ -43,7 +43,7 @@ type Config struct {
 }
 
 func new() *Config {
-	sshPortStr := os.Getenv("SSH_PORT")
+	sshPortStr := os.Getenv("PORTR_SSH_PORT")
 	if sshPortStr == "" {
 		sshPortStr = "2222"
 	}
@@ -52,7 +52,7 @@ func new() *Config {
 		log.Fatal(err)
 	}
 
-	proxyPortStr := os.Getenv("PROXY_PORT")
+	proxyPortStr := os.Getenv("PORTR_PROXY_PORT")
 	if proxyPortStr == "" {
 		proxyPortStr = "8001"
 	}
@@ -61,17 +61,17 @@ func new() *Config {
 		log.Fatal(err)
 	}
 
-	domain := os.Getenv("DOMAIN")
+	domain := os.Getenv("PORTR_DOMAIN")
 	if domain == "" {
 		domain = "localhost:8000"
 	}
 
-	dbUrl := os.Getenv("DB_URL")
+	dbUrl := os.Getenv("PORTR_DB_URL")
 	if dbUrl == "" {
-		log.Fatal("DB_URL is required")
+		log.Fatal("PORTR_DB_URL is required")
 	}
 
-	dbDriver := strings.Split(os.Getenv("DB_URL"), "://")[0]
+	dbDriver := strings.Split(os.Getenv("PORTR_DB_URL"), "://")[0]
 
 	return &Config{
 		Ssh: SshConfig{
@@ -83,8 +83,8 @@ func new() *Config {
 			Port: proxyPort,
 		},
 		Domain:       domain,
-		UseLocalHost: os.Getenv("USE_LOCALHOST") == "true",
-		Debug:        os.Getenv("DEBUG") == "true",
+		UseLocalHost: os.Getenv("PORTR_TUNNEL_USE_LOCALHOST") == "true",
+		Debug:        os.Getenv("PORTR_TUNNEL_DEBUG") == "true",
 		Database: DatabaseConfig{
 			Url:    dbUrl,
 			Driver: dbDriver,
