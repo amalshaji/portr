@@ -71,7 +71,7 @@
       to="/"
       class="text-3xl font-semibold text-gray-800 dark:text-gray-200"
     >
-      Portr Inspector 🚨
+      <img src="/static/logo.svg" alt="Portr Inspector 🚨" class="h-12" />
     </Link>
     <div class="flex items-center space-x-4">
       <input
