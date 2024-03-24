@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-resty/resty/v2"
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/datatypes"
 )
 
 func (h *Handler) GetTunnels(c *fiber.Ctx) error {
@@ -35,8 +36,24 @@ func (h *Handler) RenderResponse(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to get requests"})
 	}
 
+	_type := c.Query("type")
+	if _type == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "type query param is required"})
+	}
+
+	var headers datatypes.JSON
+	var body []byte
+
+	if _type == "request" {
+		headers = request.Headers
+		body = request.Body
+	} else {
+		headers = request.ResponseHeaders
+		body = request.ResponseBody
+	}
+
 	headersMap := make(map[string][]string)
-	err = json.Unmarshal([]byte(request.ResponseHeaders), &headersMap)
+	err = json.Unmarshal([]byte(headers), &headersMap)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to parse response headers"})
 	}
@@ -48,13 +65,13 @@ func (h *Handler) RenderResponse(c *fiber.Ctx) error {
 
 	contentLength := headersMap["Content-Length"]
 	if len(contentLength) == 0 {
-		contentLength = []string{fmt.Sprintf("%d", len(request.ResponseBody))}
+		contentLength = []string{fmt.Sprintf("%d", len(body))}
 	}
 
 	c.Response().Header.Set("Content-Type", contentType[0])
 	c.Response().Header.Set("Content-Length", contentLength[0])
 
-	c.Response().BodyWriter().Write(request.ResponseBody)
+	c.Response().BodyWriter().Write(body)
 	return nil
 }
 
@@ -78,6 +95,8 @@ func (h *Handler) ReplayRequest(c *fiber.Ctx) error {
 		}
 		client.SetHeader(key, values[0])
 	}
+
+	client.SetBody(request.Body)
 
 	requestUrl := fmt.Sprintf("https://%s%s", request.Host, request.Url)
 

@@ -71,9 +71,7 @@
         Request Body
       </h3>
       <div class="rounded-md bg-gray-100 dark:bg-gray-700 p-4 mt-2">
-        <pre
-          class="text-sm font-mono text-gray-800 dark:text-gray-200">{$currentRequest?.Body}
-        </pre>
+        <RenderContent type="request" />
       </div>
     </div>
     <div>
