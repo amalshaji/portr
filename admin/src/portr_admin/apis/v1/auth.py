@@ -22,8 +22,7 @@ async def is_first_signup():
 @api.get("/github")
 async def github_login(request: Request):
     state = generate_oauth_state()
-    redirect_uri = f"{settings.domain_address()}{GITHUB_CALLBACK_URL}?state={state}"
-
+    redirect_uri = f"{settings.domain_address()}{GITHUB_CALLBACK_URL}"
     client = GithubOauth(
         client_id=settings.github_client_id,
         client_secret=settings.github_client_secret,
