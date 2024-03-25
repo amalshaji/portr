@@ -17,20 +17,27 @@ export default defineConfig({
             // Each item here is one entry in the navigation menu.
             { label: "Overview", link: "/getting-started/" },
             {
-              label: "Server Setup",
+              label: "Server",
               items: [
-                { label: "Quickstart", link: "/server-setup/" },
+                { label: "Quickstart", link: "/server/" },
                 {
                   label: "Cloudflare API token",
-                  link: "/server-setup/cloudflare-api-token/",
+                  link: "/server/cloudflare-api-token/",
                 },
                 {
                   label: "Github oauth app",
-                  link: "/server-setup/github-oauth-app/",
+                  link: "/server/github-oauth-app/",
+                },
+                {
+                  label: "Start the server",
+                  link: "/server/start-the-tunnel-server/",
                 },
               ],
             },
-            { label: "Client Setup", link: "/client-setup/" },
+            {
+              label: "Client",
+              items: [{ label: "Installation", link: "/client/installation/" }],
+            },
           ],
         },
       ],

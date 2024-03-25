@@ -1,21 +1,11 @@
 ---
-title: Portr server setup
-description: Guide to setting up portr server
+title: Server setup
 ---
 
 ### Docker images
 
 - [tunnel](https://hub.docker.com/r/amalshaji/portr-tunnel/tags)
 - [admin](https://hub.docker.com/r/amalshaji/portr-admin/tags)
-
-### Prerequisites
-
-- [Cloudflare API token](/server-setup/cloudflare-api-token/) - Required for wildcard subdomain SSL setup
-- [Github oauth app credentials](/server-setup/github-oauth-app/) - Required for admin dashboard login
-- Port `2222` open on the server to accept incoming ssh connections
-- Port range `30001-40001` open on the server to accept incoming tcp connections (only if you intend to use tcp tunnels)
-
-### Quick setup
 
 For quick setup, use the `docker-compose.yml`.
 
@@ -51,7 +41,7 @@ POSTGRES_DB=postgres
 PORTR_ADMIN_ENCRYPTION_KEY=
 ```
 
-Generate a random encryption key using the following command
+Generate an encryption key using the following command
 
 ```shell
 python -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
@@ -65,3 +55,5 @@ If you want to run postgres separately and not as a service, you can exclude the
 
 Run `docker compose up` to start the servers. Once the servers are up, go to example.com and login in to the admin.
 First login will be treated as a superuser.
+
+
