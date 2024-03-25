@@ -16,7 +16,6 @@
       <div></div>
       <div class="flex items-center space-x-2">
         <IssueLink />
-        <Theme />
       </div>
     </div>
     <div class="mx-auto pb-16 pt-6 w-full px-16">
