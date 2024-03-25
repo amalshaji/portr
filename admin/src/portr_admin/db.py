@@ -2,11 +2,22 @@ from tortoise import Tortoise, connections
 from portr_admin.config import settings
 
 TORTOISE_MODELS = [
+    "aerich.models",
     "portr_admin.models.auth",
     "portr_admin.models.user",
     "portr_admin.models.settings",
     "portr_admin.models.connection",
 ]
+
+TORTOISE_ORM = {
+    "connections": {"default": settings.db_url},
+    "apps": {
+        "models": {
+            "models": TORTOISE_MODELS,
+            "default_connection": "default",
+        },
+    },
+}
 
 
 async def connect_db(generate_schemas: bool = False):

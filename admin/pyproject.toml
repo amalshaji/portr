@@ -18,6 +18,7 @@ dependencies = [
     "email-validator>=2.1.0.post1",
     "aiosmtplib>=3.0.1",
     "cryptography>=42.0.5",
+    "aerich>=0.7.2",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"
@@ -46,3 +47,8 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/portr_admin"]
+
+[tool.aerich]
+tortoise_orm = "src.portr_admin.db.TORTOISE_ORM"
+location = "./migrations"
+src_folder = "./."
