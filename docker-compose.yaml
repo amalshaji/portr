@@ -18,6 +18,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     labels:
       caddy_0: $PORTR_DOMAIN
       caddy_0.reverse_proxy: "{{upstreams http 8000}}"

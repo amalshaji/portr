@@ -13,3 +13,8 @@ api.include_router(api_v1_user)
 api.include_router(api_v1_connection)
 api.include_router(api_v1_instance_settings)
 api.include_router(api_v1_config)
+
+
+@api.get("/healthcheck", tags=["healthcheck"])
+async def healthcheck():
+    return {"status": "ok"}
