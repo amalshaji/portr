@@ -16,7 +16,8 @@ services:
     env_file: .env
     restart: unless-stopped
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     labels:
       caddy_0: $PORTR_DOMAIN
       caddy_0.reverse_proxy: "{{upstreams http 8000}}"
@@ -31,8 +32,10 @@ services:
     env_file: .env
     restart: unless-stopped
     depends_on:
-      - admin
-      - postgres
+      admin:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     labels:
       caddy_1: "*.$PORTR_DOMAIN"
       caddy_1.reverse_proxy: "{{upstreams http 8001}}"
@@ -49,6 +52,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data: {}
