@@ -9,28 +9,28 @@
   <img alt="Documentation" src="https://img.shields.io/badge/Documentation-portr.dev-0096FF?link=https%3A%2F%2Fportr.dev">
 </div>
 
-Portr is a tunnel solution which let's you expose local http and tcp connections to the public internet. It uses ssh remote port forwarding under the hood to tunnel connections.
+Portr is a tunnel solution that allows you to expose local HTTP and TCP connections to the public internet. It utilizes SSH remote port forwarding under the hood to securely tunnel connections.
 
-Portr is designed for small teams, to expose development servers on a public URL. Portr is not recommeded to be put alongside your production servers.
+Portr is primarily designed for small teams looking to expose development servers on a public URL. It is not recommended for use alongside production servers.
 
-> [!CAUTION]
-> Portr is still in beta. Expect bugs and breaking changes.
+> [!WARNING]
+> Portr is currently in beta. Expect bugs and anticipate breaking changes.
 
 ## Features
 
-- Tunnel http/tcp connections.
-- Admin server to manage teams/users. [Watch video](https://youtu.be/P37la8DjrzA).
-- Client dashboard to inspect and replay requests [Watch video](https://youtu.be/hhbte2JI3qk).
+- Easily tunnel HTTP and TCP connections.
+- Admin server for team/user management. [Watch video](https://youtu.be/P37la8DjrzA).
+- Client dashboard for inspecting and replaying requests. [Watch video](https://youtu.be/hhbte2JI3qk).
 
 ## Setup
 
-- [Server setup](https://portr.dev/server/)
-- [Client setup](https://portr.dev/client/installation/)
+- [Server setup guide](https://portr.dev/server/)
+- [Client installation guide](https://portr.dev/client/installation/)
 
 ## Contributing
 
-This is in progress.
+Contribution doc and local setup guide is in progress.
 
 ## License
 
-This project is under the AGPLv3 License. See the [LICENSE](/LICENSE) file for the full license text.
+This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). See the  [LICENSE](/LICENSE) file for the full license text.
