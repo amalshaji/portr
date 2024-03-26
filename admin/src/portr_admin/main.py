@@ -23,7 +23,7 @@ templates = Jinja2Templates(directory="src/portr_admin/templates")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # connect to database
-    await connect_db(generate_schemas=True)
+    await connect_db()
     yield
     # disconnect all db connections
     await disconnect_db()
