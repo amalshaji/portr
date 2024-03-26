@@ -1,13 +1,17 @@
 
-<div align="center" style="margin-bottom: 20px">
+<div align="center">
   <img src="docs/src/assets/logo.svg" height="75px">
 </div>
 
-<div align="center" style="margin-bottom: 20px">
+<br />
+
+<div align="center">
   <img alt="GitHub License" src="https://img.shields.io/github/license/amalshaji/portr">
   <img alt="GitHub Release" src="https://img.shields.io/github/v/release/amalshaji/portr">
   <img alt="Documentation" src="https://img.shields.io/badge/Documentation-portr.dev-0096FF?link=https%3A%2F%2Fportr.dev">
 </div>
+
+<br />
 
 Portr is a tunnel solution that allows you to expose local HTTP and TCP connections to the public internet. It utilizes SSH remote port forwarding under the hood to securely tunnel connections.
 
