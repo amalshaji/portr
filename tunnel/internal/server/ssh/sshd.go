@@ -12,6 +12,7 @@ import (
 	"github.com/amalshaji/portr/internal/constants"
 
 	"github.com/amalshaji/portr/internal/server/config"
+	"github.com/amalshaji/portr/internal/server/db"
 	"github.com/amalshaji/portr/internal/server/proxy"
 	"github.com/amalshaji/portr/internal/server/service"
 	"github.com/amalshaji/portr/internal/utils"
@@ -39,6 +40,28 @@ func (s *SshServer) GetServerAddr() string {
 	return ":" + fmt.Sprint(s.config.Port)
 }
 
+func (s *SshServer) GetReservedConnectionFromSshContext(ctx ssh.Context) (*db.Connection, error) {
+	userSplit := strings.Split(ctx.User(), ":")
+	if len(userSplit) != 2 {
+		return nil, fmt.Errorf("invalid user format")
+	}
+
+	connectionId, secretKey := userSplit[0], userSplit[1]
+
+	reservedConnection, err := s.service.GetReservedConnectionById(ctx, connectionId)
+	if err != nil {
+		s.log.Error("failed to get reserved connection", "error", err)
+		return nil, fmt.Errorf("failed to get reserved connection")
+	}
+
+	if reservedConnection.CreatedBy.SecretKey != secretKey {
+		s.log.Error("connection not created by the user")
+		return nil, fmt.Errorf("connection not created by the user")
+	}
+
+	return reservedConnection, nil
+}
+
 func (s *SshServer) Start() {
 	forwardHandler := &ssh.ForwardedTCPHandler{}
 
@@ -48,21 +71,8 @@ func (s *SshServer) Start() {
 			select {}
 		}),
 		ReversePortForwardingCallback: ssh.ReversePortForwardingCallback(func(ctx ssh.Context, host string, port uint32) bool {
-			userSplit := strings.Split(ctx.User(), ":")
-			if len(userSplit) != 2 {
-				return false
-			}
-
-			connectionId, secretKey := userSplit[0], userSplit[1]
-
-			reservedConnection, err := s.service.GetReservedConnectionById(ctx, connectionId)
+			reservedConnection, err := s.GetReservedConnectionFromSshContext(ctx)
 			if err != nil {
-				s.log.Error("failed to get reserved connection", "error", err)
-				return false
-			}
-
-			if reservedConnection.CreatedBy.SecretKey != secretKey {
-				s.log.Error("connection not created by the user")
 				return false
 			}
 
@@ -113,7 +123,8 @@ func (s *SshServer) Start() {
 			"cancel-tcpip-forward": forwardHandler.HandleSSHRequest,
 		},
 		PasswordHandler: func(ctx ssh.Context, password string) bool {
-			return true
+			_, err := s.GetReservedConnectionFromSshContext(ctx)
+			return err == nil
 		},
 	}
 
