@@ -2,7 +2,6 @@
   import "./app.pcss";
   import { Router, Route } from "svelte-routing";
   import { Toaster } from "svelte-sonner";
-  // import { ModeWatcher } from "mode-watcher";
   import Home from "./pages/home.svelte";
   import Notfound from "./pages/notfound.svelte";
   import App from "./pages/app/app.svelte";
@@ -10,8 +9,6 @@
   import NewTeam from "./pages/new-team.svelte";
   export let url = "";
 </script>
-
-<!-- <ModeWatcher /> -->
 
 <Toaster position="top-right" />
 

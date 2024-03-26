@@ -1,6 +1,5 @@
 <script lang="ts">
   import IssueLink from "$lib/components/issue-link.svelte";
-  import Theme from "$lib/components/theme.svelte";
 </script>
 
 <div class="flex">
