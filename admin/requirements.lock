@@ -41,6 +41,8 @@ email-validator==2.1.0.post1
     # via portr-admin
 fastapi==0.109.2
     # via portr-admin
+gunicorn==21.2.0
+    # via portr-admin
 h11==0.14.0
     # via httpcore
     # via uvicorn
@@ -60,6 +62,8 @@ markupsafe==2.1.5
     # via jinja2
 nanoid==2.0.0
     # via portr-admin
+packaging==24.0
+    # via gunicorn
 pycparser==2.21
     # via cffi
 pydantic==2.6.1
