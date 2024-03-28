@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Portr - Tunnel Subdomain Not Registered</title>
+    <title>Portr - Unregistered subdomain</title>
     <link rel="preconnect" href="https://rsms.me/" />
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
     <script src="https://cdn.tailwindcss.com"></script>
@@ -21,22 +21,22 @@
   </head>
   <body>
     <div
-      class="min-h-screen bg-gray-50 flex flex-col justify-center items-center px-4"
+      class="flex min-h-screen flex-col items-center justify-center bg-gray-100 px-4"
     >
-      <div class="max-w-2xl w-full bg-white p-8 rounded-lg shadow-2xl">
-        <h1 class="text-4xl font-bold text-center text-gray-900 mb-8">
-          Tunnel Subdomain Unregistered
+      <div class="w-full max-w-2xl rounded-sm border bg-white p-8">
+        <h1 class="mb-8 text-left text-3xl font-semibold text-gray-900">
+          Unregistered subdomain
         </h1>
-        <p class="text-xl text-center text-gray-600 mb-6">
-          Initiate a new tunnel connection with the command below:
+        <p class="mb-6 text-left text-lg text-gray-600">
+          Create a new tunnel connection with the command below:
         </p>
-        <div class="bg-gray-100 rounded-lg p-6 font-mono text-base mb-8">
+        <div class="mb-8 rounded-lg bg-gray-100 p-6 font-mono text-base">
           <p>portr http 8000 -s {{subdomain}}</p>
         </div>
-        <p class="text-center text-gray-600">
+        <p class="text-left text-gray-600">
           Visit
           <a
-            class="text-green-500 hover:underline"
+            class="text-blue-500 hover:underline"
             href="https://portr.dev"
             target="_blank"
           >

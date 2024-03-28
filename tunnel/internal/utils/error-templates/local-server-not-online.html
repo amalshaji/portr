@@ -21,41 +21,45 @@
   </head>
   <body>
     <div
-      class="flex h-screen w-full flex-col items-center justify-center bg-gray-100 p-4 text-center"
+      class="flex min-h-screen flex-col items-center justify-center bg-gray-100 px-4"
     >
-      <h1 class="mb-2 text-3xl font-bold text-gray-800">Connection Error</h1>
-      <p class="mb-6 text-lg text-gray-600">
-        We're having trouble connecting to the server.
-      </p>
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        class="mb-4 h-20 w-20 text-gray-500"
-      >
-        <path d="m2 2 20 20"></path>
-        <path
-          d="M5.782 5.782A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.307-.193"
-        ></path>
-        <path
-          d="M21.532 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7.008 7.008 0 0 0 10 5.07"
-        ></path>
-      </svg>
-      <p class="mb-4 text-sm text-gray-500">
-        Please check that the local server is running and accessible.
-      </p>
-      <button
-        onclick="location.reload()"
-        class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-4 py-2 mx-auto"
-      >
-        Reload Page
-      </button>
+      <div class="w-full max-w-2xl rounded-sm border bg-white p-8 text-center">
+        <h1 class="mb-2 text-3xl font-semibold text-gray-800">
+          Connection error
+        </h1>
+        <p class="mb-6 text-lg text-gray-600">
+          We're having trouble connecting to the server.
+        </p>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="mx-auto mb-4 h-20 w-20 text-gray-500"
+        >
+          <path d="m2 2 20 20"></path>
+          <path
+            d="M5.782 5.782A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.307-.193"
+          ></path>
+          <path
+            d="M21.532 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7.008 7.008 0 0 0 10 5.07"
+          ></path>
+        </svg>
+        <p class="mb-4 text-sm text-gray-500">
+          Please check if the local server is running and is accessible.
+        </p>
+        <button
+          onclick="location.reload()"
+          class="ring-offset-background focus-visible:ring-ring bg-secondary text-secondary-foreground hover:bg-secondary/80 mx-auto inline-flex h-10 items-center justify-center whitespace-nowrap rounded-md border px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+        >
+          Reload Page
+        </button>
+      </div>
     </div>
   </body>
 </html>
