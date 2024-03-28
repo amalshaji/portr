@@ -86,12 +86,6 @@ func (s *SshServer) Start() {
 				}
 			}
 
-			err = s.service.MarkConnectionAsActive(ctx, reservedConnection.ID)
-			if err != nil {
-				s.log.Error("failed to mark connection as active", "error", err)
-				return false
-			}
-
 			if reservedConnection.Type == string(constants.Http) {
 				err = s.proxy.AddRoute(*reservedConnection.Subdomain, proxyTarget)
 				if err != nil {
@@ -100,14 +94,22 @@ func (s *SshServer) Start() {
 				}
 			}
 
+			err = s.service.MarkConnectionAsActive(ctx, reservedConnection.ID)
+			fmt.Printf("Marking connection as active %s\n", reservedConnection.ID)
+			if err != nil {
+				s.log.Error("failed to mark connection as active", "error", err)
+				return false
+			}
+
 			go func() {
 				<-ctx.Done()
+
 				err = s.service.MarkConnectionAsClosed(context.Background(), reservedConnection.ID)
 				if err != nil {
 					s.log.Error("failed to mark connection as closed", "error", err)
 				}
 
-				if *reservedConnection.Subdomain == string(constants.Http) {
+				if reservedConnection.Type == string(constants.Http) {
 					err := s.proxy.RemoveRoute(*reservedConnection.Subdomain)
 					if err != nil {
 						s.log.Error("failed to remove route", "error", err)
