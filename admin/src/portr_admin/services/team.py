@@ -28,7 +28,7 @@ async def send_notification(
         "teamName": team.name,
         "email": email,
         "appUrl": settings.domain_address(),
-        "dashboardUrl": f"{settings.domain_address()}/{team.name}/overview",
+        "dashboardUrl": f"{settings.domain_address()}/{team.slug}/overview",
     }
 
     subject = render_template(instance_settings.add_user_email_subject, context)
