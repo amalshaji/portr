@@ -56,9 +56,12 @@ class InstanceSettingsTests(test.TestCase):
         assert data["add_user_email_subject"] == DEFAULT_ADD_USER_EMAIL_SUBJECT
         assert data["add_user_email_body"] == DEFAULT_ADD_USER_EMAIL_BODY
 
+        assert "smtp_password" not in data
+
     async def test_update_settings_with_superuser_should_pass(self):
         resp = self.superuser_client.patch(
-            "/api/v1/instance-settings/", json={"smtp_enabled": True}
+            "/api/v1/instance-settings/",
+            json={"smtp_enabled": True, "smtp_password": "new_password"},
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -67,3 +70,4 @@ class InstanceSettingsTests(test.TestCase):
 
         updated_settings = await InstanceSettings.first()
         assert updated_settings.smtp_enabled is True
+        assert updated_settings.smtp_password == "new_password"
