@@ -8,7 +8,7 @@
   <span>{email}</span>
   <span
     >{#if is_superuser}
-      <Badge class="rounded-full">superuser</Badge>
+      <Badge class="rounded-full font-light">superuser</Badge>
     {/if}
   </span>
 </p>
