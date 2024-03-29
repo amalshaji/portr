@@ -90,7 +90,7 @@ func New(db *db.Db, config *config.Config) *Dashboard {
 }
 
 func (d *Dashboard) Start() {
-	fmt.Println("Dashboard running on http://localhost:7777")
+	fmt.Println("🚨 Portr inspector running on http://localhost:7777")
 
 	if err := d.app.Listen(":" + fmt.Sprint(d.port)); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		if d.config.Debug {

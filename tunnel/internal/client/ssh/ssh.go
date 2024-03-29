@@ -134,13 +134,13 @@ func (s *SshClient) startListenerForClient() error {
 
 	if tunnelType == constants.Http {
 		fmt.Printf(
-			"Tunnel connected: %s -> 🌐 -> %s\n",
+			"🎉 Tunnel connected: %s -> 👾 -> %s\n",
 			s.config.GetHttpTunnelAddr(),
 			s.config.Tunnel.GetLocalAddr(),
 		)
 	} else {
 		fmt.Printf(
-			"Tunnel connected: %s -> 🌐 -> %s\n",
+			"🎉 Tunnel connected: %s -> 🌐 -> %s\n",
 			s.config.GetTcpTunnelAddr(remotePort),
 			s.config.Tunnel.GetLocalAddr(),
 		)
@@ -342,7 +342,7 @@ func (s *SshClient) Shutdown(ctx context.Context) error {
 }
 
 func (s *SshClient) Start(_ context.Context) {
-	fmt.Println("Tunnel connecting...")
+	fmt.Printf("🌍 Starting tunnel connection for :%d\n", s.config.Tunnel.Port)
 
 	if err := s.startListenerForClient(); err != nil {
 		fmt.Println()
