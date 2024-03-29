@@ -1,19 +1,18 @@
 <script lang="ts">
   import DataTable from "$lib/components/data-table.svelte";
-  // @ts-expect-error
-  import { createTable, createRender } from "svelte-headless-table";
-  import { users, usersLoading } from "$lib/store";
-  import { getContext, onMount } from "svelte";
-  import Avatar from "./avatar.svelte";
+  import { Button } from "$lib/components/ui/button";
+  import InviteUser from "$lib/components/users/invite-user.svelte";
+  import { currentUser, users, usersLoading } from "$lib/store";
   import type { TeamUser } from "$lib/types";
-  import UserEmail from "./user-email.svelte";
   import { updateQueryParam } from "$lib/utils";
+  import { getContext, onMount } from "svelte";
+  // @ts-expect-error
+  import { createRender, createTable } from "svelte-headless-table";
   import { writable } from "svelte/store";
   import Pagination from "../Pagination.svelte";
-  import InviteUser from "$lib/components/users/invite-user.svelte";
-  import { currentUser } from "$lib/store";
-  let addMemberModalOpen = false;
-  import { Button } from "$lib/components/ui/button";
+  import Avatar from "./avatar.svelte";
+  import Delete from "./delete.svelte";
+  import UserEmail from "./user-email.svelte";
 
   const urlParams = new URLSearchParams(window.location.search);
 
@@ -61,7 +60,6 @@
           is_superuser: item.value.user.is_superuser,
         }),
     }),
-
     table.column({
       header: "Role",
       accessor: (item: TeamUser) => item.role,
@@ -73,6 +71,14 @@
         createRender(Avatar, {
           url: item.value.user.github_user?.github_avatar_url,
           fallback: item.value.user.email,
+        }),
+    }),
+    table.column({
+      accessor: (item: TeamUser) => item,
+      header: "",
+      cell: (item: any) =>
+        createRender(Delete, {
+          user: item.value,
         }),
     }),
   ]);
