@@ -1,6 +1,6 @@
 <script lang="ts">
+  import { ArrowLeft } from "lucide-svelte";
   import Button from "./ui/button/button.svelte";
-  import { SkipBack } from "lucide-svelte";
 
   const goBack = () => {
     console.log(history.state);
@@ -13,6 +13,6 @@
 </script>
 
 <Button on:click={goBack} class="w-full" variant="secondary">
-  <SkipBack class="h-4 w-4 mr-2" />
+  <ArrowLeft class="h-4 w-4 mr-2" />
   Go Back
 </Button>
