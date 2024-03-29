@@ -75,6 +75,7 @@ func (p *Proxy) RemoveRoute(src string) error {
 
 func unregisteredSubdomainError(w http.ResponseWriter, subdomain string) {
 	w.Header().Set("X-Portr-Error", "true")
+	w.Header().Set("X-Portr-Error-Reason", "unregistered-subdomain")
 	w.WriteHeader(http.StatusNotFound)
 	w.Write([]byte(utils.UnregisteredSubdomain(subdomain)))
 }

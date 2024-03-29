@@ -100,21 +100,37 @@ func (h *Handler) ReplayRequest(c *fiber.Ctx) error {
 
 	requestUrl := fmt.Sprintf("https://%s%s", request.Host, request.Url)
 
+	var response *resty.Response
+
 	switch request.Method {
 	case "GET":
-		client.Get(requestUrl)
+		response, err = client.Get(requestUrl)
 	case "POST":
-		client.Post(requestUrl)
+		response, err = client.Post(requestUrl)
 	case "PUT":
-		client.Put(requestUrl)
+		response, err = client.Put(requestUrl)
 	case "DELETE":
-		client.Delete(requestUrl)
+		response, err = client.Delete(requestUrl)
 	case "PATCH":
-		client.Patch(requestUrl)
+		response, err = client.Patch(requestUrl)
 	case "OPTIONS":
-		client.Options(requestUrl)
+		response, err = client.Options(requestUrl)
 	case "HEAD":
-		client.Head(requestUrl)
+		response, err = client.Head(requestUrl)
+	}
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to replay request"})
+	}
+
+	xPortrErrorReason := response.Header().Get("X-Portr-Error-Reason")
+	if xPortrErrorReason != "" {
+		switch xPortrErrorReason {
+		case "unregistered-subdomain":
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "The tunnel is not active. Please start the tunnel and try again"})
+		case "local-server-not-online":
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "The local server is not online. Please start the local server and try again"})
+		}
 	}
 
 	return c.JSON(fiber.Map{"message": "replayed request"})

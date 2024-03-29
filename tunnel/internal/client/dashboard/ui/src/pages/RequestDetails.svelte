@@ -23,7 +23,8 @@
         `/api/tunnels/replay/${$currentRequest?.ID}`
       );
       if (!response.ok) {
-        toast.error("Failed to replay request");
+        const { message } = await response.json();
+        toast.error(message);
         return;
       }
       toast.success("Request replayed successfully");

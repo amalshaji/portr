@@ -165,7 +165,9 @@ func (s *SshClient) startListenerForClient() error {
 				htmlContent := utils.LocalServerNotOnline(localEndpoint)
 				fmt.Fprintf(remoteConn, "HTTP/1.1 503 Service Unavailable\r\n")
 				fmt.Fprintf(remoteConn, "Content-Length: %d\r\n", len(htmlContent))
-				fmt.Fprintf(remoteConn, "Content-Type: text/html\r\n\r\n")
+				fmt.Fprintf(remoteConn, "Content-Type: text/html\r\n")
+				fmt.Fprintf(remoteConn, "X-Portr-Error: true\r\n")
+				fmt.Fprintf(remoteConn, "X-Portr-Error-Reason: local-server-not-online\r\n\r\n")
 				fmt.Fprint(remoteConn, htmlContent)
 			}
 			remoteConn.Close()
