@@ -134,7 +134,7 @@ func (s *SshClient) startListenerForClient() error {
 
 	if tunnelType == constants.Http {
 		fmt.Printf(
-			"🎉 Tunnel connected: %s -> 👾 -> %s\n",
+			"🎉 Tunnel connected: %s -> 🌐 -> %s\n",
 			s.config.GetHttpTunnelAddr(),
 			s.config.Tunnel.GetLocalAddr(),
 		)
