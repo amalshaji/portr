@@ -119,7 +119,7 @@
   });
 </script>
 
-<Card.Root class="rounded-sm border-none shadow-none w-1/2">
+<Card.Root class="rounded-sm border-none shadow-none w-full">
   <Card.Header class="space-y-3">
     <Card.Title>Email Settings</Card.Title>
     <Card.Description>Configure email settings</Card.Description>
