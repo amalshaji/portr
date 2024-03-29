@@ -8,7 +8,7 @@
 <div align="center">
   <img alt="GitHub License" src="https://img.shields.io/github/license/amalshaji/portr">
   <img alt="GitHub Release" src="https://img.shields.io/github/v/release/amalshaji/portr">
-  <img alt="Documentation" src="https://img.shields.io/badge/Documentation-portr.dev-0096FF?link=https%3A%2F%2Fportr.dev">
+  <a href="https://portr.dev" target="_blank"><img alt="Documentation" src="https://img.shields.io/badge/Documentation-portr.dev-0096FF"></a>
 </div>
 
 <br />
