@@ -14,6 +14,8 @@
   import Delete from "./delete.svelte";
   import UserEmail from "./user-email.svelte";
 
+  let addMemberModalOpen = false;
+
   const urlParams = new URLSearchParams(window.location.search);
 
   let pageNo = writable(1);
