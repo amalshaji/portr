@@ -3,7 +3,8 @@
     ArrowUpDown,
     BadgePlus,
     Home,
-    MoreVertical,
+    // @ts-ignore
+    EllipsisVertical,
     Settings,
     Settings2Icon,
     User,
@@ -97,7 +98,7 @@
               <Button
                 builders={[builder]}
                 variant="ghost"
-                class="space-x-1 justify-between w-full text-left"
+                class="justify-between w-full text-left"
               >
                 <div class="flex items-center space-x-1">
                   <img
@@ -106,13 +107,15 @@
                     alt="avatar"
                   />
                   <span
-                    class="text-sm font-medium text-gray-700 dark:text-gray-200 overflow-clip text-ellipsis"
+                    class="text-sm font-medium text-gray-700 dark:text-gray-200 overflow-clip text-ellipsis w-4/5"
                     >{$currentUser?.user.first_name
                       ? `${$currentUser?.user.first_name} ${$currentUser?.user.last_name}`
                       : $currentUser?.user.email}</span
                   >
                 </div>
-                <MoreVertical strokeWidth={1.5} class="h-4 w-4" />
+                <div>
+                  <EllipsisVertical class="h-3" />
+                </div>
               </Button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content class="w-52 space-y-2">
@@ -122,21 +125,21 @@
                     to="/instance-settings"
                     class="flex w-full items-center"
                   >
-                    <Settings2Icon strokeWidth={1.5} class="h-4 w-4" />
+                    <Settings2Icon class="h-4 w-4" />
                     <span class="mx-2">Instance settings</span>
                   </Link>
                 </DropdownMenu.Item>
                 <Separator />
                 <DropdownMenu.Item class="hover:cursor-pointer">
                   <Link to="/new-team" class="flex w-full items-center">
-                    <BadgePlus strokeWidth={1.5} class="h-4 w-4" />
+                    <BadgePlus class="h-4 w-4" />
                     <span class="mx-2">New team</span>
                   </Link>
                 </DropdownMenu.Item>
                 <Separator />
               {/if}
               <DropdownMenu.Item on:click={logout} class="hover:cursor-pointer">
-                <LogOut strokeWidth={1.5} class="h-4 w-4" />
+                <LogOut class="h-4 w-4" />
                 <span class="mx-2">Logout</span>
               </DropdownMenu.Item>
             </DropdownMenu.Content>

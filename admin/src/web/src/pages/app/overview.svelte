@@ -39,7 +39,7 @@
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-static-element-interactions -->
       <div
-        class="border rounded-lg w-3/4 bg-zinc-100 dark:bg-zinc-800 text-sm"
+        class="border rounded-lg w-3/4 bg-[#F4F4F5] text-sm"
         on:click={() => copyCodeToClipboard($setupScript)}
       >
         <pre class="px-4 py-3 overflow-auto">{"$ " + $setupScript}</pre>
