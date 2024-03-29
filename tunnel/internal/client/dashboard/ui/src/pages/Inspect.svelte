@@ -65,17 +65,14 @@
 
 <div class="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
   <header
-    class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-800 bg-white dark:bg-gray-800"
+    class="flex items-center justify-between px-6 py-2 border-b dark:border-gray-800 bg-white dark:bg-gray-800"
   >
-    <Link
-      to="/"
-      class="text-3xl font-semibold text-gray-800 dark:text-gray-200"
-    >
-      <img src="/static/logo.svg" alt="Portr Inspector 🚨" class="h-12" />
+    <Link to="/" class="text-gray-800 dark:text-gray-200">
+      <p class="text-2xl font-semibold">Portr inspector 🚨</p>
     </Link>
     <div class="flex items-center space-x-4">
       <input
-        class="flex h-10 rounded-md border outline-none px-3 py-2 text-sm w-64"
+        class="flex h-10 rounded-md border outline-none px-3 py-1 text-sm w-64"
         placeholder="Filter URL"
         bind:value={search}
         on:input={(e) => filterRequestsBasedOnUrl()}
