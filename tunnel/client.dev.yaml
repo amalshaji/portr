@@ -1,0 +1,14 @@
+server_url: localhost:8000
+ssh_url: localhost:2222
+tunnel_url: localhost:8001
+secret_key:
+use_vite: true
+use_localhost: true
+debug: true
+tunnels:
+  - name: portr
+    subdomain: portr
+    port: 4321
+  - name: amal-test
+    subdomain: amal-test
+    port: 9000

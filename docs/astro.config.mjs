@@ -38,6 +38,20 @@ export default defineConfig({
               label: "Client",
               items: [{ label: "Installation", link: "/client/installation/" }],
             },
+            {
+              label: "Local development",
+              items: [
+                { label: "Admin", link: "/local-development/admin/" },
+                {
+                  label: "Tunnel server",
+                  link: "/local-development/tunnel-server/",
+                },
+                {
+                  label: "Portr client",
+                  link: "/local-development/portr-client/",
+                },
+              ],
+            },
           ],
         },
       ],

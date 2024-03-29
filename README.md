@@ -33,7 +33,7 @@ Portr is primarily designed for small teams looking to expose development server
 
 ## Contributing
 
-Contribution doc and local setup guide is in progress.
+Please read through [our contributing guide](.github/contributing.md) and set up your [development environment](https://portr.dev/local-development/admin/).
 
 ## License
 
