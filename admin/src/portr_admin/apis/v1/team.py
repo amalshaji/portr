@@ -53,3 +53,24 @@ async def add_user(
         set_superuser=data.set_superuser,
     )
     return resp
+
+
+@api.delete("/users/{user_id}")
+async def remove_user(
+    user_id: int,
+    team_user: TeamUser = Depends(security.requires_admin),
+):
+    team_user_to_delete = (
+        await TeamUser.filter()
+        .select_related("user")
+        .get_or_none(id=user_id, team=team_user.team)
+    )
+    if team_user_to_delete is None:
+        raise PermissionDenied("User not found in team")
+
+    if team_user_to_delete.user.is_superuser and not team_user.user.is_superuser:
+        raise PermissionDenied("Only superuser can remove superuser from team")
+
+    await TeamUser.filter(id=user_id).delete()
+
+    return {"status": "ok"}
