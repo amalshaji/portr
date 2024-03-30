@@ -5,8 +5,14 @@ services:
     ports:
       - 8000:8000
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     env_file: .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   tunnel:
     build:
@@ -16,20 +22,27 @@ services:
       - 2222:2222
       - 8001:8001
     depends_on:
-      - admin
-      - postgres
+      admin:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     env_file: .env
 
   postgres:
     image: postgres:16.2
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres
+      POSTGRES_USER: $POSTGRES_USER
+      POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+      POSTGRES_DB: $POSTGRES_DB
     ports:
       - 5432:5432
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data: {}

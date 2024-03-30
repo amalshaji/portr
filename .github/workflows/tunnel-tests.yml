@@ -1,0 +1,85 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: Tunnel tests
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "admin/**"
+      - "tunnel/**"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "admin/**"
+      - "tunnel/**"
+
+permissions:
+  contents: read
+
+env:
+  PORTR_DB_URL: "postgres://postgres:postgres@postgres:5432/postgres"
+  PORTR_DOMAIN: localhost:8000
+  PORTR_ADMIN_GITHUB_CLIENT_ID: ""
+  PORTR_ADMIN_GITHUB_CLIENT_SECRET: ""
+  PORTR_SERVER_URL: localhost:8000
+  PORTR_SSH_URL: localhost:2222
+  PORTR_TUNNEL_USE_LOCALHOST: true
+  PORTR_ADMIN_ENCRYPTION_KEY: "mj-qoeMhLQp_cHnMU9nsLfCMnNkZ6XBcFefy4VxzOe8="
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_DB: postgres
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Start the services
+        run: |
+          docker-compose -f docker-compose.test.yml up -d
+          sleep 5
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: e2e/requirements.txt
+
+      - name: Setup test server
+        working-directory: ./e2e
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start test server
+        working-directory: ./e2e
+        run: |
+          uvicorn server:app --host 0.0.0.0 --port 9000 &
+          sleep 3
+
+      - name: Build portr binary
+        working-directory: ./tunnel
+        run: |
+          go build -ldflags="-s -w" -o ../e2e/portr cmd/portr/*.go
+
+      - name: Start the tunnel
+        working-directory: ./e2e
+        run: |
+          ./portr --config client.e2e.yaml http 9000 --subdomain test-tunnel-server &
+          sleep 3
+
+      - name: Setup test data
+        run: |
+          make load-pg-data
+
+      - name: Add hosts to /etc/hosts
+        run: |
+          sudo echo "127.0.0.1 test-tunnel-server.localhost" | sudo tee -a /etc/hosts
+
+      - name: Run tests
+        run: |
+          python test_server.py
