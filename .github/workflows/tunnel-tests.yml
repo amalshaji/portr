@@ -26,6 +26,7 @@ jobs:
 
       - name: Start the services
         run: |
+          cp ./e2e/.env .env
           docker-compose -f docker-compose.dev.yaml up -d
           sleep 5
 
