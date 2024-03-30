@@ -32,14 +32,14 @@ env:
   POSTGRES_DB: postgres
 
 jobs:
-  build:
+  run-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
       - name: Start the services
         run: |
-          docker-compose -f docker-compose.test.yml up -d
+          docker-compose -f docker-compose.dev.yaml up -d
           sleep 5
 
       - name: Set up Python 3.12
