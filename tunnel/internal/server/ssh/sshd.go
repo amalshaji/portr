@@ -95,7 +95,6 @@ func (s *SshServer) Start() {
 			}
 
 			err = s.service.MarkConnectionAsActive(ctx, reservedConnection.ID)
-			fmt.Printf("Marking connection as active %s\n", reservedConnection.ID)
 			if err != nil {
 				s.log.Error("failed to mark connection as active", "error", err)
 				return false
