@@ -20,6 +20,7 @@ type Tunnel struct {
 	Port      int                      `yaml:"port"`
 	Host      string                   `yaml:"host"`
 	Type      constants.ConnectionType `yaml:"type"`
+	Auth      string                   `yaml:"auth"`
 }
 
 func (t *Tunnel) SetDefaults() {

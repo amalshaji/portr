@@ -65,6 +65,7 @@ func (s *SshClient) createNewConnection() (string, error) {
 
 	if s.config.Tunnel.Type == constants.Http {
 		payload["subdomain"] = s.config.Tunnel.Subdomain
+		payload["auth"] = s.config.Tunnel.Auth
 	}
 
 	resp, err := request.SetBody(payload).Post(s.config.GetServerAddr() + "/api/v1/connections/")

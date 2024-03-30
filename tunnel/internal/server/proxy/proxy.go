@@ -91,11 +91,26 @@ func (p *Proxy) reverseProxy(target *url.URL) *httputil.ReverseProxy {
 	return proxy
 }
 
+// Replace with credentials from the proxy route
+func checkCredentials(username, password string) bool {
+	return username == "admin" && password == "admin"
+}
+
 func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 	subdomain := p.config.ExtractSubdomain(r.Host)
 	target, err := p.GetRoute(subdomain)
 	if err != nil {
 		unregisteredSubdomainError(w, subdomain)
+		return
+	}
+
+	username, password, ok := r.BasicAuth()
+	if !ok || !checkCredentials(username, password) {
+		// Authentication failed, send a 401 Unauthorized response
+		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+		w.Header().Set("Cache-Control", "no-store") // Disable caching
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprintln(w, "401 Unauthorized")
 		return
 	}
 
