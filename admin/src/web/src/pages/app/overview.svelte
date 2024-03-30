@@ -29,7 +29,7 @@
   <ul class="list-decimal space-y-6">
     <li>
       Setup up the portr client from the <a
-        href="https://portr.dev/client-setup/"
+        href="https://portr.dev/client/installation/"
         target="_blank"
         class="underline">docs</a
       >
@@ -55,7 +55,7 @@
       >
       or checkout the
       <a
-        href="https://portr.dev/client-setup/"
+        href="https://portr.dev/client/installation/"
         target="_blank"
         class="underline">client docs</a
       > for more info.
