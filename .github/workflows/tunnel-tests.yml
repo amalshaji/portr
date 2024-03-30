@@ -73,6 +73,7 @@ jobs:
           sleep 3
 
       - name: Setup test data
+        working-directory: ./e2e
         run: |
           make load-pg-data
 
