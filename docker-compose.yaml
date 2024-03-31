@@ -9,7 +9,7 @@ services:
     network_mode: "host"
 
   admin:
-    image: ghcr.io/amalshaji/admin:main
+    image: amalshaji/portr-admin:0.0.10-beta
     network_mode: "host"
     env_file: .env
     restart: unless-stopped
@@ -27,9 +27,7 @@ services:
       caddy_0.encode: gzip
 
   tunnel:
-    build:
-      # use an image
-      context: tunnel
+    image: amalshaji/portr-tunnel:0.0.10-beta
     command: ["start"]
     network_mode: "host"
     env_file: .env
