@@ -82,5 +82,6 @@ jobs:
           sudo echo "127.0.0.1 test-tunnel-server.localhost" | sudo tee -a /etc/hosts
 
       - name: Run tests
+        working-directory: ./e2e
         run: |
           python test_server.py
