@@ -84,4 +84,4 @@ jobs:
       - name: Run tests
         working-directory: ./e2e
         run: |
-          python test_server.py
+          pytest
