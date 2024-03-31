@@ -1,5 +1,6 @@
 services:
   admin:
+    container_name: portr_admin
     build:
       context: admin
     ports:
@@ -15,6 +16,7 @@ services:
       retries: 5
 
   tunnel:
+    container_name: portr_tunnel
     build:
       context: tunnel
     command: ["start"]
@@ -29,6 +31,7 @@ services:
     env_file: .env
 
   postgres:
+    container_name: portr_postgres
     image: postgres:16.2
     environment:
       POSTGRES_USER: $POSTGRES_USER
