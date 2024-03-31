@@ -9,9 +9,7 @@ services:
     network_mode: "host"
 
   admin:
-    build:
-      # use an image
-      context: admin
+    image: ghcr.io/amalshaji/admin:main
     network_mode: "host"
     env_file: .env
     restart: unless-stopped
