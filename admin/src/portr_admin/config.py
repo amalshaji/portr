@@ -9,8 +9,10 @@ class Settings(BaseSettings):
     use_vite: bool = Field(default=False, alias="PORTR_ADMIN_USE_VITE")
     encryption_key: str = Field(alias="PORTR_ADMIN_ENCRYPTION_KEY")
 
-    github_client_id: str = Field(alias="PORTR_ADMIN_GITHUB_CLIENT_ID")
-    github_client_secret: str = Field(alias="PORTR_ADMIN_GITHUB_CLIENT_SECRET")
+    github_client_id: str = Field(alias="PORTR_ADMIN_GITHUB_CLIENT_ID", default="")
+    github_client_secret: str = Field(alias="PORTR_ADMIN_GITHUB_CLIENT_SECRET", default="")
+
+    remote_user_header: str = Field(alias="PORTR_ADMIN_REMOTE_USER_HEADER", default="")
 
     server_url: str
     ssh_url: str

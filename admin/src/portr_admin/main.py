@@ -1,5 +1,4 @@
-from typing import Annotated
-from fastapi import Cookie, FastAPI, Request
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from portr_admin.apis import api as api_v1
 from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore
@@ -41,11 +40,10 @@ scheduler.start()
 
 @app.get("/")
 async def render_index_template(
-    request: Request,
-    portr_session: Annotated[str | None, Cookie()] = None,
+    request: Request
 ):
     try:
-        user: User = await get_current_user(portr_session)
+        user: User = await get_current_user(request)
     except NotAuthenticated:
         return templates.TemplateResponse(
             request=request,
@@ -67,10 +65,9 @@ async def render_index_template(
 @app.get("/instance-settings/{rest:path}")
 async def render_index_template_for_instance_settings_routes(
     request: Request,
-    portr_session: Annotated[str | None, Cookie()] = None,
 ):
     try:
-        user: User = await get_current_user(portr_session)
+        user: User = await get_current_user(request)
     except NotAuthenticated:
         next_url = request.url.path + "?" + request.url.query
         next_url_encoded = urllib.parse.urlencode({"next": next_url})
@@ -98,10 +95,9 @@ async def render_index_template_for_instance_settings_routes(
 async def render_index_template_for_team_routes(
     request: Request,
     team: str,
-    portr_session: Annotated[str | None, Cookie()] = None,
 ):
     try:
-        user: User = await get_current_user(portr_session)
+        user: User = await get_current_user(request)
     except NotAuthenticated:
         next_url = request.url.path + "?" + request.url.query
         next_url_encoded = urllib.parse.urlencode({"next": next_url})
