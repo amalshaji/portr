@@ -14,6 +14,7 @@ class EmailFetchError(ServiceError):
     pass
 
 
+@transactions.atomic()
 async def get_or_create_user(email: str):
     has_users = await User.filter().exists()
 
@@ -32,7 +33,8 @@ async def get_or_create_user(email: str):
     is_user_on_team = await TeamUser.filter(user__email=email).exists()
 
     if not user.is_superuser and not is_user_on_team:
-        # This user MUST be part of a team to authenticate UNLESS they're a superuser
+        # This user MUST be part of a team to authenticate UNLESS they're a superuser.
+        # A superuser MUST be able to log in to create a new team.
         raise UserNotFoundError("User not part of any team")
 
     return user
