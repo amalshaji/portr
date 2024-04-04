@@ -58,7 +58,7 @@ portr config edit
 
 This should open a file with the following contents
 
-```yml
+```yaml
 server_url: example.com
 ssh_url: example.com:2222
 secret_key: { your-secret-key }
@@ -71,7 +71,7 @@ tunnels:
 You can create tunnel templates under the tunnels key to quickly start them.
 For example, you can start the portr tunnel using `portr start portr`. You can also add a tcp connection by specifying the type of the connection.
 
-```yml
+```yaml
 tunnels:
   - name: portr
     subdomain: portr
