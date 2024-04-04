@@ -66,16 +66,16 @@ jobs:
         run: |
           go build -ldflags="-s -w" -o ../e2e/portr cmd/portr/*.go
 
+      - name: Setup test data
+        working-directory: ./e2e
+        run: |
+          make load-pg-data
+
       - name: Start the tunnel
         working-directory: ./e2e
         run: |
           ./portr --config client.e2e.yaml http 9000 --subdomain test-tunnel-server &
           sleep 3
-
-      - name: Setup test data
-        working-directory: ./e2e
-        run: |
-          make load-pg-data
 
       - name: Add hosts to /etc/hosts
         run: |
