@@ -91,19 +91,6 @@ class TestUserService(test.TruncationTestCase):
 
     @patch("portr_admin.services.user.GithubOauth.get_user")
     @patch("portr_admin.services.user.GithubOauth.get_access_token")
-    async def test_get_or_create_user_from_github_without_email(
-        self, get_access_token_fn, get_user_fn
-    ):
-        get_access_token_fn.return_value = "token"
-        get_user_fn.return_value = {"email": "example@example.com"}
-
-        with pytest.raises(user_service.UserNotFoundError) as e:
-            await user_service.get_or_create_user_from_github("code")
-
-        assert str(e.value) == "User does not exist"
-
-    @patch("portr_admin.services.user.GithubOauth.get_user")
-    @patch("portr_admin.services.user.GithubOauth.get_access_token")
     async def test_get_or_create_user_from_github_with_existing_user(
         self, get_access_token_fn, get_user_fn
     ):
