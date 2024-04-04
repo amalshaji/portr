@@ -20,7 +20,7 @@ async def get_or_create_user(email: str):
 
     if not has_users:
         # If this is the first user we can create them as a superuser
-        await User.create(
+        return await User.create(
             email=email,
             is_superuser=True,
         )
