@@ -30,14 +30,17 @@ async def get_or_create_user(email: str):
     if not user:
         raise UserNotFoundError("User does not exist")
 
-    is_user_on_team = await TeamUser.filter(user__email=email).exists()
-
-    if not user.is_superuser and not is_user_on_team:
-        # This user MUST be part of a team to authenticate UNLESS they're a superuser.
-        # A superuser MUST be able to log in to create a new team.
-        raise UserNotFoundError("User not part of any team")
-
     return user
+
+
+def is_user_active(user: User):
+    """
+    A user is considered "active" if they're on a team or
+    if they're a superuser.  An inactive user cannot authenticate.
+    """
+    is_user_on_team = len(user.teams) > 0
+
+    return user.is_superuser or is_user_on_team
 
 
 @transactions.atomic()
