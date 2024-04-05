@@ -59,7 +59,7 @@ async def github_callback(request: Request, code: str, state: str):
     try:
         user = await user_service.get_or_create_user_from_github(code)
 
-        if not user_service.is_user_active(user):
+        if not await user_service.is_user_active(user):
             # If a user isn't active we can't let them log in
             raise user_service.UserNotFoundError
 

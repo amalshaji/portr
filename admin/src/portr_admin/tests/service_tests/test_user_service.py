@@ -28,19 +28,6 @@ class TestUserService(test.TruncationTestCase):
 
     @patch("portr_admin.services.user.GithubOauth.get_user")
     @patch("portr_admin.services.user.GithubOauth.get_access_token")
-    async def test_get_or_create_user_from_github_with_not_part_of_any_team(
-        self, get_access_token_fn, get_user_fn
-    ):
-        get_access_token_fn.return_value = "token"
-        get_user_fn.return_value = {"email": "amal@portr.dev"}
-
-        with pytest.raises(user_service.UserNotFoundError) as e:
-            await user_service.get_or_create_user_from_github("code")
-
-        assert str(e.value) == "User not part of any team"
-
-    @patch("portr_admin.services.user.GithubOauth.get_user")
-    @patch("portr_admin.services.user.GithubOauth.get_access_token")
     async def test_get_or_create_user_creates_superuser(
         self, get_access_token_fn, get_user_fn
     ):
@@ -112,3 +99,11 @@ class TestUserService(test.TruncationTestCase):
         assert github_user.github_id == 123
         assert github_user.github_access_token == "token"
         assert github_user.github_avatar_url == ""
+
+    async def test_is_user_active_with_not_part_of_any_team(self):
+        assert not await user_service.is_user_active(self.user)
+
+    async def test_is_user_active_with_is_superuser(self):
+        superuser = await UserFactory.create(email="example@example.com", is_superuser=True)
+
+        assert await user_service.is_user_active(superuser)

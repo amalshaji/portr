@@ -33,12 +33,12 @@ async def get_or_create_user(email: str):
     return user
 
 
-def is_user_active(user: User):
+async def is_user_active(user: User):
     """
     A user is considered "active" if they're on a team or
     if they're a superuser.  An inactive user cannot authenticate.
     """
-    is_user_on_team = len(user.teams) > 0
+    is_user_on_team = await TeamUser.filter(user=user).exists()
 
     return user.is_superuser or is_user_on_team
 
