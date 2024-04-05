@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/amalshaji/portr/internal/client/config"
+	"github.com/amalshaji/portr/internal/utils"
 	"github.com/labstack/gommon/color"
 	"github.com/urfave/cli/v2"
 )
@@ -31,6 +32,11 @@ func main() {
 			tcpCmd(),
 			authCmd(),
 		},
+	}
+
+	if err := utils.EnsureDirExists(config.DefaultConfigDir); err != nil {
+		fmt.Println(color.Red(err.Error()))
+		os.Exit(0)
 	}
 
 	if err := app.Run(os.Args); err != nil {

@@ -143,14 +143,6 @@ func initConfig() error {
 		return nil
 	}
 
-	_, err := os.Stat(DefaultConfigDir)
-	if os.IsNotExist(err) {
-		err = os.MkdirAll(DefaultConfigDir, os.ModePerm)
-		if err != nil {
-			return err
-		}
-	}
-
 	f, err := os.Create(DefaultConfigPath)
 	if err != nil {
 		return err
