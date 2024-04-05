@@ -15,6 +15,35 @@ class EmailFetchError(ServiceError):
 
 
 @transactions.atomic()
+async def get_or_create_user(email: str):
+    has_users = await User.filter().exists()
+
+    if not has_users:
+        # If this is the first user we can create them as a superuser
+        return await User.create(
+            email=email,
+            is_superuser=True,
+        )
+
+    user = await User.get_or_none(email=email)
+
+    if not user:
+        raise UserNotFoundError("User does not exist")
+
+    return user
+
+
+async def is_user_active(user: User):
+    """
+    A user is considered "active" if they're on a team or
+    if they're a superuser.  An inactive user cannot authenticate.
+    """
+    is_user_on_team = await TeamUser.filter(user=user).exists()
+
+    return user.is_superuser or is_user_on_team
+
+
+@transactions.atomic()
 async def get_or_create_user_from_github(code: str):
     client = GithubOauth(
         client_id=settings.github_client_id,
@@ -35,16 +64,7 @@ async def get_or_create_user_from_github(code: str):
     if not github_user["email"]:
         raise EmailFetchError("No verified email found")
 
-    is_superuser = await User.filter().count() == 0
-
-    if not is_superuser:
-        if not await TeamUser.filter(user__email=github_user["email"]).exists():
-            raise UserNotFoundError("User not part of any team")
-
-    user, _ = await User.get_or_create(
-        email=github_user["email"],
-        defaults={"is_superuser": is_superuser},
-    )
+    user = await get_or_create_user(github_user["email"])
 
     github_user_obj, created = await GithubUser.get_or_create(
         user=user,
