@@ -59,25 +59,26 @@ async def render_index_template(
 
     first_team = await user.teams.filter().first()
     if first_team is None:
-        return RedirectResponse(url="/new-team")
+        return RedirectResponse(url="/instance-settings/team")
 
     return RedirectResponse(url=f"/{first_team.slug}/overview")
 
 
-@app.get("/new-team")
-@app.get("/instance-settings")
-async def render_index_template_for_setup_route(
+@app.get("/instance-settings/{rest:path}")
+async def render_index_template_for_instance_settings_routes(
     request: Request,
     portr_session: Annotated[str | None, Cookie()] = None,
 ):
     try:
-        user = await get_current_user(portr_session)
-        if not user.is_superuser:
-            return RedirectResponse(url="/")
+        user: User = await get_current_user(portr_session)
     except NotAuthenticated:
         next_url = request.url.path + "?" + request.url.query
         next_url_encoded = urllib.parse.urlencode({"next": next_url})
         return RedirectResponse(url=f"/?{next_url_encoded}")
+
+    if not user.is_superuser:
+        return RedirectResponse(url="/")
+
     return templates.TemplateResponse(
         request=request,
         name="index.html",
@@ -94,7 +95,6 @@ async def render_index_template_for_setup_route(
 @app.get("/{team}/users")
 @app.get("/{team}/my-account")
 @app.get("/{team}/settings")
-@app.get("/{team}/new-team")
 async def render_index_template_for_team_routes(
     request: Request,
     team: str,

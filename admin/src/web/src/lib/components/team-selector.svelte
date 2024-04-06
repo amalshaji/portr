@@ -34,13 +34,13 @@
 </script>
 
 <Select.Root bind:selected onSelectedChange={switchTeams}>
-  <Select.Trigger>
+  <Select.Trigger class="font-semibold text-[15px] tracking-tight">
     <div class="flex items-center space-x-2">
-      <Avatar.Root class="w-5 h-5 rounded-full">
+      <Avatar.Root class="w-6 h-6 rounded-full">
         <Avatar.Image
           src="https://api.dicebear.com/7.x/initials/svg?seed={selected.value}&backgroundColor=transparent&textColor=000000"
           alt={selected.label}
-          class="w-5 h-5 rounded-full border mr-2"
+          class="w-6 h-6 rounded-full border mr-2"
         />
       </Avatar.Root>
       <Select.Value />
@@ -54,7 +54,7 @@
           <img
             src="https://api.dicebear.com/7.x/initials/svg?seed={team.slug}&backgroundColor=transparent&textColor=000000"
             alt={team.name}
-            class="w-5 h-5 rounded-full border mr-2"
+            class="w-5 h-5 rounded-full border mr-2 font-semibold"
           />
           {team.name}
         </Select.Item>
