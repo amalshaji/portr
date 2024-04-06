@@ -1,14 +1,12 @@
 <script lang="ts">
-  import Home from "lucide-svelte/icons/home";
-
   import Sidebarlink from "$lib/components/sidebarlink.svelte";
-  import { ArrowUpDown, ArrowLeft } from "lucide-svelte";
-  import { Route, Router, navigate } from "svelte-routing";
-  import Newteam from "./newteam.svelte";
-  import EmailSettings from "./emailSettings.svelte";
-  import Index from "./index.svelte";
+  import { ArrowLeft, LayoutGrid, Mail } from "lucide-svelte";
+  import { Route, Router } from "svelte-routing";
   import AppLayout from "../app-layout.svelte";
   import Notfound from "../notfound.svelte";
+  import EmailSettings from "./emailSettings.svelte";
+  import Index from "./index.svelte";
+  import Newteam from "./newteam.svelte";
 
   export let url = "";
 </script>
@@ -27,12 +25,12 @@
           class="grid items-start px-2 text-sm font-medium lg:px-4 space-y-1"
         >
           <Sidebarlink url="/instance-settings/email">
-            <Home class="h-4 w-4" />
+            <Mail class="h-4 w-4" />
             Email
           </Sidebarlink>
 
           <Sidebarlink url="/instance-settings/team">
-            <ArrowUpDown class="h-4 w-4" />
+            <LayoutGrid class="h-4 w-4" />
             Team
           </Sidebarlink>
         </nav>
