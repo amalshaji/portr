@@ -22,7 +22,7 @@
     "svelte": "^4.2.8",
     "svelte-check": "^3.6.2",
     "svelte-headless-table": "^0.17.7",
-    "svelte-highlight": "^7.4.7",
+    "svelte-highlight": "^7.4.8",
     "svelte-routing": "^2.11.0",
     "tailwind-merge": "^2.2.0",
     "tailwind-variants": "^0.1.19",
