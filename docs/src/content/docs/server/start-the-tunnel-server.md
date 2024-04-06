@@ -37,6 +37,7 @@ POSTGRES_PASSWORD=postgres
 POSTGRES_DB=postgres
 
 PORTR_ADMIN_ENCRYPTION_KEY=
+PORTR_ADMIN_REMOTE_USER_HEADER=
 ```
 
 Generate an encryption key using the following command
@@ -54,4 +55,29 @@ If you want to run postgres separately and not as a service, you can exclude the
 Run `docker compose up` to start the servers. Once the servers are up, go to example.com and login in to the admin.
 First login will be treated as a superuser.
 
+### Reverse Proxy
 
+#### Configure Auth Proxy Authentication
+
+You can configure portr's admin interface to trust an HTTP reverse proxy
+to handle authentication.  Web servers and reverse proxies have many
+authentication integrations, and any of those can then be used with portr.
+
+Even with auth proxy authentication, users are not automatically provisioned.
+Except for the superuser - which is provisioned automatically - all users
+must be invited to a team to use portr.
+
+> [!WARNING]
+> If you use this feature the portr admin interface **MUST**
+> only be accessible via the appropriate auth proxy.
+>
+> A failure here will allow actors to spoof their identity.
+
+To activate this feature, configure your reverse proxy to authenticate
+and pass the authenticate user's email as a header.  This varies from
+solution to solution, so consult your reverse proxy's documentation on
+how to set it up.
+
+Once you've confirmed that to be working you may set the environment
+variable `PORTR_ADMIN_REMOTE_USER_HEADER` in your `.env` with the
+value of the header that will contain the user's email.
