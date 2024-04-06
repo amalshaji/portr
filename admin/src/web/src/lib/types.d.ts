@@ -62,17 +62,3 @@ export type Connection = {
   status: ConnectionStatus;
   created_by: TeamUser;
 };
-
-export type Invite = {
-  Email: string;
-  Role: "admin" | "member";
-  Status: "pending" | "accepted" | "expired";
-  InvitedByEmail: string;
-  InvitedByFirstName: string;
-  InvitedByLastName: string;
-};
-
-export type ServerAddress = {
-  AdminUrl: string;
-  SshUrl: string;
-};
