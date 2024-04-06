@@ -5,7 +5,7 @@ import starlight from "@astrojs/starlight";
 export default defineConfig({
   integrations: [
     starlight({
-      title: "portr",
+      title: "Portr",
       customCss: ["./src/styles/custom.css", "./src/fonts/font-face.css"],
       social: {
         github: "https://github.com/amalshaji/portr",

@@ -4,7 +4,7 @@
   import * as Card from "$lib/components/ui/card";
   import { toast } from "svelte-sonner";
   import { Reload } from "radix-icons-svelte";
-  import ErrorText from "./ErrorText.svelte";
+  import ErrorText from "../../lib/components/ErrorText.svelte";
 
   let teamName: string = "",
     teamNameError = "";
@@ -44,7 +44,7 @@
 
 <Card.Root class="border-none shadow-none w-1/2">
   <Card.Header class="space-y-3">
-    <Card.Title>Enter team name</Card.Title>
+    <Card.Title>Create new team</Card.Title>
   </Card.Header>
   <Card.Content class="space-y-2">
     <div class="sm:col-span-3">

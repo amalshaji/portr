@@ -2,4 +2,6 @@
   import Members from "$lib/components/users/members.svelte";
 </script>
 
-<Members />
+<div class="p-6">
+  <Members />
+</div>

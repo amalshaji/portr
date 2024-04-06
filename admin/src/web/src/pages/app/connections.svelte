@@ -128,19 +128,21 @@
   ]);
 </script>
 
-<div class="flex items-center my-6 justify-between w-full">
-  <div class="flex items-center space-x-2">
-    <Checkbox id="terms" bind:checked class="rounded-full" />
-    <Label
-      for="terms"
-      class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-    >
-      Show active connections
-    </Label>
+<div class="p-6">
+  <div class="flex items-center py-3 justify-between w-full">
+    <div class="flex items-center space-x-2">
+      <Checkbox id="terms" bind:checked class="rounded-full" />
+      <Label
+        for="terms"
+        class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+      >
+        Show active connections
+      </Label>
+    </div>
+    <div>
+      <Pagination count={totalItems} perPage={10} currentPage={pageNo} />
+    </div>
   </div>
-  <div>
-    <Pagination count={totalItems} perPage={10} currentPage={pageNo} />
-  </div>
-</div>
 
-<DataTable {table} {columns} isLoading={$connectionsLoading} />
+  <DataTable {table} {columns} isLoading={$connectionsLoading} />
+</div>

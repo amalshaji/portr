@@ -4,12 +4,12 @@
   import * as Card from "$lib/components/ui/card";
   import { Textarea } from "$lib/components/ui/textarea";
   import { instanceSettings } from "$lib/store";
-  import { onDestroy } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import { toast } from "svelte-sonner";
   import { Reload } from "radix-icons-svelte";
   import { Switch } from "$lib/components/ui/switch";
   import { Input } from "$lib/components/ui/input";
-  import ErrorText from "../ErrorText.svelte";
+  import ErrorText from "$lib/components/ErrorText.svelte";
 
   let smtpEnabled: boolean;
 
@@ -69,6 +69,11 @@
     addMemberEmailTemplateError = "";
   };
 
+  const getSettings = async () => {
+    const res = await fetch("/api/v1/instance-settings/");
+    instanceSettings.set(await res.json());
+  };
+
   let settingsUnSubscriber = instanceSettings.subscribe((settings) => {
     addMemberEmailTemplate = settings?.add_user_email_body || "";
     addMemberEmailSubject = settings?.add_user_email_subject || "";
@@ -78,6 +83,7 @@
     smtpUsername = settings?.smtp_username || "";
     smtpPassword = settings?.smtp_password || "";
     fromAddress = settings?.from_address || "";
+    console.log(settings);
   });
 
   const updateEmailSettings = async () => {
@@ -113,6 +119,10 @@
       isUpdating = false;
     }
   };
+
+  onMount(() => {
+    getSettings();
+  });
 
   onDestroy(() => {
     settingsUnSubscriber();
