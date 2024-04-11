@@ -1,7 +1,7 @@
 from tortoise import Model, fields
 from portr_admin.enums import Enum
 
-from portr_admin.models import TimestampModelMixin
+from portr_admin.models import EncryptedField, TimestampModelMixin
 
 from portr_admin.models.user import Team, TeamUser
 from portr_admin.utils.token import generate_connection_id
@@ -26,12 +26,13 @@ class Connection(TimestampModelMixin, Model):
     status = fields.CharField(
         max_length=255,
         choices=ConnectionStatus.choices(),
-        default=ConnectionStatus.reserved.value,
+        default=ConnectionStatus.reserved.value,  # type: ignore
         index=True,
     )
     created_by: fields.ForeignKeyRelation[TeamUser] = fields.ForeignKeyField(
         "models.TeamUser", related_name="connections"
     )
+    credentials = EncryptedField(max_length=255, null=True)
     started_at = fields.DatetimeField(null=True)
     closed_at = fields.DatetimeField(null=True)
     team: fields.ForeignKeyRelation[Team] = fields.ForeignKeyField(

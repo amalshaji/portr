@@ -21,3 +21,4 @@ class ConnectionCreateSchema(BaseModel):
     connection_type: str
     secret_key: str
     subdomain: str | None
+    auth: str | None

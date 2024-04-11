@@ -2,7 +2,7 @@ from typing import Any, Callable, List
 from tortoise import Model, fields
 from cryptography.fernet import Fernet
 from tortoise.validators import Validator
-from portr_admin.config import settings
+from portr_admin.config import settings as app_settings
 
 
 class PkModelMixin(Model):
@@ -48,14 +48,16 @@ class EncryptedField(fields.BinaryField):  # type: ignore
             validators,
             **kwargs,
         )
-        self.fernet = Fernet(settings.encryption_key)
+        self.fernet = Fernet(app_settings.encryption_key)
 
     def to_db_value(self, value: Any, instance: Model | Model) -> Any:  # type: ignore
         if value is None:
             return None
+        print(f"to encrypt: {value}")
         return self.fernet.encrypt(value.encode())
 
     def to_python_value(self, value: Any) -> Any:
         if value is None:
             return None
+        print(f"to decrypt: {value}")
         return self.fernet.decrypt(value).decode()

@@ -21,7 +21,7 @@ class ConnectionQueryType(Enum):
 @api.get("/", response_model=PaginatedResponse[ConnectionSchema])
 async def get_connections(
     team_user: TeamUser = Depends(security.get_current_team_user),
-    type: ConnectionQueryType = ConnectionQueryType.recent,
+    type: ConnectionQueryType = ConnectionQueryType.recent,  # type: ignore
     page: int = 1,
     page_size: int = 10,
 ):
@@ -32,7 +32,7 @@ async def get_connections(
         .order_by("-created_at")
     )
     if type == ConnectionQueryType.active:
-        qs = qs.filter(status=ConnectionStatus.active.value)
+        qs = qs.filter(status=ConnectionStatus.active.value)  # type: ignore
 
     return await PaginatedResponse.generate_response_for_page(
         qs=qs.all(), page=page, page_size=page_size
@@ -48,6 +48,7 @@ async def create_connection(data: ConnectionCreateSchema):
     connection = await connection_service.create_new_connection(
         type=data.connection_type,  # type: ignore
         subdomain=data.subdomain,
+        credentials=data.auth,
         created_by=team_user,
     )
     return {"connection_id": connection.id}
