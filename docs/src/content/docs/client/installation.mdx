@@ -10,8 +10,7 @@ import { Aside } from "@astrojs/starlight/components";
 Install the client using homebrew:
 
 ```shell
-brew tap amalshaji/taps
-brew install portr
+brew install amalshaji/taps/portr
 ```
 
 You can also download the client binary from [github releases](https://github.com/amalshaji/portr/releases).
@@ -21,67 +20,5 @@ Once the download/install is complete, login to the portr admin dashboard and co
 ```bash
 portr auth set --token {your_token} --remote {your_domain}
 ```
-
-<Aside type="tip">
-  You can call `portr` directly if it's on $PATH, or installed via brew. The
-  guide assumes you have the cli on the $PATH
-</Aside>
-
-### Start a http connection
-
-```bash
-portr http 9000
-```
-
-Or start it with a custom subdomain
-
-```bash
-portr http 9000 --subdomain amal-test
-```
-
-This also starts the portr inspector on [http://localhost:7777](http://localhost:7777), where you can inspect and replay http requests.
-
-### Start a tcp connection
-
-```bash
-portr tcp 9000
-```
-
-### Defining tunnel services
-
-If you use certain subdomains/port regularly, it is easier to create them as services and reuse using simple commands.
-Open the portr client config file by running the following command
-
-```bash
-portr config edit
-```
-
-This should open a file with the following contents
-
-```yaml
-server_url: example.com
-ssh_url: example.com:2222
-secret_key: { your-secret-key }
-tunnels:
-  - name: portr
-    subdomain: portr
-    port: 4321
-```
-
-You can create tunnel templates under the tunnels key to quickly start them.
-For example, you can start the portr tunnel using `portr start portr`. You can also add a tcp connection by specifying the type of the connection.
-
-```yaml
-tunnels:
-  - name: portr
-    subdomain: portr
-    port: 4321
-  - name: pg
-    subdomain: portr
-    port: 5432
-    type: tcp
-```
-
-And start multiple services by using the command `portr start portr pg`.
 
 For more details, run `portr --help`.
