@@ -16,10 +16,15 @@ import (
 	"github.com/amalshaji/portr/internal/utils"
 )
 
+type ProxyRoute struct {
+	Dest  string
+	Creds string
+}
+
 type Proxy struct {
 	log    *slog.Logger
 	config *config.Config
-	routes map[string]string
+	routes map[string]ProxyRoute
 	lock   sync.RWMutex
 	server *http.Server
 }
@@ -32,24 +37,24 @@ func New(config *config.Config) *Proxy {
 	p := &Proxy{
 		log:    utils.GetLogger(),
 		config: config,
-		routes: make(map[string]string),
+		routes: make(map[string]ProxyRoute),
 		server: nil,
 	}
 	p.server = &http.Server{Addr: p.GetServerAddr()}
 	return p
 }
 
-func (p *Proxy) GetRoute(src string) (string, error) {
+func (p *Proxy) GetRoute(src string) (ProxyRoute, error) {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	route, ok := p.routes[src]
 	if !ok {
-		return "", fmt.Errorf("route not found")
+		return ProxyRoute{}, fmt.Errorf("route not found")
 	}
 	return route, nil
 }
 
-func (p *Proxy) AddRoute(src, dst string) error {
+func (p *Proxy) AddRoute(src, dst, credentials string) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
@@ -57,7 +62,7 @@ func (p *Proxy) AddRoute(src, dst string) error {
 	if ok {
 		return fmt.Errorf("route already added")
 	}
-	p.routes[src] = dst
+	p.routes[src] = ProxyRoute{Dest: dst, Creds: credentials}
 	return nil
 }
 
@@ -116,7 +121,7 @@ func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 
 	proxy := p.reverseProxy(&url.URL{
 		Scheme: "http",
-		Host:   target,
+		Host:   target.Dest,
 	})
 
 	proxy.ServeHTTP(w, r)

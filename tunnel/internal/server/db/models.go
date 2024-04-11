@@ -13,6 +13,7 @@ type Connection struct {
 	CreatedAt   time.Time
 	StartedAt   *time.Time
 	ClosedAt    *time.Time
+	Credentials []byte
 	CreatedByID uint
 	CreatedBy   TeamUser
 }
