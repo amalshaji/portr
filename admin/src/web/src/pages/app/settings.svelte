@@ -41,8 +41,8 @@
   };
 </script>
 
-<div class="space-y-4">
-  <Card.Root class="rounded-sm border-none shadow-none">
+<div class="w-full">
+  <Card.Root class="rounded-sm border-none shadow-none w-full">
     <Card.Header class="space-y-3">
       <Card.Title class="text-lg">Secret key</Card.Title>
       <Card.Description

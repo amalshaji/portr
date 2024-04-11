@@ -1,11 +1,11 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
   // @ts-ignore
-  import HttpStatus from "http-status-codes";
-  import type { Request } from "$lib/types";
   import { currentRequest } from "$lib/store";
-  import RequestDetails from "./RequestDetails.svelte";
+  import type { Request } from "$lib/types";
+  import HttpStatus from "http-status-codes";
   import { Link } from "svelte-routing";
+  import RequestDetails from "./RequestDetails.svelte";
 
   export let id: string;
 
@@ -88,10 +88,10 @@
           <!-- svelte-ignore a11y-click-events-have-key-events -->
           <!-- svelte-ignore a11y-no-static-element-interactions -->
           <div
-            class="p-4 rounded-md bg-gray-100 {$currentRequest?.ID ===
+            class="p-4 rounded-md border transition-all hover:bg-accent {$currentRequest?.ID ===
             request.ID
-              ? 'border border-gray-950'
-              : ''} dark:bg-gray-700 m-1 hover:cursor-pointer space-y-2"
+              ? 'border bg-[#F4F4F5]'
+              : 'border-muted'} dark:bg-gray-700 m-1 hover:cursor-pointer space-y-2"
             on:click={() => setCurrentRequest(request)}
           >
             <div

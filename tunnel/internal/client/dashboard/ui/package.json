@@ -10,17 +10,17 @@
     "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^3.0.1",
-    "@tsconfig/svelte": "^5.0.2",
-    "autoprefixer": "^10.4.16",
-    "postcss": "^8.4.32",
-    "postcss-load-config": "^5.0.2",
-    "svelte": "^4.2.12",
-    "svelte-check": "^3.6.6",
-    "tailwindcss": "^3.3.6",
+    "@sveltejs/vite-plugin-svelte": "^3.1.0",
+    "@tsconfig/svelte": "^5.0.4",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "postcss-load-config": "^5.0.3",
+    "svelte": "^4.2.13",
+    "svelte-check": "^3.6.9",
+    "tailwindcss": "^3.4.3",
     "tslib": "^2.6.2",
-    "typescript": "^5.2.2",
-    "vite": "^5.1.6"
+    "typescript": "^5.4.5",
+    "vite": "^5.2.8"
   },
   "dependencies": {
     "bits-ui": "^0.19.7",
@@ -28,7 +28,7 @@
     "http-status-codes": "^2.3.0",
     "lucide-svelte": "^0.358.0",
     "svelte-routing": "^2.12.0",
-    "svelte-sonner": "^0.3.19",
+    "svelte-sonner": "^0.3.22",
     "tailwind-merge": "^2.2.2",
     "tailwind-variants": "^0.2.1"
   }

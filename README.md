@@ -22,9 +22,9 @@ Portr is primarily designed for small teams looking to expose development server
 
 ## Features
 
-- Easily tunnel HTTP and TCP connections.
-- Admin server for team/user management. [Watch video](https://youtu.be/P37la8DjrzA).
-- Client dashboard for inspecting and replaying requests. [Watch video](https://youtu.be/hhbte2JI3qk).
+- 🎉 Easily tunnel HTTP and TCP connections.
+- 👾 Admin dashboard for team/user management. [Watch video](https://youtu.be/P37la8DjrzA).
+- 🚨 Portr inspector for inspecting and replaying requests. [Watch video](https://youtu.be/hhbte2JI3qk).
 
 ## Setup
 

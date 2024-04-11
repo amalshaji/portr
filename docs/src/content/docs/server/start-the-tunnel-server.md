@@ -2,14 +2,12 @@
 title: Server setup
 ---
 
-### Docker images
-
-- [tunnel](https://hub.docker.com/r/amalshaji/portr-tunnel/tags)
-- [admin](https://hub.docker.com/r/amalshaji/portr-admin/tags)
 
 For quick setup, use the `docker-compose.yml`.
 
 [https://github.com/amalshaji/portr/blob/main/docker-compose.yaml](https://github.com/amalshaji/portr/blob/main/docker-compose.yaml)
+
+### Services
 
 The compose file has 4 services
 
@@ -22,7 +20,7 @@ The compose file has 4 services
 
 Once you copy the compose file, create a `.env` with the following keys.
 
-```text
+```shell
 PORTR_ADMIN_GITHUB_CLIENT_ID=
 PORTR_ADMIN_GITHUB_CLIENT_SECRET=
 

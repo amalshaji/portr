@@ -1,7 +1,7 @@
 from unittest.mock import patch
 import pytest
 from tortoise.contrib import test
-from portr_admin.models.user import GithubUser
+from portr_admin.models.user import GithubUser, User
 from portr_admin.services import user as user_service
 from portr_admin.tests.factories import TeamUserFactory, UserFactory
 
@@ -28,16 +28,53 @@ class TestUserService(test.TruncationTestCase):
 
     @patch("portr_admin.services.user.GithubOauth.get_user")
     @patch("portr_admin.services.user.GithubOauth.get_access_token")
-    async def test_get_or_create_user_from_github_with_not_part_of_any_team(
+    async def test_get_or_create_user_creates_superuser(
+        self, get_access_token_fn, get_user_fn
+    ):
+        await User.filter().delete()
+
+        get_access_token_fn.return_value = "token"
+        get_user_fn.return_value = {
+            "id": 123,
+            "email": "example@example.com",
+            "avatar_url": "",
+        }
+
+        user = await user_service.get_or_create_user_from_github("code")
+
+        assert str(user.email) == "example@example.com"
+        assert user.is_superuser
+
+    @patch("portr_admin.services.user.GithubOauth.get_user")
+    @patch("portr_admin.services.user.GithubOauth.get_access_token")
+    async def test_get_or_create_user_superuser_from_github_with_not_part_of_any_team(
+        self, get_access_token_fn, get_user_fn
+    ):
+        await UserFactory.create(email="example@example.com", is_superuser=True)
+
+        get_access_token_fn.return_value = "token"
+        get_user_fn.return_value = {
+            "id": 123,
+            "email": "example@example.com",
+            "avatar_url": "",
+        }
+
+        user = await user_service.get_or_create_user_from_github("code")
+
+        assert str(user.email) == "example@example.com"
+
+    @patch("portr_admin.services.user.GithubOauth.get_user")
+    @patch("portr_admin.services.user.GithubOauth.get_access_token")
+    async def test_get_or_create_user_from_github_without_email(
         self, get_access_token_fn, get_user_fn
     ):
         get_access_token_fn.return_value = "token"
-        get_user_fn.return_value = {"email": "amal@portr.dev"}
+        get_user_fn.return_value = {"email": "example@example.com"}
 
         with pytest.raises(user_service.UserNotFoundError) as e:
             await user_service.get_or_create_user_from_github("code")
 
-        assert str(e.value) == "User not part of any team"
+        assert str(e.value) == "User does not exist"
 
     @patch("portr_admin.services.user.GithubOauth.get_user")
     @patch("portr_admin.services.user.GithubOauth.get_access_token")
@@ -62,3 +99,11 @@ class TestUserService(test.TruncationTestCase):
         assert github_user.github_id == 123
         assert github_user.github_access_token == "token"
         assert github_user.github_avatar_url == ""
+
+    async def test_is_user_active_with_not_part_of_any_team(self):
+        assert not await user_service.is_user_active(self.user)
+
+    async def test_is_user_active_with_is_superuser(self):
+        superuser = await UserFactory.create(email="example@example.com", is_superuser=True)
+
+        assert await user_service.is_user_active(superuser)

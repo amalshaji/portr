@@ -92,12 +92,13 @@
 
 <InviteUser bind:open={addMemberModalOpen} />
 
-<div class="flex w-full justify-between items-center py-4">
+<div class="flex w-full justify-between items-center py-3">
   <div>
     <Button
       on:click={() => (addMemberModalOpen = !addMemberModalOpen)}
-      disabled={$currentUser?.role === "member"}>Add member</Button
-    >
+      disabled={$currentUser?.role === "member"}
+      >Add member
+    </Button>
   </div>
   <div>
     <Pagination count={totalItems} perPage={10} currentPage={pageNo} />

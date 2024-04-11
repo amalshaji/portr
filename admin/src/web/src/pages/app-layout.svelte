@@ -2,23 +2,21 @@
   import IssueLink from "$lib/components/issue-link.svelte";
 </script>
 
-<div class="flex">
-  <aside
-    class="sticky top-0 flex flex-col w-64 h-screen px-2 py-8 overflow-y-auto border-r rtl:border-r-0 rtl:border-l bg-[#FBFBFB] dark:bg-gray-900"
-  >
+<div
+  class="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]"
+>
+  <div class="hidden border-r bg-muted/40 md:block">
     <slot name="sidebar" />
-  </aside>
-  <aside class="w-full">
-    <div
-      class="py-2 px-8 flex justify-between border-b bg-[#FBFBFB] dark:bg-gray-900"
+  </div>
+  <div class="flex flex-col">
+    <header
+      class="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6"
     >
-      <div></div>
-      <div class="flex items-center space-x-2">
-        <IssueLink />
-      </div>
-    </div>
-    <div class="mx-auto pb-16 pt-6 w-full px-16">
+      <div class="w-full flex-1"></div>
+      <IssueLink />
+    </header>
+    <main class="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
       <slot name="body" />
-    </div>
-  </aside>
+    </main>
+  </div>
 </div>

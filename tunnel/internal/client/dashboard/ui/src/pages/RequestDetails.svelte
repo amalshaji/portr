@@ -3,6 +3,7 @@
   import { Button } from "$lib/components/ui/button";
   import { toast } from "svelte-sonner";
   import { RotateCw } from "lucide-svelte";
+  import { Play } from "lucide-svelte";
   import RenderContent from "$lib/components/RenderContent.svelte";
 
   const convertJsonToSingleValue = (data: any) => {
@@ -38,16 +39,18 @@
 
 <div class="flex-1 p-6 overflow-y-auto bg-white dark:bg-gray-800">
   <h2
-    class="text-2xl font-semibold mb-4 text-gray-800 dark:text-gray-200 flex justify-between"
+    class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200 flex justify-between"
   >
     <div class="flex space-x-4 items-center">
       <div class="font-normal">{$currentRequest?.Method}</div>
       <div><code class="font-light text-lg">{$currentRequest?.Url}</code></div>
     </div>
     <div>
-      <Button disabled={replaying} on:click={replayRequest}>
+      <Button variant="outline" disabled={replaying} on:click={replayRequest}>
         {#if replaying}
           <RotateCw class="mr-2 w-4 h-4 animate-spin" />
+        {:else}
+          <Play class="mr-2 w-4 h-4" />
         {/if}
         Replay
       </Button>
@@ -58,7 +61,7 @@
       <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
         Request Headers
       </h3>
-      <div class="rounded-md bg-gray-100 dark:bg-gray-700 p-4 mt-2">
+      <div class="rounded-md bg-[#F4F4F5] dark:bg-gray-700 p-4 mt-2">
         <pre
           class="text-sm font-mono text-gray-800 dark:text-gray-200 text-wrap break-words">{JSON.stringify(
             convertJsonToSingleValue($currentRequest?.Headers),
@@ -71,7 +74,7 @@
       <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
         Request Body
       </h3>
-      <div class="rounded-md bg-gray-100 dark:bg-gray-700 p-4 mt-2">
+      <div class="rounded-md bg-[#F4F4F5] dark:bg-gray-700 p-4 mt-2">
         <RenderContent type="request" />
       </div>
     </div>
@@ -79,7 +82,7 @@
       <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
         Response Headers
       </h3>
-      <div class="rounded-md bg-gray-100 dark:bg-gray-700 p-4 mt-2">
+      <div class="rounded-md bg-[#F4F4F5] dark:bg-gray-700 p-4 mt-2">
         <pre
           class="text-sm font-mono text-gray-800 dark:text-gray-200 text-wrap break-words">{JSON.stringify(
             convertJsonToSingleValue($currentRequest?.ResponseHeaders),
@@ -92,7 +95,7 @@
       <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
         Response Body
       </h3>
-      <div class="rounded-md bg-gray-100 p-4 mt-2">
+      <div class="rounded-md bg-[#F4F4F5] p-4 mt-2">
         <RenderContent type="response" />
       </div>
     </div>

@@ -24,7 +24,7 @@ tunnels:
 """.strip()
 
 SETUP_SCRIPT = """
-./portr auth set --token {token} --remote {server_url}
+portr auth set --token {token} --remote {server_url}
 """.strip()
 
 
