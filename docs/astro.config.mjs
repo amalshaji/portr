@@ -6,9 +6,13 @@ export default defineConfig({
   integrations: [
     starlight({
       title: "Portr",
-      customCss: ["./src/styles/custom.css", "./src/fonts/font-face.css"],
+      customCss: ["./src/styles/custom.css"],
       social: {
         github: "https://github.com/amalshaji/portr",
+      },
+      logo: {
+        src: "./src/assets/logo.svg",
+        replacesTitle: true,
       },
       sidebar: [
         {
@@ -36,7 +40,15 @@ export default defineConfig({
             },
             {
               label: "Client",
-              items: [{ label: "Installation", link: "/client/installation/" }],
+              items: [
+                { label: "Installation", link: "/client/installation/" },
+                { label: "HTTP tunnel", link: "/client/http-tunnel/" },
+                { label: "TCP tunnel", link: "/client/tcp-tunnel/" },
+                {
+                  label: "Websocket tunnel",
+                  link: "/client/websocket-tunnel/",
+                },
+              ],
             },
             {
               label: "Local development",
