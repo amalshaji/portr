@@ -14,6 +14,9 @@ export default defineConfig({
         src: "./src/assets/logo.svg",
         replacesTitle: true,
       },
+      components: {
+        Head: "./src/components/Head.astro",
+      },
       sidebar: [
         {
           label: "Guides",
