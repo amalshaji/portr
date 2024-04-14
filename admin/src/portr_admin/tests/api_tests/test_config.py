@@ -22,7 +22,7 @@ class ConfigTests(test.TestCase):
     def test_setup_script_should_pass(self):
         resp = self.team_user_auth_client.get("/api/v1/config/setup-script")
         assert resp.json() == {
-            "message": f"./portr auth set --token {self.team_user.secret_key} --remote {settings.server_url}"
+            "message": f"portr auth set --token {self.team_user.secret_key} --remote {settings.server_url}"
         }
 
     def test_download_config_should_pass(self):

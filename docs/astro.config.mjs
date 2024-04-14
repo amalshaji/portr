@@ -5,10 +5,17 @@ import starlight from "@astrojs/starlight";
 export default defineConfig({
   integrations: [
     starlight({
-      title: "portr",
-      customCss: ["./src/styles/custom.css", "./src/fonts/font-face.css"],
+      title: "Portr",
+      customCss: ["./src/styles/custom.css"],
       social: {
         github: "https://github.com/amalshaji/portr",
+      },
+      logo: {
+        src: "./src/assets/logo.svg",
+        replacesTitle: true,
+      },
+      components: {
+        Head: "./src/components/Head.astro",
       },
       sidebar: [
         {
@@ -36,7 +43,15 @@ export default defineConfig({
             },
             {
               label: "Client",
-              items: [{ label: "Installation", link: "/client/installation/" }],
+              items: [
+                { label: "Installation", link: "/client/installation/" },
+                { label: "HTTP tunnel", link: "/client/http-tunnel/" },
+                { label: "TCP tunnel", link: "/client/tcp-tunnel/" },
+                {
+                  label: "Websocket tunnel",
+                  link: "/client/websocket-tunnel/",
+                },
+              ],
             },
             {
               label: "Local development",

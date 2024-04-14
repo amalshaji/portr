@@ -36,7 +36,7 @@ httpcore==1.0.3
     # via httpx
 httpx==0.26.0
     # via portr-admin
-idna==3.6
+idna==3.7
     # via anyio
     # via email-validator
     # via httpx

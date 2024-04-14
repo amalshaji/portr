@@ -2,7 +2,6 @@ import { writable } from "svelte/store";
 import type {
   Connection,
   CurrentTeamUser,
-  Invite,
   InstanceSettings,
   Team,
   TeamUser,
@@ -18,9 +17,6 @@ export const connectionsLoading = writable(false);
 export const users = writable<TeamUser[]>([]);
 export const usersLoading = writable(false);
 
-export const invites = writable<Invite[]>([]);
-export const invitesLoading = writable(false);
-
 export const setupScript = writable<string>(
-  "./portr auth set --token ************************ --remote **************"
+  "portr auth set --token ************************ --remote **************"
 );

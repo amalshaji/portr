@@ -13,7 +13,7 @@
 
 <br />
 
-Portr is a tunnel solution that allows you to expose local HTTP and TCP connections to the public internet. It utilizes SSH remote port forwarding under the hood to securely tunnel connections.
+Portr is a tunnel solution that allows you to expose local http, tcp or websocket connections to the public internet. It utilizes SSH remote port forwarding under the hood to securely tunnel connections.
 
 Portr is primarily designed for small teams looking to expose development servers on a public URL. It is not recommended for use alongside production servers.
 
@@ -22,7 +22,7 @@ Portr is primarily designed for small teams looking to expose development server
 
 ## Features
 
-- 🎉 Easily tunnel HTTP and TCP connections.
+- 🎉 Easily tunnel http, tcp or websocket connections.
 - 👾 Admin dashboard for team/user management. [Watch video](https://youtu.be/P37la8DjrzA).
 - 🚨 Portr inspector for inspecting and replaying requests. [Watch video](https://youtu.be/hhbte2JI3qk).
 
