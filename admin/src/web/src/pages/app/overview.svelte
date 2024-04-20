@@ -28,6 +28,15 @@
   });
 </script>
 
+<svelte:head>
+  <style>
+    @font-face {
+      font-family: "Geist Mono";
+      src: url("/static/geist-mono-latin-400-normal.woff2") format("woff2");
+    }
+  </style>
+</svelte:head>
+
 <div class="p-6">
   <p class="text-lg py-2 font-semibold leading-none tracking-tight">
     Client setup
