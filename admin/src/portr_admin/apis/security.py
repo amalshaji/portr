@@ -1,18 +1,39 @@
-from typing import Annotated
-from fastapi import Cookie, Depends, Header
+from fastapi import Depends, Header, Request
 
 from portr_admin.models.auth import Session
 from portr_admin.models.user import Role, TeamUser, User
+from portr_admin.services.user import get_or_create_user, is_user_active
 from portr_admin.utils.exception import PermissionDenied
+from portr_admin.config import settings
 
 
 class NotAuthenticated(Exception):
     pass
 
 
+def get_proxy_auth_email(request: Request) -> str | None:
+    header = settings.remote_user_header
+
+    if header is None:
+        return None
+
+    return request.headers.get(header)
+
 async def get_current_user(
-    portr_session: Annotated[str | None, Cookie()] = None,
+    request: Request
 ) -> User:
+    proxy_auth_email = get_proxy_auth_email(request)
+
+    if proxy_auth_email:
+        proxy_auth_user = await get_or_create_user(proxy_auth_email)
+
+        if not is_user_active(proxy_auth_user):
+            raise NotAuthenticated
+
+        return proxy_auth_user
+
+    portr_session = request.cookies.get("portr_session")
+
     if portr_session is None:
         raise NotAuthenticated
 

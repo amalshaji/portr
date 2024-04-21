@@ -1,6 +1,8 @@
+from unittest.mock import patch
 from portr_admin.tests import TestClient
 from tortoise.contrib import test
 from portr_admin.tests.factories import TeamUserFactory, UserFactory
+from portr_admin.config import settings
 
 
 class PageTests(test.TestCase):
@@ -76,3 +78,41 @@ class PageTests(test.TestCase):
         resp = self.team_user_auth_client.get("/", follow_redirects=False)
         assert resp.status_code == 307
         assert resp.headers["location"] == f"/{self.team_user.team.slug}/overview"
+
+
+class PageForwardAuthTests(test.TruncationTestCase):
+    async def asyncSetUp(self) -> None:
+        await super().asyncSetUp()
+        self.client = await TestClient.get_client()
+        self.user = await UserFactory.create()
+        self.superuser_user = await UserFactory.create(is_superuser=True)
+
+    def test_new_team_page_logged_in_superuser_via_header_should_pass(self):
+        with patch.object(settings, "remote_user_header", "X-Remote-User"):
+            resp = self.client.get(
+                "/instance-settings/team",
+                follow_redirects=False,
+                headers={"X-Remote-User": self.superuser_user.email}
+            )
+        assert resp.status_code == 200
+
+    def test_new_team_page_logged_in_user_via_header_should_pass(self):
+        with patch.object(settings, "remote_user_header", "X-Remote-User"):
+            resp = self.client.get(
+                "/instance-settings/team",
+                follow_redirects=False,
+                headers={"X-Remote-User": self.user.email}
+            )
+        assert resp.status_code == 307
+        assert resp.headers["location"] == "/"
+
+    def test_new_team_page_logged_in_invalid_via_header_should_error(self):
+        with patch.object(settings, "remote_user_header", "X-Remote-User"):
+            resp = self.client.get(
+                "/instance-settings/team",
+                follow_redirects=False,
+                headers={"X-Remote-User": "does-not-exist@example.com"}
+            )
+
+        assert resp.status_code == 400
+        assert resp.json() == {"message": "User does not exist"}
