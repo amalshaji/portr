@@ -1,1 +1,1 @@
-*.svelte linguist-detect=false
+**/*.svelte -linguist-detectable
