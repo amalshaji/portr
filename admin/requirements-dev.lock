@@ -53,8 +53,6 @@ fastapi==0.109.2
     # via portr-admin
 filelock==3.13.1
     # via virtualenv
-gunicorn==21.2.0
-    # via portr-admin
 h11==0.14.0
     # via httpcore
     # via uvicorn
@@ -82,7 +80,6 @@ nanoid==2.0.0
 nodeenv==1.8.0
     # via pre-commit
 packaging==23.2
-    # via gunicorn
     # via pytest
 platformdirs==4.2.0
     # via virtualenv
