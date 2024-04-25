@@ -1,3 +1,4 @@
+import os
 from typing import Annotated
 from fastapi import Cookie, FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -151,3 +152,15 @@ async def permission_denied_exception_handler(
 app.mount("/static", StaticFiles(directory="src/portr_admin/static"), name="static")
 if not settings.use_vite:
     app.mount("/", StaticFiles(directory="src/web/dist/static"), name="web-static")
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        workers=int(os.environ.get("UVICORN_WORKERS", 2)),
+        log_level="info",
+    )
