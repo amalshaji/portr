@@ -19,7 +19,6 @@ dependencies = [
     "aiosmtplib>=3.0.1",
     "cryptography>=42.0.5",
     "aerich>=0.7.2",
-    "gunicorn>=21.2.0",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"
