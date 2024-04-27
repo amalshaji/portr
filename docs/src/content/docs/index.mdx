@@ -4,17 +4,23 @@ description: Expose local http, tcp or websocket connections to the public inter
 template: splash
 hero:
   tagline: Expose local http, tcp or websocket connections to the public internet
-  image:
-    file: ../../assets/logo.svg
   actions:
     - text: Read the docs
       link: /getting-started/
-      icon: right-arrow
+      icon: open-book
       variant: primary
-    - text: Github
+    - text: View on GitHub
       link: https://github.com/amalshaji/portr
-      icon: external
-	  target: _blank
+      icon: github
+      variant: secondary
+      attrs:
+        target: _blank
+banner:
+  content: |
+    <p>
+      Show us your love by starring Portr on
+      <a target="_blank" style="justify-content: center;" href="https://github.com/amalshaji/portr">GitHub</a>
+    </p>
 ---
 
 import { Card, CardGrid } from "@astrojs/starlight/components";
