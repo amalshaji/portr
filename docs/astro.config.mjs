@@ -1,12 +1,14 @@
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 
+import tailwind from "@astrojs/tailwind";
+
 // https://astro.build/config
 export default defineConfig({
   integrations: [
     starlight({
       title: "Portr",
-      customCss: ["./src/styles/custom.css"],
+      customCss: ["./src/tailwind.css"],
       social: {
         github: "https://github.com/amalshaji/portr",
       },
@@ -22,11 +24,17 @@ export default defineConfig({
           label: "Guides",
           items: [
             // Each item here is one entry in the navigation menu.
-            { label: "Overview", link: "/getting-started/" },
+            {
+              label: "Overview",
+              link: "/getting-started/",
+            },
             {
               label: "Server",
               items: [
-                { label: "Quickstart", link: "/server/" },
+                {
+                  label: "Quickstart",
+                  link: "/server/",
+                },
                 {
                   label: "Cloudflare API token",
                   link: "/server/cloudflare-api-token/",
@@ -44,9 +52,18 @@ export default defineConfig({
             {
               label: "Client",
               items: [
-                { label: "Installation", link: "/client/installation/" },
-                { label: "HTTP tunnel", link: "/client/http-tunnel/" },
-                { label: "TCP tunnel", link: "/client/tcp-tunnel/" },
+                {
+                  label: "Installation",
+                  link: "/client/installation/",
+                },
+                {
+                  label: "HTTP tunnel",
+                  link: "/client/http-tunnel/",
+                },
+                {
+                  label: "TCP tunnel",
+                  link: "/client/tcp-tunnel/",
+                },
                 {
                   label: "Websocket tunnel",
                   link: "/client/websocket-tunnel/",
@@ -56,7 +73,10 @@ export default defineConfig({
             {
               label: "Local development",
               items: [
-                { label: "Admin", link: "/local-development/admin/" },
+                {
+                  label: "Admin",
+                  link: "/local-development/admin/",
+                },
                 {
                   label: "Tunnel server",
                   link: "/local-development/tunnel-server/",
@@ -70,6 +90,9 @@ export default defineConfig({
           ],
         },
       ],
+    }),
+    tailwind({
+      applyBaseStyles: false,
     }),
   ],
 });
