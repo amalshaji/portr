@@ -14,6 +14,8 @@
     "@astrojs/starlight": "^0.21.5",
     "@astrojs/starlight-tailwind": "^2.0.2",
     "@astrojs/tailwind": "^5.1.0",
+    "@fontsource/geist-mono": "^5.0.3",
+    "@fontsource/geist-sans": "^5.0.3",
     "astro": "^4.6.0",
     "astro-embed": "^0.6.2",
     "sharp": "^0.32.6",

@@ -28,10 +28,8 @@ export default {
         gray,
       },
       fontFamily: {
-        // Your preferred text font. Starlight uses a system font stack by default.
-        sans: ['"Atkinson Hyperlegible"'],
-        // Your preferred code font. Starlight uses system monospace fonts by default.
-        mono: ['"IBM Plex Mono"'],
+        sans: ["Geist Sans"],
+        mono: ["Geist Mono"],
       },
     },
   },

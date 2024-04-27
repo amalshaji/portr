@@ -8,7 +8,11 @@ export default defineConfig({
   integrations: [
     starlight({
       title: "Portr",
-      customCss: ["./src/tailwind.css"],
+      customCss: [
+        "./src/tailwind.css",
+        "@fontsource/geist-sans/400.css",
+        "@fontsource/geist-mono/400.css",
+      ],
       social: {
         github: "https://github.com/amalshaji/portr",
       },
@@ -23,7 +27,6 @@ export default defineConfig({
         {
           label: "Guides",
           items: [
-            // Each item here is one entry in the navigation menu.
             {
               label: "Overview",
               link: "/getting-started/",

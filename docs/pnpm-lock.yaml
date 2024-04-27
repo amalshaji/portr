@@ -17,6 +17,12 @@ dependencies:
   '@astrojs/tailwind':
     specifier: ^5.1.0
     version: 5.1.0(astro@4.6.0)(tailwindcss@3.4.3)
+  '@fontsource/geist-mono':
+    specifier: ^5.0.3
+    version: 5.0.3
+  '@fontsource/geist-sans':
+    specifier: ^5.0.3
+    version: 5.0.3
   astro:
     specifier: ^4.6.0
     version: 4.6.0(typescript@5.4.5)
@@ -981,6 +987,14 @@ packages:
       '@expressive-code/core': 0.33.5
       hastscript: 7.2.0
       unist-util-visit-parents: 5.1.3
+    dev: false
+
+  /@fontsource/geist-mono@5.0.3:
+    resolution: {integrity: sha512-ekY5FNiK7aMxan/c6lgVQa/rIwQ/AMEJZJWY7768jBrLVdkrCxfEfCe1ePpe7C3JnySy7c9R6HC4Xh4ksfjTaw==}
+    dev: false
+
+  /@fontsource/geist-sans@5.0.3:
+    resolution: {integrity: sha512-oGwoSIqNPMvjtCwj1lZaEr47MeiG27XPhypwkF643u1TQduvwbm3V3hYB01JekeaT34SAGP4I1h+WCdRpJkcwA==}
     dev: false
 
   /@isaacs/cliui@8.0.2:
