@@ -96,6 +96,8 @@ func (h *Handler) ReplayRequest(c *fiber.Ctx) error {
 		client.SetHeader(key, values[0])
 	}
 
+	client.SetHeader("X-Portr-Replayed-Request-Id", requestId)
+
 	client.SetBody(request.Body)
 
 	requestUrl := fmt.Sprintf("https://%s%s", request.Host, request.Url)
