@@ -8,7 +8,7 @@
 <div align="center">
   <img alt="GitHub License" src="https://img.shields.io/github/license/amalshaji/portr">
   <img alt="GitHub Release" src="https://img.shields.io/github/v/release/amalshaji/portr">
-  <a href="https://portr.dev" target="_blank"><img alt="Documentation" src="https://img.shields.io/badge/Documentation-portr.dev-0096FF"></a>
+  <a href="https://portr.dev" target="_blank"><img alt="Docs" src="https://img.shields.io/badge/Docs-portr.dev-0096FF"></a>
 </div>
 
 <br />
@@ -23,8 +23,8 @@ Portr is primarily designed for small teams looking to expose development server
 ## Features
 
 - 🎉 Easily tunnel http, tcp or websocket connections.
-- 👾 Admin dashboard for team/user management. [Watch video](https://youtu.be/P37la8DjrzA).
-- 🚨 Portr inspector for inspecting and replaying requests. [Watch video](https://youtu.be/hhbte2JI3qk).
+- 👾 Admin dashboard for team/user management. [Watch video](https://www.youtube.com/watch?v=Wv5j3YQk3Ew).
+- 🚨 Portr inspector for inspecting and replaying requests. [Watch video](https://www.youtube.com/watch?v=_4tipDzuoSs).
 
 ## Setup
 
