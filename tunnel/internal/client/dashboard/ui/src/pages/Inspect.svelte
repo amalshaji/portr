@@ -6,6 +6,7 @@
   import HttpStatus from "http-status-codes";
   import { Link } from "svelte-routing";
   import RequestDetails from "./RequestDetails.svelte";
+  import InspectorIcon from "$lib/components/InspectorIcon.svelte";
 
   export let id: string;
 
@@ -67,8 +68,8 @@
   <header
     class="flex items-center justify-between px-6 py-2 border-b dark:border-gray-800 bg-white dark:bg-gray-800"
   >
-    <Link to="/" class="text-gray-800 dark:text-gray-200">
-      <p class="text-2xl font-semibold">Portr inspector 🚨</p>
+    <Link to="/">
+      <InspectorIcon />
     </Link>
     <div class="flex items-center space-x-4">
       <input
