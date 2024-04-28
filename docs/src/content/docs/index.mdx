@@ -24,23 +24,17 @@ banner:
 ---
 
 import { Card, CardGrid } from "@astrojs/starlight/components";
+import { YouTube } from "astro-embed";
 
 ## Features
 
 <CardGrid stagger>
-  <Card title="Self hosted" icon="laptop">
-    Run `docker compose up` on your server.
-  </Card>
   <Card title="Admin dashboard" icon="rocket">
     Admin dashboard to monitor connections, manage teams and members.{" "}
-    <a target="_blank" href="https://youtu.be/P37la8DjrzA">
-      watch video
-    </a>
+    <YouTube id="https://www.youtube.com/watch?v=Wv5j3YQk3Ew" />
   </Card>
   <Card title="Portr inspector" icon="magnifier">
     Portr inspector to inspect and replay http requests.{" "}
-    <a target="_blank" href="https://youtu.be/hhbte2JI3qk">
-      watch video
-    </a>
+    <YouTube id="https://www.youtube.com/watch?v=_4tipDzuoSs" />
   </Card>
 </CardGrid>
