@@ -276,6 +276,15 @@ func (s *SshClient) logHttpRequest(
 		requestHeaders[key] = values
 	}
 
+	var replayedRequestId string
+	var isReplayedRequest bool
+
+	_, isReplayedRequest = requestHeaders["X-Portr-Replayed-Request-Id"]
+	if isReplayedRequest {
+		replayedRequestId = requestHeaders["X-Portr-Replayed-Request-Id"][0]
+		delete(requestHeaders, "X-Portr-Replayed-Request-Id")
+	}
+
 	requestHeadersBytes, err := json.Marshal(requestHeaders)
 	if err != nil {
 		if s.config.Debug {
@@ -310,6 +319,8 @@ func (s *SshClient) logHttpRequest(
 		ResponseBody:       responseBody,
 		ResponseStatusCode: response.StatusCode,
 		LoggedAt:           time.Now().UTC(),
+		IsReplayed:         isReplayedRequest,
+		ParentID:           replayedRequestId,
 	}
 	result := s.db.Conn.Create(&req)
 	if result.Error != nil {

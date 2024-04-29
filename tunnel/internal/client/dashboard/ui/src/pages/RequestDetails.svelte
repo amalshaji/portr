@@ -14,6 +14,8 @@
     return jsonKeyValue;
   };
 
+  export let viewParent;
+
   let replaying = false;
 
   const replayRequest = async () => {
@@ -45,7 +47,10 @@
       <div class="font-normal">{$currentRequest?.Method}</div>
       <div><code class="font-light text-lg">{$currentRequest?.Url}</code></div>
     </div>
-    <div>
+    <div class="flex items-center gap-2">
+      <Button on:click={viewParent} disabled={$currentRequest?.ParentID === ""}>
+        <p class="text-sm">View parent</p>
+      </Button>
       <Button variant="outline" disabled={replaying} on:click={replayRequest}>
         {#if replaying}
           <RotateCw class="mr-2 w-4 h-4 animate-spin" />

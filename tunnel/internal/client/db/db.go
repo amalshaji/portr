@@ -41,4 +41,6 @@ type Request struct {
 	ResponseBody       []byte
 	ResponseStatusCode int
 	LoggedAt           time.Time
+	IsReplayed         bool
+	ParentID           string
 }

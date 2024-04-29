@@ -7,6 +7,7 @@
   import { Link } from "svelte-routing";
   import RequestDetails from "./RequestDetails.svelte";
   import InspectorIcon from "$lib/components/InspectorIcon.svelte";
+  import { Repeat } from "lucide-svelte";
 
   export let id: string;
 
@@ -53,6 +54,12 @@
 
   let interval: number | undefined;
 
+  const viewParent = () => {
+    const parentId = $currentRequest?.ParentID;
+    // @ts-ignore
+    currentRequest.set(requests.find((request) => request.ID === parentId));
+  };
+
   onMount(() => {
     currentRequest.set(null);
     getRequests();
@@ -98,7 +105,12 @@
             <div
               class="text-sm text-gray-800 dark:text-gray-200 flex justify-between items-center text-clip"
             >
-              <span>{request.Method}</span>
+              <span class="flex items-center gap-2">
+                {request.Method}
+                {#if request.IsReplayed}
+                  <Repeat class="w-4 h-4" />
+                {/if}
+              </span>
               <span class="overflow-clip h-6 w-40 text-right"
                 >{request.Url}</span
               >
@@ -111,6 +123,6 @@
         {/each}
       </div>
     </div>
-    <RequestDetails />
+    <RequestDetails {viewParent} />
   </main>
 </div>
