@@ -18,6 +18,7 @@
       "github-oauth-error": "There was an error authenticating with GitHub.",
       "user-not-found": "You are not a member of any team.",
       "private-email": "Failed to verify github email. Please try again later.",
+      "invalid-state": "Broken oauth flow, please try again later.",
     };
     return (
       // @ts-expect-error
@@ -87,7 +88,7 @@
 
     {#if message}
       <div class="mt-4">
-        <Alert.Root>
+        <Alert.Root variant="destructive">
           <ExclamationTriangle class="h-4 w-4" />
           <Alert.Title>Error</Alert.Title>
           <Alert.Description>
