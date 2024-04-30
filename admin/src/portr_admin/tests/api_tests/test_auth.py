@@ -27,8 +27,8 @@ class GithubAuthTests(test.TestCase):
             "/api/v1/auth/github/callback?code=test_code&state=invalid_state",
             follow_redirects=False,
         )
-        assert resp.status_code == 400
-        assert resp.text == "Invalid state"
+        assert resp.status_code == 307
+        assert resp.headers["location"] == "/?code=invalid-state"
 
     @patch("portr_admin.services.user.get_or_create_user_from_github")
     async def test_github_callback_user_not_found(
