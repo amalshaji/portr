@@ -10,6 +10,8 @@
     "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "devDependencies": {
+    "@dicebear/collection": "^8.0.1",
+    "@dicebear/core": "^8.0.1",
     "@sveltejs/vite-plugin-svelte": "^2.5.3",
     "@tsconfig/svelte": "^5.0.4",
     "autoprefixer": "^10.4.19",

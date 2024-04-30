@@ -38,9 +38,7 @@
 </svelte:head>
 
 <div class="p-6">
-  <p class="text-lg py-2 font-semibold leading-none tracking-tight">
-    Client setup
-  </p>
+  <p class="text-lg py-2 font-semibold leading-none">Client setup</p>
 
   <div class="px-6 mt-2">
     <ul class="list-decimal space-y-6">

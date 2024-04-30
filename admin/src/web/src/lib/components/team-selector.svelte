@@ -3,6 +3,8 @@
   import { currentUserTeams } from "$lib/store";
   import { getContext, onDestroy, onMount } from "svelte";
   import * as Avatar from "$lib/components/ui/avatar";
+  import { createAvatar } from "@dicebear/core";
+  import { initials } from "@dicebear/collection";
 
   let team = getContext("team") as string;
 
@@ -15,6 +17,14 @@
       },
     });
     currentUserTeams.set(await response.json());
+  };
+
+  const avatar = (text: string) => {
+    const svg = createAvatar(initials, {
+      seed: text,
+    });
+    // @ts-ignore
+    return `data:image/svg+xml,${encodeURIComponent(svg)}`;
   };
 
   const subscriber = currentUserTeams.subscribe((teams) => {
@@ -34,13 +44,13 @@
 </script>
 
 <Select.Root bind:selected onSelectedChange={switchTeams}>
-  <Select.Trigger class="text-[15px] tracking-tight">
+  <Select.Trigger class="text-[14px] border-black focus:ring-0">
     <div class="flex items-center space-x-2">
-      <Avatar.Root class="w-6 h-6 rounded-full">
+      <Avatar.Root class="w-5 h-5 rounded-full">
         <Avatar.Image
-          src="https://api.dicebear.com/7.x/initials/svg?seed={selected.value}&backgroundColor=transparent&textColor=000000"
+          src={avatar(selected.label)}
           alt={selected.label}
-          class="w-6 h-6 rounded-full border mr-2"
+          class="w-5 h-5 rounded-full border mr-2"
         />
       </Avatar.Root>
       <Select.Value />
@@ -52,7 +62,7 @@
       {#each $currentUserTeams as team}
         <Select.Item value={team.slug} label={team.name}>
           <img
-            src="https://api.dicebear.com/7.x/initials/svg?seed={team.slug}&backgroundColor=transparent&textColor=000000"
+            src={avatar(team.name)}
             alt={team.name}
             class="w-5 h-5 rounded-full border mr-2"
           />

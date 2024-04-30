@@ -3,7 +3,7 @@
 </script>
 
 <div
-  class="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]"
+  class="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[260px_1fr]"
 >
   <div class="hidden border-r bg-muted/40 md:block">
     <slot name="sidebar" />
