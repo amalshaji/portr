@@ -54,7 +54,7 @@ async def github_login(request: Request):
 async def github_callback(request: Request, code: str, state: str):
     existing_state = request.cookies.get("oauth_state")
     if state != existing_state:
-        return Response(status_code=400, content="Invalid state")
+        return RedirectResponse(url="/?code=invalid-state")
 
     try:
         user = await user_service.get_or_create_user_from_github(code)
