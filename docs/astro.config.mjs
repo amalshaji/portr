@@ -16,10 +16,6 @@ export default defineConfig({
       social: {
         github: "https://github.com/amalshaji/portr",
       },
-      logo: {
-        src: "./src/assets/logo.svg",
-        replacesTitle: true,
-      },
       components: {
         Head: "./src/components/Head.astro",
       },
