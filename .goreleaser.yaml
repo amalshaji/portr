@@ -33,21 +33,9 @@ checksum:
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
 
-changelog:
-  sort: asc
-  filters:
-    exclude:
-      - "^docs:"
-      - "^test:"
-
 release:
   name_template: "v{{ .Version }}"
   draft: true
-  footer: |
-    ## Server docker images
-
-    Admin - https://hub.docker.com/r/amalshaji/portr-admin/tags
-    Tunnel - https://hub.docker.com/r/amalshaji/portr-tunnel/tags
 
 brews:
   - name: portr
