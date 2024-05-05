@@ -1,11 +1,11 @@
 <script lang="ts">
   import { onMount } from "svelte";
-
   import {
     ExclamationTriangle,
     LockClosed,
     GithubLogo,
   } from "radix-icons-svelte";
+  import { X } from "lucide-svelte";
 
   import * as Alert from "$lib/components/ui/alert";
   import { Button } from "$lib/components/ui/button";
@@ -55,21 +55,17 @@
 
 <div class="grid h-screen place-items-center">
   <div
-    class="w-full max-w-sm p-6 m-auto mx-auto rounded-md dark:bg-gray-800 py-8 border"
+    class="w-full max-w-sm p-6 m-auto mx-auto rounded-md dark:bg-gray-800 py-8"
   >
-    <div class="flex justify-center mx-auto py-8 items-center space-x-2">
-      <img class="w-auto h-12" src="/static/logo.svg" alt="" />
-    </div>
-
     <Button
-      variant="default"
+      variant="outline"
       class="w-full"
       href={encodeURIComponent(next) !== "null"
         ? `/api/v1/auth/github?next=${encodeURIComponent(next)}`
         : `/api/v1/auth/github`}
     >
       <GithubLogo class="mr-2 h-4 w-4" />
-      Continue with GitHub
+      Login with GitHub
     </Button>
 
     <div class="my-4">
@@ -87,10 +83,20 @@
     </div>
 
     {#if message}
-      <div class="mt-4">
+      <div class="mt-4" id="error-message-box">
         <Alert.Root variant="destructive">
           <ExclamationTriangle class="h-4 w-4" />
-          <Alert.Title>Error</Alert.Title>
+          <Alert.Title>
+            <p class="flex justify-between">
+              <span>Error</span>
+              <span
+                on:click={() => {
+                  const element = document.getElementById("error-message-box");
+                  element?.remove();
+                }}><X class="h-3 hover:cursor-pointer" /></span
+              >
+            </p>
+          </Alert.Title>
           <Alert.Description>
             {message}
           </Alert.Description>
