@@ -1,0 +1,52 @@
+---
+title: Use route53 instead of cloudflare
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The [caddy base image](https://github.com/amalshaji/caddy-docker-proxy) is built with both cloudflare and route53 plugin.
+
+1. Create an IAM policy using the template provided in [libdns/route53](https://github.com/libdns/route53#authenticating).
+
+    <Aside type="caution">
+
+    Make sure you replace the hosted zone in the template with your hosted zone id.
+
+    ```diff
+    - arn:aws:route53:::hostedzone/ZABCD1EFGHIL
+    + arn:aws:route53:::hostedzone/<your-hosted-zone-id>
+    ```
+
+    </Aside>
+
+
+2. Create a new IAM user and attach the policy created in step 1.
+3. Go to the user -> Security credentials and create a new access key.
+4. Add the credentials to the .env file
+
+    ```diff
+    - CLOUDFLARE_API_TOKEN=
+    + ROUTE53_ACCESS_KEY=<access-key-id>
+    + ROUTE53_SECRET_ACCESS_KEY=<secret-access-key>
+    ```
+5. Update the caddy labels in tunnel service to use route53 instead of cloudflare.
+
+    ```diff
+    labels:
+      caddy_1: "*.$PORTR_DOMAIN"
+      caddy_1.reverse_proxy: "{{upstreams http 8001}}"
+    -  caddy_1.tls.dns: "cloudflare $CLOUDFLARE_API_TOKEN"
+    +  caddy_1.tls.dns: "route53"
+    +  caddy_1.tls.dns.access_key_id: "$ROUTE53_ACCESS_KEY"
+    +  caddy_1.tls.dns.secret_access_key: "$ROUTE53_SECRET_ACCESS_KEY"
+      caddy_1.encode: gzip
+    ```
+6. Start the servers
+
+    ```bash
+    docker-compose up -d
+    ```
+
+    Navigate to your domain to see the tunnel in action.
+
+

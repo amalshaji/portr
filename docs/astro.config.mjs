@@ -86,6 +86,19 @@ export default defineConfig({
                 },
               ],
             },
+            {
+              label: "Resources",
+              items: [
+                {
+                  label: "Route53",
+                  link: "/resources/route53/",
+                  badge: {
+                    text: "New",
+                    variant: "success",
+                  },
+                },
+              ],
+            },
           ],
         },
       ],
