@@ -1,11 +1,6 @@
 <script lang="ts">
+  import { Github, Lock, TriangleAlert, X } from "lucide-svelte";
   import { onMount } from "svelte";
-  import {
-    ExclamationTriangle,
-    LockClosed,
-    GithubLogo,
-  } from "radix-icons-svelte";
-  import { X } from "lucide-svelte";
 
   import * as Alert from "$lib/components/ui/alert";
   import { Button } from "$lib/components/ui/button";
@@ -57,6 +52,9 @@
   <div
     class="w-full max-w-sm p-6 m-auto mx-auto rounded-md dark:bg-gray-800 py-8"
   >
+    <p class="text-center my-6 text-2xl font-semibold tracking-wide">
+      Log into Portr
+    </p>
     <Button
       variant="outline"
       class="w-full"
@@ -64,13 +62,13 @@
         ? `/api/v1/auth/github?next=${encodeURIComponent(next)}`
         : `/api/v1/auth/github`}
     >
-      <GithubLogo class="mr-2 h-4 w-4" />
+      <Github class="mr-2 h-4 w-4" />
       Login with GitHub
     </Button>
 
     <div class="my-4">
       <Alert.Root>
-        <LockClosed class="h-4 w-4" />
+        <Lock class="h-4 w-4" />
         <Alert.Title>Heads up!</Alert.Title>
         <Alert.Description>
           {#if isSuperUserSignup}
@@ -85,10 +83,12 @@
     {#if message}
       <div class="mt-4" id="error-message-box">
         <Alert.Root variant="destructive">
-          <ExclamationTriangle class="h-4 w-4" />
+          <TriangleAlert class="h-4 w-4" />
           <Alert.Title>
             <p class="flex justify-between">
               <span>Error</span>
+              <!-- svelte-ignore a11y-no-static-element-interactions -->
+              <!-- svelte-ignore a11y-click-events-have-key-events -->
               <span
                 on:click={() => {
                   const element = document.getElementById("error-message-box");
