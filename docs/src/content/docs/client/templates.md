@@ -2,7 +2,11 @@
 title: Tunnel templates
 ---
 
-If you use certain subdomains/port regularly, it is easier to create them as services and reuse using simple commands.
+### Why templates
+
+- Run multiple tunnels at the same time.
+- If you use certain subdomains/port regularly, it is easier to create them as services and reuse using simple commands.
+
 Open the portr client config file by running the following command
 
 ```bash

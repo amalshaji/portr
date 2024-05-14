@@ -67,6 +67,10 @@ export default defineConfig({
                   label: "Websocket tunnel",
                   link: "/client/websocket-tunnel/",
                 },
+                {
+                  label: "Tunnel templates",
+                  link: "/client/templates/",
+                },
               ],
             },
             {
