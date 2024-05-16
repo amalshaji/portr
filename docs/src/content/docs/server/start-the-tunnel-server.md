@@ -1,5 +1,6 @@
 ---
 title: Server setup
+description: Learn how to deploy portr admin and tunnel server using docker
 ---
 
 
@@ -53,5 +54,3 @@ If you want to run postgres separately and not as a service, you can exclude the
 
 Run `docker compose up` to start the servers. Once the servers are up, go to example.com and login in to the admin.
 First login will be treated as a superuser.
-
-
