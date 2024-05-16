@@ -1,5 +1,6 @@
 ---
 title: Setup admin in local
+description: Learn how to setup portr admin for local development
 ---
 
 The admin is built using python for the backend and svelte for the frontend.

@@ -1,5 +1,6 @@
 ---
 title: Tunnel templates
+description: Learn how to setup tunnel templates to reuse tunnel settings
 ---
 
 ### Why templates

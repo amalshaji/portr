@@ -5,6 +5,7 @@ import tailwind from "@astrojs/tailwind";
 
 // https://astro.build/config
 export default defineConfig({
+  site: "https://portr.dev",
   integrations: [
     starlight({
       title: "Portr",
@@ -15,6 +16,7 @@ export default defineConfig({
       ],
       social: {
         github: "https://github.com/amalshaji/portr",
+        twitter: "https://twitter.com/amal_ytics",
       },
       components: {
         Head: "./src/components/Head.astro",
