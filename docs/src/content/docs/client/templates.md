@@ -42,4 +42,6 @@ tunnels:
 
 And start multiple services by using the command `portr start portr pg`.
 
+To start all the services, use the command `portr start`.
+
 For more details, run `portr --help`.
