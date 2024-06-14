@@ -5,7 +5,7 @@
   import * as Card from "$lib/components/ui/card";
   import { currentUser } from "$lib/store";
   import { toast } from "svelte-sonner";
-  import { Reload } from "radix-icons-svelte";
+  import { Loader } from "lucide-svelte";
   import { getContext } from "svelte";
 
   let team = getContext("team") as string;
@@ -85,7 +85,7 @@
     <Card.Footer>
       <Button on:click={updateProfile} disabled={isUpdating}>
         {#if isUpdating}
-          <Reload class="mr-2 h-4 w-4 animate-spin" />
+          <Loader class="mr-2 h-4 w-4 animate-spin" />
         {/if}
         Save changes
       </Button>

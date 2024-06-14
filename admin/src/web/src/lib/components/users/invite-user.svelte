@@ -1,14 +1,14 @@
 <script lang="ts">
-  import { Button } from "$lib/components/ui/button";
   import * as AlertDialog from "$lib/components/ui/alert-dialog";
-  import { Reload } from "radix-icons-svelte";
+  import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
+  import { Loader } from "lucide-svelte";
 
   import * as Select from "$lib/components/ui/select";
-  import { toast } from "svelte-sonner";
   import { currentUser, users } from "$lib/store";
   import { getContext } from "svelte";
+  import { toast } from "svelte-sonner";
   import ApiError from "../ApiError.svelte";
 
   import { Checkbox } from "$lib/components/ui/checkbox";
@@ -135,7 +135,7 @@
       <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
       <Button on:click={add_member} disabled={isLoading}>
         {#if isLoading}
-          <Reload class="mr-2 h-4 w-4 animate-spin" />
+          <Loader class="mr-2 h-4 w-4 animate-spin" />
         {/if}
         Add
       </Button>

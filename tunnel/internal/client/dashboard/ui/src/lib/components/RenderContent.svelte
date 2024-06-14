@@ -1,5 +1,7 @@
 <script lang="ts">
   import { currentRequest } from "$lib/store";
+  import Highlight from "svelte-highlight";
+  import json from "svelte-highlight/languages/json";
   import RenderFormUrlEncoded from "./RenderFormUrlEncoded.svelte";
   import RenderMultipartFormData from "./RenderMultipartFormData.svelte";
   import Button from "./ui/button/button.svelte";
@@ -38,7 +40,10 @@
     <div class="text-gray-500 dark:text-gray-400">No content</div>
   {:else if contentType.startsWith("application/json")}
     {#await loadResponse(`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`) then response}
-      <pre class="text-sm">{JSON.stringify(JSON.parse(response), null, 2)}</pre>
+      <Highlight
+        language={json}
+        code={JSON.stringify(JSON.parse(response), null, 2)}
+      />
     {/await}
   {:else if contentType.startsWith("application/x-www-form-urlencoded")}
     {#await loadResponse(`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`) then response}
