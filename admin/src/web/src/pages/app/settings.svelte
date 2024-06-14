@@ -4,7 +4,7 @@
   import * as Card from "$lib/components/ui/card";
   import { currentUser } from "$lib/store";
   import { toast } from "svelte-sonner";
-  import { Reload } from "radix-icons-svelte";
+  import { Loader } from "lucide-svelte";
   import { getContext } from "svelte";
   import { copyCodeToClipboard } from "$lib/utils";
 
@@ -64,7 +64,7 @@
         disabled={isRotatingSecretKey}
       >
         {#if isRotatingSecretKey}
-          <Reload class="mr-2 h-4 w-4 animate-spin" />
+          <Loader class="mr-2 h-4 w-4 animate-spin" />
         {/if}
         Rotate key
       </Button>

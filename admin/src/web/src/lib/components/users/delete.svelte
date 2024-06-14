@@ -3,8 +3,7 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import { currentUser, users } from "$lib/store";
   import type { TeamUser } from "$lib/types";
-  import { Trash2 } from "lucide-svelte";
-  import { Reload } from "radix-icons-svelte";
+  import { Loader, Trash2 } from "lucide-svelte";
   import { getContext } from "svelte";
   import { toast } from "svelte-sonner";
 
@@ -64,7 +63,7 @@
       <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
       <Button on:click={removeUser} disabled={isLoading}>
         {#if isLoading}
-          <Reload class="mr-2 h-4 w-4 animate-spin" />
+          <Loader class="mr-2 h-4 w-4 animate-spin" />
         {/if}
         Remove
       </Button>

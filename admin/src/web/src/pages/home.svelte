@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Github, Lock, TriangleAlert, X } from "lucide-svelte";
+  import { Github, Lock, TriangleAlert, X, TreePalm } from "lucide-svelte";
   import { onMount } from "svelte";
 
   import * as Alert from "$lib/components/ui/alert";
@@ -52,9 +52,14 @@
   <div
     class="w-full max-w-sm p-6 m-auto mx-auto rounded-md dark:bg-gray-800 py-8"
   >
-    <p class="text-center my-6 text-2xl font-semibold tracking-wide">
-      Log into Portr
-    </p>
+    <div class="flex space-x-2 items-center justify-center">
+      <TreePalm />
+      <span
+        class="items-center text-center my-6 text-2xl font-semibold tracking-wide"
+      >
+        Welcome back!
+      </span>
+    </div>
     <Button
       variant="outline"
       class="w-full"

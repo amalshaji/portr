@@ -44,7 +44,7 @@
 </script>
 
 <Select.Root bind:selected onSelectedChange={switchTeams}>
-  <Select.Trigger class="text-[14px] border-black focus:ring-0">
+  <Select.Trigger class="text-[14px] focus:ring-0">
     <div class="flex items-center space-x-2">
       <Avatar.Root class="w-5 h-5 rounded-full">
         <Avatar.Image

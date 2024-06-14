@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { Label } from "$lib/components/ui/label";
+  import ErrorText from "$lib/components/ErrorText.svelte";
   import { Button } from "$lib/components/ui/button";
   import * as Card from "$lib/components/ui/card";
+  import { Input } from "$lib/components/ui/input";
+  import { Label } from "$lib/components/ui/label";
+  import { Switch } from "$lib/components/ui/switch";
   import { Textarea } from "$lib/components/ui/textarea";
   import { instanceSettings } from "$lib/store";
+  import { Loader } from "lucide-svelte";
   import { onDestroy, onMount } from "svelte";
   import { toast } from "svelte-sonner";
-  import { Reload } from "radix-icons-svelte";
-  import { Switch } from "$lib/components/ui/switch";
-  import { Input } from "$lib/components/ui/input";
-  import ErrorText from "$lib/components/ErrorText.svelte";
 
   let smtpEnabled: boolean;
 
@@ -239,7 +239,7 @@
   <Card.Footer>
     <Button on:click={updateEmailSettings} disabled={isUpdating}>
       {#if isUpdating}
-        <Reload class="mr-2 h-4 w-4 animate-spin" />
+        <Loader class="mr-2 h-4 w-4 animate-spin" />
       {/if}
       Save changes
     </Button>
