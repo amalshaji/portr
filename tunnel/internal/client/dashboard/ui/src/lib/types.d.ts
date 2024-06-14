@@ -16,4 +16,5 @@ export type Request = {
   ResponseBody: string;
   IsReplayed: boolean;
   ParentID: string;
+  LoggedAt: string;
 };

@@ -1,10 +1,14 @@
 <script lang="ts">
-  import { currentRequest } from "$lib/store";
-  import { Button } from "$lib/components/ui/button";
-  import { toast } from "svelte-sonner";
-  import { RotateCw } from "lucide-svelte";
-  import { Play } from "lucide-svelte";
+  import HttpBadge from "$lib/components/HttpBadge.svelte";
   import RenderContent from "$lib/components/RenderContent.svelte";
+  import { Button } from "$lib/components/ui/button";
+  import { currentRequest } from "$lib/store";
+  import { convertDateToHumanReadable } from "$lib/utils";
+  import { Loader, Play } from "lucide-svelte";
+  import Highlight from "svelte-highlight";
+  import json from "svelte-highlight/languages/json";
+  import atomonelight from "svelte-highlight/styles/atom-one-light";
+  import { toast } from "svelte-sonner";
 
   const convertJsonToSingleValue = (data: any) => {
     const jsonKeyValue: any = {};
@@ -39,21 +43,34 @@
   };
 </script>
 
+<svelte:head>
+  {@html atomonelight}
+</svelte:head>
+
 <div class="flex-1 p-6 overflow-y-auto bg-white dark:bg-gray-800">
   <h2
-    class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200 flex justify-between"
+    class="text-xl font-medium text-gray-800 dark:text-gray-200 flex justify-between"
   >
     <div class="flex space-x-4 items-center">
-      <div class="font-normal">{$currentRequest?.Method}</div>
-      <div><code class="font-light text-lg">{$currentRequest?.Url}</code></div>
+      <HttpBadge method={$currentRequest?.Method} />
+      <div>
+        <p class="font-light text-lg">{$currentRequest?.Url}</p>
+      </div>
     </div>
     <div class="flex items-center gap-2">
-      <Button on:click={viewParent} disabled={$currentRequest?.ParentID === ""}>
-        <p class="text-sm">View parent</p>
-      </Button>
-      <Button variant="outline" disabled={replaying} on:click={replayRequest}>
+      {#if $currentRequest?.ParentID !== ""}
+        <Button on:click={viewParent}>
+          <p class="text-sm">View parent</p>
+        </Button>
+      {/if}
+      <Button
+        variant="outline"
+        class="shadow-md"
+        disabled={replaying}
+        on:click={replayRequest}
+      >
         {#if replaying}
-          <RotateCw class="mr-2 w-4 h-4 animate-spin" />
+          <Loader class="mr-2 w-4 h-4 animate-spin" />
         {:else}
           <Play class="mr-2 w-4 h-4" />
         {/if}
@@ -61,48 +78,66 @@
       </Button>
     </div>
   </h2>
+  <div>
+    {#if $currentRequest?.LoggedAt}
+      <p class="font-light mb-4">
+        {convertDateToHumanReadable($currentRequest.LoggedAt)}
+      </p>
+    {/if}
+  </div>
   <div class="space-y-6">
     <div>
-      <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
+      <h3 class="text-lg font-medium text-gray-800 dark:text-gray-200">
         Request Headers
       </h3>
-      <div class="rounded-md bg-[#F4F4F5] dark:bg-gray-700 p-4 mt-2">
-        <pre
-          class="text-sm font-mono text-gray-800 dark:text-gray-200 text-wrap break-words">{JSON.stringify(
+      <div class="rounded-md bg-[#FAFAFA] border dark:bg-gray-700 p-4 mt-2">
+        <Highlight
+          language={json}
+          code={JSON.stringify(
             convertJsonToSingleValue($currentRequest?.Headers),
             null,
             2
-          )}</pre>
+          )}
+        />
       </div>
     </div>
     <div>
-      <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
+      <h3 class="text-lg font-medium text-gray-800 dark:text-gray-200">
         Request Body
       </h3>
-      <div class="rounded-md bg-[#F4F4F5] dark:bg-gray-700 p-4 mt-2">
+      <div class="rounded-md bg-[#FAFAFA] border dark:bg-gray-700 p-4 mt-2">
         <RenderContent type="request" />
       </div>
     </div>
     <div>
-      <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
+      <h3 class="text-lg font-medium text-gray-800 dark:text-gray-200">
         Response Headers
       </h3>
-      <div class="rounded-md bg-[#F4F4F5] dark:bg-gray-700 p-4 mt-2">
-        <pre
-          class="text-sm font-mono text-gray-800 dark:text-gray-200 text-wrap break-words">{JSON.stringify(
+      <div class="rounded-md bg-[#FAFAFA] border dark:bg-gray-700 p-4 mt-2">
+        <Highlight
+          language={json}
+          code={JSON.stringify(
             convertJsonToSingleValue($currentRequest?.ResponseHeaders),
             null,
             2
-          )}</pre>
+          )}
+        />
       </div>
     </div>
     <div>
-      <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
+      <h3 class="text-lg font-medium text-gray-800 dark:text-gray-200">
         Response Body
       </h3>
-      <div class="rounded-md bg-[#F4F4F5] p-4 mt-2">
+      <div class="rounded-md bg-[#FAFAFA] border p-4 mt-2">
         <RenderContent type="response" />
       </div>
     </div>
   </div>
 </div>
+
+<style>
+  :global(.hljs) {
+    font-size: 14px !important;
+    padding: 16px !important;
+  }
+</style>

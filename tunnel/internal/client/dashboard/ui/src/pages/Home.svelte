@@ -20,7 +20,9 @@
   });
 </script>
 
-<div class="h-screen place-items-center w-[600px] mx-auto py-8 items-center">
+<div
+  class="place-items-center w-1/4 border mx-auto h-[750px] items-center overflow-auto my-12 rounded-lg"
+>
   <Table.Root>
     <Table.Header>
       <Table.Row>
@@ -32,9 +34,9 @@
       {#each tunnels as tunnel, i (i)}
         <Table.Row
           on:click={() => gotoTunnel(tunnel)}
-          class="hover:cursor-pointer"
+          class="hover:cursor-pointer hover:bg-gray-100"
         >
-          <Table.Cell class="font-medium">{tunnel.Subdomain}</Table.Cell>
+          <Table.Cell class="">{tunnel.Subdomain}</Table.Cell>
           <Table.Cell class="text-right">{tunnel.Localport}</Table.Cell>
         </Table.Row>
       {/each}
