@@ -18,7 +18,7 @@ apscheduler==3.10.4
     # via portr-admin
 asyncpg==0.29.0
     # via tortoise-orm
-certifi==2024.2.2
+certifi==2024.7.4
     # via httpcore
     # via httpx
 click==8.1.7
