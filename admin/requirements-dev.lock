@@ -6,6 +6,8 @@
 #   features: []
 #   all-features: false
 #   with-sources: false
+#   generate-hashes: false
+#   universal: false
 
 -e file:.
 aerich==0.7.2
@@ -21,6 +23,10 @@ anyio==4.3.0
     # via starlette
 apscheduler==3.10.4
     # via portr-admin
+argon2-cffi==23.1.0
+    # via portr-admin
+argon2-cffi-bindings==21.2.0
+    # via argon2-cffi
 asgi-lifespan==2.1.0
 async-factory-boy==1.0.1
 asyncpg==0.29.0
@@ -29,6 +35,7 @@ certifi==2024.2.2
     # via httpcore
     # via httpx
 cffi==1.16.0
+    # via argon2-cffi-bindings
     # via cryptography
 cfgv==3.4.0
     # via pre-commit
@@ -81,6 +88,8 @@ nodeenv==1.8.0
     # via pre-commit
 packaging==23.2
     # via pytest
+passlib==1.7.4
+    # via portr-admin
 platformdirs==4.2.0
     # via virtualenv
 pluggy==1.4.0
