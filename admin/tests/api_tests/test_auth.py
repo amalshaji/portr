@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch, AsyncMock
 from tests import TestClient
 from tortoise.contrib import test
 from services import user as user_service
@@ -80,10 +80,18 @@ class GithubAuthTests(test.TestCase):
     @patch("services.user.get_or_create_user")
     @patch("services.auth.login_user")
     async def test_login(self, login_user_fn, get_or_create_user_fn):
+        mock_team = MagicMock(slug="test_slug")
+
+        user = MagicMock()
+        user.teams = MagicMock()
+        user.teams.filter = MagicMock()
+        user.teams.filter.return_value.first = AsyncMock(return_value=mock_team)
+        get_or_create_user_fn.return_value = user
         resp = self.client.post(
             "/api/v1/auth/login", json={"email": "amal@portr.dev", "password": "amal"}
         )
         assert resp.status_code == 200
+        assert resp.json() == {"redirect_to": "/test_slug/overview"}
         get_or_create_user_fn.assert_called_once_with(
             email="amal@portr.dev", password="amal"
         )

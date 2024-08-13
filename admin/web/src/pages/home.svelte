@@ -7,6 +7,7 @@
   import * as Card from "$lib/components/ui/card/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
+  import { navigate } from "svelte-routing";
 
   let isSuperUserSignup = false,
     githubAuthEnabled = false;
@@ -83,7 +84,8 @@
         }),
       });
       if (res.ok) {
-        location.href = "/";
+        const { redirect_to } = await res.json();
+        navigate(redirect_to);
       } else {
         const data = await res.json();
         emailError = data.email ?? "";

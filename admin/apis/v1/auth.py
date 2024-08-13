@@ -47,7 +47,8 @@ async def login(data: LoginSchema):
     except user_service.WrongPasswordError as e:
         return JSONResponse(content={"password": str(e)}, status_code=400)
 
-    response = Response()
+    first_team = await user.teams.filter().first()
+    response = JSONResponse(content={"redirect_to": f"/{first_team.slug}/overview"})
 
     return await login_user(response, user)
 
