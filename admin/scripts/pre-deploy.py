@@ -1,7 +1,7 @@
 import asyncio
 from aerich import Command  # type: ignore
 
-from db import TORTOISE_ORM, connect_db, disconnect_db
+from config.database import TORTOISE_ORM, connect_db, disconnect_db
 from services.settings import populate_instance_settings
 
 
