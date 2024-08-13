@@ -130,7 +130,13 @@
       {/if}
     </div>
     <Card.Header>
-      <Card.Title class="text-2xl">Login</Card.Title>
+      <Card.Title class="text-2xl">
+        {#if isSuperUserSignup}
+          Create superuser account
+        {:else}
+          Login
+        {/if}
+      </Card.Title>
       <Card.Description>
         {#if isSuperUserSignup}
           You are signing up as a superuser.
@@ -174,7 +180,11 @@
           {#if loginLoading}
             <Loader class="mr-2 h-4 w-4 animate-spin" />
           {/if}
-          Login
+          {#if isSuperUserSignup}
+            Create superuser account
+          {:else}
+            Login
+          {/if}
         </Button>
 
         {#if isSuperUserSignup || !githubAuthEnabled}
