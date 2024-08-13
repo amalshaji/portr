@@ -3,9 +3,7 @@ import json
 
 from pathlib import Path
 
-MANIFEST_PATH = (
-    Path(__file__).parent.parent.parent / "web/dist/static/.vite/manifest.json"
-)
+MANIFEST_PATH = Path(__file__).parent.parent / "web/dist/static/.vite/manifest.json"
 
 
 @cache
