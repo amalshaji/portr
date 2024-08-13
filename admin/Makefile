@@ -1,5 +1,5 @@
 init-migrations:
-	aerich init -t src.portr_admin.db.TORTOISE_ORM
+	aerich init -t db.TORTOISE_ORM
 
 init-db:
 	aerich init-db
@@ -12,10 +12,10 @@ run-migrations:
 
 runserver:
 	make run-migrations
-	uvicorn src.portr_admin.main:app --reload
+	uvicorn main:app --reload
 
 installclient:
-	pnpm --dir src/web install
+	pnpm --dir web install
 
 runclient:
-	pnpm --dir src/web dev
+	pnpm --dir web dev
