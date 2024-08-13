@@ -28,11 +28,6 @@ async def login_user(response: Response, user: User):
     return response
 
 
-@api.get("/is-first-signup")
-async def is_first_signup():
-    return {"is_first_signup": await User.filter().count() == 0}
-
-
 @api.get("/auth-config")
 async def auth_config():
     return {
@@ -44,7 +39,9 @@ async def auth_config():
 @api.post("/login")
 async def login(data: LoginSchema):
     try:
-        user = await user_service.get_or_create_user(data.email, data.password)
+        user = await user_service.get_or_create_user(
+            email=data.email, password=data.password
+        )
     except user_service.UserNotFoundError as e:
         return JSONResponse(content={"email": str(e)}, status_code=400)
     except user_service.WrongPasswordError as e:

@@ -76,3 +76,46 @@ class GithubAuthTests(test.TestCase):
         get_or_create_user_from_github_fn.assert_called_once()
         get_or_create_user_from_github_fn.assert_called_with("test_code")
         login_user_fn.assert_called_with(get_or_create_user_from_github_fn.return_value)
+
+    @patch("services.user.get_or_create_user")
+    @patch("services.auth.login_user")
+    async def test_login(self, login_user_fn, get_or_create_user_fn):
+        resp = self.client.post(
+            "/api/v1/auth/login", json={"email": "amal@portr.dev", "password": "amal"}
+        )
+        assert resp.status_code == 200
+        get_or_create_user_fn.assert_called_once_with(
+            email="amal@portr.dev", password="amal"
+        )
+
+    @patch("services.user.get_or_create_user")
+    @patch("services.auth.login_user")
+    async def test_login_with_wrong_email(self, login_user_fn, get_or_create_user_fn):
+        get_or_create_user_fn.side_effect = user_service.UserNotFoundError(
+            "User does not exist"
+        )
+        resp = self.client.post(
+            "/api/v1/auth/login", json={"email": "amal@portr.dev", "password": "amal"}
+        )
+        assert resp.status_code == 400
+        assert resp.json() == {"email": "User does not exist"}
+
+    @patch("services.user.get_or_create_user")
+    @patch("services.auth.login_user")
+    async def test_login_with_wrong_password(
+        self, login_user_fn, get_or_create_user_fn
+    ):
+        get_or_create_user_fn.side_effect = user_service.WrongPasswordError(
+            "Password is incorrect"
+        )
+        resp = self.client.post(
+            "/api/v1/auth/login", json={"email": "amal@portr.dev", "password": "amal"}
+        )
+        assert resp.status_code == 400
+        assert resp.json() == {"password": "Password is incorrect"}
+
+    async def test_auth_config(
+        self,
+    ):
+        resp = self.client.get("/api/v1/auth/auth-config")
+        assert resp.json() == {"github_auth_enabled": True, "is_first_signup": True}

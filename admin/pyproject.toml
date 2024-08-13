@@ -42,6 +42,7 @@ dev-dependencies = [
     "asgi-lifespan>=2.1.0",
     "async-factory-boy>=1.0.1",
     "mimesis>=14.0.0",
+    "ipdb>=0.13.13",
 ]
 
 [tool.hatch.metadata]
