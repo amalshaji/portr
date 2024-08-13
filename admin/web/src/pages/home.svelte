@@ -1,12 +1,5 @@
 <script lang="ts">
-  import {
-    Github,
-    Lock,
-    TriangleAlert,
-    X,
-    TreePalm,
-    Loader,
-  } from "lucide-svelte";
+  import { Loader, TriangleAlert, X } from "lucide-svelte";
   import { onMount } from "svelte";
 
   import * as Alert from "$lib/components/ui/alert";
@@ -15,7 +8,8 @@
   import { Input } from "$lib/components/ui/input/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
 
-  let isSuperUserSignup = false;
+  let isSuperUserSignup = false,
+    githubAuthEnabled = false;
 
   const getResponseMessage = (code: string) => {
     const codes: Map<string, string> = {
@@ -54,10 +48,11 @@
     messageType = getMessageType(code);
   }
 
-  const checkIfSuperuserSignup = async () => {
-    const resp = await fetch("/api/v1/auth/is-first-signup");
+  const getAuthConfig = async () => {
+    const resp = await fetch("/api/v1/auth/auth-config");
     const data = await resp.json();
     isSuperUserSignup = data.is_first_signup;
+    githubAuthEnabled = data.github_auth_enabled;
   };
 
   const login = async () => {
@@ -102,7 +97,7 @@
   };
 
   onMount(() => {
-    checkIfSuperuserSignup();
+    getAuthConfig();
   });
 </script>
 
@@ -181,13 +176,22 @@
           {/if}
           Login
         </Button>
-        <Button
-          variant="outline"
-          class="w-full"
-          href={encodeURIComponent(next) !== "null"
-            ? `/api/v1/auth/github?next=${encodeURIComponent(next)}`
-            : `/api/v1/auth/github`}>Login with GitHub</Button
-        >
+
+        {#if isSuperUserSignup || !githubAuthEnabled}
+          <Button variant="outline" class="w-full" disabled
+            >Login with GitHub</Button
+          >
+        {:else}
+          <Button
+            variant="outline"
+            class="w-full"
+            href={encodeURIComponent(next) !== "null"
+              ? `/api/v1/auth/github?next=${encodeURIComponent(next)}`
+              : `/api/v1/auth/github`}
+          >
+            Login with GitHub
+          </Button>
+        {/if}
       </div>
     </Card.Content>
   </Card.Root>

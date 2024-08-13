@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as Avatar from "$lib/components/ui/avatar";
 
-  export let url: string, fallback: string;
+  export let url: string | null | undefined, fallback: string;
 </script>
 
 <Avatar.Root>

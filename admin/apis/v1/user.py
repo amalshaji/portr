@@ -39,7 +39,7 @@ async def update_user(
     return user
 
 
-@api.patch("/me/change_password", response_model=UserSchema)
+@api.patch("/me/change-password", response_model=UserSchema)
 async def change_password(
     data: ChangePasswordSchema, user: User = Depends(security.get_current_user)
 ):

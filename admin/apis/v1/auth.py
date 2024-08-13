@@ -33,6 +33,14 @@ async def is_first_signup():
     return {"is_first_signup": await User.filter().count() == 0}
 
 
+@api.get("/auth-config")
+async def auth_config():
+    return {
+        "is_first_signup": await User.filter().count() == 0,
+        "github_auth_enabled": settings.github_client_id is not None,
+    }
+
+
 @api.post("/login")
 async def login(data: LoginSchema):
     try:

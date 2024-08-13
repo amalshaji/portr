@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient as BaseTestClient
-from portr_admin.main import app
-from portr_admin.models.user import TeamUser, User
-from portr_admin.tests.factories import SessionFactory
+from main import app
+from models.user import TeamUser, User
+from tests.factories import SessionFactory
 
 
 class TestClient:

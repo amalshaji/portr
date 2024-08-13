@@ -18,7 +18,7 @@ async def create_team(name: str, user: User) -> Team:
     except IntegrityError:
         raise ServiceError("Team with this name already exists")
 
-    _ = await user_service.create_team_user(team, user, Role.admin)
+    _ = await user_service.create_team_user(team=team, user=user, role=Role.admin)
     return team
 
 
@@ -27,7 +27,7 @@ DEFAULT_TEAM_NAME = "Portr"
 
 @transactions.atomic()
 async def create_default_team(user: User) -> Team:
-    return await Team.create(name=DEFAULT_TEAM_NAME, owner=user)
+    return await create_team(DEFAULT_TEAM_NAME, user)
 
 
 async def send_notification(

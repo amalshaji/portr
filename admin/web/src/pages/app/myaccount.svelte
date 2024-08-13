@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { Input } from "$lib/components/ui/input";
-  import { Label } from "$lib/components/ui/label";
   import { Button } from "$lib/components/ui/button";
   import * as Card from "$lib/components/ui/card";
+  import { Input } from "$lib/components/ui/input";
+  import { Label } from "$lib/components/ui/label";
   import { currentUser } from "$lib/store";
-  import { toast } from "svelte-sonner";
   import { Loader } from "lucide-svelte";
   import { getContext } from "svelte";
+  import { toast } from "svelte-sonner";
 
   let team = getContext("team") as string;
 
@@ -67,7 +67,7 @@
     isChangingPassword = true;
 
     try {
-      const res = await fetch("/api/v1/user/me/change_password", {
+      const res = await fetch("/api/v1/user/me/change-password", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

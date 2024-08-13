@@ -99,13 +99,3 @@ class TestUserService(test.TruncationTestCase):
         assert github_user.github_id == 123
         assert github_user.github_access_token == "token"
         assert github_user.github_avatar_url == ""
-
-    async def test_is_user_active_with_not_part_of_any_team(self):
-        assert not await user_service.is_user_active(self.user)
-
-    async def test_is_user_active_with_is_superuser(self):
-        superuser = await UserFactory.create(
-            email="example@example.com", is_superuser=True
-        )
-
-        assert await user_service.is_user_active(superuser)

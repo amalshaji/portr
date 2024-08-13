@@ -2,7 +2,7 @@ import os
 import pytest
 from tortoise.contrib.test import finalizer, initializer
 
-from portr_admin.db import TORTOISE_MODELS
+from db import TORTOISE_MODELS
 
 
 @pytest.fixture(scope="session", autouse=True)
