@@ -38,7 +38,7 @@ This sets up the relevant python version and install packages in a virtual envir
 Create a new `.env` using the `.env.template` file. Make sure the following environment variables are setup,
 
 - PORTR_ADMIN_ENCRYPTION_KEY
-- PORTR_ADMIN_GITHUB_CLIENT_ID
+- PORTR_ADMIN_GITHUB_CLIENT_ID (only required if you need GitHub auth)
 - PORTR_ADMIN_GITHUB_CLIENT_SECRET
 
 ### Start the server
