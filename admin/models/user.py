@@ -1,7 +1,7 @@
 from typing import Any, Coroutine, Iterable
 from tortoise import Model, fields
 from tortoise.backends.base.client import BaseDBAsyncClient
-from enums import Enum
+from config.enums import Enum
 import slugify  # type: ignore
 from models import PkModelMixin, TimestampModelMixin
 from utils.token import generate_secret_key

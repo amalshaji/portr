@@ -5,9 +5,9 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from apis import api as api_v1
 from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore
 from apis.security import NotAuthenticated, get_current_user
-from beats import clear_expired_sessions, clear_unclaimed_connections
+from config.beats import clear_expired_sessions, clear_unclaimed_connections
 from config import settings
-from db import connect_db, disconnect_db
+from config.database import connect_db, disconnect_db
 from models.user import User
 from utils.exception import PermissionDenied, ServiceError
 from fastapi.templating import Jinja2Templates

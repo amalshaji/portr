@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 
 from apis import security
 from apis.pagination import PaginatedResponse
-from enums import Enum
+from config.enums import Enum
 from models.connection import Connection, ConnectionStatus
 from services import user as user_service
 from models.user import TeamUser

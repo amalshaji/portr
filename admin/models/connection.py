@@ -1,5 +1,5 @@
 from tortoise import Model, fields
-from enums import Enum
+from config.enums import Enum
 
 from models import TimestampModelMixin
 
