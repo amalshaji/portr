@@ -25,7 +25,6 @@ async def create_team(name: str, user: User) -> Team:
 DEFAULT_TEAM_NAME = "Portr"
 
 
-@transactions.atomic()
 async def create_default_team(user: User) -> Team:
     return await create_team(DEFAULT_TEAM_NAME, user)
 
