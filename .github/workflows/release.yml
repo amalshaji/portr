@@ -30,7 +30,7 @@ jobs:
       - name: Setup client
         uses: pnpm/action-setup@v3
         with:
-          version: 8.7.5
+          version: 9.7.0
           run_install: false
 
       - name: Install client dependencies

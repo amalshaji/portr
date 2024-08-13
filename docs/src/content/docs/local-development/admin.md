@@ -8,7 +8,7 @@ The admin is built using python for the backend and svelte for the frontend.
 ## Requirements
 
 - [rye](https://github.com/astral-sh/rye) (0.32.0+)
-- pnpm (8.7.5+)
+- pnpm (9.7.0+)
 - postgres (16+)
 
 ## Frontend setup
