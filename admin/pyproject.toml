@@ -52,6 +52,6 @@ allow-direct-references = true
 packages = ["."]
 
 [tool.aerich]
-tortoise_orm = "db.TORTOISE_ORM"
+tortoise_orm = "config.database.TORTOISE_ORM"
 location = "./migrations"
 src_folder = "./."
