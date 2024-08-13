@@ -51,4 +51,4 @@ This should run the migrations and start the server. You can access the server a
 
 For more commands, check out the [admin makefile](https://github.com/amalshaji/portr/blob/main/admin/Makefile).
 
-For settings, check out the [admin config file](https://github.com/amalshaji/portr/blob/main/admin/src/portr_admin/config.py).
+For settings, check out the [admin config file](https://github.com/amalshaji/portr/blob/main/admin/config/settings.py).
