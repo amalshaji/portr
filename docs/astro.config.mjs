@@ -98,10 +98,6 @@ export default defineConfig({
                 {
                   label: "Route53",
                   link: "/resources/route53/",
-                  badge: {
-                    text: "New",
-                    variant: "success",
-                  },
                 },
               ],
             },

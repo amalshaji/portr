@@ -3,6 +3,8 @@ title: Server setup
 description: Learn how to deploy portr admin and tunnel server using docker
 ---
 
+import { Code } from '@astrojs/starlight/components';
+
 
 For quick setup, use the `docker-compose.yml`.
 
@@ -19,11 +21,11 @@ The compose file has 4 services
 
 ### Setup environment variables
 
-Once you copy the compose file, create a `.env` with the following keys.
+Once you copy the compose file, create a `.env` with the following values.
 
-```shell
-PORTR_ADMIN_GITHUB_CLIENT_ID=
-PORTR_ADMIN_GITHUB_CLIENT_SECRET=
+export const envCode = `
+PORTR_ADMIN_GITHUB_CLIENT_ID= #optional
+PORTR_ADMIN_GITHUB_CLIENT_SECRET= #optional
 
 PORTR_DOMAIN=example.com
 PORTR_DB_URL=postgres://postgres:postgres@localhost:5432/postgres
@@ -38,8 +40,10 @@ POSTGRES_PASSWORD=postgres
 POSTGRES_DB=postgres
 
 PORTR_ADMIN_ENCRYPTION_KEY=
-```
+`;
+export const fileName = '.env';
 
+<Code code={envCode} lang="text" title={fileName}/>
 Generate an encryption key using the following command
 
 ```shell
@@ -54,3 +58,4 @@ If you want to run postgres separately and not as a service, you can exclude the
 
 Run `docker compose up` to start the servers. Once the servers are up, go to example.com and login in to the admin.
 First login will be treated as a superuser.
+
