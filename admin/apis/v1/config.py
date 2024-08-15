@@ -17,6 +17,7 @@ DEFAULT_CONFIG = """
 server_url: {server_url}
 ssh_url: {ssh_url}
 secret_key: {secret_key}
+enable_request_logging: false
 tunnels:
   - name: portr
     subdomain: portr

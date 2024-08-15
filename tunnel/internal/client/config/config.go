@@ -45,14 +45,15 @@ func (t *Tunnel) GetLocalAddr() string {
 }
 
 type Config struct {
-	ServerUrl    string   `yaml:"server_url"`
-	SshUrl       string   `yaml:"ssh_url"`
-	TunnelUrl    string   `yaml:"tunnel_url"`
-	SecretKey    string   `yaml:"secret_key"`
-	Tunnels      []Tunnel `yaml:"tunnels"`
-	UseLocalHost bool     `yaml:"use_localhost"`
-	Debug        bool     `yaml:"debug"`
-	UseVite      bool     `yaml:"use_vite"`
+	ServerUrl            string   `yaml:"server_url"`
+	SshUrl               string   `yaml:"ssh_url"`
+	TunnelUrl            string   `yaml:"tunnel_url"`
+	SecretKey            string   `yaml:"secret_key"`
+	Tunnels              []Tunnel `yaml:"tunnels"`
+	UseLocalHost         bool     `yaml:"use_localhost"`
+	Debug                bool     `yaml:"debug"`
+	UseVite              bool     `yaml:"use_vite"`
+	EnableRequestLogging bool     `yaml:"enable_request_logging"`
 }
 
 func (c *Config) SetDefaults() {
@@ -83,13 +84,14 @@ func (c Config) GetAdminAddress() string {
 }
 
 type ClientConfig struct {
-	ServerUrl    string
-	SshUrl       string
-	TunnelUrl    string
-	SecretKey    string
-	Tunnel       Tunnel
-	UseLocalHost bool
-	Debug        bool
+	ServerUrl            string
+	SshUrl               string
+	TunnelUrl            string
+	SecretKey            string
+	Tunnel               Tunnel
+	UseLocalHost         bool
+	Debug                bool
+	EnableRequestLogging bool
 }
 
 func (c *ClientConfig) GetHttpTunnelAddr() string {
