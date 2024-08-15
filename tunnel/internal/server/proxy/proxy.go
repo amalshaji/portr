@@ -81,6 +81,7 @@ func unregisteredSubdomainError(w http.ResponseWriter, subdomain string) {
 }
 
 func (p *Proxy) ErrHandle(res http.ResponseWriter, req *http.Request, err error) {
+	p.log.Error("proxy error", "error", err)
 	p.RemoveRoute(p.config.ExtractSubdomain(req.Host))
 	unregisteredSubdomainError(res, p.config.ExtractSubdomain(req.Host))
 }

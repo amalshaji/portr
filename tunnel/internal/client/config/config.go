@@ -15,11 +15,12 @@ import (
 )
 
 type Tunnel struct {
-	Name      string                   `yaml:"name"`
-	Subdomain string                   `yaml:"subdomain"`
-	Port      int                      `yaml:"port"`
-	Host      string                   `yaml:"host"`
-	Type      constants.ConnectionType `yaml:"type"`
+	Name       string                   `yaml:"name"`
+	Subdomain  string                   `yaml:"subdomain"`
+	Port       int                      `yaml:"port"`
+	Host       string                   `yaml:"host"`
+	Type       constants.ConnectionType `yaml:"type"`
+	RemotePort int
 }
 
 func (t *Tunnel) SetDefaults() {
@@ -97,9 +98,16 @@ func (c *ClientConfig) GetHttpTunnelAddr() string {
 	return protocol + "://" + c.Tunnel.Subdomain + "." + c.TunnelUrl
 }
 
-func (c *ClientConfig) GetTcpTunnelAddr(port int) string {
+func (c *ClientConfig) GetTcpTunnelAddr() string {
 	split := strings.Split(c.TunnelUrl, ":")
-	return split[0] + ":" + fmt.Sprint(port)
+	return split[0] + ":" + fmt.Sprint(c.Tunnel.RemotePort)
+}
+
+func (c *ClientConfig) GetTunnelAddr() string {
+	if c.Tunnel.Type == constants.Http {
+		return c.GetHttpTunnelAddr()
+	}
+	return c.GetTcpTunnelAddr()
 }
 
 func (c *ClientConfig) GetServerAddr() string {

@@ -63,7 +63,7 @@ func new() *Config {
 
 	domain := os.Getenv("PORTR_DOMAIN")
 	if domain == "" {
-		domain = "localhost:8000"
+		domain = "localhost:8001"
 	}
 
 	dbUrl := os.Getenv("PORTR_DB_URL")
