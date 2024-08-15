@@ -327,6 +327,17 @@ func (s *SshClient) logHttpRequest(
 		}
 		return
 	}
+
+	if s.config.EnableRequestLogging {
+		fmt.Printf(
+			"%s [%d] %-6s %d %s\n",
+			req.LoggedAt.Local().Format("2006-01-02 15:04:05"),
+			req.Localport,
+			req.Method,
+			req.ResponseStatusCode,
+			req.Url,
+		)
+	}
 }
 
 func (s *SshClient) tcpTunnel(src, dst net.Conn) {
