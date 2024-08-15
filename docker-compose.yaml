@@ -8,7 +8,7 @@ services:
     network_mode: "host"
 
   admin:
-    image: amalshaji/portr-admin:0.0.15-beta
+    image: amalshaji/portr-admin:0.0.18-beta
     network_mode: "host"
     env_file: .env
     restart: unless-stopped
@@ -26,7 +26,7 @@ services:
       caddy_0.encode: gzip
 
   tunnel:
-    image: amalshaji/portr-tunnel:0.0.15-beta
+    image: amalshaji/portr-tunnel:0.0.18-beta
     command: ["start"]
     network_mode: "host"
     env_file: .env

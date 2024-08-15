@@ -21,6 +21,7 @@ env:
   PORTR_SSH_URL: localhost:2222
   PORTR_ADMIN_USE_VITE: true
   PORTR_ADMIN_ENCRYPTION_KEY: "mj-qoeMhLQp_cHnMU9nsLfCMnNkZ6XBcFefy4VxzOe8="
+  PORTR_DB_URL: ""
 
 jobs:
   test:

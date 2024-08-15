@@ -84,9 +84,7 @@ func (s *SshServer) Start() {
 					s.log.Error("failed to add port to connection", "error", err)
 					return false
 				}
-			}
-
-			if reservedConnection.Type == string(constants.Http) {
+			} else {
 				err = s.proxy.AddRoute(*reservedConnection.Subdomain, proxyTarget)
 				if err != nil {
 					s.log.Error("failed to add route", "error", err)

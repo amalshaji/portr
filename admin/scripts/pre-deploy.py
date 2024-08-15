@@ -1,8 +1,8 @@
 import asyncio
 from aerich import Command  # type: ignore
 
-from portr_admin.db import TORTOISE_ORM, connect_db, disconnect_db
-from portr_admin.services.settings import populate_instance_settings
+from config.database import TORTOISE_ORM, connect_db, disconnect_db
+from services.settings import populate_instance_settings
 
 
 command = Command(tortoise_config=TORTOISE_ORM)

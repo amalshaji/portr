@@ -2,11 +2,11 @@ FROM node:20-slim as frontend-builder
 
 WORKDIR /app
 
-COPY src/web/package.json src/web/pnpm-lock.yaml ./
+COPY web/package.json web/pnpm-lock.yaml ./
 
-RUN npm i -g pnpm && pnpm install --frozen-lockfile
+RUN npm i -g pnpm@9.7.0 && pnpm install --frozen-lockfile
 
-COPY src/web .
+COPY web .
 
 RUN pnpm build
 
@@ -25,7 +25,7 @@ RUN sed '/-e/d' requirements.lock > requirements.txt && pip install --no-cache-d
 FROM python:3.12-slim as final
 
 ENV PATH="/app/.venv/bin:$PATH" \
-    PYTHONPATH="/app/src:$PYTHONPATH"
+    PYTHONPATH="/app/:$PYTHONPATH"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY --from=builder /app/.venv/ /app/.venv/
-COPY --from=frontend-builder /app/dist /app/src/web/dist
+COPY --from=frontend-builder /app/dist /app/web/dist
 COPY . .
 
 ENTRYPOINT ["sh", "scripts/start.sh"]
