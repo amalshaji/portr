@@ -99,7 +99,11 @@ func (s *SshClient) startListenerForClient() error {
 	}
 
 	sshClient, err := ssh.Dial("tcp", s.config.SshUrl, sshConfig)
+
 	if err != nil {
+		if s.config.Debug {
+			s.log.Error("failed to connect to ssh server", "error", err)
+		}
 		return err
 	}
 	defer sshClient.Close()
@@ -130,21 +134,15 @@ func (s *SshClient) startListenerForClient() error {
 		return fmt.Errorf("failed to listen on remote endpoint")
 	}
 
+	s.config.Tunnel.RemotePort = remotePort
+
 	defer s.listener.Close()
 
-	if tunnelType == constants.Http {
-		fmt.Printf(
-			"🎉 Tunnel connected: %s -> 🌐 -> %s\n",
-			s.config.GetHttpTunnelAddr(),
-			s.config.Tunnel.GetLocalAddr(),
-		)
-	} else {
-		fmt.Printf(
-			"🎉 Tunnel connected: %s -> 🌐 -> %s\n",
-			s.config.GetTcpTunnelAddr(remotePort),
-			s.config.Tunnel.GetLocalAddr(),
-		)
-	}
+	fmt.Printf(
+		"🎉 Tunnel connected: %s -> 🌐 -> %s\n",
+		s.config.GetTunnelAddr(),
+		s.config.Tunnel.GetLocalAddr(),
+	)
 
 	for {
 		// Accept incoming connections on the remote port
@@ -348,7 +346,7 @@ func (s *SshClient) Shutdown(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	s.log.Info("stopping tunnel client server")
+	s.log.Info("stopping tunnel connection", "address", s.config.GetTunnelAddr())
 	return nil
 }
 
