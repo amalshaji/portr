@@ -11,8 +11,11 @@ import (
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/amalshaji/portr/internal/utils"
 	"github.com/go-resty/resty/v2"
+	"github.com/labstack/gommon/color"
 	"gopkg.in/yaml.v3"
 )
+
+var UNABLE_TO_OPEN_EDITOR = color.Yellow("Unable to open editor. Please edit the config file manually at " + DefaultConfigPath)
 
 type Tunnel struct {
 	Name       string                   `yaml:"name"`
@@ -178,12 +181,14 @@ func EditConfig() error {
 	case "windows":
 		editorCmd = "start"
 	default:
-		return fmt.Errorf("unsupported platform")
+		fmt.Println(UNABLE_TO_OPEN_EDITOR)
+		return nil
 	}
 
 	cmd := exec.Command(editorCmd, DefaultConfigPath)
 	if err := cmd.Run(); err != nil {
-		return err
+		fmt.Println(UNABLE_TO_OPEN_EDITOR)
+		return nil
 	}
 
 	return nil
