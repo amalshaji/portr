@@ -8,6 +8,7 @@
   import { toast } from "svelte-sonner";
 
   export let user: TeamUser;
+  let deleteOpen = false;
 
   const team = getContext("team") as string;
 
@@ -25,6 +26,7 @@
       if (response.ok) {
         users.update((users) => users.filter((u) => u.id !== user.id));
         isLoading = false;
+        deleteOpen = false;
         toast.success("User removed from team");
       }
     } catch (err) {
@@ -40,8 +42,8 @@
   );
 </script>
 
-<AlertDialog.Root>
-  <AlertDialog.Trigger asChild let:builder>
+<AlertDialog.Root bind:open={deleteOpen}>
+  <AlertDialog.Trigger let:builder>
     <Button
       builders={[builder]}
       variant="ghost"
