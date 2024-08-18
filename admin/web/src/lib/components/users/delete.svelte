@@ -43,7 +43,7 @@
 </script>
 
 <AlertDialog.Root bind:open={deleteOpen}>
-  <AlertDialog.Trigger let:builder>
+  <AlertDialog.Trigger asChild let:builder>
     <Button
       builders={[builder]}
       variant="ghost"
