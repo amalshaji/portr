@@ -157,7 +157,7 @@
       <AlertDialog.Description>
         <div class="mt-4 space-y-4">
           <div class="sm:col-span-3 space-y-2">
-            <div class="flex items-center">
+            <div class="flex items-center space-x-1">
               <Input
                 readonly
                 class="text-black"
