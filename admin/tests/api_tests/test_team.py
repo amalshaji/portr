@@ -1,4 +1,4 @@
-from models.user import TeamUser
+from models.user import TeamUser, User
 from tests import TestClient
 from tortoise.contrib import test
 
@@ -39,6 +39,7 @@ class TeamTests(test.TestCase):
         )
         assert resp.status_code == 200
         assert await TeamUser.filter(id=team_user_to_delete.id).first() is None
+        assert await User.filter(id=team_user_to_delete.user.id).first() is None
 
     async def test_remove_superuserteam_user_by_admin_user(self):
         team_user_to_delete = await TeamUserFactory.create(
