@@ -10,7 +10,7 @@ from schemas.team import (
 from schemas.user import AddUserToTeamResponseSchema, TeamUserSchemaForTeam
 from services import team as team_service
 from utils.exception import PermissionDenied
-
+from tortoise.transactions import in_transaction
 
 api = APIRouter(prefix="/team", tags=["team"])
 
@@ -58,15 +58,15 @@ async def add_user(
     }
 
 
-@api.delete("/users/{user_id}")
+@api.delete("/users/{team_user_id}")
 async def remove_user(
-    user_id: int,
+    team_user_id: int,
     team_user: TeamUser = Depends(security.requires_admin),
 ):
     team_user_to_delete = (
         await TeamUser.filter()
         .select_related("user")
-        .get_or_none(id=user_id, team=team_user.team)
+        .get_or_none(id=team_user_id, team=team_user.team)
     )
     if team_user_to_delete is None:
         raise PermissionDenied("User not found in team")
@@ -74,6 +74,18 @@ async def remove_user(
     if team_user_to_delete.user.is_superuser and not team_user.user.is_superuser:
         raise PermissionDenied("Only superuser can remove superuser from team")
 
-    await TeamUser.filter(id=user_id).delete()
+    async with in_transaction() as connection:
+        await TeamUser.filter(id=team_user_id).using_db(connection).delete()
+
+        if (
+            not await TeamUser.filter(user=team_user_to_delete.user)
+            .using_db(connection)
+            .exists()
+        ):
+            await (
+                User.filter(id=team_user_to_delete.user.id)
+                .using_db(connection)
+                .delete()
+            )
 
     return {"status": "ok"}
