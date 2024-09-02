@@ -13,11 +13,14 @@ import (
 )
 
 func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
-	db := db.New()
+	config, err := config.Load(c.String("config"))
+	if err != nil {
+		return err
+	}
 
-	_c := client.NewClient(c.String("config"), db)
+	db := db.New(&config)
 
-	var err error
+	_c := client.NewClient(&config, db)
 
 	if tunnelFromCli != nil {
 		tunnelFromCli.SetDefaults()

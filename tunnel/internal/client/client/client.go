@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"log"
 	"slices"
 
 	"github.com/amalshaji/portr/internal/client/config"
@@ -17,15 +16,9 @@ type Client struct {
 	db     *db.Db
 }
 
-func NewClient(configFile string, db *db.Db) *Client {
-	config, err := config.Load(configFile)
-
-	if err != nil {
-		log.Fatal("failed to load config file")
-	}
-
+func NewClient(config *config.Config, db *db.Db) *Client {
 	return &Client{
-		config: &config,
+		config: config,
 		sshcs:  make([]*ssh.SshClient, 0),
 		db:     db,
 	}
