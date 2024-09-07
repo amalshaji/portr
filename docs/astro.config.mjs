@@ -8,7 +8,10 @@ export default defineConfig({
   site: "https://portr.dev",
   integrations: [
     starlight({
-      title: "Portr",
+      logo: {
+        src: "./src/assets/icon.png",
+      },
+      title: "",
       customCss: [
         "./src/tailwind.css",
         "@fontsource/geist-sans/400.css",
@@ -18,6 +21,7 @@ export default defineConfig({
         github: "https://github.com/amalshaji/portr",
         twitter: "https://twitter.com/amal_ytics",
       },
+      favicon: "/icon.png",
       components: {
         Head: "./src/components/Head.astro",
       },
