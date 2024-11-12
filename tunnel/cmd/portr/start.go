@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -35,7 +37,13 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 	}
 
 	dash := dashboard.New(db, _c.GetConfig())
-	dash.Start()
+	go func() {
+		if err := dash.Start(); err != nil {
+			log.Fatal("Failed to start dashboard server")
+		}
+	}()
+
+	fmt.Println("🚨 Portr inspector running on http://localhost:7777")
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)

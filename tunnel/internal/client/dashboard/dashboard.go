@@ -5,6 +5,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -74,6 +75,9 @@ func New(db *db.Db, config *config.Config) *Dashboard {
 	service := service.New(db, config)
 	handler := handler.New(config, service)
 
+	app.Get("/is-this-portr-server", func(c *fiber.Ctx) error {
+		return c.SendString("yes")
+	})
 	app.Get("/", rootTemplateView)
 	app.Get("/:id", rootTemplateView)
 
@@ -89,15 +93,27 @@ func New(db *db.Db, config *config.Config) *Dashboard {
 	}
 }
 
-func (d *Dashboard) Start() {
-	fmt.Println("🚨 Portr inspector running on http://localhost:7777")
+func (d *Dashboard) Start() error {
+	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/is-this-portr-server", d.port))
+	if err == nil {
+		defer resp.Body.Close()
+
+		if resp.StatusCode == http.StatusOK {
+			body, err := io.ReadAll(resp.Body)
+			if err == nil && string(body) == "yes" {
+				return nil
+			}
+		}
+	}
 
 	if err := d.app.Listen(":" + fmt.Sprint(d.port)); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		if d.config.Debug {
 			d.logger.Error("failed to start dashboard server", "error", err)
 		}
-		os.Exit(1)
+		return err
 	}
+
+	return nil
 }
 
 func (d *Dashboard) Shutdown() {
