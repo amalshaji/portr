@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+
 	"os"
 	"os/signal"
 	"syscall"
@@ -39,7 +40,7 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 	dash := dashboard.New(db, _c.GetConfig())
 	go func() {
 		if err := dash.Start(); err != nil {
-			log.Fatal("Failed to start dashboard server")
+			log.Fatalf("Failed to start dashboard server: error: %v", err)
 		}
 	}()
 
