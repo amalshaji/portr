@@ -34,6 +34,7 @@ type SshClient struct {
 	listener net.Listener
 	log      *slog.Logger
 	db       *db.Db
+	client   *ssh.Client
 }
 
 func New(config config.ClientConfig, db *db.Db) *SshClient {
@@ -42,6 +43,7 @@ func New(config config.ClientConfig, db *db.Db) *SshClient {
 		listener: nil,
 		log:      slog.New(slog.NewTextHandler(os.Stdout, nil)),
 		db:       db,
+		client:   nil,
 	}
 }
 
@@ -98,15 +100,13 @@ func (s *SshClient) startListenerForClient() error {
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	sshClient, err := ssh.Dial("tcp", s.config.SshUrl, sshConfig)
-
+	s.client, err = ssh.Dial("tcp", s.config.SshUrl, sshConfig)
 	if err != nil {
 		if s.config.Debug {
 			s.log.Error("failed to connect to ssh server", "error", err)
 		}
 		return err
 	}
-	defer sshClient.Close()
 
 	localEndpoint := s.config.Tunnel.GetLocalAddr() // Local address to forward to
 
@@ -123,7 +123,7 @@ func (s *SshClient) startListenerForClient() error {
 
 	// try to connect to 10 random ports
 	for _, port := range randomPorts {
-		s.listener, err = sshClient.Listen("tcp", "0.0.0.0:"+fmt.Sprint(port))
+		s.listener, err = s.client.Listen("tcp", "0.0.0.0:"+fmt.Sprint(port))
 		remotePort = port
 		if err == nil {
 			break
@@ -361,12 +361,120 @@ func (s *SshClient) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-func (s *SshClient) Start(_ context.Context) {
+func (s *SshClient) StartHealthCheck(ctx context.Context) {
+	ticker := time.NewTicker(3 * time.Second)
+	retryAttempts := 0
+
+	for {
+		select {
+		case <-ctx.Done():
+			ticker.Stop()
+			return
+		case <-ticker.C:
+			if err := s.HealthCheck(); err != nil {
+				if s.config.Debug {
+					s.log.Error("health check failed", "error", err)
+				}
+
+				retryAttempts++
+
+				fmt.Printf(color.Yellow("Tunnel %s is not healthy 🪫, attempting to reconnect\n"), s.config.GetTunnelAddr())
+
+				err := s.Reconnect()
+				if err != nil {
+					if s.config.Debug {
+						s.log.Error("failed to reconnect to ssh tunnel", "error", err, "attempts", retryAttempts)
+					}
+				} else {
+					retryAttempts = 0
+				}
+			}
+		}
+	}
+}
+
+func (s *SshClient) Start(ctx context.Context) {
 	fmt.Printf("🌍 Starting tunnel connection for :%d\n", s.config.Tunnel.Port)
 
-	if err := s.startListenerForClient(); err != nil {
-		fmt.Println()
+	errChan := make(chan error, 1)
+
+	go func() {
+		if err := s.startListenerForClient(); err != nil {
+			errChan <- err
+		}
+	}()
+
+	// Wait for either an error or successful connection
+	select {
+	case err := <-errChan:
 		fmt.Println(color.Red(err))
 		os.Exit(1)
+	case <-time.After(5 * time.Second):
+		// If no error after 2 seconds, assume connection is successful
+		// Start the health check routine
+		s.StartHealthCheck(ctx)
 	}
+}
+
+func (s *SshClient) Reconnect() error {
+	if s.client != nil {
+		if err := s.client.Close(); err != nil {
+			if s.config.Debug {
+				s.log.Error("failed to close client", "error", err)
+			}
+		}
+		s.client = nil
+	}
+
+	if s.listener != nil {
+		if err := s.listener.Close(); err != nil {
+			if s.config.Debug {
+				s.log.Error("failed to close listener", "error", err)
+			}
+		}
+		s.listener = nil
+	}
+
+	// Channel to receive errors from the goroutine
+	errChan := make(chan error, 1)
+
+	// Start the listener in a goroutine
+	go func() {
+		if err := s.startListenerForClient(); err != nil {
+			errChan <- err
+		}
+	}()
+
+	// Wait for either an error or successful connection
+	select {
+	case err := <-errChan:
+		return err
+	case <-time.After(5 * time.Second):
+		return nil
+	}
+}
+
+func (s *SshClient) HealthCheck() error {
+	// Make HTTP request to tunnel address with special header
+	client := resty.New().
+		SetTimeout(5 * time.Second)
+
+	resp, err := client.R().
+		SetHeader("X-Portr-Ping-Request", "true").
+		Get(s.config.GetTunnelAddr())
+
+	if err != nil {
+		if s.config.Debug {
+			s.log.Error("health check failed, attempting to reconnect", "error", err)
+		}
+		return err
+	}
+
+	portrError := resp.Header().Get("X-Portr-Error")
+	portrErrorReason := resp.Header().Get("X-Portr-Error-Reason")
+
+	if portrError == "true" && portrErrorReason == "unregistered-subdomain" {
+		return fmt.Errorf("unhealthy tunnel")
+	}
+	return nil
 }
