@@ -4,21 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/amalshaji/portr/internal/server/db"
-	"github.com/amalshaji/portr/internal/utils"
+	"github.com/charmbracelet/log"
 	"gorm.io/gorm"
 )
 
 type Service struct {
-	db     *db.Db
-	logger *slog.Logger
+	db *db.Db
 }
 
 func New(db *db.Db) *Service {
-	return &Service{db: db, logger: utils.GetLogger()}
+	return &Service{db: db}
 }
 
 func (s *Service) GetReservedConnectionById(ctx context.Context, connectionId string) (*db.Connection, error) {
@@ -27,8 +25,10 @@ func (s *Service) GetReservedConnectionById(ctx context.Context, connectionId st
 	err := s.db.Conn.Preload("CreatedBy").Where("status = 'reserved' AND id = ?", connectionId).First(&connection).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Error("Connection not found", "connection_id", connectionId)
 			return nil, fmt.Errorf("connection not found")
 		}
+		log.Error("Failed to get reserved connection", "error", err)
 		return nil, err
 	}
 
