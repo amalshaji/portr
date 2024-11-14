@@ -362,34 +362,39 @@ func (s *SshClient) Shutdown(ctx context.Context) error {
 }
 
 func (s *SshClient) StartHealthCheck(ctx context.Context) {
-	ticker := time.NewTicker(3 * time.Second)
+	ticker := time.Tick(time.Duration(s.config.HealthCheckInterval) * time.Second)
 	retryAttempts := 0
 
-	for {
-		select {
-		case <-ctx.Done():
-			ticker.Stop()
-			return
-		case <-ticker.C:
-			if err := s.HealthCheck(); err != nil {
-				if s.config.Debug {
-					s.log.Error("health check failed", "error", err)
-				}
+	var err error
 
-				retryAttempts++
-
-				fmt.Printf(color.Yellow("Tunnel %s is not healthy 🪫, attempting to reconnect\n"), s.config.GetTunnelAddr())
-
-				err := s.Reconnect()
-				if err != nil {
-					if s.config.Debug {
-						s.log.Error("failed to reconnect to ssh tunnel", "error", err, "attempts", retryAttempts)
-					}
-				} else {
-					retryAttempts = 0
-				}
-			}
+	for range ticker {
+		retryAttempts++
+		if retryAttempts > s.config.HealthCheckMaxRetries {
+			fmt.Printf(color.Red("Failed to reconnect to tunnel after %d attempts\n"), retryAttempts)
+			os.Exit(1)
 		}
+
+		err = s.HealthCheck()
+		if err == nil {
+			retryAttempts = 0
+			continue
+		}
+
+		if s.config.Debug {
+			s.log.Error("health check failed", "error", err)
+		}
+
+		fmt.Printf(color.Yellow("Tunnel %s is not healthy 🪫, attempting to reconnect\n"), s.config.GetTunnelAddr())
+
+		err = s.Reconnect()
+		if err != nil {
+			if s.config.Debug {
+				s.log.Error("failed to reconnect to ssh tunnel", "error", err, "attempts", retryAttempts)
+			}
+		} else {
+			retryAttempts = 0
+		}
+
 	}
 }
 
