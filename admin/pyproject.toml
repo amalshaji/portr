@@ -1,6 +1,6 @@
 [project]
 name = "portr-admin"
-version = "0.0.23-beta"
+version = "0.0.24-beta"
 description = "Add your description here"
 authors = [{ name = "amalshaji", email = "amalshajid@gmail.com" }]
 dependencies = [
