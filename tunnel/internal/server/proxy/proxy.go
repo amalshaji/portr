@@ -80,10 +80,17 @@ func unregisteredSubdomainError(w http.ResponseWriter, subdomain string) {
 	w.Write([]byte(utils.UnregisteredSubdomain(subdomain)))
 }
 
+func connectionLostError(w http.ResponseWriter) {
+	w.Header().Set("X-Portr-Error", "true")
+	w.Header().Set("X-Portr-Error-Reason", "connection-lost")
+	w.WriteHeader(http.StatusServiceUnavailable)
+	w.Write([]byte(utils.ConnectionLost()))
+}
+
 func (p *Proxy) ErrHandle(res http.ResponseWriter, req *http.Request, err error) {
 	p.log.Error("proxy error", "error", err)
 	p.RemoveRoute(p.config.ExtractSubdomain(req.Host))
-	unregisteredSubdomainError(res, p.config.ExtractSubdomain(req.Host))
+	connectionLostError(res)
 }
 
 func (p *Proxy) reverseProxy(target *url.URL) *httputil.ReverseProxy {

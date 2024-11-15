@@ -384,7 +384,7 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) {
 			s.log.Error("health check failed", "error", err)
 		}
 
-		fmt.Printf(color.Yellow("Tunnel %s is not healthy 🪫, attempting to reconnect\n"), s.config.GetTunnelAddr())
+		fmt.Printf(color.Yellow("Tunnel %s is not healthy 🪫 attempting to reconnect\n"), s.config.GetTunnelAddr())
 
 		err = s.Reconnect()
 		if err != nil {
@@ -478,7 +478,7 @@ func (s *SshClient) HealthCheck() error {
 	portrError := resp.Header().Get("X-Portr-Error")
 	portrErrorReason := resp.Header().Get("X-Portr-Error-Reason")
 
-	if portrError == "true" && portrErrorReason == "unregistered-subdomain" {
+	if portrError == "true" && portrErrorReason == "connection-lost" {
 		return fmt.Errorf("unhealthy tunnel")
 	}
 	return nil
