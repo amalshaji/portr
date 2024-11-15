@@ -45,15 +45,17 @@ func (t *Tunnel) GetLocalAddr() string {
 }
 
 type Config struct {
-	ServerUrl            string   `yaml:"server_url"`
-	SshUrl               string   `yaml:"ssh_url"`
-	TunnelUrl            string   `yaml:"tunnel_url"`
-	SecretKey            string   `yaml:"secret_key"`
-	Tunnels              []Tunnel `yaml:"tunnels"`
-	UseLocalHost         bool     `yaml:"use_localhost"`
-	Debug                bool     `yaml:"debug"`
-	UseVite              bool     `yaml:"use_vite"`
-	EnableRequestLogging bool     `yaml:"enable_request_logging"`
+	ServerUrl             string   `yaml:"server_url"`
+	SshUrl                string   `yaml:"ssh_url"`
+	TunnelUrl             string   `yaml:"tunnel_url"`
+	SecretKey             string   `yaml:"secret_key"`
+	Tunnels               []Tunnel `yaml:"tunnels"`
+	UseLocalHost          bool     `yaml:"use_localhost"`
+	Debug                 bool     `yaml:"debug"`
+	UseVite               bool     `yaml:"use_vite"`
+	EnableRequestLogging  bool     `yaml:"enable_request_logging"`
+	HealthCheckInterval   int      `yaml:"health_check_interval"`
+	HealthCheckMaxRetries int      `yaml:"health_check_max_retries"`
 }
 
 func (c *Config) SetDefaults() {
@@ -67,6 +69,14 @@ func (c *Config) SetDefaults() {
 
 	if c.TunnelUrl == "" {
 		c.TunnelUrl = c.ServerUrl
+	}
+
+	if c.HealthCheckInterval == 0 {
+		c.HealthCheckInterval = 3
+	}
+
+	if c.HealthCheckMaxRetries == 0 {
+		c.HealthCheckMaxRetries = 10
 	}
 
 	for i := range c.Tunnels {
@@ -84,14 +94,16 @@ func (c Config) GetAdminAddress() string {
 }
 
 type ClientConfig struct {
-	ServerUrl            string
-	SshUrl               string
-	TunnelUrl            string
-	SecretKey            string
-	Tunnel               Tunnel
-	UseLocalHost         bool
-	Debug                bool
-	EnableRequestLogging bool
+	ServerUrl             string
+	SshUrl                string
+	TunnelUrl             string
+	SecretKey             string
+	Tunnel                Tunnel
+	UseLocalHost          bool
+	Debug                 bool
+	EnableRequestLogging  bool
+	HealthCheckInterval   int
+	HealthCheckMaxRetries int
 }
 
 func (c *ClientConfig) GetHttpTunnelAddr() string {
