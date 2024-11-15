@@ -38,14 +38,12 @@
           <div class="relative space-y-4 text-center">
             <div class="flex justify-center">
               <div class="rounded-full bg-gray-100 p-3">
-                <i data-lucide="circle-x" class="h-8 w-8"></i>
+                <i data-lucide="wifi-off" class="h-8 w-8"></i>
               </div>
             </div>
-            <h1 class="text-2xl font-bold tracking-tight">
-              Unregistered Subdomain
-            </h1>
+            <h1 class="text-2xl font-bold tracking-tight">Connection Lost</h1>
             <p class="text-sm text-gray-500">
-              Looks like there is no active connection on this subdomain
+              Don't worry, we'll keep retrying to establish the connection
             </p>
           </div>
         </div>
@@ -54,15 +52,8 @@
           <div class="flex items-center space-x-2">
             <i data-lucide="terminal" class="h-4 w-4"></i>
             <span class="text-sm font-medium"
-              >Use the command to create a new tunnel connection</span
+              >Please check your terminal for more information</span
             >
-          </div>
-          <div class="relative">
-            <div class="rounded-lg bg-zinc-950 p-4">
-              <code class="text-sm text-white"
-                >portr http 8000 -s {{subdomain}}</code
-              >
-            </div>
           </div>
         </div>
 
