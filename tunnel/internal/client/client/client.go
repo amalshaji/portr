@@ -36,14 +36,16 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			continue
 		}
 		clientConfigs = append(clientConfigs, config.ClientConfig{
-			ServerUrl:            c.config.ServerUrl,
-			SshUrl:               c.config.SshUrl,
-			TunnelUrl:            c.config.TunnelUrl,
-			SecretKey:            c.config.SecretKey,
-			Tunnel:               tunnel,
-			UseLocalHost:         c.config.UseLocalHost,
-			Debug:                c.config.Debug,
-			EnableRequestLogging: c.config.EnableRequestLogging,
+			ServerUrl:             c.config.ServerUrl,
+			SshUrl:                c.config.SshUrl,
+			TunnelUrl:             c.config.TunnelUrl,
+			SecretKey:             c.config.SecretKey,
+			Tunnel:                tunnel,
+			UseLocalHost:          c.config.UseLocalHost,
+			Debug:                 c.config.Debug,
+			EnableRequestLogging:  c.config.EnableRequestLogging,
+			HealthCheckInterval:   c.config.HealthCheckInterval,
+			HealthCheckMaxRetries: c.config.HealthCheckMaxRetries,
 		})
 	}
 
