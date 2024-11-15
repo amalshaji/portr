@@ -379,7 +379,7 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) {
 		}
 
 		if s.config.Debug {
-			s.log.Error("health check failed", "error", err)
+			log.Error("Health check failed", "error", err)
 		}
 
 		fmt.Printf(color.Yellow("Tunnel %s is not healthy 🪫 attempting to reconnect\n"), s.config.GetTunnelAddr())
@@ -387,7 +387,7 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) {
 		err = s.Reconnect()
 		if err != nil {
 			if s.config.Debug {
-				s.log.Error("failed to reconnect to ssh tunnel", "error", err, "attempts", retryAttempts)
+				log.Error("Failed to reconnect to ssh tunnel", "error", err, "attempts", retryAttempts)
 			}
 		} else {
 			retryAttempts = 0
@@ -423,7 +423,7 @@ func (s *SshClient) Reconnect() error {
 	if s.client != nil {
 		if err := s.client.Close(); err != nil {
 			if s.config.Debug {
-				s.log.Error("failed to close client", "error", err)
+				log.Error("Failed to close client", "error", err)
 			}
 		}
 		s.client = nil
@@ -432,7 +432,7 @@ func (s *SshClient) Reconnect() error {
 	if s.listener != nil {
 		if err := s.listener.Close(); err != nil {
 			if s.config.Debug {
-				s.log.Error("failed to close listener", "error", err)
+				log.Error("Failed to close listener", "error", err)
 			}
 		}
 		s.listener = nil
@@ -468,7 +468,7 @@ func (s *SshClient) HealthCheck() error {
 
 	if err != nil {
 		if s.config.Debug {
-			s.log.Error("health check failed, attempting to reconnect", "error", err)
+			log.Error("Health check failed, attempting to reconnect", "error", err)
 		}
 		return err
 	}
