@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/amalshaji/portr/internal/server/db"
+	"github.com/charmbracelet/log"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -40,11 +41,11 @@ func (c *Cron) pingActiveConnections(ctx context.Context) {
 	var err error
 	connections := c.service.GetAllActiveConnections(ctx)
 	if err != nil {
-		c.logger.Error("error getting active connections", "error", err)
+		log.Error("Error getting active connections", "error", err)
 		return
 	}
 
-	c.logger.Info("pinging active connections", "count", len(connections))
+	log.Info("Pinging active connections", "count", len(connections))
 
 	for _, connection := range connections {
 		go func(connection db.Connection) {
