@@ -476,7 +476,8 @@ func (s *SshClient) HealthCheck() error {
 	portrError := resp.Header().Get("X-Portr-Error")
 	portrErrorReason := resp.Header().Get("X-Portr-Error-Reason")
 
-	if portrError == "true" && portrErrorReason == "connection-lost" {
+	// Fix it later to resolve to connection-lost
+	if portrError == "true" && (portrErrorReason == "connection-lost" || portrErrorReason == "unregistered-subdomain") {
 		return fmt.Errorf("unhealthy tunnel")
 	}
 	return nil
