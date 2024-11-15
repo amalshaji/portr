@@ -1,9 +1,10 @@
 package db
 
 import (
-	"log"
 	"os"
 	"time"
+
+	"github.com/charmbracelet/log"
 
 	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/glebarez/sqlite"
@@ -28,7 +29,7 @@ func New(config *config.Config) *Db {
 
 	db, err := gorm.Open(sqlite.Open(homeDir+"/.portr/db.sqlite"), gormConfig)
 	if err != nil {
-		log.Fatalf("failed to connect database: %v", err)
+		log.Fatal("Failed to connect database", "error", err)
 	}
 
 	db.AutoMigrate(&Request{})

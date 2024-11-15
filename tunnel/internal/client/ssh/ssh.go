@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -17,6 +16,7 @@ import (
 	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/amalshaji/portr/internal/utils"
+	"github.com/charmbracelet/log"
 	"github.com/go-resty/resty/v2"
 	"github.com/labstack/gommon/color"
 	"gorm.io/datatypes"
@@ -32,7 +32,6 @@ var (
 type SshClient struct {
 	config   config.ClientConfig
 	listener net.Listener
-	log      *slog.Logger
 	db       *db.Db
 	client   *ssh.Client
 }
@@ -41,7 +40,6 @@ func New(config config.ClientConfig, db *db.Db) *SshClient {
 	return &SshClient{
 		config:   config,
 		listener: nil,
-		log:      slog.New(slog.NewTextHandler(os.Stdout, nil)),
 		db:       db,
 		client:   nil,
 	}
@@ -77,7 +75,7 @@ func (s *SshClient) createNewConnection() (string, error) {
 
 	if resp.StatusCode() != 200 {
 		if s.config.Debug {
-			s.log.Error("failed to create new connection", "error", reqErr)
+			log.Error("Failed to create new connection", "error", reqErr)
 		}
 		return "", fmt.Errorf(reqErr.Message)
 	}
@@ -103,7 +101,7 @@ func (s *SshClient) startListenerForClient() error {
 	s.client, err = ssh.Dial("tcp", s.config.SshUrl, sshConfig)
 	if err != nil {
 		if s.config.Debug {
-			s.log.Error("failed to connect to ssh server", "error", err)
+			log.Error("Failed to connect to ssh server", "error", err)
 		}
 		return err
 	}
@@ -149,7 +147,7 @@ func (s *SshClient) startListenerForClient() error {
 		remoteConn, err := s.listener.Accept()
 		if err != nil {
 			if s.config.Debug {
-				s.log.Error("failed to accept connection", "error", err)
+				log.Error("Failed to accept connection", "error", err)
 			}
 			break
 		}
@@ -195,7 +193,7 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 	request, err := http.ReadRequest(srcReader)
 	if err != nil {
 		if s.config.Debug {
-			s.log.Error("failed to read request", "error", err)
+			log.Error("Failed to read request", "error", err)
 		}
 		return
 	}
@@ -204,7 +202,7 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 	requestBody, err := io.ReadAll(request.Body)
 	if err != nil {
 		if s.config.Debug {
-			s.log.Error("failed to read request body", "error", err)
+			log.Error("Failed to read request body", "error", err)
 		}
 		return
 	}
@@ -214,7 +212,7 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 	err = request.Write(dstWriter)
 	if err != nil {
 		if s.config.Debug {
-			s.log.Error("failed to tunnel request to local", "error", err)
+			log.Error("Failed to tunnel request to local", "error", err)
 		}
 		return
 	}
@@ -223,7 +221,7 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 	response, err := http.ReadResponse(dstReader, request)
 	if err != nil {
 		if s.config.Debug {
-			s.log.Error("failed to read response", "error", err)
+			log.Error("Failed to read response", "error", err)
 		}
 		return
 	}
@@ -232,7 +230,7 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		if s.config.Debug {
-			s.log.Error("failed to read response body", "error", err)
+			log.Error("Failed to read response body", "error", err)
 		}
 		return
 	}
@@ -242,7 +240,7 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 	err = response.Write(srcWriter)
 	if err != nil {
 		if s.config.Debug {
-			s.log.Error("failed to write response to remote", "error", err)
+			log.Error("Failed to write response to remote", "error", err)
 		}
 		return
 	}
@@ -286,7 +284,7 @@ func (s *SshClient) logHttpRequest(
 	requestHeadersBytes, err := json.Marshal(requestHeaders)
 	if err != nil {
 		if s.config.Debug {
-			s.log.Error("failed to marshal request headers", "error", err)
+			log.Error("Failed to marshal request headers", "error", err)
 		}
 		return
 	}
@@ -299,7 +297,7 @@ func (s *SshClient) logHttpRequest(
 	responseHeadersBytes, err := json.Marshal(responseHeaders)
 	if err != nil {
 		if s.config.Debug {
-			s.log.Error("failed to marshal request headers", "error", err)
+			log.Error("Failed to marshal request headers", "error", err)
 		}
 		return
 	}
@@ -323,7 +321,7 @@ func (s *SshClient) logHttpRequest(
 	result := s.db.Conn.Create(&req)
 	if result.Error != nil {
 		if s.config.Debug {
-			s.log.Error("failed to log request", "error", result.Error)
+			log.Error("Failed to log request", "error", result.Error)
 		}
 		return
 	}
@@ -357,7 +355,7 @@ func (s *SshClient) Shutdown(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	s.log.Info("stopping tunnel connection", "address", s.config.GetTunnelAddr())
+	log.Info("Stopped tunnel connection", "address", s.config.GetTunnelAddr())
 	return nil
 }
 

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -17,7 +16,7 @@ import (
 	"github.com/amalshaji/portr/internal/client/dashboard/ui/dist"
 	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/amalshaji/portr/internal/client/vite"
-	"github.com/amalshaji/portr/internal/utils"
+	"github.com/charmbracelet/log"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/fiber/v2/middleware/recover"
@@ -28,7 +27,6 @@ type Dashboard struct {
 	app    *fiber.App
 	config *config.Config
 	db     *db.Db
-	logger *slog.Logger
 	port   int
 }
 
@@ -88,7 +86,6 @@ func New(db *db.Db, config *config.Config) *Dashboard {
 		app:    app,
 		config: config,
 		db:     db,
-		logger: utils.GetLogger(),
 		port:   7777,
 	}
 }
@@ -108,7 +105,7 @@ func (d *Dashboard) Start() error {
 
 	if err := d.app.Listen(":" + fmt.Sprint(d.port)); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		if d.config.Debug {
-			d.logger.Error("failed to start dashboard server", "error", err)
+			log.Error("Failed to start dashboard server", "error", err)
 		}
 		return err
 	}
@@ -118,7 +115,7 @@ func (d *Dashboard) Start() error {
 
 func (d *Dashboard) Shutdown() {
 	if d.config.Debug {
-		d.logger.Info("stopping dashboard server")
+		log.Debug("Stopping dashboard server")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
@@ -126,7 +123,7 @@ func (d *Dashboard) Shutdown() {
 
 	if err := d.app.ShutdownWithContext(ctx); err != nil {
 		if d.config.Debug {
-			d.logger.Error("failed to stop dashboard server", "error", err)
+			log.Error("Failed to stop dashboard server", "error", err)
 		}
 		os.Exit(1)
 	}

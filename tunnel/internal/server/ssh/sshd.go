@@ -4,24 +4,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
-	"log/slog"
+
 	"strings"
 	"time"
 
 	"github.com/amalshaji/portr/internal/constants"
+	"github.com/charmbracelet/log"
 
 	"github.com/amalshaji/portr/internal/server/config"
 	"github.com/amalshaji/portr/internal/server/db"
 	"github.com/amalshaji/portr/internal/server/proxy"
 	"github.com/amalshaji/portr/internal/server/service"
-	"github.com/amalshaji/portr/internal/utils"
 	"github.com/gliderlabs/ssh"
 )
 
 type SshServer struct {
 	config  *config.SshConfig
-	log     *slog.Logger
 	proxy   *proxy.Proxy
 	service *service.Service
 	server  *ssh.Server
@@ -30,7 +28,6 @@ type SshServer struct {
 func New(config *config.SshConfig, proxy *proxy.Proxy, service *service.Service) *SshServer {
 	return &SshServer{
 		config:  config,
-		log:     utils.GetLogger(),
 		proxy:   proxy,
 		service: service,
 	}
@@ -50,12 +47,12 @@ func (s *SshServer) GetReservedConnectionFromSshContext(ctx ssh.Context) (*db.Co
 
 	reservedConnection, err := s.service.GetReservedConnectionById(ctx, connectionId)
 	if err != nil {
-		s.log.Error("failed to get reserved connection", "error", err)
+		log.Error("Failed to get reserved connection", "error", err)
 		return nil, fmt.Errorf("failed to get reserved connection")
 	}
 
 	if reservedConnection.CreatedBy.SecretKey != secretKey {
-		s.log.Error("connection not created by the user")
+		log.Error("Connection not created by the user", "connection_id", connectionId)
 		return nil, fmt.Errorf("connection not created by the user")
 	}
 
@@ -81,20 +78,20 @@ func (s *SshServer) Start() {
 			if reservedConnection.Type == string(constants.Tcp) {
 				err = s.service.AddPortToConnection(ctx, reservedConnection.ID, port)
 				if err != nil {
-					s.log.Error("failed to add port to connection", "error", err)
+					log.Error("Failed to add port to connection", "connection_id", reservedConnection.ID, "port", port, "error", err)
 					return false
 				}
 			} else {
 				err = s.proxy.AddRoute(*reservedConnection.Subdomain, proxyTarget)
 				if err != nil {
-					s.log.Error("failed to add route", "error", err)
+					log.Error("Failed to add route", "connection_id", reservedConnection.ID, "subdomain", *reservedConnection.Subdomain, "error", err)
 					return false
 				}
 			}
 
 			err = s.service.MarkConnectionAsActive(ctx, reservedConnection.ID)
 			if err != nil {
-				s.log.Error("failed to mark connection as active", "error", err)
+				log.Error("Failed to mark connection as active", "connection_id", reservedConnection.ID, "error", err)
 				return false
 			}
 
@@ -103,13 +100,13 @@ func (s *SshServer) Start() {
 
 				err = s.service.MarkConnectionAsClosed(context.Background(), reservedConnection.ID)
 				if err != nil {
-					s.log.Error("failed to mark connection as closed", "error", err)
+					log.Error("Failed to mark connection as closed", "connection_id", reservedConnection.ID, "error", err)
 				}
 
 				if reservedConnection.Type == string(constants.Http) {
 					err := s.proxy.RemoveRoute(*reservedConnection.Subdomain)
 					if err != nil {
-						s.log.Error("failed to remove route", "error", err)
+						log.Error("Failed to remove route", "connection_id", reservedConnection.ID, "subdomain", *reservedConnection.Subdomain, "error", err)
 					}
 				}
 			}()
@@ -129,21 +126,22 @@ func (s *SshServer) Start() {
 
 	s.server = &server
 
-	s.log.Info("starting SSH server", "port", s.GetServerAddr())
+	log.Info("Starting SSH server", "port", s.GetServerAddr())
 
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
-		log.Fatalf("failed to start SSH server: %v", err)
+		log.Fatal("Failed to start SSH server", "error", err)
 	}
 }
 
 func (s *SshServer) Shutdown(_ context.Context) {
-	s.log.Info("stopping SSH server")
-
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
 	defer func() { cancel() }()
 
 	if err := s.server.Shutdown(ctx); err != nil {
-		s.log.Error("failed to stop SSH server", "error", err)
+		log.Error("Failed to stop SSH server", "error", err)
+		return
 	}
+
+	log.Info("Stopped SSH server")
 }
