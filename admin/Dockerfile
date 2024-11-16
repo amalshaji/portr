@@ -1,4 +1,4 @@
-FROM node:20-slim as frontend-builder
+FROM node:20-slim AS frontend-builder
 
 WORKDIR /app
 
@@ -10,19 +10,25 @@ COPY web .
 
 RUN pnpm build
 
-FROM python:3.12 as builder
+FROM python:3.12 AS builder
 
 ENV PATH="/app/.venv/bin:$PATH"
 
 WORKDIR /app
 
-COPY requirements.lock .
+COPY pyproject.toml requirements.lock README.md ./
 
-RUN python3 -m venv .venv
+RUN pip install --no-cache-dir uv==0.5.2
 
-RUN sed '/-e/d' requirements.lock > requirements.txt && pip install --no-cache-dir -r requirements.txt
+RUN uv venv && \
+    uv pip install --no-cache -r requirements.lock
 
-FROM python:3.12-slim as final
+FROM python:3.12-slim AS final
+
+LABEL maintainer="Amal Shaji" \
+    org.opencontainers.image.title="Portr Admin" \
+    org.opencontainers.image.description="Admin server for Portr" \
+    org.opencontainers.image.source="https://github.com/amalshaji/portr"
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH="/app/:$PYTHONPATH"
