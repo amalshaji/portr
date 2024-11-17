@@ -1,5 +1,4 @@
 <script lang="ts">
-  import RecentUpdates from "$lib/components/recent-updates.svelte";
   import { setupScript } from "$lib/store";
   import { copyCodeToClipboard } from "$lib/utils";
   import { getContext, onMount } from "svelte";
@@ -94,5 +93,3 @@
 </div>
 
 <hr class="border-t border-gray-200 my-6" />
-
-<RecentUpdates />

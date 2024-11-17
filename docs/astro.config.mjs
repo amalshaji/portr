@@ -8,11 +8,15 @@ export default defineConfig({
   site: "https://portr.dev",
   integrations: [
     starlight({
-      title: "Portr",
+      title: "",
+      logo: {
+        alt: "A bubbly Portr",
+        src: "./src/assets/icon.svg",
+      },
       customCss: [
         "./src/tailwind.css",
-        "@fontsource/geist-sans/400.css",
         "@fontsource/geist-mono/400.css",
+        "@fontsource/comic-mono/400.css",
       ],
       social: {
         github: "https://github.com/amalshaji/portr",
