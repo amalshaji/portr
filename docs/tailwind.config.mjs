@@ -1,5 +1,4 @@
 import starlightPlugin from "@astrojs/starlight-tailwind";
-import colors from "tailwindcss/colors";
 
 const accent = {
   200: "#dfc0bb",
@@ -28,7 +27,7 @@ export default {
         gray,
       },
       fontFamily: {
-        sans: ["Geist Sans"],
+        sans: ["Comic Mono"],
         mono: ["Geist Mono"],
       },
     },
