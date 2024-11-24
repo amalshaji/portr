@@ -3,6 +3,7 @@ module github.com/amalshaji/portr
 go 1.22.0
 
 require (
+	github.com/Masterminds/semver v1.5.0
 	github.com/charmbracelet/log v0.4.0
 	github.com/glebarez/sqlite v1.11.0
 	github.com/gliderlabs/ssh v0.3.7
@@ -69,7 +70,7 @@ require (
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 	golang.org/x/net v0.24.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.19.0 // indirect
+	golang.org/x/sys v0.25.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	gorm.io/driver/mysql v1.5.6 // indirect
 	modernc.org/libc v1.49.3 // indirect
