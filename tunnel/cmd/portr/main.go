@@ -39,6 +39,29 @@ func main() {
 		os.Exit(0)
 	}
 
+	// for debugging cli commands
+	// because the config file is not loaded when this is set
+	debugForCli := os.Getenv("DEBUG_FOR_CLI") == "1"
+
+	go func() {
+		if err := checkForUpdates(); err != nil {
+			if debugForCli {
+				fmt.Println(color.Red(err.Error()))
+			}
+		}
+	}()
+
+	versionToUpdate, err := getVersionToUpdate()
+	if err != nil {
+		if debugForCli {
+			fmt.Println(color.Red(err.Error()))
+		}
+	} else {
+		if versionToUpdate != "" {
+			fmt.Printf(color.Yellow("A new version of Portr is available: %s. https://github.com/amalshaji/portr/releases/tag/%s\n"), versionToUpdate, versionToUpdate)
+		}
+	}
+
 	if err := app.Run(os.Args); err != nil {
 		fmt.Println(color.Red(err.Error()))
 		os.Exit(0)
