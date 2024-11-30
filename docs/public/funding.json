@@ -20,7 +20,8 @@
         "url": "https://portr.dev"
       },
       "repositoryUrl": {
-        "url": "https://github.com/amalshaji/portr"
+        "url": "https://github.com/amalshaji/portr",
+        "wellKnown": "https://github.com/amalshaji/portr/.well-known/funding-manifest-urls"
       },
       "licenses": ["AGPL-3.0"],
       "tags": ["networking", "proxy", "tunnel"]
@@ -39,7 +40,7 @@
       {
         "guid": "developer-time",
         "status": "active",
-        "name": "Developer compensation",
+        "name": "Developer Compensation",
         "description": "This will cover the cost of one engineer working part-time on building Portr. This includes the cost of the server for setting up and running a playground.",
         "amount": 3000,
         "currency": "USD",
@@ -64,7 +65,7 @@
         "expenses": 60,
         "taxes": 0,
         "currency": "USD",
-        "description": "Test server cost"
+        "description": "Test server costs"
       }
     ]
   }
