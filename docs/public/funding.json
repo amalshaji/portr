@@ -1,0 +1,71 @@
+{
+  "version": "v1.0.0",
+  "entity": {
+    "type": "organisation",
+    "role": "owner",
+    "name": "Portr",
+    "email": "amalshajid@gmail.com",
+    "phone": "",
+    "description": "Portr is an open-source self-hosted ngrok alternative designed for teams. Portr lets you expose your local HTTP, TCP and websocket services to the internet.",
+    "webpageUrl": {
+      "url": "https://portr.dev"
+    }
+  },
+  "projects": [
+    {
+      "guid": "portr",
+      "name": "Portr",
+      "description": "Portr is an open-source self-hosted ngrok alternative designed for teams. Portr lets you expose your local HTTP, TCP and websocket services to the internet.",
+      "webpageUrl": {
+        "url": "https://portr.dev"
+      },
+      "repositoryUrl": {
+        "url": "https://github.com/amalshaji/portr"
+      },
+      "licenses": ["AGPL-3.0"],
+      "tags": ["networking", "proxy", "tunnel"]
+    }
+  ],
+  "funding": {
+    "channels": [
+      {
+        "guid": "other",
+        "type": "other",
+        "address": "",
+        "description": "Yet to setup"
+      }
+    ],
+    "plans": [
+      {
+        "guid": "developer-time",
+        "status": "active",
+        "name": "Developer compensation",
+        "description": "This will cover the cost of one engineer working part-time on building Portr. This includes the cost of the server for setting up and running a playground.",
+        "amount": 3000,
+        "currency": "USD",
+        "frequency": "monthly",
+        "channels": ["other"]
+      },
+      {
+        "guid": "angel-plan",
+        "status": "active",
+        "name": "Show your support",
+        "description": "Pay anything you wish to show your goodwill for the project.",
+        "amount": 1000,
+        "currency": "USD",
+        "frequency": "one-time",
+        "channels": ["other"]
+      }
+    ],
+    "history": [
+      {
+        "year": 2024,
+        "income": 0,
+        "expenses": 60,
+        "taxes": 0,
+        "currency": "USD",
+        "description": "Test server cost"
+      }
+    ]
+  }
+}
