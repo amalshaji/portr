@@ -21,7 +21,7 @@
       },
       "repositoryUrl": {
         "url": "https://github.com/amalshaji/portr",
-        "wellKnown": "https://github.com/amalshaji/portr/.well-known/funding-manifest-urls"
+        "wellKnown": "https://github.com/amalshaji/portr/blob/main/.well-known/funding-manifest-urls"
       },
       "licenses": ["AGPL-3.0"],
       "tags": ["networking", "proxy", "tunnel"]
