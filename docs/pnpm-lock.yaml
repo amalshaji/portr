@@ -23,13 +23,7 @@ importers:
       '@fontsource/comic-mono':
         specifier: ^5.1.0
         version: 5.1.0
-      '@fontsource/comic-neue':
-        specifier: ^5.1.0
-        version: 5.1.0
       '@fontsource/geist-mono':
-        specifier: ^5.0.3
-        version: 5.0.3
-      '@fontsource/geist-sans':
         specifier: ^5.0.3
         version: 5.0.3
       astro:
@@ -419,14 +413,8 @@ packages:
   '@fontsource/comic-mono@5.1.0':
     resolution: {integrity: sha512-sP+5zfrQdU46znBNm4H97Qw7Otc52Gsz1JIO9dzApYDiTBXyQBr5xE1XeKBoAF1SyvggB/6xB84nNb2l6bQd7g==}
 
-  '@fontsource/comic-neue@5.1.0':
-    resolution: {integrity: sha512-8jniMpwDfDLjJ6jOS3wp+i8Hn4QP5YwTv4AzMpx7urksnKjPjyEXSQK6TOzowxoLs9aqseEk4oSUjHMgQpLp9A==}
-
   '@fontsource/geist-mono@5.0.3':
     resolution: {integrity: sha512-ekY5FNiK7aMxan/c6lgVQa/rIwQ/AMEJZJWY7768jBrLVdkrCxfEfCe1ePpe7C3JnySy7c9R6HC4Xh4ksfjTaw==}
-
-  '@fontsource/geist-sans@5.0.3':
-    resolution: {integrity: sha512-oGwoSIqNPMvjtCwj1lZaEr47MeiG27XPhypwkF643u1TQduvwbm3V3hYB01JekeaT34SAGP4I1h+WCdRpJkcwA==}
 
   '@img/sharp-darwin-arm64@0.33.4':
     resolution: {integrity: sha512-p0suNqXufJs9t3RqLBO6vvrgr5OhgbWp76s5gTRvdmxmuv9E1rcaqGUsl3l4mKVmXPkTkTErXediAui4x+8PSA==}
@@ -1073,8 +1061,8 @@ packages:
     resolution: {integrity: sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w==}
     engines: {node: '>= 0.6'}
 
-  cross-spawn@7.0.3:
-    resolution: {integrity: sha512-iRDPJKUPVEND7dHPO8rkbOnPpyDygcDFtWjpeWNCgy8WP2rXcxXL8TskReQl6OrB2G7+UJrags1q15Fudc7G6w==}
+  cross-spawn@7.0.6:
+    resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
 
   css-select@5.1.0:
@@ -3158,11 +3146,7 @@ snapshots:
 
   '@fontsource/comic-mono@5.1.0': {}
 
-  '@fontsource/comic-neue@5.1.0': {}
-
   '@fontsource/geist-mono@5.0.3': {}
-
-  '@fontsource/geist-sans@5.0.3': {}
 
   '@img/sharp-darwin-arm64@0.33.4':
     optionalDependencies:
@@ -3861,7 +3845,7 @@ snapshots:
 
   cookie@0.7.2: {}
 
-  cross-spawn@7.0.3:
+  cross-spawn@7.0.6:
     dependencies:
       path-key: 3.1.1
       shebang-command: 2.0.0
@@ -4102,7 +4086,7 @@ snapshots:
 
   foreground-child@3.3.0:
     dependencies:
-      cross-spawn: 7.0.3
+      cross-spawn: 7.0.6
       signal-exit: 4.1.0
 
   fraction.js@4.3.7: {}
