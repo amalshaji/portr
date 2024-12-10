@@ -23,13 +23,7 @@ importers:
       '@fontsource/comic-mono':
         specifier: ^5.1.0
         version: 5.1.0
-      '@fontsource/comic-neue':
-        specifier: ^5.1.0
-        version: 5.1.0
       '@fontsource/geist-mono':
-        specifier: ^5.0.3
-        version: 5.0.3
-      '@fontsource/geist-sans':
         specifier: ^5.0.3
         version: 5.0.3
       astro:
@@ -419,14 +413,8 @@ packages:
   '@fontsource/comic-mono@5.1.0':
     resolution: {integrity: sha512-sP+5zfrQdU46znBNm4H97Qw7Otc52Gsz1JIO9dzApYDiTBXyQBr5xE1XeKBoAF1SyvggB/6xB84nNb2l6bQd7g==}
 
-  '@fontsource/comic-neue@5.1.0':
-    resolution: {integrity: sha512-8jniMpwDfDLjJ6jOS3wp+i8Hn4QP5YwTv4AzMpx7urksnKjPjyEXSQK6TOzowxoLs9aqseEk4oSUjHMgQpLp9A==}
-
   '@fontsource/geist-mono@5.0.3':
     resolution: {integrity: sha512-ekY5FNiK7aMxan/c6lgVQa/rIwQ/AMEJZJWY7768jBrLVdkrCxfEfCe1ePpe7C3JnySy7c9R6HC4Xh4ksfjTaw==}
-
-  '@fontsource/geist-sans@5.0.3':
-    resolution: {integrity: sha512-oGwoSIqNPMvjtCwj1lZaEr47MeiG27XPhypwkF643u1TQduvwbm3V3hYB01JekeaT34SAGP4I1h+WCdRpJkcwA==}
 
   '@img/sharp-darwin-arm64@0.33.4':
     resolution: {integrity: sha512-p0suNqXufJs9t3RqLBO6vvrgr5OhgbWp76s5gTRvdmxmuv9E1rcaqGUsl3l4mKVmXPkTkTErXediAui4x+8PSA==}
@@ -1844,8 +1832,8 @@ packages:
   mz@2.7.0:
     resolution: {integrity: sha512-z81GNO7nnYMEhrGh9LeymoE4+Yr0Wn5McHIZMK5cfQCl+NDX08sCZgUc9/6MHni9IWuFLm1Z3HTCXu2z9fN62Q==}
 
-  nanoid@3.3.7:
-    resolution: {integrity: sha512-eSRppjcPIatRIMC1U6UngP8XFcz8MQWGQdt1MTBQ7NaAmvXDfvNxbvWV3x2y6CdEUciCSsDHDQZbhYaB8QEo2g==}
+  nanoid@3.3.8:
+    resolution: {integrity: sha512-WNLf5Sd8oZxOm+TzppcYk8gVOgP+l58xNy58D0nbUnOxOWRWvlcCV4kUF7ltmI6PsrLl/BgKEyS4mqsGChFN0w==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
@@ -3158,11 +3146,7 @@ snapshots:
 
   '@fontsource/comic-mono@5.1.0': {}
 
-  '@fontsource/comic-neue@5.1.0': {}
-
   '@fontsource/geist-mono@5.0.3': {}
-
-  '@fontsource/geist-sans@5.0.3': {}
 
   '@img/sharp-darwin-arm64@0.33.4':
     optionalDependencies:
@@ -5018,7 +5002,7 @@ snapshots:
       object-assign: 4.1.1
       thenify-all: 1.6.0
 
-  nanoid@3.3.7: {}
+  nanoid@3.3.8: {}
 
   napi-build-utils@1.0.2: {}
 
@@ -5207,13 +5191,13 @@ snapshots:
 
   postcss@8.4.41:
     dependencies:
-      nanoid: 3.3.7
+      nanoid: 3.3.8
       picocolors: 1.0.1
       source-map-js: 1.2.0
 
   postcss@8.4.47:
     dependencies:
-      nanoid: 3.3.7
+      nanoid: 3.3.8
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
