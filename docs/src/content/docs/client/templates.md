@@ -1,8 +1,13 @@
 ---
 title: Tunnel templates
+description: Learn how to setup tunnel templates to reuse tunnel settings
 ---
 
-If you use certain subdomains/port regularly, it is easier to create them as services and reuse using simple commands.
+### Why templates
+
+- Run multiple tunnels at the same time.
+- If you use certain subdomains/port regularly, it is easier to create them as services and reuse using simple commands.
+
 Open the portr client config file by running the following command
 
 ```bash
@@ -36,5 +41,7 @@ tunnels:
 ```
 
 And start multiple services by using the command `portr start portr pg`.
+
+To start all the services, use the command `portr start`.
 
 For more details, run `portr --help`.

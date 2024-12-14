@@ -11,15 +11,19 @@ import (
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/amalshaji/portr/internal/utils"
 	"github.com/go-resty/resty/v2"
+	"github.com/labstack/gommon/color"
 	"gopkg.in/yaml.v3"
 )
 
+var UNABLE_TO_OPEN_EDITOR = color.Yellow("Unable to open editor. Please edit the config file manually at " + DefaultConfigPath)
+
 type Tunnel struct {
-	Name      string                   `yaml:"name"`
-	Subdomain string                   `yaml:"subdomain"`
-	Port      int                      `yaml:"port"`
-	Host      string                   `yaml:"host"`
-	Type      constants.ConnectionType `yaml:"type"`
+	Name       string                   `yaml:"name"`
+	Subdomain  string                   `yaml:"subdomain"`
+	Port       int                      `yaml:"port"`
+	Host       string                   `yaml:"host"`
+	Type       constants.ConnectionType `yaml:"type"`
+	RemotePort int
 }
 
 func (t *Tunnel) SetDefaults() {
@@ -41,14 +45,17 @@ func (t *Tunnel) GetLocalAddr() string {
 }
 
 type Config struct {
-	ServerUrl    string   `yaml:"server_url"`
-	SshUrl       string   `yaml:"ssh_url"`
-	TunnelUrl    string   `yaml:"tunnel_url"`
-	SecretKey    string   `yaml:"secret_key"`
-	Tunnels      []Tunnel `yaml:"tunnels"`
-	UseLocalHost bool     `yaml:"use_localhost"`
-	Debug        bool     `yaml:"debug"`
-	UseVite      bool     `yaml:"use_vite"`
+	ServerUrl             string   `yaml:"server_url"`
+	SshUrl                string   `yaml:"ssh_url"`
+	TunnelUrl             string   `yaml:"tunnel_url"`
+	SecretKey             string   `yaml:"secret_key"`
+	Tunnels               []Tunnel `yaml:"tunnels"`
+	UseLocalHost          bool     `yaml:"use_localhost"`
+	Debug                 bool     `yaml:"debug"`
+	UseVite               bool     `yaml:"use_vite"`
+	EnableRequestLogging  bool     `yaml:"enable_request_logging"`
+	HealthCheckInterval   int      `yaml:"health_check_interval"`
+	HealthCheckMaxRetries int      `yaml:"health_check_max_retries"`
 }
 
 func (c *Config) SetDefaults() {
@@ -62,6 +69,14 @@ func (c *Config) SetDefaults() {
 
 	if c.TunnelUrl == "" {
 		c.TunnelUrl = c.ServerUrl
+	}
+
+	if c.HealthCheckInterval == 0 {
+		c.HealthCheckInterval = 3
+	}
+
+	if c.HealthCheckMaxRetries == 0 {
+		c.HealthCheckMaxRetries = 10
 	}
 
 	for i := range c.Tunnels {
@@ -79,13 +94,16 @@ func (c Config) GetAdminAddress() string {
 }
 
 type ClientConfig struct {
-	ServerUrl    string
-	SshUrl       string
-	TunnelUrl    string
-	SecretKey    string
-	Tunnel       Tunnel
-	UseLocalHost bool
-	Debug        bool
+	ServerUrl             string
+	SshUrl                string
+	TunnelUrl             string
+	SecretKey             string
+	Tunnel                Tunnel
+	UseLocalHost          bool
+	Debug                 bool
+	EnableRequestLogging  bool
+	HealthCheckInterval   int
+	HealthCheckMaxRetries int
 }
 
 func (c *ClientConfig) GetHttpTunnelAddr() string {
@@ -97,9 +115,16 @@ func (c *ClientConfig) GetHttpTunnelAddr() string {
 	return protocol + "://" + c.Tunnel.Subdomain + "." + c.TunnelUrl
 }
 
-func (c *ClientConfig) GetTcpTunnelAddr(port int) string {
+func (c *ClientConfig) GetTcpTunnelAddr() string {
 	split := strings.Split(c.TunnelUrl, ":")
-	return split[0] + ":" + fmt.Sprint(port)
+	return split[0] + ":" + fmt.Sprint(c.Tunnel.RemotePort)
+}
+
+func (c *ClientConfig) GetTunnelAddr() string {
+	if c.Tunnel.Type == constants.Http {
+		return c.GetHttpTunnelAddr()
+	}
+	return c.GetTcpTunnelAddr()
 }
 
 func (c *ClientConfig) GetServerAddr() string {
@@ -170,12 +195,14 @@ func EditConfig() error {
 	case "windows":
 		editorCmd = "start"
 	default:
-		return fmt.Errorf("unsupported platform")
+		fmt.Println(UNABLE_TO_OPEN_EDITOR)
+		return nil
 	}
 
 	cmd := exec.Command(editorCmd, DefaultConfigPath)
 	if err := cmd.Run(); err != nil {
-		return err
+		fmt.Println(UNABLE_TO_OPEN_EDITOR)
+		return nil
 	}
 
 	return nil

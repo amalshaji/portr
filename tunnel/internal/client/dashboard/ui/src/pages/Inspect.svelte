@@ -1,9 +1,12 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
   // @ts-ignore
+  import HttpBadge from "$lib/components/HttpBadge.svelte";
+  import InspectorIcon from "$lib/components/InspectorIcon.svelte";
   import { currentRequest } from "$lib/store";
   import type { Request } from "$lib/types";
   import HttpStatus from "http-status-codes";
+  import { RefreshCw } from "lucide-svelte";
   import { Link } from "svelte-routing";
   import RequestDetails from "./RequestDetails.svelte";
 
@@ -52,6 +55,12 @@
 
   let interval: number | undefined;
 
+  const viewParent = () => {
+    const parentId = $currentRequest?.ParentID;
+    // @ts-ignore
+    currentRequest.set(requests.find((request) => request.ID === parentId));
+  };
+
   onMount(() => {
     currentRequest.set(null);
     getRequests();
@@ -67,8 +76,8 @@
   <header
     class="flex items-center justify-between px-6 py-2 border-b dark:border-gray-800 bg-white dark:bg-gray-800"
   >
-    <Link to="/" class="text-gray-800 dark:text-gray-200">
-      <p class="text-2xl font-semibold">Portr inspector 🚨</p>
+    <Link to="/">
+      <InspectorIcon />
     </Link>
     <div class="flex items-center space-x-4">
       <input
@@ -83,21 +92,26 @@
     <div
       class="w-80 border-r overflow-y-auto dark:border-gray-800 bg-white dark:bg-gray-800"
     >
-      <div class="p-4 space-y-2">
+      <div>
         {#each filteredRequests as request, i (i)}
           <!-- svelte-ignore a11y-click-events-have-key-events -->
           <!-- svelte-ignore a11y-no-static-element-interactions -->
           <div
-            class="p-4 rounded-md border transition-all hover:bg-accent {$currentRequest?.ID ===
+            class="p-4 space-y-1 border-b transition-all hover:bg-accent {$currentRequest?.ID ===
             request.ID
-              ? 'border bg-[#F4F4F5]'
-              : 'border-muted'} dark:bg-gray-700 m-1 hover:cursor-pointer space-y-2"
+              ? 'bg-[#F4F4F5]'
+              : 'border-muted'} dark:bg-gray-700 hover:cursor-pointer"
             on:click={() => setCurrentRequest(request)}
           >
             <div
               class="text-sm text-gray-800 dark:text-gray-200 flex justify-between items-center text-clip"
             >
-              <span>{request.Method}</span>
+              <span class="flex items-center gap-2">
+                <HttpBadge method={request.Method} />
+                {#if request.IsReplayed}
+                  <RefreshCw class="w-3 h-3" />
+                {/if}
+              </span>
               <span class="overflow-clip h-6 w-40 text-right"
                 >{request.Url}</span
               >
@@ -110,6 +124,6 @@
         {/each}
       </div>
     </div>
-    <RequestDetails />
+    <RequestDetails {viewParent} />
   </main>
 </div>

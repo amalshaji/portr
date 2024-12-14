@@ -1,18 +1,26 @@
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 
+import tailwind from "@astrojs/tailwind";
+
 // https://astro.build/config
 export default defineConfig({
+  site: "https://portr.dev",
   integrations: [
     starlight({
-      title: "Portr",
-      customCss: ["./src/styles/custom.css"],
+      title: "",
+      logo: {
+        alt: "A bubbly Portr",
+        src: "./src/assets/icon.svg",
+      },
+      customCss: [
+        "./src/tailwind.css",
+        "@fontsource/geist-mono/400.css",
+        "@fontsource/comic-mono/400.css",
+      ],
       social: {
         github: "https://github.com/amalshaji/portr",
-      },
-      logo: {
-        src: "./src/assets/logo.svg",
-        replacesTitle: true,
+        twitter: "https://twitter.com/amal_ytics",
       },
       components: {
         Head: "./src/components/Head.astro",
@@ -21,12 +29,17 @@ export default defineConfig({
         {
           label: "Guides",
           items: [
-            // Each item here is one entry in the navigation menu.
-            { label: "Overview", link: "/getting-started/" },
+            {
+              label: "Overview",
+              link: "/getting-started/",
+            },
             {
               label: "Server",
               items: [
-                { label: "Quickstart", link: "/server/" },
+                {
+                  label: "Quickstart",
+                  link: "/server/",
+                },
                 {
                   label: "Cloudflare API token",
                   link: "/server/cloudflare-api-token/",
@@ -44,19 +57,35 @@ export default defineConfig({
             {
               label: "Client",
               items: [
-                { label: "Installation", link: "/client/installation/" },
-                { label: "HTTP tunnel", link: "/client/http-tunnel/" },
-                { label: "TCP tunnel", link: "/client/tcp-tunnel/" },
+                {
+                  label: "Installation",
+                  link: "/client/installation/",
+                },
+                {
+                  label: "HTTP tunnel",
+                  link: "/client/http-tunnel/",
+                },
+                {
+                  label: "TCP tunnel",
+                  link: "/client/tcp-tunnel/",
+                },
                 {
                   label: "Websocket tunnel",
                   link: "/client/websocket-tunnel/",
+                },
+                {
+                  label: "Tunnel templates",
+                  link: "/client/templates/",
                 },
               ],
             },
             {
               label: "Local development",
               items: [
-                { label: "Admin", link: "/local-development/admin/" },
+                {
+                  label: "Admin",
+                  link: "/local-development/admin/",
+                },
                 {
                   label: "Tunnel server",
                   link: "/local-development/tunnel-server/",
@@ -67,9 +96,21 @@ export default defineConfig({
                 },
               ],
             },
+            {
+              label: "Resources",
+              items: [
+                {
+                  label: "Route53",
+                  link: "/resources/route53/",
+                },
+              ],
+            },
           ],
         },
       ],
+    }),
+    tailwind({
+      applyBaseStyles: false,
     }),
   ],
 });

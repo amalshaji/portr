@@ -1,6 +1,6 @@
 [project]
 name = "portr-admin"
-version = "0.0.12-beta"
+version = "0.0.25-beta"
 description = "Add your description here"
 authors = [{ name = "amalshaji", email = "amalshajid@gmail.com" }]
 dependencies = [
@@ -19,7 +19,8 @@ dependencies = [
     "aiosmtplib>=3.0.1",
     "cryptography>=42.0.5",
     "aerich>=0.7.2",
-    "gunicorn>=21.2.0",
+    "passlib>=1.7.4",
+    "argon2-cffi>=23.1.0",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"
@@ -41,15 +42,16 @@ dev-dependencies = [
     "asgi-lifespan>=2.1.0",
     "async-factory-boy>=1.0.1",
     "mimesis>=14.0.0",
+    "ipdb>=0.13.13",
 ]
 
 [tool.hatch.metadata]
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/portr_admin"]
+packages = ["."]
 
 [tool.aerich]
-tortoise_orm = "src.portr_admin.db.TORTOISE_ORM"
+tortoise_orm = "config.database.TORTOISE_ORM"
 location = "./migrations"
 src_folder = "./."

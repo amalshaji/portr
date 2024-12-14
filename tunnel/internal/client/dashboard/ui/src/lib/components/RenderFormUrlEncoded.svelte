@@ -16,10 +16,10 @@
 <div class="space-y-2">
   {#each Object.entries(dataMap) as [key, value]}
     <div>
-      <Label for="email" class="font-normal">{key}</Label>
+      <Label for={key} class="font-normal">{decodeURIComponent(key)}</Label>
       <Input
-        {value}
-        class="outline-none ring-0 border-none w-1/2 overflow-auto bg-[#FBFBFB]"
+        value={decodeURIComponent(value)}
+        class="outline-none ring-0 w-1/2 overflow-auto bg-white border"
         readonly
       ></Input>
     </div>

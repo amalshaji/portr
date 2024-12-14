@@ -1,0 +1,31 @@
+---
+title: Cloudflare API token
+description: Getting a cloudflare API token for wildcard certificates
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+:::note
+If you're on route53, go [here](/resources/route53/)
+:::
+
+Cloudflare API token is required by caddy for provisioning SSL certificates for wildcard subdomains.
+
+<Steps>
+1. Go to [https://dash.cloudflare.com/profile/api-tokens](https://dash.cloudflare.com/profile/api-tokens)
+2. Create a new token
+3. Set the following permissions
+
+    ```
+    Zone - DNS - Read
+    Zone - DNS - Edit
+    ```
+
+4. Set the zone resources
+
+    ```
+    Include - Specific zone - {your domain}
+    ```
+
+</Steps>
+![cloudflare](../../../assets/cloudflare.png)

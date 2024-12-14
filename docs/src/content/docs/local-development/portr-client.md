@@ -1,5 +1,6 @@
 ---
 title: Setup portr client in local
+description: Learn how to setup portr client for local development
 ---
 
 The portr server is built using go for the backend and svelte for the portr inspector.
@@ -7,7 +8,7 @@ The portr server is built using go for the backend and svelte for the portr insp
 ## Requirements
 
 - go (1.22+)
-- pnpm (16+)
+- node (16+)
 - [admin server](/local-development/admin/)
 - [tunnel server](/local-development/tunnel-server/)
 

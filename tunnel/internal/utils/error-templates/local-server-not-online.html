@@ -3,63 +3,83 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Portr - Local server not online</title>
-    <link rel="preconnect" href="https://rsms.me/" />
-    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+    <title>Connection Lost</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+      @font-face {
+        font-family: "Manrope Variable";
+        font-style: normal;
+        font-display: swap;
+        font-weight: 200 800;
+        src: url(https://cdn.jsdelivr.net/fontsource/fonts/manrope:vf@latest/latin-wght-normal.woff2)
+          format("woff2-variations");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+          U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC,
+          U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
       :root {
-        font-family: Inter, sans-serif;
-        font-feature-settings: "liga" 1, "calt" 1; /* fix for Chrome */
+        font-family: "Manrope Variable", sans-serif;
       }
       @supports (font-variation-settings: normal) {
         :root {
-          font-family: InterVariable, sans-serif;
+          font-family: "Manrope Variable", sans-serif;
         }
       }
     </style>
   </head>
-  <body>
-    <div
-      class="flex min-h-screen flex-col items-center justify-center bg-gray-100 px-4"
-    >
-      <div class="w-full max-w-2xl rounded-sm border bg-white p-8 text-center">
-        <h1 class="mb-2 text-3xl font-semibold text-gray-800">
-          Connection error
-        </h1>
-        <p class="mb-6 text-lg text-gray-600">
-          We're having trouble connecting to the server.
-        </p>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="mx-auto mb-4 h-20 w-20 text-gray-500"
-        >
-          <path d="m2 2 20 20"></path>
-          <path
-            d="M5.782 5.782A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.307-.193"
-          ></path>
-          <path
-            d="M21.532 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7.008 7.008 0 0 0 10 5.07"
-          ></path>
-        </svg>
-        <p class="mb-4 text-sm text-gray-500">
-          Please check if the local server is running and is accessible.
-        </p>
-        <button
-          onclick="location.reload()"
-          class="ring-offset-background focus-visible:ring-ring bg-secondary text-secondary-foreground hover:bg-secondary/80 mx-auto inline-flex h-10 items-center justify-center whitespace-nowrap rounded-md border px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
-        >
-          Reload Page
-        </button>
+  <body
+    class="grid h-screen place-items-center bg-gradient-to-b from-gray-50 to-gray-100"
+  >
+    <div class="items-center justify-center p-4">
+      <div
+        class="mx-auto w-full max-w-md space-y-8 rounded-xl bg-white p-8 shadow-2xl"
+      >
+        <div class="relative">
+          <div class="relative space-y-4 text-center">
+            <div class="flex justify-center">
+              <div class="rounded-full bg-gray-100 p-3">
+                <i data-lucide="unplug" class="h-8 w-8"></i>
+              </div>
+            </div>
+            <h1 class="text-2xl font-bold tracking-tight">Connection Error</h1>
+            <div class="space-y-3">
+              <p class="text-sm text-gray-500">
+                We're having trouble connecting to the local server.
+              </p>
+              <p class="text-sm text-gray-500">
+                Please check if the local server is running and is accessible.
+              </p>
+            </div>
+            <div class="space-y-2">
+              <div class="flex items-center space-x-2">
+                <button
+                  onclick="location.reload()"
+                  class="bg-black space-x-1 text-white ring-offset-background focus-visible:ring-ring bg-secondary text-secondary-foreground hover:bg-secondary/80 mx-auto inline-flex h-10 items-center justify-center whitespace-nowrap rounded-md border px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  <i data-lucide="rotate-cw" class="h-4 w-4"></i>
+                  <span>Reload Page</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-center space-x-2 text-sm">
+          <span class="text-gray-500">Need help?</span>
+          <a
+            href="https://portr.dev"
+            target="_blank"
+            class="inline-flex items-center text-blue-600 hover:underline"
+          >
+            Visit portr.dev
+            <i data-lucide="external-link" class="ml-1 h-3 w-3"></i>
+          </a>
+        </div>
       </div>
     </div>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+      lucide.createIcons();
+    </script>
   </body>
 </html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Connection Lost</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @font-face {
+        font-family: "Manrope Variable";
+        font-style: normal;
+        font-display: swap;
+        font-weight: 200 800;
+        src: url(https://cdn.jsdelivr.net/fontsource/fonts/manrope:vf@latest/latin-wght-normal.woff2)
+          format("woff2-variations");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+          U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC,
+          U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      :root {
+        font-family: "Manrope Variable", sans-serif;
+      }
+      @supports (font-variation-settings: normal) {
+        :root {
+          font-family: "Manrope Variable", sans-serif;
+        }
+      }
+    </style>
+  </head>
+  <body
+    class="grid h-screen place-items-center bg-gradient-to-b from-gray-50 to-gray-100"
+  >
+    <div class="items-center justify-center p-4">
+      <div
+        class="mx-auto w-full max-w-md space-y-8 rounded-xl bg-white p-8 shadow-2xl"
+      >
+        <div class="relative">
+          <div class="relative space-y-4 text-center">
+            <div class="flex justify-center">
+              <div class="rounded-full bg-gray-100 p-3">
+                <i data-lucide="wifi-off" class="h-8 w-8"></i>
+              </div>
+            </div>
+            <h1 class="text-2xl font-bold tracking-tight">Connection Lost</h1>
+            <p class="text-sm text-gray-500">
+              Don't worry, we'll keep retrying to establish the connection
+            </p>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="terminal" class="h-4 w-4"></i>
+            <span class="text-sm font-medium"
+              >Please check your terminal for more information</span
+            >
+          </div>
+        </div>
+
+        <div class="flex items-center justify-center space-x-2 text-sm">
+          <span class="text-gray-500">Need help?</span>
+          <a
+            href="https://portr.dev"
+            target="_blank"
+            class="inline-flex items-center text-blue-600 hover:underline"
+          >
+            Visit portr.dev
+            <i data-lucide="external-link" class="ml-1 h-3 w-3"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+      lucide.createIcons();
+    </script>
+  </body>
+</html>

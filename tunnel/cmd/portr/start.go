@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"log"
+
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,11 +16,14 @@ import (
 )
 
 func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
-	db := db.New()
+	config, err := config.Load(c.String("config"))
+	if err != nil {
+		return err
+	}
 
-	_c := client.NewClient(c.String("config"), db)
+	db := db.New(&config)
 
-	var err error
+	_c := client.NewClient(&config, db)
 
 	if tunnelFromCli != nil {
 		tunnelFromCli.SetDefaults()
@@ -32,7 +38,13 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 	}
 
 	dash := dashboard.New(db, _c.GetConfig())
-	dash.Start()
+	go func() {
+		if err := dash.Start(); err != nil {
+			log.Fatalf("Failed to start dashboard server: error: %v", err)
+		}
+	}()
+
+	fmt.Println("🚨 Portr inspector running on http://localhost:7777")
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { currentRequest } from "$lib/store";
   import { onMount } from "svelte";
-  import Label from "./ui/label/label.svelte";
-  import Input from "./ui/input/input.svelte";
   import Button from "./ui/button/button.svelte";
+  import Input from "./ui/input/input.svelte";
+  import Label from "./ui/label/label.svelte";
 
   let formData,
     data = {};
@@ -52,7 +52,7 @@
         {:else}
           <Input
             {value}
-            class="outline-none ring-0 border-none w-1/2 overflow-auto bg-[#FBFBFB]"
+            class="outline-none ring-0 w-1/2 overflow-auto bg-white border"
             readonly
           ></Input>
         {/if}

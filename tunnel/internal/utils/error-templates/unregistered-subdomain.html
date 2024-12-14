@@ -3,48 +3,85 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Portr - Unregistered subdomain</title>
-    <link rel="preconnect" href="https://rsms.me/" />
-    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+    <title>Connection Lost</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+      @font-face {
+        font-family: "Manrope Variable";
+        font-style: normal;
+        font-display: swap;
+        font-weight: 200 800;
+        src: url(https://cdn.jsdelivr.net/fontsource/fonts/manrope:vf@latest/latin-wght-normal.woff2)
+          format("woff2-variations");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+          U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC,
+          U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
       :root {
-        font-family: Inter, sans-serif;
-        font-feature-settings: "liga" 1, "calt" 1; /* fix for Chrome */
+        font-family: "Manrope Variable", sans-serif;
       }
       @supports (font-variation-settings: normal) {
         :root {
-          font-family: InterVariable, sans-serif;
+          font-family: "Manrope Variable", sans-serif;
         }
       }
     </style>
   </head>
-  <body>
-    <div
-      class="flex min-h-screen flex-col items-center justify-center bg-gray-100 px-4"
-    >
-      <div class="w-full max-w-2xl rounded-sm border bg-white p-8">
-        <h1 class="mb-8 text-left text-3xl font-semibold text-gray-900">
-          Unregistered subdomain
-        </h1>
-        <p class="mb-6 text-left text-lg text-gray-600">
-          Create a new tunnel connection with the command below:
-        </p>
-        <div class="mb-8 rounded-lg bg-gray-100 p-6 font-mono text-base">
-          <p>portr http 8000 -s {{subdomain}}</p>
+  <body
+    class="grid h-screen place-items-center bg-gradient-to-b from-gray-50 to-gray-100"
+  >
+    <div class="items-center justify-center p-4">
+      <div
+        class="mx-auto w-full max-w-md space-y-8 rounded-xl bg-white p-8 shadow-2xl"
+      >
+        <div class="relative">
+          <div class="relative space-y-4 text-center">
+            <div class="flex justify-center">
+              <div class="rounded-full bg-gray-100 p-3">
+                <i data-lucide="circle-x" class="h-8 w-8"></i>
+              </div>
+            </div>
+            <h1 class="text-2xl font-bold tracking-tight">
+              Unregistered Subdomain
+            </h1>
+            <p class="text-sm text-gray-500">
+              Looks like there is no active connection on this subdomain
+            </p>
+          </div>
         </div>
-        <p class="text-left text-gray-600">
-          Visit
+
+        <div class="space-y-2">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="terminal" class="h-4 w-4"></i>
+            <span class="text-sm font-medium"
+              >Use the command to create a new tunnel connection</span
+            >
+          </div>
+          <div class="relative">
+            <div class="rounded-lg bg-zinc-950 p-4">
+              <code class="text-sm text-white"
+                >portr http 8000 -s {{subdomain}}</code
+              >
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-center space-x-2 text-sm">
+          <span class="text-gray-500">Need help?</span>
           <a
-            class="text-blue-500 hover:underline"
             href="https://portr.dev"
             target="_blank"
+            class="inline-flex items-center text-blue-600 hover:underline"
           >
-            portr.dev
+            Visit portr.dev
+            <i data-lucide="external-link" class="ml-1 h-3 w-3"></i>
           </a>
-          for more information
-        </p>
+        </div>
       </div>
     </div>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+      lucide.createIcons();
+    </script>
   </body>
 </html>

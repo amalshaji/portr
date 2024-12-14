@@ -10,11 +10,16 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/check": "^0.5.10",
-    "@astrojs/starlight": "^0.21.5",
-    "astro": "^4.6.0",
+    "@astrojs/check": "^0.9.4",
+    "@astrojs/starlight": "^0.29.0",
+    "@astrojs/starlight-tailwind": "^2.0.3",
+    "@astrojs/tailwind": "^5.1.2",
+    "@fontsource/comic-mono": "^5.1.0",
+    "@fontsource/geist-mono": "^5.0.3",
+    "astro": "^4.16.13",
     "astro-embed": "^0.6.2",
     "sharp": "^0.32.6",
-    "typescript": "^5.4.5"
+    "tailwindcss": "^3.4.9",
+    "typescript": "^5.5.4"
   }
 }

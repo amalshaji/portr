@@ -14,4 +14,7 @@ export type Request = {
   ResponseStatusCode: number;
   ResponseHeaders: Record<string, string>;
   ResponseBody: string;
+  IsReplayed: boolean;
+  ParentID: string;
+  LoggedAt: string;
 };

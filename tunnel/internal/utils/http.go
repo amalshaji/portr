@@ -20,3 +20,10 @@ func UnregisteredSubdomain(subdomain string) string {
 	t := fasttemplate.New(UnregisteredSubdomainText, "{{", "}}")
 	return t.ExecuteString(map[string]any{"subdomain": subdomain})
 }
+
+//go:embed error-templates/connection-lost.html
+var ConnectionLostText string
+
+func ConnectionLost() string {
+	return ConnectionLostText
+}

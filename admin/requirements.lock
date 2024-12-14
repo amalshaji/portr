@@ -6,6 +6,8 @@
 #   features: []
 #   all-features: false
 #   with-sources: false
+#   generate-hashes: false
+#   universal: false
 
 -e file:.
 aerich==0.7.2
@@ -21,12 +23,17 @@ anyio==4.3.0
     # via starlette
 apscheduler==3.10.4
     # via portr-admin
+argon2-cffi==23.1.0
+    # via portr-admin
+argon2-cffi-bindings==21.2.0
+    # via argon2-cffi
 asyncpg==0.29.0
     # via tortoise-orm
 certifi==2024.2.2
     # via httpcore
     # via httpx
 cffi==1.16.0
+    # via argon2-cffi-bindings
     # via cryptography
 click==8.1.7
     # via aerich
@@ -40,8 +47,6 @@ dnspython==2.6.1
 email-validator==2.1.0.post1
     # via portr-admin
 fastapi==0.109.2
-    # via portr-admin
-gunicorn==21.2.0
     # via portr-admin
 h11==0.14.0
     # via httpcore
@@ -62,8 +67,8 @@ markupsafe==2.1.5
     # via jinja2
 nanoid==2.0.0
     # via portr-admin
-packaging==24.0
-    # via gunicorn
+passlib==1.7.4
+    # via portr-admin
 pycparser==2.21
     # via cffi
 pydantic==2.6.1

@@ -1,40 +1,43 @@
 ---
 title: Open source ngrok alternative
-description: Expose local http, tcp or websocket connections to the public internet
+description: Open source ngrok alternative designed for teams
 template: splash
 hero:
   tagline: Expose local http, tcp or websocket connections to the public internet
   image:
-    file: ../../assets/logo.svg
+    alt: A bubbly Portr
+    file: ../../assets/icon.svg
   actions:
     - text: Read the docs
       link: /getting-started/
-      icon: right-arrow
+      icon: open-book
       variant: primary
-    - text: Github
+    - text: GitHub
       link: https://github.com/amalshaji/portr
-      icon: external
-	  target: _blank
+      icon: github
+      variant: secondary
+      attrs:
+        target: _blank
+    - text: Hacker News (172)
+      link: https://news.ycombinator.com/item?id=39913197
+      icon: star
+      variant: secondary
+      attrs:
+        target: _blank
 ---
 
 import { Card, CardGrid } from "@astrojs/starlight/components";
+import { YouTube } from "astro-embed";
 
 ## Features
 
-<CardGrid stagger>
-  <Card title="Self hosted" icon="laptop">
-    Run `docker compose up` on your server.
-  </Card>
+<CardGrid>
   <Card title="Admin dashboard" icon="rocket">
     Admin dashboard to monitor connections, manage teams and members.{" "}
-    <a target="_blank" href="https://youtu.be/P37la8DjrzA">
-      watch video
-    </a>
+    <YouTube id="https://www.youtube.com/watch?v=Wv5j3YQk3Ew" />
   </Card>
   <Card title="Portr inspector" icon="magnifier">
     Portr inspector to inspect and replay http requests.{" "}
-    <a target="_blank" href="https://youtu.be/hhbte2JI3qk">
-      watch video
-    </a>
+    <YouTube id="https://www.youtube.com/watch?v=_4tipDzuoSs" />
   </Card>
 </CardGrid>

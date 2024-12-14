@@ -96,6 +96,8 @@ func (h *Handler) ReplayRequest(c *fiber.Ctx) error {
 		client.SetHeader(key, values[0])
 	}
 
+	client.SetHeader("X-Portr-Replayed-Request-Id", requestId)
+
 	client.SetBody(request.Body)
 
 	requestUrl := fmt.Sprintf("https://%s%s", request.Host, request.Url)
@@ -130,6 +132,8 @@ func (h *Handler) ReplayRequest(c *fiber.Ctx) error {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "The tunnel is not active. Please start the tunnel and try again"})
 		case "local-server-not-online":
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "The local server is not online. Please start the local server and try again"})
+		case "connection-lost":
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"message": "The tunnel connection was lost. Please try again in a bit."})
 		}
 	}
 

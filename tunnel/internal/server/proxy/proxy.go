@@ -4,8 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
-	"log/slog"
+
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -14,10 +13,10 @@ import (
 
 	"github.com/amalshaji/portr/internal/server/config"
 	"github.com/amalshaji/portr/internal/utils"
+	"github.com/charmbracelet/log"
 )
 
 type Proxy struct {
-	log    *slog.Logger
 	config *config.Config
 	routes map[string]string
 	lock   sync.RWMutex
@@ -30,7 +29,6 @@ func (p *Proxy) GetServerAddr() string {
 
 func New(config *config.Config) *Proxy {
 	p := &Proxy{
-		log:    utils.GetLogger(),
 		config: config,
 		routes: make(map[string]string),
 		server: nil,
@@ -44,6 +42,7 @@ func (p *Proxy) GetRoute(src string) (string, error) {
 	defer p.lock.RUnlock()
 	route, ok := p.routes[src]
 	if !ok {
+		log.Error("Route not found", "subdomain", src)
 		return "", fmt.Errorf("route not found")
 	}
 	return route, nil
@@ -55,6 +54,7 @@ func (p *Proxy) AddRoute(src, dst string) error {
 
 	_, ok := p.routes[src]
 	if ok {
+		log.Error("Route already added", "subdomain", src)
 		return fmt.Errorf("route already added")
 	}
 	p.routes[src] = dst
@@ -67,6 +67,7 @@ func (p *Proxy) RemoveRoute(src string) error {
 
 	_, ok := p.routes[src]
 	if !ok {
+		log.Error("Route not found", "subdomain", src)
 		return fmt.Errorf("route not found")
 	}
 	delete(p.routes, src)
@@ -80,9 +81,17 @@ func unregisteredSubdomainError(w http.ResponseWriter, subdomain string) {
 	w.Write([]byte(utils.UnregisteredSubdomain(subdomain)))
 }
 
+func connectionLostError(w http.ResponseWriter) {
+	w.Header().Set("X-Portr-Error", "true")
+	w.Header().Set("X-Portr-Error-Reason", "connection-lost")
+	w.WriteHeader(http.StatusServiceUnavailable)
+	w.Write([]byte(utils.ConnectionLost()))
+}
+
 func (p *Proxy) ErrHandle(res http.ResponseWriter, req *http.Request, err error) {
+	log.Error("Error from proxy", "error", err)
 	p.RemoveRoute(p.config.ExtractSubdomain(req.Host))
-	unregisteredSubdomainError(res, p.config.ExtractSubdomain(req.Host))
+	connectionLostError(res)
 }
 
 func (p *Proxy) reverseProxy(target *url.URL) *httputil.ReverseProxy {
@@ -108,23 +117,25 @@ func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Proxy) Start() {
-	p.log.Info("starting proxy server", "port", p.GetServerAddr())
+	log.Info("Starting proxy server", "port", p.GetServerAddr())
 
 	http.HandleFunc("/", p.handleRequest)
 
 	if err := p.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatalf("failed to start proxy server: %v", err)
+		log.Fatal("Failed to start proxy server", "error", err)
 	}
 }
 
 func (p *Proxy) Shutdown(_ context.Context) {
-	p.log.Info("stopping proxy server")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
 	defer func() { cancel() }()
 
 	if err := p.server.Shutdown(ctx); err != nil {
-		p.log.Error("failed to stop proxy server", "error", err)
+		log.Error("Failed to stop proxy server", "error", err)
+		return
 	}
+
+	log.Info("Stopped proxy server")
 }
