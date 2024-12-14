@@ -20,6 +20,7 @@
 
   let requests: Request[] = [];
   let filteredRequests: Request[] = [];
+  let filterRequestError: string | null = null;
   let search = "";
 
   const getRequests = async () => {
@@ -44,12 +45,14 @@
 
   const filterRequestsBasedOnUrl = () => {
     filteredRequests = requests.filter((request) => {
-      return request.Url.includes(search);
+      return request.Url.toLowerCase().includes(search.toLowerCase().trim());
     });
     if (filteredRequests.length === 0) {
-      currentRequest.set(null);
+      filteredRequests = requests;
+      filterRequestError = "No results found";
     } else {
       currentRequest.set(filteredRequests[0]);
+      filterRequestError = null;
     }
   };
 
@@ -76,10 +79,13 @@
   <header
     class="flex items-center justify-between px-6 py-2 border-b dark:border-gray-800 bg-white dark:bg-gray-800"
   >
-    <Link to="/">
-      <InspectorIcon />
+    <Link to="/" class="flex items-center gap-2">
+      <InspectorIcon /> <span class="text-lg">Portr Inspector</span>
     </Link>
     <div class="flex items-center space-x-4">
+      {#if filterRequestError}
+        <div class="text-red-500 text-sm">{filterRequestError}</div>
+      {/if}
       <input
         class="flex h-10 rounded-md border outline-none px-3 py-1 text-sm w-64"
         placeholder="Filter URL"
