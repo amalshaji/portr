@@ -15,8 +15,8 @@ export default defineConfig({
       },
       customCss: [
         "./src/tailwind.css",
+        "@fontsource/geist-sans/400.css",
         "@fontsource/geist-mono/400.css",
-        "@fontsource/comic-mono/400.css",
       ],
       social: {
         github: "https://github.com/amalshaji/portr",

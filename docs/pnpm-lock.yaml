@@ -20,9 +20,6 @@ importers:
       '@astrojs/tailwind':
         specifier: ^5.1.4
         version: 5.1.4(astro@5.1.1(@types/node@18.19.44)(jiti@2.4.2)(rollup@4.25.0)(typescript@5.5.4)(yaml@2.5.0))(tailwindcss@3.4.9)
-      '@fontsource/comic-mono':
-        specifier: ^5.1.0
-        version: 5.1.0
       '@fontsource/geist-mono':
         specifier: ^5.0.3
         version: 5.0.3
@@ -481,9 +478,6 @@ packages:
 
   '@expressive-code/plugin-text-markers@0.38.3':
     resolution: {integrity: sha512-dPK3+BVGTbTmGQGU3Fkj3jZ3OltWUAlxetMHI6limUGCWBCucZiwoZeFM/WmqQa71GyKRzhBT+iEov6kkz2xVA==}
-
-  '@fontsource/comic-mono@5.1.0':
-    resolution: {integrity: sha512-sP+5zfrQdU46znBNm4H97Qw7Otc52Gsz1JIO9dzApYDiTBXyQBr5xE1XeKBoAF1SyvggB/6xB84nNb2l6bQd7g==}
 
   '@fontsource/geist-mono@5.0.3':
     resolution: {integrity: sha512-ekY5FNiK7aMxan/c6lgVQa/rIwQ/AMEJZJWY7768jBrLVdkrCxfEfCe1ePpe7C3JnySy7c9R6HC4Xh4ksfjTaw==}
@@ -3421,8 +3415,6 @@ snapshots:
   '@expressive-code/plugin-text-markers@0.38.3':
     dependencies:
       '@expressive-code/core': 0.38.3
-
-  '@fontsource/comic-mono@5.1.0': {}
 
   '@fontsource/geist-mono@5.0.3': {}
 

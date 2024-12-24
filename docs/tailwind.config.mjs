@@ -27,7 +27,7 @@ export default {
         gray,
       },
       fontFamily: {
-        sans: ["Comic Mono"],
+        sans: ["Geist Sans"],
         mono: ["Geist Mono"],
       },
     },
