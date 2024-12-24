@@ -7,8 +7,9 @@ The portr server is built using go for the backend and svelte for the portr insp
 
 ## Requirements
 
-- go (1.22+)
-- node (16+)
+- go (1.23+)
+- node (20+)
+- pnpm (9.15.0+)
 - [admin server](/local-development/admin/)
 - [tunnel server](/local-development/tunnel-server/)
 
