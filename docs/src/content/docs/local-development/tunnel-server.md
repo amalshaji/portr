@@ -7,7 +7,7 @@ The tunnel server is built using go. It uses ssh remote port forwarding to tunne
 
 ## Requirements
 
-- go (1.22+)
+- go (1.23+)
 - postgres (16+)
 
 ## Setup
