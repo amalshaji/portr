@@ -6,33 +6,34 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/charmbracelet/log v0.4.0
 	github.com/glebarez/sqlite v1.11.0
-	github.com/gliderlabs/ssh v0.3.7
-	github.com/go-resty/resty/v2 v2.12.0
+	github.com/gliderlabs/ssh v0.3.8
+	github.com/go-resty/resty/v2 v2.16.2
 	github.com/gofiber/fiber/v2 v2.52.5
-	github.com/gofiber/template/django/v3 v3.1.11
-	github.com/gookit/validate v1.5.2
+	github.com/gofiber/template/django/v3 v3.1.12
+	github.com/gookit/validate v1.5.4
 	github.com/labstack/gommon v0.4.2
-	github.com/matoous/go-nanoid/v2 v2.0.0
-	github.com/mattn/go-sqlite3 v1.14.22
+	github.com/matoous/go-nanoid/v2 v2.1.0
+	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/oklog/ulid/v2 v2.1.0
 	github.com/stretchr/testify v1.9.0
-	github.com/urfave/cli/v2 v2.27.1
+	github.com/urfave/cli/v2 v2.27.5
 	github.com/valyala/fasttemplate v1.2.2
 	golang.org/x/crypto v0.31.0
 	gopkg.in/yaml.v3 v3.0.1
-	gorm.io/datatypes v1.2.0
-	gorm.io/driver/postgres v1.5.7
-	gorm.io/driver/sqlite v1.5.5
-	gorm.io/gorm v1.25.9
+	gorm.io/datatypes v1.2.5
+	gorm.io/driver/postgres v1.5.11
+	gorm.io/driver/sqlite v1.5.7
+	gorm.io/gorm v1.25.12
 )
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
-	github.com/andybalholm/brotli v1.1.0 // indirect
+	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
-	github.com/charmbracelet/lipgloss v0.10.0 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
+	github.com/charmbracelet/lipgloss v1.0.0 // indirect
+	github.com/charmbracelet/x/ansi v0.6.0 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.6 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/flosch/pongo2/v6 v6.0.0 // indirect
@@ -42,19 +43,19 @@ require (
 	github.com/gofiber/template v1.8.3 // indirect
 	github.com/gofiber/utils v1.1.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/gookit/filter v1.2.1 // indirect
-	github.com/gookit/goutil v0.6.15 // indirect
+	github.com/gookit/filter v1.2.2 // indirect
+	github.com/gookit/goutil v0.6.18 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
-	github.com/jackc/pgservicefile v0.0.0-20231201235250-de7065d80cb9 // indirect
-	github.com/jackc/pgx/v5 v5.5.5 // indirect
-	github.com/jackc/puddle/v2 v2.2.1 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/pgx/v5 v5.7.2 // indirect
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/klauspost/compress v1.17.8 // indirect
+	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-runewidth v0.0.15 // indirect
+	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/muesli/reflow v0.3.0 // indirect
 	github.com/muesli/termenv v0.15.2 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
@@ -64,17 +65,17 @@ require (
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.52.0 // indirect
+	github.com/valyala/fasthttp v1.58.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
-	github.com/xrash/smetrics v0.0.0-20240312152122-5f08fbb34913 // indirect
-	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
-	golang.org/x/net v0.24.0 // indirect
+	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
+	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67 // indirect
+	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
-	gorm.io/driver/mysql v1.5.6 // indirect
-	modernc.org/libc v1.49.3 // indirect
-	modernc.org/mathutil v1.6.0 // indirect
+	gorm.io/driver/mysql v1.5.7 // indirect
+	modernc.org/libc v1.61.5 // indirect
+	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.8.0 // indirect
-	modernc.org/sqlite v1.29.6 // indirect
+	modernc.org/sqlite v1.34.4 // indirect
 )
