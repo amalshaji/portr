@@ -414,8 +414,10 @@ func (s *SshClient) Start(ctx context.Context) {
 		os.Exit(1)
 	case <-time.After(5 * time.Second):
 		// If no error after 2 seconds, assume connection is successful
-		// Start the health check routine
-		s.StartHealthCheck(ctx)
+		// Start the health check routine for http connections
+		if s.config.Tunnel.Type == constants.Http {
+			s.StartHealthCheck(ctx)
+		}
 	}
 }
 
