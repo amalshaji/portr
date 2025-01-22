@@ -1,0 +1,87 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: Tunnel tests
+
+on:
+  push:
+    branches: ["main"]
+    # paths:
+    #   - "admin/**"
+    #   - "tunnel/**"
+  pull_request:
+    branches: ["main"]
+    # paths:
+    #   - "admin/**"
+    #   - "tunnel/**"
+
+permissions:
+  contents: read
+
+jobs:
+  run-tunnel-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Start the services
+        run: |
+          cp ./e2e/.env .env
+          docker-compose -f docker-compose.dev.yaml up -d
+          sleep 5
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: e2e/requirements.txt
+
+      - name: Setup test server
+        working-directory: ./e2e
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start test server
+        working-directory: ./e2e
+        run: |
+          uvicorn server:app --host 0.0.0.0 --port 9000 &
+          sleep 3
+
+      - name: Setup client
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8.7.5
+          run_install: false
+
+      - name: Install client dependencies
+        run: pnpm --dir tunnel/internal/client/dashboard/ui install
+
+      - name: Build client
+        run: pnpm --dir tunnel/internal/client/dashboard/ui build
+
+      - name: Build portr binary
+        working-directory: ./tunnel
+        run: |
+          go build -ldflags="-s -w" -o ../e2e/portr cmd/portr/*.go
+
+      - name: Setup test data
+        working-directory: ./e2e
+        run: |
+          make load-pg-data
+
+      - name: Start the tunnel
+        working-directory: ./e2e
+        run: |
+          ./portr --config client.e2e.yaml http 9000 --subdomain test-tunnel-server &
+          sleep 3
+
+      - name: Add hosts to /etc/hosts
+        run: |
+          sudo echo "127.0.0.1 test-tunnel-server.localhost" | sudo tee -a /etc/hosts
+
+      - name: Run tests
+        working-directory: ./e2e
+        run: |
+          pytest
