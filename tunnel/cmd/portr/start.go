@@ -27,9 +27,15 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 
 	if tunnelFromCli != nil {
 		tunnelFromCli.SetDefaults()
+		if err := tunnelFromCli.Validate(); err != nil {
+			return err
+		}
 		_c.ReplaceTunnelsFromCli(*tunnelFromCli)
 		err = _c.Start(c.Context)
 	} else {
+		if err := config.Validate(); err != nil {
+			return err
+		}
 		err = _c.Start(c.Context, c.Args().Slice()...)
 	}
 

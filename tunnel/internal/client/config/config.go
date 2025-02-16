@@ -40,6 +40,16 @@ func (t *Tunnel) SetDefaults() {
 	}
 }
 
+func (t *Tunnel) Validate() error {
+	if t.Type == constants.Http {
+		if err := utils.ValidateSubdomain(t.Subdomain); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (t *Tunnel) GetLocalAddr() string {
 	return t.Host + ":" + fmt.Sprint(t.Port)
 }
@@ -82,6 +92,16 @@ func (c *Config) SetDefaults() {
 	for i := range c.Tunnels {
 		c.Tunnels[i].SetDefaults()
 	}
+}
+
+func (c Config) Validate() error {
+	for _, tunnel := range c.Tunnels {
+		if err := tunnel.Validate(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (c Config) GetAdminAddress() string {

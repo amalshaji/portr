@@ -77,7 +77,7 @@ func (s *SshClient) createNewConnection() (string, error) {
 		if s.config.Debug {
 			log.Error("Failed to create new connection", "error", reqErr)
 		}
-		return "", fmt.Errorf(reqErr.Message)
+		return "", fmt.Errorf("server error: %s", reqErr.Message)
 	}
 	return response.ConnectionId, nil
 }
