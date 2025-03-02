@@ -3,10 +3,12 @@
   // @ts-ignore
   import HttpBadge from "$lib/components/HttpBadge.svelte";
   import InspectorIcon from "$lib/components/InspectorIcon.svelte";
+  import { Button } from "$lib/components/ui/button";
+  import { Input } from "$lib/components/ui/input";
   import { currentRequest } from "$lib/store";
   import type { Request } from "$lib/types";
   import HttpStatus from "http-status-codes";
-  import { RefreshCw } from "lucide-svelte";
+  import { ArrowLeft, Clock, RefreshCw, Search } from "lucide-svelte";
   import { Link } from "svelte-routing";
   import RequestDetails from "./RequestDetails.svelte";
 
@@ -22,20 +24,27 @@
   let filteredRequests: Request[] = [];
   let filterRequestError: string | null = null;
   let search = "";
+  let loading = true;
 
   const getRequests = async () => {
-    const response = await fetch(`/api/tunnels/${subdomain}/${localport}`);
-    requests = (await response.json())["requests"];
+    loading = true;
+    try {
+      const response = await fetch(`/api/tunnels/${subdomain}/${localport}`);
+      requests = (await response.json())["requests"];
+      console.log(`Logging ${requests.length} requests`);
 
-    console.log(`Logging ${requests.length} requests`);
+      filteredRequests = requests;
+      if (search) {
+        filterRequestsBasedOnUrl();
+      }
 
-    filteredRequests = requests;
-    if (search) {
-      filterRequestsBasedOnUrl();
-    }
-
-    if (!$currentRequest) {
-      currentRequest.set(requests[0]);
+      if (!$currentRequest && requests.length > 0) {
+        currentRequest.set(requests[0]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch requests:", error);
+    } finally {
+      loading = false;
     }
   };
 
@@ -51,7 +60,9 @@
       filteredRequests = requests;
       filterRequestError = "No results found";
     } else {
-      currentRequest.set(filteredRequests[0]);
+      if (!$currentRequest) {
+        currentRequest.set(filteredRequests[0]);
+      }
       filterRequestError = null;
     }
   };
@@ -77,58 +88,94 @@
 
 <div class="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
   <header
-    class="flex items-center justify-between px-6 py-2 border-b dark:border-gray-800 bg-white dark:bg-gray-800"
+    class="flex items-center justify-between px-6 py-4 border-b dark:border-gray-800 bg-white dark:bg-gray-800 shadow-sm"
   >
-    <Link to="/" class="flex items-center gap-2">
-      <InspectorIcon /> <span class="text-lg">Portr Inspector</span>
-    </Link>
-    <div class="flex items-center space-x-4">
+    <div class="flex items-center gap-4">
+      <Link to="/" class="flex items-center gap-2 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors">
+        <ArrowLeft class="w-5 h-5" />
+        <span class="text-sm font-medium">Back to Dashboard</span>
+      </Link>
+      <div class="h-6 w-px bg-gray-300 dark:bg-gray-700"></div>
+      <div class="flex items-center gap-2">
+        <InspectorIcon />
+        <div class="flex flex-col">
+          <span class="text-lg font-semibold text-gray-900 dark:text-white">Portr Inspector</span>
+          <span class="text-xs text-gray-500 dark:text-gray-400">{subdomain}:{localport}</span>
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center gap-4">
       {#if filterRequestError}
         <div class="text-red-500 text-sm">{filterRequestError}</div>
       {/if}
-      <input
-        class="flex h-10 rounded-md border outline-none px-3 py-1 text-sm w-64"
-        placeholder="Filter URL"
-        bind:value={search}
-        on:input={(e) => filterRequestsBasedOnUrl()}
-      />
+      <div class="relative">
+        <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+        <Input
+          class="pl-10 w-64"
+          placeholder="Filter URL"
+          bind:value={search}
+          on:input={(e) => filterRequestsBasedOnUrl()}
+        />
+      </div>
+      <Button variant="outline" size="sm" on:click={getRequests} class="flex items-center gap-2">
+        <RefreshCw class="w-4 h-4" />
+        Refresh
+      </Button>
     </div>
   </header>
   <main class="flex flex-1 overflow-hidden">
     <div
-      class="w-80 border-r overflow-y-auto dark:border-gray-800 bg-white dark:bg-gray-800"
+      class="w-96 border-r overflow-y-auto dark:border-gray-800 bg-white dark:bg-gray-800 shadow-sm"
     >
-      <div>
-        {#each filteredRequests as request, i (i)}
-          <!-- svelte-ignore a11y-click-events-have-key-events -->
-          <!-- svelte-ignore a11y-no-static-element-interactions -->
-          <div
-            class="p-4 space-y-1 border-b transition-all hover:bg-accent {$currentRequest?.ID ===
-            request.ID
-              ? 'bg-[#F4F4F5]'
-              : 'border-muted'} dark:bg-gray-700 hover:cursor-pointer"
-            on:click={() => setCurrentRequest(request)}
-          >
-            <div
-              class="text-sm text-gray-800 dark:text-gray-200 flex justify-between items-center text-clip"
-            >
-              <span class="flex items-center gap-2">
-                <HttpBadge method={request.Method} />
-                {#if request.IsReplayed}
-                  <RefreshCw class="w-3 h-3" />
-                {/if}
-              </span>
-              <span class="overflow-clip h-6 w-40 text-right"
-                >{request.Url}</span
-              >
-            </div>
-            <div class="text-xs text-gray-500 dark:text-gray-400">
-              {request.ResponseStatusCode}
-              {HttpStatus.getStatusText(request.ResponseStatusCode)}
-            </div>
+      {#if loading && requests.length === 0}
+        <div class="flex justify-center items-center h-full">
+          <RefreshCw class="w-8 h-8 animate-spin text-gray-400" />
+        </div>
+      {:else if filteredRequests.length === 0}
+        <div class="flex flex-col items-center justify-center h-full p-6 text-center">
+          <div class="rounded-full bg-gray-100 p-3 mb-4">
+            <Search class="w-6 h-6 text-gray-400" />
           </div>
-        {/each}
-      </div>
+          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-1">No requests found</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            {search ? 'Try a different search term' : 'Waiting for requests to arrive'}
+          </p>
+        </div>
+      {:else}
+        <div class="divide-y dark:divide-gray-700">
+          {#each filteredRequests as request, i (request.ID)}
+            <button
+              class="w-full px-4 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 text-left relative {$currentRequest?.ID === request.ID ? 'bg-gray-100 dark:bg-gray-700' : ''}"
+              on:click={() => setCurrentRequest(request)}
+            >
+              {#if $currentRequest?.ID === request.ID}
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+              {/if}
+              <div class="flex items-center justify-between mb-1.5">
+                <div class="flex items-center gap-2">
+                  <HttpBadge method={request.Method} />
+                  <span class="text-xs px-2 py-0.5 rounded-full {request.ResponseStatusCode >= 400 ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : request.ResponseStatusCode >= 300 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'}">
+                    {request.ResponseStatusCode} {HttpStatus.getStatusText(request.ResponseStatusCode)}
+                  </span>
+                  {#if request.IsReplayed}
+                    <span class="flex items-center text-xs text-blue-500">
+                      <RefreshCw class="w-3 h-3 mr-0.5" />
+                      <span class="hidden sm:inline">Replayed</span>
+                    </span>
+                  {/if}
+                </div>
+                <div class="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                  <Clock class="w-3 h-3 mr-1" />
+                  <span>{new Date(request.LoggedAt).toLocaleTimeString()}</span>
+                </div>
+              </div>
+              <div class="text-sm font-medium text-gray-900 dark:text-gray-200 truncate">
+                {request.Url}
+              </div>
+            </button>
+          {/each}
+        </div>
+      {/if}
     </div>
     <RequestDetails {viewParent} />
   </main>

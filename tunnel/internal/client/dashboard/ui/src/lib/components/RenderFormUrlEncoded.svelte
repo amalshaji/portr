@@ -13,7 +13,7 @@
   });
 </script>
 
-<div class="space-y-2">
+<div class="space-y-2 p-4">
   {#each Object.entries(dataMap) as [key, value]}
     <div>
       <Label for={key} class="font-normal">{decodeURIComponent(key)}</Label>
