@@ -6,3 +6,6 @@ installclient:
 
 runclient:
 	pnpm --dir internal/client/dashboard/ui dev
+
+buildclient:
+	pnpm --dir internal/client/dashboard/ui build
