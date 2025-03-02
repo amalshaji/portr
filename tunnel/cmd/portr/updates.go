@@ -71,7 +71,7 @@ func checkForUpdates() error {
 		return getLatestRelease()
 	}
 
-	currentVersion, err := semver.NewVersion(VERSION)
+	currentVersion, err := semver.NewVersion(version)
 	if err != nil {
 		return err
 	}
@@ -147,7 +147,7 @@ func getVersionToUpdate() (string, error) {
 		return "", nil
 	}
 
-	currentVersion, err := semver.NewVersion(VERSION)
+	currentVersion, err := semver.NewVersion(version)
 	if err != nil {
 		return "", err
 	}
