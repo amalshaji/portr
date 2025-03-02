@@ -8,7 +8,9 @@ RUN go mod download
 
 COPY . /app/
 
-RUN CGO_ENABLED=1 go build -ldflags="-s -w -linkmode external -extldflags \"-static\"" -o portrd ./cmd/portrd
+ARG VERSION=dev
+
+RUN CGO_ENABLED=1 go build -ldflags="-s -w -linkmode external -extldflags \"-static\" -X main.version=${VERSION}" -o portrd ./cmd/portrd
 
 FROM alpine:3.20 AS final
 

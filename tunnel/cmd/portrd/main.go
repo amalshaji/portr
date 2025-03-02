@@ -16,13 +16,14 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-const VERSION = "0.0.29-beta"
+// Set at build time
+var version = "0.0.0"
 
 func main() {
 	app := &cli.App{
 		Name:    "portrd",
 		Usage:   "portr server",
-		Version: VERSION,
+		Version: version,
 		Commands: []*cli.Command{
 			{
 				Name:  "start",
