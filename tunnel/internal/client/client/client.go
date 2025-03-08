@@ -3,24 +3,38 @@ package client
 import (
 	"context"
 	"fmt"
+	"os"
 	"slices"
 
 	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/amalshaji/portr/internal/client/ssh"
+	"github.com/amalshaji/portr/internal/client/tui"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type Client struct {
 	config *config.Config
 	sshcs  []*ssh.SshClient
 	db     *db.Db
+	tui    *tea.Program
 }
 
 func NewClient(config *config.Config, db *db.Db) *Client {
+	p := tui.New(config.Debug)
+
+	go func() {
+		if _, err := p.Run(); err != nil {
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}()
+
 	return &Client{
 		config: config,
 		sshcs:  make([]*ssh.SshClient, 0),
 		db:     db,
+		tui:    p,
 	}
 }
 
@@ -54,7 +68,7 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 	}
 
 	for _, clientConfig := range clientConfigs {
-		sshc := ssh.New(clientConfig, c.db)
+		sshc := ssh.New(clientConfig, c.db, c.tui)
 		c.Add(sshc)
 		go sshc.Start(ctx)
 	}

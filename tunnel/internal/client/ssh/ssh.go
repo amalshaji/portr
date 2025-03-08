@@ -21,6 +21,8 @@ import (
 	"github.com/labstack/gommon/color"
 	"gorm.io/datatypes"
 
+	"github.com/amalshaji/portr/internal/client/tui"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/oklog/ulid/v2"
 	"golang.org/x/crypto/ssh"
 )
@@ -34,14 +36,16 @@ type SshClient struct {
 	listener net.Listener
 	db       *db.Db
 	client   *ssh.Client
+	tui      *tea.Program
 }
 
-func New(config config.ClientConfig, db *db.Db) *SshClient {
+func New(config config.ClientConfig, db *db.Db, tui *tea.Program) *SshClient {
 	return &SshClient{
 		config:   config,
 		listener: nil,
 		db:       db,
 		client:   nil,
+		tui:      tui,
 	}
 }
 
@@ -101,7 +105,7 @@ func (s *SshClient) startListenerForClient() error {
 	s.client, err = ssh.Dial("tcp", s.config.SshUrl, sshConfig)
 	if err != nil {
 		if s.config.Debug {
-			log.Error("Failed to connect to ssh server", "error", err)
+			s.logDebug("Failed to connect to ssh server", err)
 		}
 		return err
 	}
@@ -136,11 +140,11 @@ func (s *SshClient) startListenerForClient() error {
 
 	defer s.listener.Close()
 
-	fmt.Printf(
-		"🎉 Tunnel connected: %s -> 🌐 -> %s\n",
-		s.config.GetTunnelAddr(),
-		s.config.Tunnel.GetLocalAddr(),
-	)
+	s.tui.Send(tui.AddTunnelMsg{
+		Config:       &s.config.Tunnel,
+		ClientConfig: &s.config,
+		Healthy:      true,
+	})
 
 	for {
 		// Accept incoming connections on the remote port
@@ -193,7 +197,7 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 	request, err := http.ReadRequest(srcReader)
 	if err != nil {
 		if s.config.Debug {
-			log.Error("Failed to read request", "error", err)
+			s.logDebug("Failed to read request", err)
 		}
 		return
 	}
@@ -225,7 +229,7 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 	requestBody, err := io.ReadAll(request.Body)
 	if err != nil {
 		if s.config.Debug {
-			log.Error("Failed to read request body", "error", err)
+			s.logDebug("Failed to read request body", err)
 		}
 		return
 	}
@@ -235,7 +239,7 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 	err = request.Write(dstWriter)
 	if err != nil {
 		if s.config.Debug {
-			log.Error("Failed to tunnel request to local", "error", err)
+			s.logDebug("Failed to tunnel request to local", err)
 		}
 		return
 	}
@@ -244,7 +248,7 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 	response, err := http.ReadResponse(dstReader, request)
 	if err != nil {
 		if s.config.Debug {
-			log.Error("Failed to read response", "error", err)
+			s.logDebug("Failed to read response", err)
 		}
 		return
 	}
@@ -253,7 +257,7 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		if s.config.Debug {
-			log.Error("Failed to read response body", "error", err)
+			s.logDebug("Failed to read response body", err)
 		}
 		return
 	}
@@ -263,7 +267,7 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 	err = response.Write(srcWriter)
 	if err != nil {
 		if s.config.Debug {
-			log.Error("Failed to write response to remote", "error", err)
+			s.logDebug("Failed to write response to remote", err)
 		}
 		return
 	}
@@ -307,7 +311,7 @@ func (s *SshClient) logHttpRequest(
 	requestHeadersBytes, err := json.Marshal(requestHeaders)
 	if err != nil {
 		if s.config.Debug {
-			log.Error("Failed to marshal request headers", "error", err)
+			s.logDebug("Failed to marshal request headers", err)
 		}
 		return
 	}
@@ -320,7 +324,7 @@ func (s *SshClient) logHttpRequest(
 	responseHeadersBytes, err := json.Marshal(responseHeaders)
 	if err != nil {
 		if s.config.Debug {
-			log.Error("Failed to marshal request headers", "error", err)
+			s.logDebug("Failed to marshal request headers", err)
 		}
 		return
 	}
@@ -344,21 +348,25 @@ func (s *SshClient) logHttpRequest(
 	result := s.db.Conn.Create(&req)
 	if result.Error != nil {
 		if s.config.Debug {
-			log.Error("Failed to log request", "error", result.Error)
+			s.logDebug("Failed to log request", result.Error)
 		}
 		return
 	}
 
-	if s.config.EnableRequestLogging {
-		fmt.Printf(
-			"%s [%d] %-6s %d %s\n",
-			req.LoggedAt.Local().Format("2006-01-02 15:04:05"),
-			req.Localport,
-			req.Method,
-			req.ResponseStatusCode,
-			req.Url,
-		)
+	// Get tunnel name
+	tunnelName := s.config.Tunnel.Name
+	if tunnelName == "" {
+		tunnelName = fmt.Sprintf(":%d", s.config.Tunnel.Port)
 	}
+
+	// Send log directly to TUI
+	s.tui.Send(tui.AddLogMsg{
+		Time:   req.LoggedAt.Local().Format("15:04:05"),
+		Name:   tunnelName,
+		Method: req.Method,
+		Status: req.ResponseStatusCode,
+		URL:    req.Url,
+	})
 }
 
 func (s *SshClient) tcpTunnel(src, dst net.Conn) {
@@ -402,15 +410,18 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) {
 		}
 
 		if s.config.Debug {
-			log.Error("Health check failed", "error", err)
+			s.logDebug("Health check failed", err)
 		}
 
-		fmt.Printf(color.Yellow("Tunnel %s is not healthy 🪫 attempting to reconnect\n"), s.config.GetTunnelAddr())
+		s.tui.Send(tui.UpdateHealthMsg{
+			Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
+			Healthy: false,
+		})
 
 		err = s.Reconnect()
 		if err != nil {
 			if s.config.Debug {
-				log.Error("Failed to reconnect to ssh tunnel", "error", err, "attempts", retryAttempts)
+				s.logDebug(fmt.Sprintf("Failed to reconnect to ssh tunnel (attempt %d)", retryAttempts), err)
 			}
 		} else {
 			retryAttempts = 0
@@ -420,8 +431,6 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) {
 }
 
 func (s *SshClient) Start(ctx context.Context) {
-	fmt.Printf("🌍 Starting tunnel connection for :%d\n", s.config.Tunnel.Port)
-
 	errChan := make(chan error, 1)
 
 	go func() {
@@ -433,10 +442,12 @@ func (s *SshClient) Start(ctx context.Context) {
 	// Wait for either an error or successful connection
 	select {
 	case err := <-errChan:
-		fmt.Println(color.Red(err))
+		// Update TUI with error and exit
+		s.tui.Send(tui.ErrorMsg{Error: err})
+		time.Sleep(time.Second) // Give TUI time to show error
 		os.Exit(1)
 	case <-time.After(5 * time.Second):
-		// If no error after 2 seconds, assume connection is successful
+
 		// Start the health check routine for http connections
 		if s.config.Tunnel.Type == constants.Http {
 			s.StartHealthCheck(ctx)
@@ -448,7 +459,7 @@ func (s *SshClient) Reconnect() error {
 	if s.client != nil {
 		if err := s.client.Close(); err != nil {
 			if s.config.Debug {
-				log.Error("Failed to close client", "error", err)
+				s.logDebug("Failed to close client", err)
 			}
 		}
 		s.client = nil
@@ -457,7 +468,7 @@ func (s *SshClient) Reconnect() error {
 	if s.listener != nil {
 		if err := s.listener.Close(); err != nil {
 			if s.config.Debug {
-				log.Error("Failed to close listener", "error", err)
+				s.logDebug("Failed to close listener", err)
 			}
 		}
 		s.listener = nil
@@ -493,7 +504,7 @@ func (s *SshClient) HealthCheck() error {
 
 	if err != nil {
 		if s.config.Debug {
-			log.Error("Health check failed, attempting to reconnect", "error", err)
+			s.logDebug("Health check failed, attempting to reconnect", err)
 		}
 		return err
 	}
@@ -505,5 +516,30 @@ func (s *SshClient) HealthCheck() error {
 	if portrError == "true" && (portrErrorReason == "connection-lost" || portrErrorReason == "unregistered-subdomain") {
 		return fmt.Errorf("unhealthy tunnel")
 	}
-	return nil
+
+	// Update tunnel health status in TUI using the shared instance
+	s.tui.Send(tui.UpdateHealthMsg{
+		Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
+		Healthy: err == nil,
+	})
+
+	return err
+}
+
+func (s *SshClient) logDebug(message string, err error) {
+	if !s.config.Debug {
+		return
+	}
+
+	errStr := ""
+	if err != nil {
+		errStr = err.Error()
+	}
+
+	s.tui.Send(tui.AddDebugLogMsg{
+		Time:    time.Now().Format("15:04:05"),
+		Level:   "DEBUG",
+		Message: message,
+		Error:   errStr,
+	})
 }
