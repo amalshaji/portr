@@ -198,6 +198,29 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 		return
 	}
 
+	// Early return for health check requests with a direct response
+	if request.Header.Get("X-Portr-Ping-Request") == "true" {
+		response := &http.Response{
+			Status:     "200 OK",
+			StatusCode: 200,
+			Proto:      "HTTP/1.1",
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+			Header:     http.Header{},
+			Body:       io.NopCloser(bytes.NewBufferString("")),
+		}
+
+		err = response.Write(srcWriter)
+		if err != nil {
+			if s.config.Debug {
+				log.Error("Failed to write health check response", "error", err)
+			}
+			return
+		}
+		srcWriter.Flush()
+		return
+	}
+
 	// read and replace request body
 	requestBody, err := io.ReadAll(request.Body)
 	if err != nil {
