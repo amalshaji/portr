@@ -16,6 +16,8 @@ type ErrorMsg struct {
 	Error error
 }
 
+type QuitMsg struct{}
+
 type AddTunnelMsg struct {
 	Config       *config.Tunnel
 	ClientConfig *config.ClientConfig
@@ -91,33 +93,42 @@ type model struct {
 }
 
 func New(debug bool) *tea.Program {
-	// Regular table setup
+	// Initial default widths
+	const (
+		timeWidth   = 12
+		tunnelWidth = 15
+		methodWidth = 8
+		statusWidth = 8
+		urlWidth    = 50
+	)
+
+	// Regular table setup with minimum widths
 	columns := []table.Column{
-		{Title: "Time", Width: 12},
-		{Title: "Tunnel", Width: 15},
-		{Title: "Method", Width: 8},
-		{Title: "Status", Width: 8},
-		{Title: "URL", Width: 50},
+		{Title: "Time", Width: timeWidth},
+		{Title: "Tunnel", Width: tunnelWidth},
+		{Title: "Method", Width: methodWidth},
+		{Title: "Status", Width: statusWidth},
+		{Title: "URL", Width: urlWidth},
 	}
 
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithFocused(true),
-		table.WithHeight(15),
+		table.WithHeight(10), // Reduced default height
 	)
 
-	// Debug table setup
+	// Debug table setup with minimum widths
 	debugColumns := []table.Column{
-		{Title: "Time", Width: 12},
-		{Title: "Level", Width: 8},
-		{Title: "Message", Width: 50},
-		{Title: "Error", Width: 30},
+		{Title: "Time", Width: timeWidth},
+		{Title: "Level", Width: methodWidth},
+		{Title: "Message", Width: 30},
+		{Title: "Error", Width: 20},
 	}
 
 	dt := table.New(
 		table.WithColumns(debugColumns),
 		table.WithFocused(false),
-		table.WithHeight(10),
+		table.WithHeight(6), // Reduced default height
 	)
 
 	// Set styles for both tables
@@ -126,10 +137,6 @@ func New(debug bool) *tea.Program {
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(lipgloss.Color("240")).
 		BorderBottom(true).
-		Bold(false)
-	s.Selected = s.Selected.
-		Foreground(lipgloss.Color("229")).
-		Background(lipgloss.Color("57")).
 		Bold(false)
 
 	t.SetStyles(s)
@@ -164,29 +171,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.err != nil {
+			// Any key press when there's an error will quit
+			m.quitting = true
+			return m, tea.Quit
+		}
+
 		switch msg.String() {
 		case "q", "ctrl+c":
 			m.quitting = true
 			return m, tea.Quit
-
-		case "tab":
-			// Cycle through tunnels
-			var ports []string
-			for port := range m.tunnels {
-				ports = append(ports, port)
-			}
-			if len(ports) > 0 {
-				for i, port := range ports {
-					if port == m.selected {
-						m.selected = ports[(i+1)%len(ports)]
-						break
-					}
-				}
-			}
 		}
 
 	case ErrorMsg:
 		m.err = msg.Error
+		// Don't quit immediately, let the user see the error
+		return m, nil
+
+	case QuitMsg:
 		m.quitting = true
 		return m, tea.Quit
 
@@ -207,8 +209,54 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.WindowSizeMsg:
-		m.table.SetWidth(msg.Width - 4)
-		m.debugTable.SetWidth(msg.Width - 4)
+		// Calculate dynamic widths based on terminal size
+		totalWidth := msg.Width - 4 // Account for margins
+
+		// Adjust table heights based on terminal height
+		tableHeight := (msg.Height - 15) / 2 // Account for headers and other UI elements
+		tableHeight = max(tableHeight, 5)
+
+		m.table.SetHeight(tableHeight)
+
+		if m.debug {
+			m.debugTable.SetHeight(tableHeight / 2)
+		}
+
+		// Adjust URL column width to fill remaining space
+		timeWidth := 12
+		tunnelWidth := 15
+		methodWidth := 8
+		statusWidth := 8
+		urlWidth := totalWidth - (timeWidth + tunnelWidth + methodWidth + statusWidth + 5)
+
+		urlWidth = max(urlWidth, 20)
+
+		// Update main table columns
+		cols := []table.Column{
+			{Title: "Time", Width: timeWidth},
+			{Title: "Tunnel", Width: tunnelWidth},
+			{Title: "Method", Width: methodWidth},
+			{Title: "Status", Width: statusWidth},
+			{Title: "URL", Width: urlWidth},
+		}
+		m.table.SetColumns(cols)
+
+		// Update debug table columns if debug is enabled
+		if m.debug {
+			debugWidth := totalWidth / 2
+			debugWidth = max(debugWidth, 40)
+
+			debugCols := []table.Column{
+				{Title: "Time", Width: timeWidth},
+				{Title: "Level", Width: methodWidth},
+				{Title: "Message", Width: debugWidth / 2},
+				{Title: "Error", Width: debugWidth / 2},
+			}
+			m.debugTable.SetColumns(debugCols)
+		}
+
+		m.table.SetWidth(totalWidth)
+		m.debugTable.SetWidth(totalWidth)
 		return m, nil
 
 	case tickMsg:
@@ -231,9 +279,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	if m.quitting {
 		if m.err != nil {
-			return errorStyle.Render(fmt.Sprintf("Error: %v\n", m.err))
+			return "\n" + errorStyle.Render(fmt.Sprintf("Error: %v", m.err)) + "\n"
 		}
 		return "Goodbye!\n"
+	}
+
+	if m.err != nil {
+		return "\n" + errorStyle.Render(fmt.Sprintf("Error: %v", m.err)) + "\n\n" +
+			subtitleStyle.Render("Press any key to exit...") + "\n"
 	}
 
 	var s string
@@ -300,12 +353,20 @@ func (m model) View() string {
 	}
 	s += "\n"
 
-	// Just render the table - no need to query DB
+	// Add waiting message if no logs
+	if len(m.table.Rows()) == 0 {
+		// Create empty table with just headers
+		m.table.SetRows([]table.Row{{"", "", "", "", "Waiting for logs..."}})
+	}
 	s += tableStyle.Render(m.table.View()) + "\n"
 
 	// Show debug table if debug mode is enabled
 	if m.debug {
 		s += "\n" + titleStyle.Render("🔍 Debug Logs") + "\n"
+		if len(m.debugTable.Rows()) == 0 {
+			// Create empty debug table with just headers
+			m.debugTable.SetRows([]table.Row{{"", "", "Waiting for logs...", ""}})
+		}
 		s += tableStyle.Render(m.debugTable.View()) + "\n"
 	}
 
@@ -317,6 +378,11 @@ func (m model) View() string {
 }
 
 func (m *model) AddLog(msg AddLogMsg) {
+	// Clear waiting message if it exists
+	if len(m.table.Rows()) == 1 && m.table.Rows()[0][4] == "Waiting for logs..." {
+		m.table.SetRows([]table.Row{})
+	}
+
 	rows := []table.Row{{
 		msg.Time,
 		msg.Name,
@@ -340,6 +406,11 @@ func (m *model) AddLog(msg AddLogMsg) {
 func (m *model) AddDebugLog(msg AddDebugLogMsg) {
 	if !m.debug {
 		return
+	}
+
+	// Clear waiting message if it exists
+	if len(m.debugTable.Rows()) == 1 && m.debugTable.Rows()[0][2] == "Waiting for logs..." {
+		m.debugTable.SetRows([]table.Row{})
 	}
 
 	rows := []table.Row{{

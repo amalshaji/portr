@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"os"
@@ -49,8 +48,6 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 			log.Fatalf("Failed to start dashboard server: error: %v", err)
 		}
 	}()
-
-	fmt.Println("🚨 Portr inspector running on http://localhost:7777")
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
