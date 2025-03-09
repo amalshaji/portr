@@ -356,7 +356,7 @@ func (s *SshClient) logHttpRequest(
 	// Get tunnel name
 	tunnelName := s.config.Tunnel.Name
 	if tunnelName == "" {
-		tunnelName = fmt.Sprintf(":%d", s.config.Tunnel.Port)
+		tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
 	}
 
 	// Send log directly to TUI
@@ -442,12 +442,25 @@ func (s *SshClient) Start(ctx context.Context) {
 	// Wait for either an error or successful connection
 	select {
 	case err := <-errChan:
-		// Update TUI with error and exit
+		// Update TUI with error and wait for it to quit
 		s.tui.Send(tui.ErrorMsg{Error: err})
-		time.Sleep(time.Second) // Give TUI time to show error
-		os.Exit(1)
-	case <-time.After(5 * time.Second):
 
+		// Wait for TUI to quit
+		done := make(chan struct{})
+		go func() {
+			s.tui.Wait()
+			close(done)
+		}()
+
+		// Wait for either context cancellation or TUI to quit
+		select {
+		case <-ctx.Done():
+			os.Exit(1)
+		case <-done:
+			os.Exit(1)
+		}
+
+	case <-time.After(5 * time.Second):
 		// Start the health check routine for http connections
 		if s.config.Tunnel.Type == constants.Http {
 			s.StartHealthCheck(ctx)
