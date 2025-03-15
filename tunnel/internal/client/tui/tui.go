@@ -400,6 +400,20 @@ func (m *model) AddLog(msg AddLogMsg) {
 	// Combine new row with existing rows
 	allRows := append(rows, existingRows...)
 	m.table.SetRows(allRows)
+
+	// Set styles only when we have actual log messages
+	s := table.DefaultStyles()
+	s.Header = s.Header.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderBottom(true).
+		Bold(false)
+
+	s.Selected = s.Selected.
+		Foreground(lipgloss.Color("229")).
+		Background(lipgloss.Color("57")).
+		Bold(false)
+	m.table.SetStyles(s)
 }
 
 // Add method to handle debug logs
