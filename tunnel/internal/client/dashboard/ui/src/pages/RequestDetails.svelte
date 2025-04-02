@@ -4,7 +4,7 @@
   import { Button } from "$lib/components/ui/button";
   import { currentRequest } from "$lib/store";
   import { convertDateToHumanReadable } from "$lib/utils";
-  import { ArrowLeft, ArrowUpRight, Clock, Loader, Play, RefreshCw } from "lucide-svelte";
+  import { ArrowLeft, ArrowUpRight, Clock, Copy, Loader, Play, RefreshCw } from "lucide-svelte";
   import Highlight from "svelte-highlight";
   import json from "svelte-highlight/languages/json";
   import atomonelight from "svelte-highlight/styles/atom-one-light";
@@ -40,6 +40,88 @@
       toast.error("Failed to replay request");
     } finally {
       replaying = false;
+    }
+  };
+
+  const generateCurlCommand = () => {
+    if (!$currentRequest) return '';
+
+    // Construct full tunnel URL
+    const tunnelUrl = `https://${$currentRequest.Host}${$currentRequest.Url}`;
+    let curl = `curl -X ${$currentRequest.Method} '${tunnelUrl}'`;
+
+    // Add headers
+    const contentType = $currentRequest.Headers?.['Content-Type']?.[0] || '';
+    const isMultipartForm = contentType.startsWith('multipart/form-data');
+
+    if ($currentRequest.Headers) {
+      Object.entries($currentRequest.Headers).forEach(([key, value]) => {
+        if (Array.isArray(value) && value.length > 0 && key !== 'Content-Type' && key !== 'Content-Length') {
+          curl += ` \\\n  -H '${key}: ${value[0]}'`;
+        }
+      });
+    }
+
+    // Add body if present
+    if ($currentRequest.Body) {
+      try {
+        // First decode from base64
+        const decodedBytes = atob($currentRequest.Body);
+
+        if (isMultipartForm) {
+          // For multipart form data, we'll use -F instead of -d
+          // Extract boundary from content type
+          const boundaryMatch = contentType.match(/boundary=([^;]+)/);
+          if (boundaryMatch) {
+            const boundary = boundaryMatch[1];
+            const parts = decodedBytes.split('--' + boundary);
+
+            // Process each part
+            parts.forEach(part => {
+              if (part.trim() && !part.includes('--\r\n')) {
+                const contentDispositionMatch = part.match(/Content-Disposition: form-data; name="([^"]+)"(?:; filename="([^"]+)")?/);
+                if (contentDispositionMatch) {
+                  const name = contentDispositionMatch[1];
+                  const filename = contentDispositionMatch[2];
+
+                  if (filename) {
+                    // For file uploads, use a placeholder
+                    curl += ` \\\n  -F '${name}=@path/to/${filename}'`;
+                  } else {
+                    // For regular form fields, extract the value
+                    const value = part.split('\r\n\r\n')[1]?.trim();
+                    if (value) {
+                      curl += ` \\\n  -F '${name}=${value}'`;
+                    }
+                  }
+                }
+              }
+            });
+          }
+        } else {
+          // For non-multipart data, use -d as before
+          try {
+            const decodedBody = decodeURIComponent(decodedBytes);
+            curl += ` \\\n  -d '${decodedBody}'`;
+          } catch {
+            curl += ` \\\n  -d '${decodedBytes}'`;
+          }
+        }
+      } catch (e) {
+        curl += ` \\\n  -d '${$currentRequest.Body}'`;
+      }
+    }
+
+    return curl;
+  };
+
+  const copyCurlCommand = async () => {
+    const curl = generateCurlCommand();
+    try {
+      await navigator.clipboard.writeText(curl);
+      toast.success('Curl command copied to clipboard');
+    } catch (error) {
+      toast.error('Failed to copy curl command');
     }
   };
 </script>
@@ -106,6 +188,15 @@
                   <Play class="w-4 h-4" />
                   Replay
                 {/if}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                on:click={copyCurlCommand}
+                class="flex items-center gap-2"
+              >
+                <Copy class="w-4 h-4" />
+                Copy as cURL
               </Button>
             </div>
           </div>
