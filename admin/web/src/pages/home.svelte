@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { LoaderCircle, TriangleAlert, X, Github } from "lucide-svelte";
+  import { Github, LoaderCircle, Lock, Mail, TriangleAlert, X } from "lucide-svelte";
   import { onMount } from "svelte";
 
   import * as Alert from "$lib/components/ui/alert";
@@ -103,12 +103,12 @@
   });
 </script>
 
-<div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+<div class="min-h-screen flex items-center justify-center bg-[#f8fafc] py-12 px-4 sm:px-6 lg:px-8">
   <div class="max-w-md w-full space-y-8">
     <!-- Logo/Brand -->
     <div class="text-center">
-      <div class="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-2">
-        <span class="text-2xl font-bold text-primary">P</span>
+      <div class="mx-auto h-20 w-20 rounded-full bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center mb-4 shadow-md">
+        <span class="text-3xl font-bold text-white">P</span>
       </div>
       <h2 class="text-3xl font-extrabold text-gray-900">
         {isSuperUserSignup ? "Create Account" : "Welcome Back"}
@@ -122,11 +122,11 @@
 
     {#if message}
       <div class="rounded-md" id="error-message-box">
-        <Alert.Root variant="destructive" class="shadow-sm">
+        <Alert.Root variant="destructive" class="shadow-md border-red-200 bg-red-50/80">
           <div class="flex gap-2">
-            <TriangleAlert class="h-5 w-5" />
+            <TriangleAlert class="h-5 w-5 text-red-600" />
             <div class="flex-1">
-              <Alert.Title class="flex justify-between items-center">
+              <Alert.Title class="flex justify-between items-center text-red-700">
                 <span>Error</span>
                 <X
                   class="h-4 w-4 cursor-pointer opacity-70 hover:opacity-100"
@@ -136,7 +136,7 @@
                   }}
                 />
               </Alert.Title>
-              <Alert.Description class="text-sm mt-1">
+              <Alert.Description class="text-sm mt-1 text-red-600">
                 {message}
               </Alert.Description>
             </div>
@@ -145,48 +145,62 @@
       </div>
     {/if}
 
-    <Card.Root class="overflow-hidden rounded-lg shadow-md border border-gray-200">
-      <Card.Content class="p-6">
+    <Card.Root class="overflow-hidden rounded-xl shadow-lg border border-gray-200 backdrop-blur-sm bg-white/80">
+      <Card.Content class="p-8">
         <form class="space-y-6" on:submit|preventDefault={login}>
           <div>
-            <Label for="email" class="block text-sm font-medium text-gray-700">Email address</Label>
-            <div class="mt-1">
+            <Label for="email" class="block text-sm font-medium text-gray-700 mb-1.5">Email address</Label>
+            <div class="relative">
+              <div class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <Mail class="h-5 w-5" />
+              </div>
               <Input
                 id="email"
                 bind:value={email}
                 type="email"
                 placeholder="name@company.com"
                 required
-                class={`block w-full rounded-md ${emailError ? "border-red-500 ring-1 ring-red-500" : "border-gray-300"}`}
+                class={`pl-10 block w-full rounded-lg border ${
+                  emailError ? "border-red-500 ring-1 ring-red-500" : "border-gray-300"
+                } focus-visible:border-primary focus-visible:outline-none`}
               />
-              {#if emailError}
-                <p class="mt-1 text-sm text-red-600">{emailError}</p>
-              {/if}
             </div>
+            {#if emailError}
+              <p class="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                <TriangleAlert class="h-3.5 w-3.5" /> {emailError}
+              </p>
+            {/if}
           </div>
 
           <div>
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between mb-1.5">
               <Label for="password" class="block text-sm font-medium text-gray-700">Password</Label>
             </div>
-            <div class="mt-1">
+            <div class="relative">
+              <div class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <Lock class="h-5 w-5" />
+              </div>
               <Input
                 id="password"
                 bind:value={password}
                 type="password"
                 required
-                class={`block w-full rounded-md ${passwordError ? "border-red-500 ring-1 ring-red-500" : "border-gray-300"}`}
+                class={`pl-10 block w-full rounded-lg border ${
+                  passwordError ? "border-red-500 ring-1 ring-red-500" : "border-gray-300"
+                } focus-visible:border-primary focus-visible:outline-none`}
               />
-              {#if passwordError}
-                <p class="mt-1 text-sm text-red-600">{passwordError}</p>
-              {/if}
             </div>
+            {#if passwordError}
+              <p class="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                <TriangleAlert class="h-3.5 w-3.5" /> {passwordError}
+              </p>
+            {/if}
           </div>
 
           <div>
             <Button
               type="submit"
-              class="w-full justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+              class="w-full justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-md text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200"
             >
               {#if loginLoading}
                 <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
@@ -197,20 +211,20 @@
         </form>
 
         {#if githubAuthEnabled && !isSuperUserSignup}
-          <div class="mt-6">
+          <div class="mt-7">
             <div class="relative">
               <div class="absolute inset-0 flex items-center">
-                <div class="w-full border-t border-gray-300"></div>
+                <div class="w-full border-t border-gray-200"></div>
               </div>
               <div class="relative flex justify-center text-sm">
-                <span class="px-2 bg-white text-gray-500">Or continue with</span>
+                <span class="px-3 bg-white text-gray-500">Or continue with</span>
               </div>
             </div>
 
             <div class="mt-6">
               <Button
                 variant="outline"
-                class="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                class="w-full flex justify-center py-2.5 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all duration-200"
                 href={encodeURIComponent(next) !== "null"
                   ? `/api/v1/auth/github?next=${encodeURIComponent(next)}`
                   : `/api/v1/auth/github`}
@@ -221,20 +235,20 @@
             </div>
           </div>
         {:else if isSuperUserSignup || !githubAuthEnabled}
-          <div class="mt-6">
+          <div class="mt-7">
             <div class="relative">
               <div class="absolute inset-0 flex items-center">
-                <div class="w-full border-t border-gray-300"></div>
+                <div class="w-full border-t border-gray-200"></div>
               </div>
               <div class="relative flex justify-center text-sm">
-                <span class="px-2 bg-white text-gray-500">Social login</span>
+                <span class="px-3 bg-white text-gray-500">Social login</span>
               </div>
             </div>
 
             <div class="mt-6">
               <Button
                 variant="outline"
-                class="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 opacity-60 cursor-not-allowed"
+                class="w-full flex justify-center py-2.5 px-4 border border-gray-300 rounded-lg shadow-sm bg-white/60 text-sm font-medium text-gray-400 opacity-60 cursor-not-allowed"
                 disabled
               >
                 <Github class="mr-2 h-5 w-5" />
@@ -245,5 +259,11 @@
         {/if}
       </Card.Content>
     </Card.Root>
+
+    <div class="text-center mt-8">
+      <p class="text-xs text-gray-500">
+        &copy; {new Date().getFullYear()} Portr. All rights reserved.
+      </p>
+    </div>
   </div>
 </div>
