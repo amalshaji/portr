@@ -1,3 +1,4 @@
+from datetime import datetime, UTC
 import os
 from typing import Annotated
 from fastapi import Cookie, FastAPI, Request
@@ -25,6 +26,7 @@ templates = Jinja2Templates(directory="templates")
 async def lifespan(app: FastAPI):
     # connect to database
     await connect_db()
+    app.state.server_start_time = datetime.now(tz=UTC)
     yield
     # disconnect all db connections
     await disconnect_db()
@@ -95,7 +97,7 @@ async def render_index_template_for_instance_settings_routes(
 @app.get("/{team}/connections")
 @app.get("/{team}/users")
 @app.get("/{team}/my-account")
-@app.get("/{team}/settings")
+@app.get("/{team}/email-settings")
 async def render_index_template_for_team_routes(
     request: Request,
     team: str,

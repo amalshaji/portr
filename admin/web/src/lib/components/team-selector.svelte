@@ -46,11 +46,11 @@
 <Select.Root bind:selected onSelectedChange={switchTeams}>
   <Select.Trigger class="text-[14px] focus:ring-0">
     <div class="flex items-center space-x-2">
-      <Avatar.Root class="w-5 h-5 rounded-full">
+      <Avatar.Root class="w-5 h-5 rounded-sm-full">
         <Avatar.Image
           src={avatar(selected.label)}
           alt={selected.label}
-          class="w-5 h-5 rounded-full border mr-2"
+          class="w-5 h-5 rounded-sm-full border mr-2"
         />
       </Avatar.Root>
       <Select.Value />
@@ -64,7 +64,7 @@
           <img
             src={avatar(team.name)}
             alt={team.name}
-            class="w-5 h-5 rounded-full border mr-2"
+            class="w-5 h-5 rounded-sm-full border mr-2"
           />
           {team.name}
         </Select.Item>

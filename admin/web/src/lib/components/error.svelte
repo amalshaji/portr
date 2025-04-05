@@ -4,7 +4,7 @@
 </script>
 
 <div
-  class="{classes} flex w-full max-w-sm overflow-hidden bg-white rounded-lg shadow-md dark:bg-gray-800"
+  class="{classes} flex w-full max-w-sm overflow-hidden bg-white rounded-sm shadow-md dark:bg-gray-800"
 >
   <div class="flex items-center justify-center w-12 bg-red-500">
     <svg

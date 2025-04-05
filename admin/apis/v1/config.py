@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Depends
+import asyncio
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 from apis import security
 from config import settings
+from models.connection import Connection
 from models.user import TeamUser
 from utils.exception import ServiceError
 from services import user as user_service
+
 
 api = APIRouter(prefix="/config", tags=["config"])
 
@@ -50,4 +53,32 @@ async def setup_script(team_user: TeamUser = Depends(security.get_current_team_u
         "message": SETUP_SCRIPT.format(
             token=team_user.secret_key, server_url=settings.server_url
         )
+    }
+
+
+@api.get("/stats")
+async def get_stats(
+    request: Request, team_user: TeamUser = Depends(security.get_current_team_user)
+):
+    team = team_user.team
+
+    total_connections_query = Connection.filter(team_id=team.id).count()
+    active_connections_query = Connection.filter(
+        team_id=team.id, status="active"
+    ).count()
+    team_members_count = TeamUser.filter(team_id=team.id).count()
+
+    total_connections, active_connections, team_members = await asyncio.gather(
+        total_connections_query, active_connections_query, team_members_count
+    )
+
+    return {
+        "team_stats": {
+            "total_connections": total_connections,
+            "active_connections": active_connections,
+            "team_members": team_members,
+        },
+        "system_stats": {
+            "server_uptime": request.app.state.server_start_time,
+        },
     }
