@@ -79,6 +79,6 @@ async def get_stats(
             "team_members": team_members,
         },
         "system_stats": {
-            "server_uptime": request.app.state.server_start_time,
+            "server_start_time": request.app.state.server_start_time,
         },
     }

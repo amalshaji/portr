@@ -1,14 +1,13 @@
 <script lang="ts">
+  import { Button } from "$lib/components/ui/button";
+  import * as Card from "$lib/components/ui/card";
   import { setupScript } from "$lib/store";
   import { copyCodeToClipboard } from "$lib/utils";
-  import { getContext, onMount, onDestroy } from "svelte";
+  import { Copy, Globe, Server, Shield, Terminal, Users } from "lucide-svelte";
+  import { getContext, onDestroy, onMount } from "svelte";
   import Highlight from "svelte-highlight";
   import bash from "svelte-highlight/languages/bash";
   import "svelte-highlight/styles/atom-one-light.css";
-  import * as Card from "$lib/components/ui/card";
-  import { Button } from "$lib/components/ui/button";
-  import { ArrowDown, Copy, Globe, Server, Shield, Terminal, Users } from "lucide-svelte";
-  import { toast } from "svelte-sonner";
 
   const helpCommand = "portr -h";
 
@@ -72,8 +71,8 @@
         };
 
         // Get server start time from system_stats
-        if (data.system_stats && data.system_stats.server_uptime) {
-          serverStartTime = data.system_stats.server_uptime;
+        if (data.system_stats && data.system_stats.server_start_time) {
+          serverStartTime = data.system_stats.server_start_time;
 
           // Initialize uptime display
           updateUptime();
