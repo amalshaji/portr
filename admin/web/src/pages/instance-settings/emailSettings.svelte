@@ -7,7 +7,7 @@
   import { Switch } from "$lib/components/ui/switch";
   import { Textarea } from "$lib/components/ui/textarea";
   import { instanceSettings } from "$lib/store";
-  import { Loader } from "lucide-svelte";
+  import { LoaderCircle } from "lucide-svelte";
   import { onDestroy, onMount } from "svelte";
   import { toast } from "svelte-sonner";
 
@@ -129,7 +129,7 @@
   });
 </script>
 
-<Card.Root class="rounded-sm border-none shadow-none w-full">
+<Card.Root class="rounded-sm-sm border-none shadow-none w-full">
   <Card.Header class="space-y-3">
     <Card.Title>Email Settings</Card.Title>
     <Card.Description>Configure email settings</Card.Description>
@@ -239,7 +239,7 @@
   <Card.Footer>
     <Button on:click={updateEmailSettings} disabled={isUpdating}>
       {#if isUpdating}
-        <Loader class="mr-2 h-4 w-4 animate-spin" />
+        <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
       {/if}
       Save changes
     </Button>

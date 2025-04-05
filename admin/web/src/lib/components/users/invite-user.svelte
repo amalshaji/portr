@@ -3,7 +3,7 @@
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
-  import { Loader } from "lucide-svelte";
+  import { LoaderCircle } from "lucide-svelte";
 
   import * as Select from "$lib/components/ui/select";
   import { currentUser, users } from "$lib/store";
@@ -142,7 +142,7 @@
       <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
       <Button on:click={add_member} disabled={isLoading}>
         {#if isLoading}
-          <Loader class="mr-2 h-4 w-4 animate-spin" />
+          <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
         {/if}
         Add
       </Button>

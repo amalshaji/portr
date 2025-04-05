@@ -13,6 +13,7 @@
   import Avatar from "./avatar.svelte";
   import Delete from "./delete.svelte";
   import UserEmail from "./user-email.svelte";
+  import { UserPlus } from "lucide-svelte";
 
   let addMemberModalOpen = false;
 
@@ -92,12 +93,15 @@
 
 <InviteUser bind:open={addMemberModalOpen} />
 
-<div class="flex w-full justify-between items-center py-3">
+<div class="flex w-full justify-between items-center mb-4">
   <div>
     <Button
       on:click={() => (addMemberModalOpen = !addMemberModalOpen)}
       disabled={$currentUser?.role === "member"}
-      >Add member
+      class="flex items-center gap-2"
+    >
+      <UserPlus class="h-4 w-4" />
+      Add member
     </Button>
   </div>
   <div>
@@ -105,4 +109,9 @@
   </div>
 </div>
 
-<DataTable {table} {columns} isLoading={$usersLoading} />
+<DataTable
+  {table}
+  {columns}
+  isLoading={$usersLoading}
+  noCard={true}
+/>
