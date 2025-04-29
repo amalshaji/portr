@@ -12,3 +12,4 @@ node_modules
 data/
 dist
 !tunnel/internal/client/dashboard/dist
+!e2e/.env
