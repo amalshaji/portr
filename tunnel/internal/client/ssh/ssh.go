@@ -138,7 +138,12 @@ func (s *SshClient) startListenerForClient() error {
 
 	s.config.Tunnel.RemotePort = remotePort
 
-	defer s.listener.Close()
+	defer func() {
+		// Safe closing of listener
+		if s.listener != nil {
+			s.listener.Close()
+		}
+	}()
 
 	s.tui.Send(tui.AddTunnelMsg{
 		Config:       &s.config.Tunnel,
@@ -148,6 +153,10 @@ func (s *SshClient) startListenerForClient() error {
 
 	for {
 		// Accept incoming connections on the remote port
+		if s.listener == nil {
+			return fmt.Errorf("listener is nil, cannot accept connections")
+		}
+
 		remoteConn, err := s.listener.Accept()
 		if err != nil {
 			if s.config.Debug {
