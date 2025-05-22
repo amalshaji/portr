@@ -7,16 +7,17 @@ import (
 func (s *Service) GetTunnels() ([]*db.Request, error) {
 	var result []*db.Request
 	s.db.Conn.Raw(`
-		SELECT r.subdomain AS subdomain, r.localport AS localport
-		FROM requests r
-		INNER JOIN (
+		WITH latest_requests AS (
 			SELECT subdomain, localport, MAX(logged_at) as max_logged_at
 			FROM requests
 			GROUP BY subdomain, localport
-		) latest
-		ON r.subdomain = latest.subdomain
-		AND r.localport = latest.localport
-		AND r.logged_at = latest.max_logged_at
+		)
+		SELECT r.*
+		FROM requests r
+		JOIN latest_requests lr
+			ON r.subdomain = lr.subdomain
+			AND r.localport = lr.localport
+			AND r.logged_at = lr.max_logged_at
 		ORDER BY r.logged_at DESC
 	`).Find(&result)
 	return result, nil

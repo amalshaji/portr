@@ -2,7 +2,7 @@
   import { Button } from "$lib/components/ui/button";
   import * as Card from "$lib/components/ui/card";
   import { Input } from "$lib/components/ui/input";
-  import { Loader } from "lucide-svelte";
+  import { LoaderCircle  } from "lucide-svelte";
   import { toast } from "svelte-sonner";
   import ErrorText from "../../lib/components/ErrorText.svelte";
 
@@ -63,7 +63,7 @@
   <Card.Footer>
     <Button on:click={createTeam} disabled={isUpdating}>
       {#if isUpdating}
-        <Loader class="mr-2 h-4 w-4 animate-spin" />
+        <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
       {/if}
       Create team
     </Button>

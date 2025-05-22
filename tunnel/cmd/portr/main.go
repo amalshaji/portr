@@ -10,13 +10,14 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-const VERSION = "0.0.27-beta"
+// Set at build time
+var version = "0.0.0"
 
 func main() {
 	app := &cli.App{
 		Name:    "portr",
 		Usage:   "Expose local ports to the public internet",
-		Version: VERSION,
+		Version: version,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "config",

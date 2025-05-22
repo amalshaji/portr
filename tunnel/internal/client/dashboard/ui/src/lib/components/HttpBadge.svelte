@@ -1,14 +1,5 @@
 <script lang="ts">
-  export let method:
-    | "GET"
-    | "POST"
-    | "PUT"
-    | "DELETE"
-    | "PATCH"
-    | "OPTIONS"
-    | "HEAD"
-    | "CONNECT"
-    | "TRACE";
+  export let method: string;
 
   const getColorByMethod = (method: string) => {
     switch (method) {

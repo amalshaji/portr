@@ -14,6 +14,7 @@
   import Pagination from "$lib/components/Pagination.svelte";
   import { writable } from "svelte/store";
   import { updateQueryParam } from "$lib/utils";
+  import * as Card from "$lib/components/ui/card";
 
   let checked = false;
   const urlParams = new URLSearchParams(window.location.search);
@@ -128,21 +129,39 @@
   ]);
 </script>
 
-<div class="p-6">
-  <div class="flex items-center py-3 justify-between w-full">
-    <div class="flex items-center space-x-2">
-      <Checkbox id="terms" bind:checked class="rounded-full" />
-      <Label
-        for="terms"
-        class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-      >
-        Show active connections
-      </Label>
-    </div>
-    <div>
-      <Pagination count={totalItems} perPage={10} currentPage={pageNo} />
-    </div>
-  </div>
+<div class="space-y-6">
+  <h1 class="text-2xl font-bold tracking-tight">Connections</h1>
 
-  <DataTable {table} {columns} isLoading={$connectionsLoading} />
+  <Card.Root class="shadow-sm">
+    <Card.Header class="flex flex-col sm:flex-row sm:justify-between gap-4">
+      <div>
+        <Card.Title class="text-xl">Connection History</Card.Title>
+        <Card.Description>View and manage your tunnel connections</Card.Description>
+      </div>
+      <div class="flex items-center">
+        <div class="flex items-center space-x-2">
+          <Checkbox id="active-connections" bind:checked class="rounded-sm" />
+          <Label
+            for="active-connections"
+            class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            Show active connections
+          </Label>
+        </div>
+      </div>
+    </Card.Header>
+    <Card.Content>
+      <div class="rounded-sm border overflow-hidden">
+        <div class="w-full flex justify-end p-2 border-b bg-gray-50">
+          <Pagination count={totalItems} perPage={10} currentPage={pageNo} />
+        </div>
+        <DataTable
+          {table}
+          {columns}
+          isLoading={$connectionsLoading}
+          noCard={true}
+        />
+      </div>
+    </Card.Content>
+  </Card.Root>
 </div>

@@ -5,7 +5,7 @@
   <div class="grid place-items-center h-[700px]">
     <div class="flex flex-col items-center mx-auto text-center">
       <p
-        class="p-3 text-sm font-medium text-gray-500 rounded-full bg-gray-100 dark:bg-gray-800"
+        class="p-3 text-sm font-medium text-gray-500 rounded-sm-full bg-gray-100 dark:bg-gray-800"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -34,7 +34,7 @@
       <div class="flex items-center w-full mt-6 gap-x-3 shrink-0 sm:w-auto">
         <button
           on:click={() => history.back()}
-          class="flex items-center justify-center w-1/2 px-5 py-2 text-sm text-gray-700 transition-colors duration-200 bg-white border rounded-lg gap-x-2 sm:w-auto dark:hover:bg-gray-800 dark:bg-gray-900 hover:bg-gray-100 dark:text-gray-200 dark:border-gray-700"
+          class="flex items-center justify-center w-1/2 px-5 py-2 text-sm text-gray-700 transition-colors duration-200 bg-white border rounded-sm gap-x-2 sm:w-auto dark:hover:bg-gray-800 dark:bg-gray-900 hover:bg-gray-100 dark:text-gray-200 dark:border-gray-700"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -56,7 +56,7 @@
 
         <a
           href="/"
-          class="w-1/2 px-5 py-2 text-sm tracking-wide text-white transition-colors duration-200 bg-gray-900 rounded-lg shrink-0 sm:w-auto hover:bg-gray-800"
+          class="w-1/2 px-5 py-2 text-sm tracking-wide text-white transition-colors duration-200 bg-gray-900 rounded-sm shrink-0 sm:w-auto hover:bg-gray-800"
         >
           Take me home
         </a>

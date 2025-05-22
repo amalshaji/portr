@@ -37,7 +37,7 @@
 
 {#if $currentRequest}
   {#if contentLength === "0"}
-    <div class="text-gray-500 dark:text-gray-400">No content</div>
+    <div class="text-gray-500 dark:text-gray-400 p-4">No content</div>
   {:else if contentType.startsWith("application/json")}
     {#await loadResponse(`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`) then response}
       <Highlight
@@ -84,7 +84,7 @@
     ></iframe>
   {:else if contentType.startsWith("text/")}
     {#await loadResponse(`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`) then response}
-      <pre>{response}</pre>
+      <pre class="p-4">{response}</pre>
     {/await}
   {:else}
     <Button

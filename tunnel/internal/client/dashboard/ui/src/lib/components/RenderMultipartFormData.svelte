@@ -31,7 +31,7 @@
 </script>
 
 {#if data}
-  <div class="space-y-2">
+  <div class="space-y-2 p-4">
     {#each Object.entries(data) as [key, value]}
       <div>
         <Label for="email" class="font-normal">{key}</Label> <br />

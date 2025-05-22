@@ -6,6 +6,7 @@ export type Tunnel = {
 export type Request = {
   ID: string;
   Subdomain: string;
+  Host: string;
   Localport: number;
   Url: string;
   Method: string;
