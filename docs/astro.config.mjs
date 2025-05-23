@@ -1,6 +1,5 @@
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
-
 import tailwind from "@astrojs/tailwind";
 
 // https://astro.build/config
@@ -15,6 +14,7 @@ export default defineConfig({
       },
       customCss: [
         "./src/tailwind.css",
+        "./src/styles/custom.css",
         "@fontsource/geist-sans/400.css",
         "@fontsource/geist-mono/400.css",
       ],

@@ -1,24 +1,336 @@
 ---
-title: Portr client setup
-description: Learn how to setup portr client locally
+title: Client Installation & Setup
+description: Install and configure the Portr client on your development machine
 ---
 
-import { Aside } from "@astrojs/starlight/components";
+import { Card, CardGrid, Steps, Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
-### Install the client
+The Portr client is a lightweight CLI tool that creates secure tunnels from your local machine to your Portr server. Get up and running in minutes!
 
-Install the client using homebrew:
+## Installation
 
-```shell
-brew install amalshaji/taps/portr
-```
+<Tabs>
+  <TabItem label="macOS">
 
-You can also download the client binary from [github releases](https://github.com/amalshaji/portr/releases).
-
-Once the download/install is complete, login to the portr admin dashboard and copy the setup command from the overview page. It'll look like this.
+### Homebrew (Recommended)
 
 ```bash
-portr auth set --token {your_token} --remote {your_domain}
+# Add the Portr tap
+brew tap amalshaji/taps
+
+# Install Portr
+brew install portr
 ```
 
-For more details, run `portr --help`.
+### Manual Installation
+
+```bash
+# Download the latest binary
+curl -L -o portr https://github.com/amalshaji/portr/releases/latest/download/portr-macos
+
+# Make executable and move to PATH
+chmod +x portr
+sudo mv portr /usr/local/bin/
+```
+
+  </TabItem>
+
+  <TabItem label="Linux">
+
+### Install Script (Recommended)
+
+```bash
+# Download and install automatically
+curl -L https://github.com/amalshaji/portr/releases/latest/download/install.sh | bash
+```
+
+### Manual Installation
+
+```bash
+# Download for Linux
+curl -L -o portr https://github.com/amalshaji/portr/releases/latest/download/portr-linux
+
+# Make executable and install
+chmod +x portr
+sudo mv portr /usr/local/bin/
+```
+
+### Package Managers
+
+```bash
+# Arch Linux (AUR)
+yay -S portr-bin
+
+# Ubuntu/Debian (coming soon)
+# apt install portr
+```
+
+  </TabItem>
+
+  <TabItem label="Windows">
+
+### PowerShell (Recommended)
+
+```powershell
+# Download the Windows binary
+Invoke-WebRequest -Uri "https://github.com/amalshaji/portr/releases/latest/download/portr-windows.exe" -OutFile "portr.exe"
+
+# Move to a directory in PATH (e.g., C:\Windows\System32)
+Move-Item "portr.exe" "C:\Windows\System32\portr.exe"
+```
+
+### Manual Download
+
+1. Go to [GitHub Releases](https://github.com/amalshaji/portr/releases/latest)
+2. Download `portr-windows.exe`
+3. Rename to `portr.exe`
+4. Add to your PATH or run from download location
+
+  </TabItem>
+
+  <TabItem label="From Source">
+
+### Build from Source
+
+```bash
+# Requires Rust toolchain
+git clone https://github.com/amalshaji/portr.git
+cd portr
+
+# Build the client
+cargo build --release --bin portr
+
+# Install to system
+cargo install --path . --bin portr
+```
+
+  </TabItem>
+</Tabs>
+
+## Configuration
+
+<Steps>
+
+1. **Get Your Server Details**
+
+   From your Portr admin dashboard (e.g., `https://yourdomain.com:8080`):
+   - Navigate to the **Overview** page
+   - Copy the setup command shown
+
+   <Aside type="tip">
+     The setup command includes your personal API token and server URL.
+   </Aside>
+
+2. **Configure the Client**
+
+   Run the setup command from your dashboard:
+
+   ```bash
+   portr auth set --token your_token_here --remote https://yourdomain.com:8081
+   ```
+
+3. **Verify Configuration**
+
+   Test your connection:
+
+   ```bash
+   # Check client version and config
+   portr --version
+   portr status
+   ```
+
+</Steps>
+
+## Basic Usage
+
+Once configured, creating tunnels is simple:
+
+<CardGrid>
+  <Card title="HTTP Tunnel" icon="globe">
+    **Expose a web server**
+
+    ```bash
+    # Tunnel local port 3000
+    portr http 3000
+
+    # Custom subdomain
+    portr http 3000 --subdomain myapp
+    ```
+  </Card>
+
+  <Card title="TCP Tunnel" icon="network">
+    **Expose any TCP service**
+
+    ```bash
+    # Tunnel database on port 5432
+    portr tcp 5432
+
+    # Specify remote port
+    portr tcp 5432 --port 8432
+    ```
+  </Card>
+
+  <Card title="WebSocket Tunnel" icon="lightning">
+    **Real-time connections**
+
+    ```bash
+    # WebSocket server on port 8080
+    portr ws 8080
+
+    # With custom subdomain
+    portr ws 8080 --subdomain socket
+    ```
+  </Card>
+</CardGrid>
+
+## Command Reference
+
+### Authentication Commands
+
+```bash
+# Set up authentication
+portr auth set --token TOKEN --remote URL
+
+# View current config
+portr auth show
+
+# Clear authentication
+portr auth clear
+```
+
+### Tunnel Commands
+
+```bash
+# HTTP tunnels
+portr http <port> [--subdomain NAME] [--auth USER:PASS]
+
+# TCP tunnels
+portr tcp <local-port> [--port REMOTE_PORT]
+
+# WebSocket tunnels
+portr ws <port> [--subdomain NAME]
+
+# List active tunnels
+portr list
+
+# Stop all tunnels
+portr stop
+```
+
+### Configuration Options
+
+```bash
+# Set custom config file location
+portr --config /path/to/config.toml
+
+# Enable debug logging
+portr --verbose http 3000
+
+# Show help for any command
+portr help <command>
+```
+
+## Advanced Configuration
+
+### Configuration File
+
+Create a `~/.portr/config.toml` file for persistent settings:
+
+```toml
+[auth]
+token = "your_api_token"
+remote = "https://yourdomain.com:8081"
+
+[defaults]
+subdomain_prefix = "dev"
+auto_https = true
+log_level = "info"
+
+[http]
+auth_username = "user"
+auth_password = "pass"
+headers = { "X-Custom" = "value" }
+```
+
+### Environment Variables
+
+Override settings with environment variables:
+
+```bash
+# Authentication
+export PORTR_TOKEN="your_token"
+export PORTR_REMOTE="https://yourdomain.com:8081"
+
+# Defaults
+export PORTR_SUBDOMAIN="myapp"
+export PORTR_LOG_LEVEL="debug"
+```
+
+## Troubleshooting
+
+### Common Issues
+
+<Aside type="caution" title="Connection Refused">
+  **Problem**: Cannot connect to Portr server
+  **Solution**:
+  - Verify server URL is correct
+  - Check if server is running
+  - Ensure port 8081 is accessible
+</Aside>
+
+<Aside type="caution" title="Authentication Failed">
+  **Problem**: Token authentication fails
+  **Solution**:
+  - Get a fresh token from the admin dashboard
+  - Check token hasn't expired
+  - Verify the remote URL is correct
+</Aside>
+
+<Aside type="caution" title="Port Already in Use">
+  **Problem**: Local port is already occupied
+  **Solution**:
+  - Stop the service using the port
+  - Use a different local port
+  - Check for other tunnel clients
+</Aside>
+
+### Debug Mode
+
+Enable verbose logging for troubleshooting:
+
+```bash
+# Debug a specific tunnel
+portr --verbose http 3000
+
+# Check connection status
+portr status --verbose
+
+# View detailed logs
+portr logs
+```
+
+## Next Steps
+
+<CardGrid>
+  <Card title="Create HTTP Tunnel" icon="globe">
+    Learn to tunnel web applications with custom domains and authentication.
+
+    [HTTP Tunnels →](/client/http-tunnel/)
+  </Card>
+
+  <Card title="TCP Tunnels" icon="server">
+    Expose databases, SSH servers, and other TCP services.
+
+    [TCP Tunnels →](/client/tcp-tunnel/)
+  </Card>
+
+  <Card title="Tunnel Templates" icon="template">
+    Use predefined configurations for common development scenarios.
+
+    [Templates →](/client/templates/)
+  </Card>
+</CardGrid>
+
+<Aside type="note">
+  **Need help?** Check the [GitHub discussions](https://github.com/amalshaji/portr/discussions) or [report an issue](https://github.com/amalshaji/portr/issues).
+</Aside>

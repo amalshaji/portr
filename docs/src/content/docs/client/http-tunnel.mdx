@@ -1,0 +1,338 @@
+---
+title: HTTP Tunnels
+description: Comprehensive guide to creating and managing HTTP tunnels with Portr
+---
+
+import { Card, CardGrid, Steps, Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+HTTP tunnels are the most common type of tunnel, perfect for exposing web applications, APIs, and development servers to the internet with automatic HTTPS certificates.
+
+## Quick Start
+
+The simplest way to create an HTTP tunnel:
+
+```bash
+# Tunnel your local web server
+portr http 3000
+
+# Output:
+# 🚀 HTTP tunnel started
+# 📡 Local:     http://localhost:3000
+# 🌐 Public:    https://tunnel-abc123.yourdomain.com
+# 🔍 Inspector: http://localhost:7777
+```
+
+## Basic Usage
+
+<Tabs>
+  <TabItem label="Default Tunnel">
+
+Create a tunnel with auto-generated subdomain:
+
+```bash
+portr http 3000
+```
+
+**Features:**
+- ✅ Automatic HTTPS certificate
+- ✅ Random subdomain generation
+- ✅ Request inspector included
+- ✅ Automatic reconnection
+
+</TabItem>
+
+  <TabItem label="Custom Subdomain">
+
+Use a memorable subdomain:
+
+```bash
+portr http 3000 --subdomain myapp
+
+# Public URL: https://myapp.yourdomain.com
+```
+
+**Benefits:**
+- 🎯 Predictable URLs
+- 🔗 Easy sharing with team
+- 📱 Better for mobile testing
+- 🔖 Bookmark-friendly
+
+  </TabItem>
+
+  <TabItem label="With Authentication">
+
+Add basic authentication protection:
+
+```bash
+portr http 3000 --auth username:password
+
+# Prompts for credentials when accessed
+```
+
+**Use cases:**
+- 🛡️ Protect staging environments
+- 👥 Share with specific stakeholders
+- 🔒 Secure client previews
+
+  </TabItem>
+</Tabs>
+
+## Advanced Configuration
+
+### Custom Headers
+
+Add custom headers to all requests:
+
+```bash
+# Single header
+portr http 3000 --header "X-Environment: staging"
+
+# Multiple headers
+portr http 3000 \
+  --header "X-Environment: staging" \
+  --header "X-Version: 1.2.3"
+```
+
+### Request/Response Modification
+
+<CardGrid>
+  <Card title="CORS Headers" icon="globe">
+    **Automatically add CORS headers**
+
+    ```bash
+    portr http 3000 --cors
+    ```
+
+    Adds necessary CORS headers for cross-origin requests.
+  </Card>
+
+  <Card title="Host Header Rewriting" icon="edit">
+    **Preserve original host**
+
+    ```bash
+    portr http 3000 --preserve-host
+    ```
+
+    Maintains the original Host header value.
+  </Card>
+</CardGrid>
+
+### SSL and Security
+
+```bash
+# Force HTTPS redirects
+portr http 3000 --force-https
+
+# Custom SSL certificate (advanced)
+portr http 3000 --cert /path/to/cert.pem --key /path/to/key.pem
+```
+
+## Request Inspector
+
+Every HTTP tunnel includes a built-in request inspector at `http://localhost:7777`.
+
+<Aside type="tip">
+  **Pro tip**: Keep the inspector open in a separate browser tab while developing to monitor requests in real-time.
+</Aside>
+
+### Inspector Features
+
+<CardGrid>
+  <Card title="📊 Real-time Monitoring" icon="chart">
+    **Live request/response tracking**
+
+    - View all HTTP traffic
+    - Response times and status codes
+    - Request/response headers and bodies
+    - WebSocket connection monitoring
+  </Card>
+
+  <Card title="🔄 Request Replay" icon="replay">
+    **Replay any request**
+
+    - One-click request reproduction
+    - Modify parameters before replay
+    - Compare different responses
+    - Debug API issues efficiently
+  </Card>
+
+  <Card title="📁 Request History" icon="history">
+    **Persistent request logs**
+
+    - Search through request history
+    - Filter by status, method, or path
+    - Export request data
+    - Share specific requests with team
+  </Card>
+
+  <Card title="🛠️ Development Tools" icon="tools">
+    **Developer-friendly features**
+
+    - cURL command generation
+    - JSON/XML formatting
+    - Response time analytics
+    - Error highlighting
+  </Card>
+</CardGrid>
+
+## Common Use Cases
+
+<Steps>
+
+1. **Local Development Server**
+
+   ```bash
+   # React, Vue, Angular dev server
+   portr http 3000 --subdomain myapp-dev
+
+   # Rails/Django development
+   portr http 8000 --auth dev:secret
+   ```
+
+2. **API Development**
+
+   ```bash
+   # REST API testing
+   portr http 8080 --subdomain api-staging
+
+   # GraphQL endpoint
+   portr http 4000 --cors --subdomain graphql
+   ```
+
+3. **Webhook Testing**
+
+   ```bash
+   # Webhook receiver endpoint
+   portr http 3000 --subdomain webhooks
+
+   # Configure webhook URL in external service:
+   # https://webhooks.yourdomain.com/callback
+   ```
+
+4. **Client Demos**
+
+   ```bash
+   # Protected demo environment
+   portr http 3000 --subdomain client-demo --auth demo:preview2024
+   ```
+
+</Steps>
+
+## Configuration Examples
+
+### Development Environment
+
+```bash
+# Full-featured development tunnel
+portr http 3000 \
+  --subdomain "myapp-$(git branch --show-current)" \
+  --auth "dev:$(date +%Y%m)" \
+  --header "X-Environment: development" \
+  --cors
+```
+
+### Production-like Staging
+
+```bash
+# Staging environment simulation
+portr http 8080 \
+  --subdomain staging \
+  --force-https \
+  --header "X-Environment: staging" \
+  --header "X-Version: $(git rev-parse --short HEAD)"
+```
+
+### Mobile App Testing
+
+```bash
+# Mobile-optimized tunnel
+portr http 3000 \
+  --subdomain mobile-test \
+  --cors \
+  --header "Access-Control-Allow-Origin: *"
+```
+
+## Troubleshooting
+
+### Common Issues
+
+<Aside type="caution" title="Port Already in Use">
+  **Problem**: `bind: address already in use`
+  **Solution**:
+  - Check if another service is using the port: `lsof -i :3000`
+  - Stop the conflicting service or use a different port
+  - Use `pkill -f "process-name"` to stop specific processes
+</Aside>
+
+<Aside type="caution" title="Connection Refused">
+  **Problem**: Tunnel connects but returns 502 errors
+  **Solution**:
+  - Ensure your local server is running on the specified port
+  - Check if the server binds to `localhost` or `127.0.0.1`
+  - Some servers need to bind to `0.0.0.0` to accept tunnel connections
+</Aside>
+
+<Aside type="caution" title="SSL Certificate Issues">
+  **Problem**: Browser shows SSL warnings
+  **Solution**:
+  - Wait a few minutes for certificate generation
+  - Check DNS propagation: `dig yourdomain.com`
+  - Verify Cloudflare/Route53 API tokens are correct
+</Aside>
+
+### Debug Mode
+
+Enable verbose logging for troubleshooting:
+
+```bash
+# Debug tunnel creation
+portr --verbose http 3000
+
+# Check tunnel status
+portr status
+
+# View connection logs
+portr logs --follow
+```
+
+## Performance Tips
+
+<CardGrid>
+  <Card title="🚄 Connection Optimization" icon="speedometer">
+    **Reduce latency**
+
+    - Use a server close to your location
+    - Optimize your local server performance
+    - Enable compression in your app
+  </Card>
+
+  <Card title="📊 Monitoring" icon="analytics">
+    **Track performance**
+
+    - Monitor response times in inspector
+    - Set up health check endpoints
+    - Use browser dev tools for client-side analysis
+  </Card>
+</CardGrid>
+
+## Next Steps
+
+<CardGrid>
+  <Card title="TCP Tunnels" icon="network">
+    Learn to tunnel databases and other TCP services.
+
+    [TCP Tunnels →](/client/tcp-tunnel/)
+  </Card>
+
+  <Card title="WebSocket Tunnels" icon="lightning">
+    Enable real-time WebSocket connections.
+
+    [WebSocket Tunnels →](/client/websocket-tunnel/)
+  </Card>
+
+  <Card title="Tunnel Templates" icon="template">
+    Use pre-configured setups for common scenarios.
+
+    [Templates →](/client/templates/)
+  </Card>
+</CardGrid>

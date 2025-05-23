@@ -1,0 +1,168 @@
+---
+const testimonials = [
+  {
+    quote:
+      "Portr has transformed our development workflow. Self-hosting gives us the security we need while the team features make collaboration seamless.",
+    author: "Sarah Chen",
+    role: "Senior Developer",
+    company: "TechCorp",
+    avatar: "🧑‍💻",
+  },
+  {
+    quote:
+      "Finally, a tunnel solution that doesn't compromise on security. The admin dashboard is fantastic for monitoring our team's tunnels.",
+    author: "Mike Rodriguez",
+    role: "DevOps Engineer",
+    company: "StartupXYZ",
+    avatar: "👨‍💼",
+  },
+  {
+    quote:
+      "The request inspector has saved us countless debugging hours. Being able to replay requests is a game-changer.",
+    author: "Alex Kim",
+    role: "Full Stack Developer",
+    company: "WebStudio",
+    avatar: "👩‍💻",
+  },
+];
+---
+
+<section class="testimonials">
+  <h2>What Developers Are Saying</h2>
+  <div class="testimonials-grid">
+    {
+      testimonials.map((testimonial) => (
+        <div class="testimonial-card">
+          <div class="testimonial-content">
+            <blockquote>"{testimonial.quote}"</blockquote>
+          </div>
+          <div class="testimonial-author">
+            <div class="author-avatar">{testimonial.avatar}</div>
+            <div class="author-info">
+              <div class="author-name">{testimonial.author}</div>
+              <div class="author-role">{testimonial.role}</div>
+              <div class="author-company">{testimonial.company}</div>
+            </div>
+          </div>
+        </div>
+      ))
+    }
+  </div>
+</section>
+
+<style>
+  .testimonials {
+    margin: 4rem 0;
+    text-align: center;
+  }
+
+  .testimonials h2 {
+    margin-bottom: 3rem;
+    font-size: 2.25rem;
+    font-weight: 700;
+  }
+
+  .testimonials-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+  }
+
+  .testimonial-card {
+    background: var(--sl-color-gray-7);
+    border: 1px solid var(--sl-color-gray-6);
+    border-radius: 1rem;
+    padding: 2rem;
+    text-align: left;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .testimonial-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px -8px var(--sl-color-accent-low);
+    border-color: var(--sl-color-accent);
+  }
+
+  .testimonial-card::before {
+    content: '"';
+    position: absolute;
+    top: 1rem;
+    left: 1.5rem;
+    font-size: 4rem;
+    color: var(--sl-color-accent);
+    font-family: serif;
+    line-height: 1;
+    opacity: 0.3;
+  }
+
+  .testimonial-content {
+    margin-bottom: 1.5rem;
+    padding-top: 1rem;
+  }
+
+  blockquote {
+    margin: 0;
+    font-style: italic;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: var(--sl-color-gray-2);
+  }
+
+  .testimonial-author {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border-top: 1px solid var(--sl-color-gray-6);
+    padding-top: 1.5rem;
+  }
+
+  .author-avatar {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    background: var(--sl-color-accent-low);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+  }
+
+  .author-info {
+    flex: 1;
+  }
+
+  .author-name {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+
+  .author-role {
+    font-size: 0.9rem;
+    color: var(--sl-color-gray-3);
+    margin-bottom: 0.125rem;
+  }
+
+  .author-company {
+    font-size: 0.85rem;
+    color: var(--sl-color-accent);
+    font-weight: 500;
+  }
+
+  @media (max-width: 768px) {
+    .testimonials-grid {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .testimonial-card {
+      padding: 1.5rem;
+    }
+
+    .testimonials h2 {
+      font-size: 1.875rem;
+    }
+  }
+</style>
