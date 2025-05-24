@@ -108,7 +108,7 @@
 
 .button.primary {
   background: var(--sl-color-accent);
-  color: var(--sl-color-white);
+  color: #ffffff;
 }
 
 .button.primary:hover {
