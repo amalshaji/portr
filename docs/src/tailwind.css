@@ -1,3 +1,115 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom syntax highlighting */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #7c7c99;
+}
+
+.token.punctuation {
+  color: #e0e0e0;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #fab387;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+  color: #a6e3a1;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: #89b4fa;
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #cba6f7;
+}
+
+.token.function,
+.token.class-name {
+  color: #f38ba8;
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #fab387;
+}
+
+/* Light mode syntax highlighting */
+:root[data-theme="light"] .token.comment,
+:root[data-theme="light"] .token.prolog,
+:root[data-theme="light"] .token.doctype,
+:root[data-theme="light"] .token.cdata {
+  color: #6c757d;
+}
+
+:root[data-theme="light"] .token.punctuation {
+  color: #2d3748;
+}
+
+:root[data-theme="light"] .token.property,
+:root[data-theme="light"] .token.tag,
+:root[data-theme="light"] .token.boolean,
+:root[data-theme="light"] .token.number,
+:root[data-theme="light"] .token.constant,
+:root[data-theme="light"] .token.symbol,
+:root[data-theme="light"] .token.deleted {
+  color: #e36209;
+}
+
+:root[data-theme="light"] .token.selector,
+:root[data-theme="light"] .token.attr-name,
+:root[data-theme="light"] .token.string,
+:root[data-theme="light"] .token.char,
+:root[data-theme="light"] .token.builtin,
+:root[data-theme="light"] .token.inserted {
+  color: #22863a;
+}
+
+:root[data-theme="light"] .token.operator,
+:root[data-theme="light"] .token.entity,
+:root[data-theme="light"] .token.url,
+:root[data-theme="light"] .language-css .token.string,
+:root[data-theme="light"] .style .token.string {
+  color: #0066cc;
+}
+
+:root[data-theme="light"] .token.atrule,
+:root[data-theme="light"] .token.attr-value,
+:root[data-theme="light"] .token.keyword {
+  color: #6f42c1;
+}
+
+:root[data-theme="light"] .token.function,
+:root[data-theme="light"] .token.class-name {
+  color: #d73a49;
+}
+
+:root[data-theme="light"] .token.regex,
+:root[data-theme="light"] .token.important,
+:root[data-theme="light"] .token.variable {
+  color: #e36209;
+}

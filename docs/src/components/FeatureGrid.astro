@@ -1,0 +1,104 @@
+---
+export interface Props {
+  features: Array<{
+    title: string;
+    description: string;
+    icon: string;
+    link?: string;
+  }>;
+}
+
+const { features } = Astro.props;
+---
+
+<div class="feature-grid">
+  {
+    features.map((feature) => (
+      <div class="feature-card">
+        <div class="feature-icon">
+          <span class={`icon-${feature.icon}`}>{feature.icon}</span>
+        </div>
+        <h3>{feature.title}</h3>
+        <p>{feature.description}</p>
+        {feature.link && (
+          <a href={feature.link} class="feature-link">
+            Learn more →
+          </a>
+        )}
+      </div>
+    ))
+  }
+</div>
+
+<style>
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin: 2rem 0;
+  }
+
+  .feature-card {
+    background: var(--sl-color-gray-7);
+    border: 1px solid var(--sl-color-gray-6);
+    border-radius: 1rem;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .feature-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px -12px var(--sl-color-accent-low);
+    border-color: var(--sl-color-accent);
+  }
+
+  .feature-icon {
+    width: 4rem;
+    height: 4rem;
+    margin: 0 auto 1.5rem;
+    background: var(--sl-color-accent-low);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: var(--sl-color-accent);
+  }
+
+  .feature-card h3 {
+    margin: 0 0 1rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  .feature-card p {
+    margin: 0 0 1.5rem;
+    color: var(--sl-color-gray-2);
+    line-height: 1.6;
+  }
+
+  .feature-link {
+    color: var(--sl-color-accent);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+  }
+
+  .feature-link:hover {
+    color: var(--sl-color-accent-high);
+  }
+
+  @media (max-width: 768px) {
+    .feature-grid {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .feature-card {
+      padding: 1.5rem;
+    }
+  }
+</style>
