@@ -26,19 +26,19 @@ func NewClient(config *config.Config, db *db.Db) *Client {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				_ = p.ReleaseTerminal()
+				p.Kill()
 				fmt.Printf("Recovered from panic: %v\n", r)
 				os.Exit(1)
 			}
 		}()
 
 		if _, err := p.Run(); err != nil {
-			_ = p.ReleaseTerminal()
+			p.Kill()
 			fmt.Printf("Failed to run TUI: %v\n", err)
 			os.Exit(1)
 		}
 
-		_ = p.ReleaseTerminal()
+		p.Kill()
 		os.Exit(0)
 	}()
 
