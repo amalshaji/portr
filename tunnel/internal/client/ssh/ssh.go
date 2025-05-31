@@ -10,6 +10,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/amalshaji/portr/internal/client/config"
@@ -32,11 +34,14 @@ var (
 )
 
 type SshClient struct {
-	config   config.ClientConfig
-	listener net.Listener
-	db       *db.Db
-	client   *ssh.Client
-	tui      *tea.Program
+	config       config.ClientConfig
+	listener     net.Listener
+	db           *db.Db
+	client       *ssh.Client
+	tui          *tea.Program
+	mu           sync.RWMutex
+	reconnecting int32 // atomic flag to prevent concurrent reconnects
+	shutdown     int32 // atomic flag for shutdown state
 }
 
 func New(config config.ClientConfig, db *db.Db, tui *tea.Program) *SshClient {
@@ -87,6 +92,11 @@ func (s *SshClient) createNewConnection() (string, error) {
 }
 
 func (s *SshClient) startListenerForClient() error {
+	// Check if we're shutting down
+	if atomic.LoadInt32(&s.shutdown) == 1 {
+		return fmt.Errorf("client is shutting down")
+	}
+
 	var err error
 	var connectionId string
 
@@ -102,8 +112,11 @@ func (s *SshClient) startListenerForClient() error {
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
+	// Create new client with mutex protection
+	s.mu.Lock()
 	s.client, err = ssh.Dial("tcp", s.config.SshUrl, sshConfig)
 	if err != nil {
+		s.mu.Unlock()
 		if s.config.Debug {
 			s.logDebug("Failed to connect to ssh server", err)
 		}
@@ -133,31 +146,48 @@ func (s *SshClient) startListenerForClient() error {
 	}
 
 	if s.listener == nil {
+		s.mu.Unlock()
 		return fmt.Errorf("failed to listen on remote endpoint")
 	}
 
 	s.config.Tunnel.RemotePort = remotePort
+	s.mu.Unlock()
 
 	defer func() {
-		// Safe closing of listener
+		// Safe closing of listener with mutex protection
+		s.mu.Lock()
 		if s.listener != nil {
 			s.listener.Close()
+			s.listener = nil
 		}
+		s.mu.Unlock()
 	}()
 
-	s.tui.Send(tui.AddTunnelMsg{
-		Config:       &s.config.Tunnel,
-		ClientConfig: &s.config,
-		Healthy:      true,
-	})
+	// Safe TUI send with nil check
+	if s.tui != nil {
+		s.tui.Send(tui.AddTunnelMsg{
+			Config:       &s.config.Tunnel,
+			ClientConfig: &s.config,
+			Healthy:      true,
+		})
+	}
 
 	for {
-		// Accept incoming connections on the remote port
-		if s.listener == nil {
+		// Check shutdown state
+		if atomic.LoadInt32(&s.shutdown) == 1 {
+			return fmt.Errorf("client is shutting down")
+		}
+
+		// Safe listener access with read lock
+		s.mu.RLock()
+		listener := s.listener
+		s.mu.RUnlock()
+
+		if listener == nil {
 			return fmt.Errorf("listener is nil, cannot accept connections")
 		}
 
-		remoteConn, err := s.listener.Accept()
+		remoteConn, err := listener.Accept()
 		if err != nil {
 			if s.config.Debug {
 				log.Error("Failed to accept connection", "error", err)
@@ -387,16 +417,27 @@ func (s *SshClient) tcpTunnel(src, dst net.Conn) {
 }
 
 func (s *SshClient) Shutdown(ctx context.Context) error {
-	if s.listener == nil {
-		return nil
+	// Set shutdown flag
+	atomic.StoreInt32(&s.shutdown, 1)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var err error
+	if s.listener != nil {
+		err = s.listener.Close()
+		s.listener = nil
 	}
 
-	err := s.listener.Close()
-	if err != nil {
-		return err
+	if s.client != nil {
+		if clientErr := s.client.Close(); clientErr != nil && err == nil {
+			err = clientErr
+		}
+		s.client = nil
 	}
+
 	log.Info("Stopped tunnel connection", "address", s.config.GetTunnelAddr())
-	return nil
+	return err
 }
 
 func (s *SshClient) StartHealthCheck(ctx context.Context) {
@@ -408,6 +449,9 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) {
 	for range ticker {
 		retryAttempts++
 		if retryAttempts > s.config.HealthCheckMaxRetries {
+			if s.tui != nil {
+				s.tui.Kill()
+			}
 			fmt.Printf(color.Red("Failed to reconnect to tunnel after %d attempts\n"), retryAttempts)
 			os.Exit(1)
 		}
@@ -478,6 +522,19 @@ func (s *SshClient) Start(ctx context.Context) {
 }
 
 func (s *SshClient) Reconnect() error {
+	// Prevent concurrent reconnects using atomic CAS
+	if !atomic.CompareAndSwapInt32(&s.reconnecting, 0, 1) {
+		return fmt.Errorf("reconnect already in progress")
+	}
+	defer atomic.StoreInt32(&s.reconnecting, 0)
+
+	// Check if we're shutting down
+	if atomic.LoadInt32(&s.shutdown) == 1 {
+		return fmt.Errorf("client is shutting down")
+	}
+
+	// Close existing connections with mutex protection
+	s.mu.Lock()
 	if s.client != nil {
 		if err := s.client.Close(); err != nil {
 			if s.config.Debug {
@@ -495,23 +552,42 @@ func (s *SshClient) Reconnect() error {
 		}
 		s.listener = nil
 	}
+	s.mu.Unlock()
+
+	// Create context with timeout for the reconnection attempt
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	// Channel to receive errors from the goroutine
 	errChan := make(chan error, 1)
+	done := make(chan struct{})
 
-	// Start the listener in a goroutine
+	// Start the listener in a goroutine with context
 	go func() {
+		defer close(done)
 		if err := s.startListenerForClient(); err != nil {
-			errChan <- err
+			select {
+			case errChan <- err:
+			case <-ctx.Done():
+			}
 		}
 	}()
 
-	// Wait for either an error or successful connection
+	// Wait for either an error, successful connection, or timeout
 	select {
 	case err := <-errChan:
 		return err
 	case <-time.After(5 * time.Second):
+		// Connection seems successful, update health status
+		if s.tui != nil {
+			s.tui.Send(tui.UpdateHealthMsg{
+				Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
+				Healthy: true,
+			})
+		}
 		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("reconnect timeout")
 	}
 }
 
@@ -558,10 +634,13 @@ func (s *SshClient) logDebug(message string, err error) {
 		errStr = err.Error()
 	}
 
-	s.tui.Send(tui.AddDebugLogMsg{
-		Time:    time.Now().Format("15:04:05"),
-		Level:   "DEBUG",
-		Message: message,
-		Error:   errStr,
-	})
+	// Safe TUI send with nil check
+	if s.tui != nil {
+		s.tui.Send(tui.AddDebugLogMsg{
+			Time:    time.Now().Format("15:04:05"),
+			Level:   "DEBUG",
+			Message: message,
+			Error:   errStr,
+		})
+	}
 }
