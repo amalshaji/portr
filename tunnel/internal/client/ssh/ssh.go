@@ -577,8 +577,17 @@ func (s *SshClient) Reconnect() error {
 	select {
 	case err := <-errChan:
 		return err
+	case <-done:
+		// Connection successful, update health status
+		if s.tui != nil {
+			s.tui.Send(tui.UpdateHealthMsg{
+				Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
+				Healthy: true,
+			})
+		}
+		return nil
 	case <-time.After(5 * time.Second):
-		// Connection seems successful, update health status
+		// Fallback timeout in case done channel doesn't signal
 		if s.tui != nil {
 			s.tui.Send(tui.UpdateHealthMsg{
 				Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
