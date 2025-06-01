@@ -1,24 +1,150 @@
 ---
-title: Portr
-description: What is portr?
+title: Getting Started with Portr
+description: Quick setup guide to get your first tunnel running in minutes
 ---
 
+import { Card, CardGrid, Steps, Aside } from "@astrojs/starlight/components";
 import { YouTube } from "astro-embed";
 
-Portr is a self-hosted tunnel solution designed for teams. It lets you expose local http, tcp or websocket connections to the internet.
+Welcome to **Portr** - the self-hosted tunnel solution that gives you complete control over your development infrastructure!
 
-You can use the client to quickly tunnel http, tcp or websocket connections
+<Aside type="tip">
+  **New to tunneling?** Portr allows you to expose local services (like your development server) to the internet through secure tunnels, making them accessible from anywhere.
+</Aside>
 
-```bash
-portr http 9000
-```
+## What is Portr?
 
-This command exposes your local http server running at port `9000` on a public https url.
+Portr is a **self-hosted tunnel solution** designed for local development who need:
 
-Checkout how to quickly create a tunnel and inspect requests using portr inspector in the following video
+- 🔒 **Complete data control** - Your tunnels run on your infrastructure
+- 👥 **User management** - Built-in user management and access controls
+- 📊 **Advanced monitoring** - Real-time connection monitoring and request inspection
+- 🚀 **Development features** - Custom domains, SSL certificates, and more
+
+## Quick Demo
+
+See Portr in action! Here's how easy it is to create a tunnel and inspect requests:
 
 <YouTube id="https://www.youtube.com/watch?v=_4tipDzuoSs" />
 
-Here's a quick walk-through of the admin dashboard, where you can monitor connections, create and manage teams and team members.
+## Architecture Overview
+
+<CardGrid>
+  <Card title="Portr Server" icon="server">
+    **Self-hosted tunnel server**
+
+    Deploy on your infrastructure for complete control. Handles tunnel connections, user management, and routing.
+  </Card>
+
+  <Card title="Portr Client" icon="laptop">
+    **Lightweight CLI tool**
+
+    Simple command-line client for creating tunnels from your local machine to the server.
+  </Card>
+
+  <Card title="Admin Dashboard" icon="dashboard">
+    **Web-based management**
+
+    Monitor connections, manage users, configure settings, and inspect requests through a modern web interface.
+  </Card>
+</CardGrid>
+
+## Getting Started
+
+<Steps>
+
+1. **Deploy the Portr Server**
+
+   Set up your Portr server on your preferred infrastructure:
+
+   ```bash
+   # Using Docker (recommended)
+   docker run -p 8080:8080 -p 8081:8081 portr/server
+   ```
+
+   → [Complete server setup guide](/server/)
+
+2. **Install the Portr Client**
+
+   Download and install the client for your platform:
+
+   ```bash
+   # macOS/Linux
+   curl -L https://github.com/amalshaji/portr/releases/latest/download/portr-cli | bash
+
+   # Windows
+   # Download from GitHub releases
+   ```
+
+   → [Client installation guide](/client/installation/)
+
+3. **Create Your First Tunnel**
+
+   Start tunneling in seconds:
+
+   ```bash
+   # HTTP tunnel
+   portr http 3000
+
+   # TCP tunnel
+   portr tcp 5432
+
+   # WebSocket tunnel
+   portr ws 8080
+   ```
+
+   → [Tunnel configuration guide](/client/http-tunnel/)
+
+</Steps>
+
+## Use Cases
+
+<CardGrid>
+  <Card title="🧪 Webhook Testing" icon="test-tube">
+    Test webhooks from third-party services against your local development environment.
+  </Card>
+
+  <Card title="📱 Mobile Development" icon="mobile">
+    Test mobile apps against your local API server without complex network setup.
+  </Card>
+
+  <Card title="🤝 Client Demos" icon="presentation">
+    Share work-in-progress with clients and stakeholders securely.
+  </Card>
+
+  <Card title="🔄 CI/CD Integration" icon="gear">
+    Integrate with continuous integration pipelines for automated testing.
+  </Card>
+</CardGrid>
+
+## User Management
+
+Get a quick overview of how user management works in Portr:
 
 <YouTube id="https://www.youtube.com/watch?v=Wv5j3YQk3Ew" />
+
+## Next Steps
+
+<CardGrid>
+  <Card title="Server Setup" icon="server">
+    Deploy your Portr server with our comprehensive setup guide.
+
+    [Setup Server →](/server/)
+  </Card>
+
+  <Card title="Client Configuration" icon="settings">
+    Configure the client and create your first tunnels.
+
+    [Configure Client →](/client/installation/)
+  </Card>
+
+  <Card title="Local Development" icon="code">
+    Set up Portr for local development and contribution.
+
+    [Development Guide →](/local-development/admin/)
+  </Card>
+</CardGrid>
+
+<Aside type="note">
+  **Need help?** Join our community discussions on [GitHub](https://github.com/amalshaji/portr/discussions) or check out the [Hacker News discussion](https://news.ycombinator.com/item?id=39913197).
+</Aside>

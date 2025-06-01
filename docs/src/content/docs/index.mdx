@@ -1,43 +1,179 @@
 ---
 title: Portr
-description: Expose local http, tcp or websocket connections to the public internet
+description: Self-hosted tunnel solution for teams. Expose local HTTP, TCP, or WebSocket connections to the internet with enterprise-grade security and monitoring.
 template: splash
 hero:
-  tagline: Expose local http, tcp or websocket connections to the public internet
+  tagline: Self-hosted tunnel solution for local development
   image:
     alt: A bubbly Portr
     file: ../../assets/icon.png
   actions:
-    - text: Read the docs
+    - text: Get Started
       link: /getting-started/
-      icon: open-book
+      icon: rocket
       variant: primary
-    - text: GitHub
+    - text: View on GitHub
       link: https://github.com/amalshaji/portr
       icon: github
       variant: secondary
       attrs:
         target: _blank
-    - text: Hacker News (172)
+    - text: Hacker News Discussion
       link: https://news.ycombinator.com/item?id=39913197
-      icon: star
-      variant: secondary
+      icon: external
+      variant: minimal
       attrs:
         target: _blank
 ---
 
 import { Card, CardGrid } from "@astrojs/starlight/components";
 import { YouTube } from "astro-embed";
+import Testimonials from "../../components/Testimonials.astro";
 
-## Features
+## Why Portr?
+
+Portr is a **self-hosted tunnel solution** designed for teams who need secure, reliable access to local development environments. Unlike other tunnel services, Portr gives you complete control over your infrastructure while providing enterprise-grade features.
+
+<CardGrid stagger>
+  <Card title="🚀 Simple & Fast" icon="rocket">
+    Get started in seconds. Expose any local service with a single command:
+
+    ```bash
+    portr http 3000
+    ```
+  </Card>
+
+  <Card title="🔒 Self-Hosted Security" icon="shield">
+    Keep your data secure with full control over your tunnel infrastructure. No third-party dependencies.
+  </Card>
+
+  <Card title="👥 Team-First Design" icon="group">
+    Built for collaboration with team management, role-based access control, and shared tunnel configurations.
+  </Card>
+
+  <Card title="📊 Advanced Monitoring" icon="chart">
+    Real-time connection monitoring, request inspection, and comprehensive logging for debugging.
+  </Card>
+</CardGrid>
+
+## Key Features
 
 <CardGrid>
-  <Card title="Admin dashboard" icon="rocket">
-    Admin dashboard to monitor connections, manage teams and members.{" "}
+  <Card title="Admin Dashboard" icon="laptop">
+    **Monitor everything in real-time**
+
+    Comprehensive admin dashboard to monitor connections, manage users and access, track usage, and configure settings.
+
     <YouTube id="https://www.youtube.com/watch?v=Wv5j3YQk3Ew" />
   </Card>
-  <Card title="Portr inspector" icon="magnifier">
-    Portr inspector to inspect and replay http requests.{" "}
+
+  <Card title="Request Inspector" icon="magnifier">
+    **Debug with confidence**
+
+    Built-in request inspector to inspect HTTP requests and responses, replay requests, and debug issues in real-time.
+
     <YouTube id="https://www.youtube.com/watch?v=_4tipDzuoSs" />
+  </Card>
+</CardGrid>
+
+## Supported Protocols
+
+<CardGrid>
+  <Card title="HTTP/HTTPS Tunnels" icon="globe">
+    Expose web applications with automatic HTTPS certificates and custom domains.
+
+    ```bash
+    portr http 8080 --subdomain myapp
+    ```
+  </Card>
+
+  <Card title="TCP Tunnels" icon="network">
+    Tunnel any TCP service like databases, SSH servers, or custom protocols.
+
+    ```bash
+    portr tcp 5432 --port 8432
+    ```
+  </Card>
+
+  <Card title="WebSocket Tunnels" icon="lightning">
+    Real-time WebSocket connections with full bidirectional communication.
+
+    ```bash
+    portr ws 9001 --subdomain socket
+    ```
+  </Card>
+</CardGrid>
+
+## Perfect for Local Development
+
+<CardGrid>
+  <Card title="🔄 CI/CD Integration" icon="gear">
+    Integrate Portr into your continuous integration pipelines for testing webhooks and external integrations.
+  </Card>
+
+  <Card title="🌐 Remote Access" icon="users">
+    Access your local development environments securely from anywhere.
+  </Card>
+
+  <Card title="🧪 Testing & QA" icon="test-tube">
+    Test webhooks, mobile apps, and third-party integrations against your local development server.
+  </Card>
+
+  <Card title="📱 Mobile Development" icon="mobile">
+    Test mobile applications against local APIs without complex network configuration.
+  </Card>
+</CardGrid>
+
+## Quick Start
+
+Ready to get started? Follow these simple steps:
+
+1. **Install the server** - Deploy Portr server on your infrastructure
+2. **Install the client** - Download the Portr client for your platform
+3. **Create your first tunnel** - Expose your local service in seconds
+
+<div class="not-content">
+  <a href="/getting-started/" class="button primary">
+    Get Started →
+  </a>
+</div>
+
+<Testimonials />
+
+## Open Source & Community
+
+Portr is **100% open source** and built by the community, for the community.
+
+<CardGrid>
+  <Card title="🌟 GitHub Repository" icon="github">
+    **Star us on GitHub**
+
+    View source code, contribute, and join the discussion.
+
+    [amalshaji/portr →](https://github.com/amalshaji/portr)
+  </Card>
+
+  <Card title="💬 Community Discussion" icon="comment">
+    **Join the Conversation**
+
+    Get help, share feedback, and connect with other users.
+
+    [GitHub Discussions →](https://github.com/amalshaji/portr/discussions)
+  </Card>
+
+  <Card title="🐛 Issue Tracking" icon="bug">
+    **Report Bugs & Request Features**
+
+    Help make Portr better by reporting issues and suggesting improvements.
+
+    [Report Issue →](https://github.com/amalshaji/portr/issues)
+  </Card>
+
+  <Card title="📰 Hacker News" icon="external">
+    **Community Recognition**
+
+    See what the community is saying about Portr.
+
+    [HN Discussion →](https://news.ycombinator.com/item?id=39913197)
   </Card>
 </CardGrid>
