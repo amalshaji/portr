@@ -126,7 +126,7 @@ detect_shell_profile() {
             echo "$HOME/.zshrc"
             ;;
         fish)
-            echo "fish"
+            echo "$HOME/.config/fish/config.fish"
             ;;
         *)
             echo "$HOME/.profile"
