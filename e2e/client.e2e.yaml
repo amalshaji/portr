@@ -1,0 +1,12 @@
+server_url: localhost:8000
+ssh_url: localhost:2222
+tunnel_url: localhost:8001
+secret_key: portr_gpb2sW2uWmN3TASvzI6PzAmuqem0VrKwc9o7
+use_localhost: true
+tunnels:
+  - name: portr
+    subdomain: portr
+    port: 4321
+  - name: e2e
+    subdomain: e2e
+    port: 8000
