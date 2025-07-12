@@ -98,6 +98,10 @@
   };
 
   const installCommand = `
+  curl -sSf https://install.portr.dev | sh
+  `.trim();
+
+  const homebrewCommand = `
   brew install amalshaji/taps/portr
   `.trim();
 
@@ -223,25 +227,47 @@
       <div class="bg-gray-50 rounded-lg p-6 border border-gray-100">
         <h3 class="text-sm font-medium mb-3 flex items-center gap-2">
           <span class="flex h-6 w-6 rounded-full bg-primary/10 items-center justify-center text-xs font-semibold">1</span>
-          Install the portr client using homebrew
+          Install the portr client
         </h3>
 
-        <div class="relative group">
-          <Highlight
-            language={bash}
-            code={installCommand}
-            class="border rounded-md text-sm my-2 overflow-hidden"
-          />
-          <button
-            class="absolute right-2 top-2 p-1 rounded-md bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border"
-            on:click={() => handleCopy(installCommand)}
-          >
-            <Copy class="h-4 w-4" />
-          </button>
+        <div class="space-y-4">
+          <div>
+            <p class="text-sm text-gray-600 mb-2">Using the install script:</p>
+            <div class="relative group">
+              <Highlight
+                language={bash}
+                code={installCommand}
+                class="border rounded-md text-sm my-2 overflow-hidden"
+              />
+              <button
+                class="absolute right-2 top-2 p-1 rounded-md bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border"
+                on:click={() => handleCopy(installCommand)}
+              >
+                <Copy class="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <p class="text-sm text-gray-600 mb-2">Or using homebrew:</p>
+            <div class="relative group">
+              <Highlight
+                language={bash}
+                code={homebrewCommand}
+                class="border rounded-md text-sm my-2 overflow-hidden"
+              />
+              <button
+                class="absolute right-2 top-2 p-1 rounded-md bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border"
+                on:click={() => handleCopy(homebrewCommand)}
+              >
+                <Copy class="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </div>
 
         <p class="mt-4 text-sm text-gray-600">
-          Or download the binary from the <a
+          You can also download the binary from the <a
             href="https://github.com/amalshaji/portr/releases"
             target="_blank"
             class="text-primary hover:underline font-medium">GitHub releases</a>
