@@ -5,10 +5,12 @@ on:
     branches: ["main"]
     paths:
       - "admin/**"
+      - ".github/workflows/portr-admin.yml"
   pull_request:
     branches: ["main"]
     paths:
       - "admin/**"
+      - ".github/workflows/portr-admin.yml"
 
 permissions:
   contents: read
@@ -30,9 +32,9 @@ jobs:
       run:
         working-directory: ./admin
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python 3.12
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: "pip"
