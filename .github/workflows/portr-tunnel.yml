@@ -28,6 +28,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup client
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.7.0
+          run_install: false
+
+      - name: Install client dependencies
+        run: pnpm --dir internal/client/dashboard/ui install
+
+      - name: Build client
+        run: pnpm --dir internal/client/dashboard/ui build
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
