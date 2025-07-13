@@ -45,8 +45,8 @@ jobs:
         with:
           go-version: "1.24"
 
-      - name: Build
+      - name: Build tunnel
         run: go build -v ./...
 
-      - name: Test
+      - name: Test tunnel
         run: go test -v ./...
