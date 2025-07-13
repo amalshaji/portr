@@ -5,25 +5,29 @@ import (
 	"strings"
 )
 
+var (
+	slugifyRegex     = regexp.MustCompile("[^a-z0-9-]")
+	multiHyphenRegex = regexp.MustCompile("-+")
+)
+
 func Trim(input string) string {
 	return strings.TrimSpace(input)
 }
 
 func Slugify(s string) string {
-	// Convert the string to lowercase
+	if s == "" {
+		return s
+	}
+
 	s = strings.ToLower(s)
 
-	// Replace spaces with hyphens
 	s = strings.ReplaceAll(s, " ", "-")
+	s = strings.ReplaceAll(s, "_", "-")
 
-	// Remove special characters using regular expression
-	reg := regexp.MustCompile("[^a-z0-9-]")
-	s = reg.ReplaceAllString(s, "")
+	s = slugifyRegex.ReplaceAllString(s, "")
 
-	// Remove consecutive hyphens
-	s = strings.ReplaceAll(s, "--", "-")
+	s = multiHyphenRegex.ReplaceAllString(s, "-")
 
-	// Remove leading and trailing hyphens
 	s = strings.Trim(s, "-")
 
 	return s
