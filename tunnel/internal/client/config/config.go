@@ -264,7 +264,7 @@ func GetConfig(token string, remote string) error {
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf(response.Message)
+		return fmt.Errorf("%s", response.Message)
 	}
 
 	return SetConfig(response.Message)
