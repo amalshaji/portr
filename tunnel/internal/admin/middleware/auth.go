@@ -18,7 +18,6 @@ func NewAuthMiddleware(db *gorm.DB) *AuthMiddleware {
 	}
 }
 
-// RequireAuth ensures the user is authenticated
 func (m *AuthMiddleware) RequireAuth(c *fiber.Ctx) error {
 	if err := m.checkAuth(c); err != nil {
 		return err
@@ -26,7 +25,6 @@ func (m *AuthMiddleware) RequireAuth(c *fiber.Ctx) error {
 	return c.Next()
 }
 
-// checkAuth performs authentication without calling c.Next() (for internal use)
 func (m *AuthMiddleware) checkAuth(c *fiber.Ctx) error {
 	token := c.Cookies("portr_session")
 	if token == "" {
@@ -42,7 +40,6 @@ func (m *AuthMiddleware) checkAuth(c *fiber.Ctx) error {
 	return nil
 }
 
-// RequireTeamUser ensures the user belongs to the team specified in header
 func (m *AuthMiddleware) RequireTeamUser(c *fiber.Ctx) error {
 	// First check if user is authenticated
 	if err := m.checkAuth(c); err != nil {
@@ -82,7 +79,6 @@ func (m *AuthMiddleware) RequireTeamUser(c *fiber.Ctx) error {
 	return c.Next()
 }
 
-// RequireAdmin ensures the user has admin role in the team
 func (m *AuthMiddleware) RequireAdmin(c *fiber.Ctx) error {
 	// First check team membership
 	if err := m.RequireTeamUser(c); err != nil {
@@ -112,7 +108,6 @@ func (m *AuthMiddleware) RequireAdmin(c *fiber.Ctx) error {
 	return c.Next()
 }
 
-// RequireSuperuser ensures the user is a superuser
 func (m *AuthMiddleware) RequireSuperuser(c *fiber.Ctx) error {
 	// First check if user is authenticated
 	if err := m.checkAuth(c); err != nil {
@@ -135,7 +130,6 @@ func (m *AuthMiddleware) RequireSuperuser(c *fiber.Ctx) error {
 	return c.Next()
 }
 
-// GetCurrentUser helper to get current user from context
 func GetCurrentUser(c *fiber.Ctx) *models.User {
 	user, ok := c.Locals("user").(*models.User)
 	if !ok {
@@ -144,7 +138,6 @@ func GetCurrentUser(c *fiber.Ctx) *models.User {
 	return user
 }
 
-// GetCurrentTeamUser helper to get current team user from context
 func GetCurrentTeamUser(c *fiber.Ctx) *models.TeamUser {
 	teamUser, ok := c.Locals("team_user").(*models.TeamUser)
 	if !ok {

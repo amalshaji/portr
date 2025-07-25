@@ -65,7 +65,6 @@ type AddUserResponse struct {
 	Password *string                  `json:"password,omitempty"`
 }
 
-// CreateTeam creates a new team (superuser only)
 func (h *Handler) CreateTeam(c *fiber.Ctx) error {
 	user := middleware.GetCurrentUser(c)
 	if user == nil || !user.IsSuperuser {
@@ -101,7 +100,6 @@ func (h *Handler) CreateTeam(c *fiber.Ctx) error {
 	return c.JSON(response)
 }
 
-// GetTeamUsers returns paginated list of team members
 func (h *Handler) GetTeamUsers(c *fiber.Ctx) error {
 	teamUser := middleware.GetCurrentTeamUser(c)
 	if teamUser == nil {
@@ -170,7 +168,6 @@ func (h *Handler) GetTeamUsers(c *fiber.Ctx) error {
 	})
 }
 
-// AddUser adds a user to the team
 func (h *Handler) AddUser(c *fiber.Ctx) error {
 	teamUser := middleware.GetCurrentTeamUser(c)
 	if teamUser == nil {
@@ -321,7 +318,6 @@ func (h *Handler) AddUser(c *fiber.Ctx) error {
 	return c.JSON(response)
 }
 
-// RemoveUser removes a user from the team
 func (h *Handler) RemoveUser(c *fiber.Ctx) error {
 	teamUser := middleware.GetCurrentTeamUser(c)
 	if teamUser == nil {
@@ -395,7 +391,6 @@ func (h *Handler) RemoveUser(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"status": "ok"})
 }
 
-// generateRandomPassword generates a random password for new users
 func generateRandomPassword() string {
 	bytes := make([]byte, 16)
 	if _, err := rand.Read(bytes); err != nil {

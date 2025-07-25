@@ -16,14 +16,12 @@ import (
 	"gorm.io/gorm"
 )
 
-// CPU tracking for calculating usage percentage
 var (
 	lastCPUTime     types.CPUTimes
 	lastMeasureTime time.Time
 	cpuMutex        sync.RWMutex
 )
 
-// calculateCPUUsage calculates CPU usage percentage
 func calculateCPUUsage(currentCPU types.CPUTimes) float64 {
 	cpuMutex.Lock()
 	defer cpuMutex.Unlock()
@@ -109,7 +107,6 @@ type UpdateInstanceSettingsInput struct {
 	AddUserEmailBody    string `json:"add_user_email_body"`
 }
 
-// GetInstanceSettings returns instance-wide email settings
 func (h *Handler) GetInstanceSettings(c *fiber.Ctx) error {
 	// For now, return default values since we don't have a settings table yet
 	// In a real implementation, you'd store these in the database
@@ -127,7 +124,6 @@ func (h *Handler) GetInstanceSettings(c *fiber.Ctx) error {
 	return c.JSON(settings)
 }
 
-// UpdateInstanceSettings updates instance-wide email settings
 func (h *Handler) UpdateInstanceSettings(c *fiber.Ctx) error {
 	var input UpdateInstanceSettingsInput
 	if err := c.BodyParser(&input); err != nil {
@@ -144,7 +140,6 @@ func (h *Handler) UpdateInstanceSettings(c *fiber.Ctx) error {
 	})
 }
 
-// DownloadConfig returns the client configuration file content
 func (h *Handler) DownloadConfig(c *fiber.Ctx) error {
 	var input DownloadConfigInput
 	if err := c.BodyParser(&input); err != nil {
@@ -177,7 +172,6 @@ tunnels:
 	})
 }
 
-// GetSetupScript returns the setup script for the client
 func (h *Handler) GetSetupScript(c *fiber.Ctx) error {
 	teamUser := middleware.GetCurrentTeamUser(c)
 	if teamUser == nil {
@@ -194,7 +188,6 @@ func (h *Handler) GetSetupScript(c *fiber.Ctx) error {
 	})
 }
 
-// GetStats returns dashboard statistics
 func (h *Handler) GetStats(c *fiber.Ctx) error {
 	teamUser := middleware.GetCurrentTeamUser(c)
 	if teamUser == nil {

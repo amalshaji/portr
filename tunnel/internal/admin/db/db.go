@@ -1,9 +1,8 @@
 package db
 
 import (
-	"log"
-
 	"github.com/amalshaji/portr/internal/admin/models"
+	"github.com/charmbracelet/log"
 	"gorm.io/gorm"
 )
 
@@ -56,6 +55,6 @@ func (db *AdminDB) CreateFirstUser(email, password string) (*models.User, error)
 		return nil, err
 	}
 
-	log.Printf("Created first superuser: %s", email)
+	log.Info("Created first superuser", "email", email)
 	return user, nil
 }

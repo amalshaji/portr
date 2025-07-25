@@ -67,18 +67,15 @@ func (g *GitHubService) GetUser(ctx context.Context, token *oauth2.Token) (*GitH
 		return nil, fmt.Errorf("failed to decode user info: %w", err)
 	}
 
-	// If email is not public, fetch it from the emails endpoint
 	if user.Email == "" {
 		emails, err := g.getUserEmails(ctx, client)
 		if err == nil && len(emails) > 0 {
-			// Find primary email
 			for _, email := range emails {
 				if email.Primary {
 					user.Email = email.Email
 					break
 				}
 			}
-			// If no primary email found, use the first one
 			if user.Email == "" {
 				user.Email = emails[0].Email
 			}

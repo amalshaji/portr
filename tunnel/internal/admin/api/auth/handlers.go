@@ -4,12 +4,12 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"log"
 	"strings"
 
 	"github.com/amalshaji/portr/internal/admin/config"
 	"github.com/amalshaji/portr/internal/admin/models"
 	"github.com/amalshaji/portr/internal/admin/services"
+	"github.com/charmbracelet/log"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
 	"gorm.io/gorm"
@@ -36,12 +36,10 @@ type LoginInput struct {
 	Password string `json:"password" validate:"required"`
 }
 
-// GetAuthConfig returns authentication configuration
 func (h *Handler) GetAuthConfig(c *fiber.Ctx) error {
 	var userCount int64
 	h.db.Model(&models.User{}).Count(&userCount)
 
-	// Check if GitHub auth is configured
 	githubEnabled := h.githubService != nil && h.githubService.IsEnabled()
 
 	return c.JSON(fiber.Map{
@@ -50,7 +48,6 @@ func (h *Handler) GetAuthConfig(c *fiber.Ctx) error {
 	})
 }
 
-// Login handles email/password login
 func (h *Handler) Login(c *fiber.Ctx) error {
 	var input LoginInput
 	if err := c.BodyParser(&input); err != nil {
@@ -107,7 +104,7 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 			})
 		}
 
-		log.Printf("Created first superuser: %s", input.Email)
+		log.Info("Created first superuser", "email", input.Email)
 	} else {
 		// Find existing user
 		err = h.db.Where("email = ?", input.Email).First(&user).Error
@@ -153,7 +150,6 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 	})
 }
 
-// Logout handles user logout
 func (h *Handler) Logout(c *fiber.Ctx) error {
 	token := c.Cookies("portr_session")
 	if token != "" {
@@ -170,7 +166,6 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
-// GitHubLogin initiates GitHub OAuth flow
 func (h *Handler) GitHubLogin(c *fiber.Ctx) error {
 	if h.githubService == nil || !h.githubService.IsEnabled() {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -213,7 +208,6 @@ func (h *Handler) GitHubLogin(c *fiber.Ctx) error {
 	return c.Redirect(authURL, fiber.StatusFound)
 }
 
-// GitHubCallback handles GitHub OAuth callback
 func (h *Handler) GitHubCallback(c *fiber.Ctx) error {
 	if h.githubService == nil || !h.githubService.IsEnabled() {
 		return c.Redirect("/?code=github-disabled", fiber.StatusFound)
@@ -243,14 +237,14 @@ func (h *Handler) GitHubCallback(c *fiber.Ctx) error {
 	ctx := context.Background()
 	token, err := h.githubService.ExchangeCode(ctx, code)
 	if err != nil {
-		log.Printf("Failed to exchange code: %v", err)
+		log.Error("Failed to exchange GitHub code", "error", err)
 		return c.Redirect("/?code=token-exchange-failed", fiber.StatusFound)
 	}
 
 	// Get user info from GitHub
 	githubUser, err := h.githubService.GetUser(ctx, token)
 	if err != nil {
-		log.Printf("Failed to get GitHub user: %v", err)
+		log.Error("Failed to get GitHub user", "error", err)
 		return c.Redirect("/?code=user-fetch-failed", fiber.StatusFound)
 	}
 
@@ -315,7 +309,7 @@ func (h *Handler) GitHubCallback(c *fiber.Ctx) error {
 					return c.Redirect("/?code=team-user-creation-failed", fiber.StatusFound)
 				}
 
-				log.Printf("Created first superuser via GitHub: %s", user.Email)
+				log.Info("Created first superuser via GitHub", "email", user.Email)
 			}
 		} else if err != nil {
 			return c.Redirect("/?code=database-error", fiber.StatusFound)

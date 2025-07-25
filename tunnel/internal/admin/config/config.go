@@ -1,11 +1,10 @@
 package config
 
 import (
-	"fmt"
-	"log"
 	"os"
 	"strconv"
 
+	"github.com/charmbracelet/log"
 	_ "github.com/joho/godotenv/autoload"
 )
 
@@ -27,7 +26,7 @@ func Load() *AdminConfig {
 	}
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		log.Fatal("Invalid PORTR_ADMIN_PORT:", err)
+		log.Fatal("Invalid PORTR_ADMIN_PORT", "port", portStr, "error", err)
 	}
 
 	domain := os.Getenv("PORTR_DOMAIN")
@@ -44,8 +43,6 @@ func Load() *AdminConfig {
 	if sshURL == "" {
 		sshURL = "localhost:2222"
 	}
-
-	fmt.Println("PORTR_ADMIN_USE_VITE:", os.Getenv("PORTR_ADMIN_USE_VITE"))
 
 	return &AdminConfig{
 		Port:           port,
