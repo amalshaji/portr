@@ -198,8 +198,6 @@ func (s *SshClient) startListenerForClient() error {
 		// Connect to the local endpoint
 		localConn, err := net.Dial("tcp", localEndpoint)
 		if err != nil {
-			// serve local html if the local server is not available
-			// change this to a beautiful template
 			if tunnelType == constants.Http {
 				htmlContent := utils.LocalServerNotOnline(localEndpoint)
 				fmt.Fprintf(remoteConn, "HTTP/1.1 503 Service Unavailable\r\n")
@@ -392,13 +390,10 @@ func (s *SshClient) logHttpRequest(
 		return
 	}
 
-	// Get tunnel name
 	tunnelName := s.config.Tunnel.Name
 	if tunnelName == "" {
 		tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
 	}
-
-	// Send log directly to TUI
 	s.tui.Send(tui.AddLogMsg{
 		Time:   req.LoggedAt.Local().Format("15:04:05"),
 		Name:   tunnelName,
@@ -417,7 +412,6 @@ func (s *SshClient) tcpTunnel(src, dst net.Conn) {
 }
 
 func (s *SshClient) Shutdown(ctx context.Context) error {
-	// Set shutdown flag
 	atomic.StoreInt32(&s.shutdown, 1)
 
 	s.mu.Lock()
@@ -619,7 +613,6 @@ func (s *SshClient) HealthCheck() error {
 	portrError := resp.Header().Get("X-Portr-Error")
 	portrErrorReason := resp.Header().Get("X-Portr-Error-Reason")
 
-	// Fix it later to resolve to connection-lost
 	if portrError == "true" && (portrErrorReason == "connection-lost" || portrErrorReason == "unregistered-subdomain") {
 		return fmt.Errorf("unhealthy tunnel")
 	}
