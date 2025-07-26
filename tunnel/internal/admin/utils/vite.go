@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"os"
 	"sync"
 )
@@ -15,13 +16,13 @@ type ViteManifest struct {
 }
 
 var (
-	viteTags string
+	viteTags template.HTML
 	once     sync.Once
 )
 
-func GenerateViteTags() string {
+func GenerateViteTags() template.HTML {
 	once.Do(func() {
-		viteTags = generateViteTagsInternal()
+		viteTags = template.HTML(generateViteTagsInternal())
 	})
 	return viteTags
 }
@@ -56,7 +57,7 @@ func generateViteTagsInternal() string {
 }
 
 func findManifestPath() string {
-	manifestPath := "web/dist/static/.vite/manifest.json"
+	manifestPath := "internal/admin/static/.vite/manifest.json"
 
 	if _, err := os.Stat(manifestPath); err == nil {
 		return manifestPath

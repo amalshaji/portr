@@ -3,6 +3,7 @@ package admin
 import (
 	"embed"
 	"fmt"
+	"html/template"
 	"net/http"
 	"time"
 
@@ -104,7 +105,7 @@ func (s *Server) setupRoutes() {
 
 	s.setupInstanceSettingsRoutes(v1)
 
-	s.app.Get("/", s.handleIndex)
+	s.app.Get("/*", s.handleIndex)
 }
 
 func (s *Server) setupAuthRoutes(v1 fiber.Router) {
@@ -145,6 +146,7 @@ func (s *Server) setupConnectionRoutes(v1 fiber.Router) {
 	connGroup := v1.Group("/connections")
 
 	connGroup.Get("/", s.auth.RequireTeamUser, connHandler.GetConnections)
+	connGroup.Post("/", connHandler.CreateConnection)
 }
 
 func (s *Server) setupConfigRoutes(v1 fiber.Router) {
@@ -173,7 +175,7 @@ func (s *Server) handleIndex(c *fiber.Ctx) error {
 	return c.Render("templates/index", data)
 }
 
-func (s *Server) generateViteTags() string {
+func (s *Server) generateViteTags() template.HTML {
 	if s.config.UseVite {
 		return ""
 	}
