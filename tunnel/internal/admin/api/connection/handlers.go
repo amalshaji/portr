@@ -169,7 +169,7 @@ func (h *Handler) CreateConnection(c *fiber.Ctx) error {
 	err := h.db.Preload("Team").Where("secret_key = ?", input.SecretKey).First(&teamUser).Error
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Invalid secret key",
+			"message": "Invalid secret key",
 		})
 	}
 
@@ -177,7 +177,7 @@ func (h *Handler) CreateConnection(c *fiber.Ctx) error {
 	if input.ConnectionType == models.ConnectionTypeHTTP {
 		if input.Subdomain == nil || *input.Subdomain == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Subdomain is required for HTTP connections",
+				"message": "Subdomain is required for HTTP connections",
 			})
 		}
 
@@ -190,7 +190,7 @@ func (h *Handler) CreateConnection(c *fiber.Ctx) error {
 
 		if err == nil {
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
-				"error": "Subdomain is already in use",
+				"message": "Subdomain already in use",
 			})
 		}
 	}
@@ -200,7 +200,7 @@ func (h *Handler) CreateConnection(c *fiber.Ctx) error {
 
 	if err := h.db.Create(connection).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to create connection",
+			"message": "Failed to create connection",
 		})
 	}
 
