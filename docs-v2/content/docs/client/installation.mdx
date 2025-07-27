@@ -1,0 +1,43 @@
+---
+title: Client Installation
+description: Learn how to setup portr client locally
+---
+
+import { Steps } from 'fumadocs-ui/components/steps';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+### Install the client
+
+Using the install script:
+
+```shell
+curl -sSf https://install.portr.dev | sh
+```
+
+Or install the client using homebrew:
+
+```shell
+brew install amalshaji/taps/portr
+```
+
+You can also download the client binary from [github releases](https://github.com/amalshaji/portr/releases).
+
+### Configure authentication
+
+Once the download/install is complete, login to the portr admin dashboard and copy the setup command from the overview page. It'll look like this:
+
+```bash
+portr auth set --token {your_token} --remote {your_domain}
+```
+
+### Verify installation
+
+For more details and to verify everything is working, run:
+
+```bash
+portr --help
+```
+
+<Callout type="info">
+  Make sure you have access to a Portr server before setting up the client. If you need to set up your own server, check out the [server setup guide](/docs/server).
+</Callout>

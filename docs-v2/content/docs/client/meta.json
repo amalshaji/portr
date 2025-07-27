@@ -1,0 +1,11 @@
+{
+  "title": "Client",
+  "pages": [
+    "index",
+    "installation",
+    "http-tunnel",
+    "tcp-tunnel",
+    "websocket-tunnel",
+    "templates"
+  ]
+}

@@ -1,0 +1,47 @@
+---
+title: HTTP Tunnel
+description: Learn how to start a http tunnel using portr
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+Use the following command to tunnel an HTTP connection.
+
+```bash
+portr http 9000
+```
+
+Or start it with a custom subdomain:
+
+```bash
+portr http 9000 --subdomain amal-test
+```
+
+<Callout type="info">
+  This also starts the portr inspector on [http://localhost:7777](http://localhost:7777), where you can inspect and replay HTTP requests.
+</Callout>
+
+## How it works
+
+When you run the HTTP tunnel command:
+
+1. Portr connects to your configured server
+2. Creates a secure tunnel from your local port to a public URL
+3. Starts the request inspector interface locally
+4. Routes all incoming requests through the tunnel to your local service
+
+## Inspector Features
+
+The Portr inspector provides powerful debugging capabilities:
+
+- **Request inspection**: View all incoming HTTP requests in real-time
+- **Request replay**: Replay any request with modifications
+- **Headers analysis**: Examine request and response headers
+- **Payload viewing**: Inspect request and response bodies
+
+## Common Use Cases
+
+- **Local web development**: Share your local development server with others
+- **Webhook testing**: Receive webhooks from external services during development
+- **API debugging**: Test API integrations with external services
+- **Demo presentations**: Show your work to clients or team members

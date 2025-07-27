@@ -1,0 +1,101 @@
+---
+title: Local Development
+description: Set up Portr for local development and contribution
+---
+
+import { Card, Cards } from 'fumadocs-ui/components/card';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+This guide covers how to set up Portr for local development, whether you want to contribute to the project or modify it for your needs.
+
+## Architecture Overview
+
+Portr consists of several components:
+
+- **Admin Server**: Python/FastAPI backend with Svelte frontend
+- **Tunnel Server**: Go-based SSH and proxy server
+- **Client**: Go-based CLI tool for creating tunnels
+
+## Development Setup
+
+<Cards>
+  <Card title="Admin Setup" href="/docs/local-development/admin">
+    Set up the admin dashboard for local development.
+  </Card>
+  <Card title="Tunnel Server Setup" href="/docs/local-development/tunnel-server">
+    Run the tunnel server locally for development.
+  </Card>
+  <Card title="Client Setup" href="/docs/local-development/portr-client">
+    Build and test the Portr client locally.
+  </Card>
+</Cards>
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- **Python 3.11+** with [rye](https://github.com/astral-sh/rye) (0.43.0+)
+- **Go 1.23+**
+- **Node.js 20+**
+- **pnpm 9.15.0+**
+- **PostgreSQL 16+**
+
+## Quick Start
+
+<Callout type="info">
+  The recommended development approach is to start all components in the following order: database → admin server → tunnel server → client.
+</Callout>
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/amalshaji/portr.git
+cd portr
+```
+
+### 2. Set up the database
+
+Start a PostgreSQL instance locally or use Docker:
+
+```bash
+docker run --name portr-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres:16
+```
+
+### 3. Start development servers
+
+Follow the individual setup guides for each component to get everything running locally.
+
+## Contributing
+
+We welcome contributions! Here's how to get started:
+
+1. **Fork the repository** on GitHub
+2. **Create a feature branch** for your changes
+3. **Set up the development environment** using the guides above
+4. **Make your changes** and test them thoroughly
+5. **Submit a pull request** with a clear description of your changes
+
+## Development Workflow
+
+### Making Changes
+
+1. Start all required services locally
+2. Make your changes to the relevant component
+3. Test your changes thoroughly
+4. Ensure all tests pass
+5. Update documentation if needed
+
+### Testing
+
+Each component has its own test suite. Run tests before submitting changes:
+
+```bash
+# Admin tests (from admin/ directory)
+make test
+
+# Tunnel server tests (from tunnel/ directory)  
+make test
+
+# Client tests (from tunnel/ directory)
+make test-cli
+```

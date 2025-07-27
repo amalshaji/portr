@@ -1,0 +1,48 @@
+---
+title: WebSocket Tunnel
+description: Learn how to start a WebSocket tunnel using portr
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+WebSocket connections use the HTTP protocol for the initial handshake and then switch to use a TCP connection. Because of this, an HTTP tunnel will work perfectly for WebSocket connections.
+
+```bash
+portr http 9000
+```
+
+<Callout type="info">
+  Use the HTTP tunnel command for WebSocket services. The initial HTTP handshake will be handled properly, and the connection will upgrade to WebSocket as expected.
+</Callout>
+
+## How WebSocket Tunneling Works
+
+1. **Initial handshake**: The WebSocket connection starts with an HTTP request containing upgrade headers
+2. **Protocol upgrade**: The server responds with a `101 Switching Protocols` status
+3. **WebSocket connection**: The connection upgrades to WebSocket protocol over the existing TCP connection
+4. **Bidirectional communication**: Full-duplex communication is established
+
+## Testing WebSocket Connections
+
+You can test your WebSocket tunnel using various tools:
+
+### Browser Console
+```javascript
+const ws = new WebSocket('wss://your-subdomain.your-domain.com');
+ws.onopen = () => console.log('Connected');
+ws.onmessage = (event) => console.log('Message:', event.data);
+ws.send('Hello WebSocket!');
+```
+
+### Command Line Tools
+```bash
+# Using wscat (install with: npm install -g wscat)
+wscat -c wss://your-subdomain.your-domain.com
+```
+
+## Common Use Cases
+
+- **Real-time applications**: Chat applications, live updates, notifications
+- **Live data feeds**: Stock prices, sensor data, live metrics
+- **Collaborative tools**: Real-time document editing, shared whiteboards  
+- **Gaming**: Multiplayer games, real-time game state synchronization

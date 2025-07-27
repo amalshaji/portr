@@ -1,0 +1,74 @@
+---
+title: GitHub OAuth App Setup
+description: Learn how to setup a GitHub OAuth app for portr admin login
+---
+
+import { Steps } from 'fumadocs-ui/components/steps';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+Along with email-password based login, you can also set up GitHub OAuth for authentication in the admin dashboard.
+
+<Callout type="info">
+  For this guide, we'll use `example.com` as your domain. Replace it with your actual domain.
+</Callout>
+
+## Setup Process
+
+### Create a new OAuth App
+
+Go to [https://github.com/settings/applications/new](https://github.com/settings/applications/new)
+
+### Configure the application
+
+Fill in the following details:
+
+- **Application name**: Portr (or your preferred name)
+- **Homepage URL**: `https://example.com`
+- **Authorization callback URL**: `https://example.com/api/v1/auth/github/callback`
+
+### Register the application
+
+Click on **"Register application"** to create your OAuth app.
+
+### Get your credentials
+
+After creating the app, you'll see:
+- **Client ID**: Copy this value
+- **Client Secret**: Generate and copy this value
+
+### Update your environment
+
+Add the credentials to your `.env` file:
+
+```bash
+PORTR_ADMIN_GITHUB_CLIENT_ID=your_client_id_here
+PORTR_ADMIN_GITHUB_CLIENT_SECRET=your_client_secret_here
+```
+
+### Restart your services
+
+Restart your Docker services to apply the changes:
+
+```bash
+docker compose restart
+```
+
+## Using GitHub OAuth
+
+Once configured, users can log in to the admin dashboard using their GitHub accounts. The OAuth integration provides:
+
+- **Simplified login**: Users don't need to create separate accounts
+- **Enhanced security**: Leverages GitHub's authentication system
+- **Team integration**: Easier to manage access for development teams
+
+<Callout type="warning">
+  Make sure your callback URL exactly matches the one configured in your GitHub OAuth app. Any mismatch will cause authentication to fail.
+</Callout>
+
+## Testing the Integration
+
+1. Navigate to your admin dashboard
+2. Look for the "Sign in with GitHub" option
+3. Click it to test the OAuth flow
+4. You should be redirected to GitHub for authorization
+5. After approval, you'll be redirected back to your admin dashboard
