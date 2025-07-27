@@ -61,8 +61,8 @@ export default function HomePage() {
 
           {/* Interactive Terminal Demo */}
           <div className="w-full flex justify-center mb-8 px-4 sm:px-0">
-            <div className="text-left w-full max-w-2xl overflow-x-auto">
-              <Terminal className="w-full min-w-fit">
+            <div className="w-full max-w-2xl overflow-x-auto">
+              <Terminal className="w-full min-w-fit mx-auto">
                 <AnimatedSpan delay={0} className="flex gap-1">
                   <span className="text-green-400">$ </span>
                   <TypingAnimation delay={500}>portr http 9000</TypingAnimation>
@@ -86,32 +86,27 @@ export default function HomePage() {
                     http://localhost:7777
                   </span>
                 </AnimatedSpan>
-                <AnimatedSpan delay={3500}>
-                  <span className="text-gray-500">Press Ctrl+C to stop</span>
-                </AnimatedSpan>
               </Terminal>
             </div>
           </div>
 
-          <div className="flex flex-col gap-4 justify-center mb-8 px-4 sm:px-0">
+          <div className="flex flex-col md:flex-row gap-4 justify-center items-center mb-8 px-4 sm:px-0">
             <Link
               href="/docs"
-              className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-fd-primary text-fd-primary-foreground font-semibold rounded-lg hover:opacity-90 transition-opacity text-base sm:text-lg text-center"
+              className="w-full md:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-fd-primary text-fd-primary-foreground font-semibold rounded-lg hover:opacity-90 transition-opacity text-base sm:text-lg text-center"
             >
               <SparklesText className="text-base sm:text-lg" sparklesCount={3}>
                 Read Documentation
               </SparklesText>
             </Link>
-            <div className="flex justify-center w-full">
-              <GithubInfo
-                owner="amalshaji"
-                repo="portr"
-                className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 border border-fd-border text-fd-foreground font-semibold rounded-lg hover:bg-fd-accent transition-colors text-base sm:text-lg text-center"
-              />
-            </div>
+            <GithubInfo
+              owner="amalshaji"
+              repo="portr"
+              className="w-full md:w-auto px-6 sm:px-8 py-3 sm:py-4 border border-fd-border text-fd-foreground font-semibold rounded-lg hover:bg-fd-accent transition-colors text-base sm:text-lg text-center"
+            />
             <Link
               href="https://news.ycombinator.com/item?id=39913197"
-              className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 border border-fd-border text-fd-foreground font-semibold rounded-lg hover:bg-fd-accent transition-colors text-base sm:text-lg flex items-center justify-center gap-2"
+              className="w-full md:w-auto px-6 sm:px-8 py-3 sm:py-4 border border-fd-border text-fd-foreground font-semibold rounded-lg hover:bg-fd-accent transition-colors text-base sm:text-lg flex items-center justify-center gap-2"
               target="_blank"
               rel="noopener noreferrer"
             >
