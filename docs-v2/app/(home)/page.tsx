@@ -49,20 +49,20 @@ export default function HomePage() {
       <section className="flex flex-col justify-center text-center px-4 py-16 bg-gradient-to-b from-fd-accent/20 to-transparent">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-center gap-2 mb-6">
-            <Logo className="h-16 w-16" />
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-fd-foreground to-fd-muted-foreground bg-clip-text text-transparent">
+            <Logo className="h-12 w-12 sm:h-16 sm:w-16" />
+            <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-fd-foreground to-fd-muted-foreground bg-clip-text text-transparent">
               Portr
             </h1>
           </div>
-          <p className="text-fd-muted-foreground text-xl mb-8 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-fd-muted-foreground text-lg sm:text-xl mb-8 max-w-2xl mx-auto leading-relaxed px-4 sm:px-0">
             Expose local HTTP, TCP, or WebSocket connections to the public
             internet with a self-hosted tunnel solution designed for teams.
           </p>
 
           {/* Interactive Terminal Demo */}
-          <div className="w-full flex justify-center mb-8">
-            <div className="text-left">
-              <Terminal className="w-2xl">
+          <div className="w-full flex justify-center mb-8 px-4 sm:px-0">
+            <div className="text-left w-full max-w-2xl overflow-x-auto">
+              <Terminal className="w-full min-w-fit">
                 <AnimatedSpan delay={0} className="flex gap-1">
                   <span className="text-green-400">$ </span>
                   <TypingAnimation delay={500}>portr http 9000</TypingAnimation>
@@ -75,14 +75,16 @@ export default function HomePage() {
                 </AnimatedSpan>
                 <AnimatedSpan delay={2500} className="flex gap-1">
                   <span className="text-gray-400">→ </span>
-                  <span className="text-cyan-300">
+                  <span className="text-cyan-300 break-all">
                     https://abc123.portr.dev
                   </span>
                 </AnimatedSpan>
                 <AnimatedSpan delay={3000} className="flex gap-1">
                   <span className="text-gray-400">→ </span>
                   <span className="text-gray-300">Inspector: </span>
-                  <span className="text-yellow-300">http://localhost:7777</span>
+                  <span className="text-yellow-300 break-all">
+                    http://localhost:7777
+                  </span>
                 </AnimatedSpan>
                 <AnimatedSpan delay={3500}>
                   <span className="text-gray-500">Press Ctrl+C to stop</span>
@@ -91,25 +93,25 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+          <div className="flex flex-col gap-4 justify-center mb-8 px-4 sm:px-0">
             <Link
               href="/docs"
-              className="px-8 py-4 bg-fd-primary text-fd-primary-foreground font-semibold rounded-lg hover:opacity-90 transition-opacity text-lg"
+              className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-fd-primary text-fd-primary-foreground font-semibold rounded-lg hover:opacity-90 transition-opacity text-base sm:text-lg text-center"
             >
-              <SparklesText className="text-lg" sparklesCount={3}>
+              <SparklesText className="text-base sm:text-lg" sparklesCount={3}>
                 Read Documentation
               </SparklesText>
             </Link>
-            <div className="flex justify-center">
+            <div className="flex justify-center w-full">
               <GithubInfo
                 owner="amalshaji"
                 repo="portr"
-                className="px-8 py-4 border border-fd-border text-fd-foreground font-semibold rounded-lg hover:bg-fd-accent transition-colors text-lg"
+                className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 border border-fd-border text-fd-foreground font-semibold rounded-lg hover:bg-fd-accent transition-colors text-base sm:text-lg text-center"
               />
             </div>
             <Link
               href="https://news.ycombinator.com/item?id=39913197"
-              className="px-8 py-4 border border-fd-border text-fd-foreground font-semibold rounded-lg hover:bg-fd-accent transition-colors text-lg flex items-center gap-2"
+              className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 border border-fd-border text-fd-foreground font-semibold rounded-lg hover:bg-fd-accent transition-colors text-base sm:text-lg flex items-center justify-center gap-2"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -117,7 +119,7 @@ export default function HomePage() {
                 width="16"
                 height="16"
                 viewBox="0 0 122.88 122.88"
-                className="text-orange-500"
+                className="text-orange-500 flex-shrink-0"
               >
                 <path
                   fill="#FF6600"
@@ -128,7 +130,7 @@ export default function HomePage() {
                   points="29.76,21.84 42,21.84 61.44,60.72 80.88,21.36 93.12,21.36 66.24,70.32 66.24,102.96 56.64,102.96 56.64,70.32 29.76,21.84"
                 />
               </svg>
-              Hacker News • 172 ↑
+              <span className="text-center">Hacker News • 172 ↑</span>
             </Link>
           </div>
         </div>
@@ -138,7 +140,7 @@ export default function HomePage() {
       <section className="px-4 py-16">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-12">Key Features</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
             <div className="bg-fd-card border border-fd-border rounded-lg p-6">
               <div className="w-12 h-12 bg-fd-primary/10 rounded-lg flex items-center justify-center mb-4">
                 <svg
@@ -286,7 +288,7 @@ export default function HomePage() {
           <h2 className="text-3xl font-bold text-center mb-12">
             See Portr in Action
           </h2>
-          <div className="grid lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
             <div className="bg-fd-card border border-fd-border rounded-lg p-6">
               <h3 className="text-xl font-semibold mb-4">
                 Request Inspector Demo
@@ -341,7 +343,7 @@ export default function HomePage() {
             Follow our comprehensive guides to set up Portr for your team in
             minutes.
           </p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Link
               href="/docs/getting-started"
               className="bg-fd-card border border-fd-border rounded-lg p-6 hover:bg-fd-accent transition-colors group"
