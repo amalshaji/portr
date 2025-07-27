@@ -1,0 +1,45 @@
+---
+title: TCP Tunnel
+description: Learn how to start a TCP tunnel using portr
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+Use the following command to tunnel a TCP connection:
+
+```bash
+portr tcp 9000
+```
+
+<Callout type="info">
+  TCP tunnels are useful for exposing services like databases, SSH servers, or any service that uses raw TCP connections.
+</Callout>
+
+## How it works
+
+TCP tunnels work differently from HTTP tunnels:
+
+1. Portr establishes a direct TCP connection between the remote client and your local service
+2. No HTTP processing is involved - raw TCP data is forwarded
+3. The connection is bidirectional and maintains the TCP session state
+
+## Common Use Cases
+
+- **Database access**: Connect to local databases from remote applications
+- **SSH tunneling**: Access local SSH servers from remote locations  
+- **Custom protocols**: Tunnel any service that uses TCP connections
+- **Legacy applications**: Connect to services that don't use HTTP
+
+## Port Requirements
+
+<Callout type="warning">
+  Your Portr server needs to have the port range `30001-40001` open to accept incoming TCP connections. Make sure your server administrator has configured these ports.
+</Callout>
+
+## Configuration
+
+You can specify custom subdomains and ports just like with HTTP tunnels:
+
+```bash
+portr tcp 5432 --subdomain my-postgres
+```

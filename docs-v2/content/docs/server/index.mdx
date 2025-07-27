@@ -1,0 +1,58 @@
+---
+title: Server Setup
+description: Guide to setting up portr server
+---
+
+import { Card, Cards } from 'fumadocs-ui/components/card';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+## Prerequisites
+
+Before setting up your Portr server, ensure you have:
+
+- **A virtual machine** with Docker installed (Hetzner 4GB 2 vCPU is recommended and cost-effective)
+- **DNS records** configured for your domain
+- **Cloudflare API token** for wildcard subdomain SSL setup (or Route53)
+- **GitHub OAuth app credentials** for admin dashboard login (optional)
+- **Required ports** open on the server
+
+### DNS Configuration
+
+Configure the following DNS records for your domain:
+
+| Type | Name | Value |
+|------|------|-------|
+| A    | @    | your-server-ipv4 |
+| A    | *    | your-server-ipv4 |
+
+### Port Requirements
+
+- **Port 2222**: Open for incoming SSH connections
+- **Port range 30001-40001**: Open for incoming TCP connections (required for TCP tunnels)
+
+## Quick Setup Guides
+
+<Cards>
+  <Card title="Deploy with Docker" href="/docs/server/start-the-tunnel-server">
+    Use Docker Compose to quickly deploy Portr server.
+  </Card>
+  <Card title="Cloudflare API Token" href="/docs/server/cloudflare-api-token">
+    Set up Cloudflare API token for SSL certificates.
+  </Card>
+  <Card title="GitHub OAuth App" href="/docs/server/github-oauth-app">
+    Configure GitHub OAuth for admin dashboard login.
+  </Card>
+</Cards>
+
+## Server Components
+
+The Portr server consists of several components:
+
+- **Admin Server**: Web dashboard for managing tunnels and teams
+- **Tunnel Server**: Handles tunnel connections and routing
+- **Reverse Proxy**: Routes traffic and handles SSL termination
+- **Database**: Stores user data, teams, and tunnel configurations
+
+<Callout type="info">
+  The complete setup uses Docker Compose to orchestrate all these components together.
+</Callout>

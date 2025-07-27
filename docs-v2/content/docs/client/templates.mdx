@@ -1,0 +1,130 @@
+---
+title: Tunnel Templates
+description: Learn how to setup tunnel templates to reuse tunnel settings
+---
+
+import { Steps } from 'fumadocs-ui/components/steps';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+## Why Use Templates?
+
+Templates provide several benefits:
+
+- **Run multiple tunnels simultaneously**
+- **Reuse common configurations** for frequently used subdomains and ports
+- **Quick startup** with simple commands
+- **Consistent setups** across different environments
+
+## Setting Up Templates
+
+### Open the config file
+
+Open the portr client config file by running:
+
+```bash
+portr config edit
+```
+
+### Configure templates
+
+This will open a file with contents similar to:
+
+```yaml
+server_url: example.com
+ssh_url: example.com:2222
+secret_key: { your-secret-key }
+tunnels:
+  - name: portr
+    subdomain: portr
+    port: 4321
+```
+
+### Add more templates
+
+You can create additional tunnel templates under the `tunnels` key:
+
+```yaml
+tunnels:
+  - name: portr
+    subdomain: portr
+    port: 4321
+  - name: pg
+    subdomain: postgres-dev
+    port: 5432
+    type: tcp
+  - name: api
+    subdomain: api-dev
+    port: 3000
+    type: http
+```
+
+## Using Templates
+
+### Start individual tunnels
+
+Start specific tunnels by name:
+
+```bash
+portr start portr
+```
+
+### Start multiple tunnels
+
+Start multiple services at once:
+
+```bash
+portr start portr pg api
+```
+
+### Start all tunnels
+
+Start all configured tunnels:
+
+```bash
+portr start
+```
+
+<Callout type="info">
+  For more details about available commands and options, run `portr --help`.
+</Callout>
+
+## Template Configuration Options
+
+Each tunnel template supports the following options:
+
+- **name**: A unique identifier for the tunnel
+- **subdomain**: The subdomain to use for the tunnel
+- **port**: The local port to tunnel
+- **type**: The tunnel type (`http`, `tcp`, or `websocket`)
+
+## Example Configurations
+
+### Development Environment
+```yaml
+tunnels:
+  - name: frontend
+    subdomain: app-dev
+    port: 3000
+    type: http
+  - name: backend
+    subdomain: api-dev
+    port: 8000
+    type: http
+  - name: database
+    subdomain: db-dev
+    port: 5432
+    type: tcp
+```
+
+### Testing Environment
+```yaml
+tunnels:
+  - name: staging
+    subdomain: staging
+    port: 3000
+    type: http
+  - name: webhook-test
+    subdomain: webhooks
+    port: 4000
+    type: http
+```

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5672C7"/>
+      <stop offset="50%" stop-color="#759EC1"/>
+      <stop offset="100%" stop-color="#5773C8"/>
+    </linearGradient>
+    <linearGradient id="primary-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#759EC1"/>
+      <stop offset="100%" stop-color="#A8D2D7"/>
+    </linearGradient>
+    <linearGradient id="secondary-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#78A0C3"/>
+      <stop offset="100%" stop-color="#ABD4D6"/>
+    </linearGradient>
+    <linearGradient id="tertiary-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7DA6C3"/>
+      <stop offset="100%" stop-color="#A5C7D2"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="192" height="192" rx="42" fill="url(#bg-gradient)"/>
+
+  <!-- Main logo elements scaled for 192x192 -->
+  <path d="M48 70c0-14 7-28 21-35s28-7 42 0c7 7 14 14 14 28v42c0 14-7 28-21 35s-28 7-42 0c-7-7-14-14-14-28V70z" fill="url(#primary-gradient)"/>
+
+  <path d="M72 42c14-7 28 0 35 7s14 21 14 35v28c0 7-7 14-14 14H72c-7 0-14-7-14-14V84c0-14 7-28 21-42z" fill="url(#secondary-gradient)"/>
+
+  <path d="M85 55c10-5 20 0 25 5s10 15 10 25v20c0 5-5 10-10 10H85c-5 0-10-5-10-10V80c0-10 5-20 15-25z" fill="url(#tertiary-gradient)"/>
+
+  <!-- Bottom accent element -->
+  <rect x="60" y="140" width="72" height="36" rx="18" fill="#5773C8"/>
+
+  <!-- Central highlight for depth -->
+  <ellipse cx="96" cy="88" rx="24" ry="36" fill="white" opacity="0.2"/>
+
+  <!-- Inner core -->
+  <circle cx="96" cy="88" r="16" fill="white" opacity="0.15"/>
+</svg>

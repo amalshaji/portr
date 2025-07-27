@@ -1,0 +1,14 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: https://portr.dev/sitemap.xml
+
+# Disallow Open Graph image generation during crawling (they're generated on-demand)
+Disallow: /docs-og/
+Disallow: /og-image
+
+# Allow everything else
+Allow: /docs/
+Allow: /api/search

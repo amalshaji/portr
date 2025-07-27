@@ -1,0 +1,185 @@
+---
+title: Client Development Setup
+description: Learn how to setup portr client for local development
+---
+
+import { Steps } from 'fumadocs-ui/components/steps';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+The Portr client is built using Go for the CLI backend and includes a Svelte-based inspector for HTTP tunnels.
+
+## Requirements
+
+- **Go** (1.23+)
+- **Node.js** (20+)
+- **pnpm** (9.15.0+)
+- **Running admin server** (for authentication)
+- **Running tunnel server** (for tunnel connections)
+
+## Frontend Setup (Inspector)
+
+### Install frontend dependencies
+
+```shell
+make installclient
+```
+
+### Start the inspector development server
+
+```shell
+make runclient
+```
+
+This starts the Svelte-based inspector interface with hot reloading.
+
+## CLI Setup
+
+### Navigate to the tunnel directory
+
+```shell
+cd tunnel
+```
+
+### Build the CLI binary
+
+```shell
+make buildcli
+```
+
+This creates the `portr` binary in the current directory.
+
+### Configure authentication
+
+1. Start your admin server
+2. Log in to the admin dashboard
+3. Copy your secret key from the dashboard
+4. Add it to `client.dev.yaml` configuration file
+
+### Test the tunnel connection
+
+Start a test tunnel:
+
+```shell
+./portr -c client.dev.yaml http 9999
+```
+
+## Development Workflow
+
+### Client Architecture
+
+The client consists of:
+
+- **CLI interface**: Command-line tool for creating tunnels
+- **Inspector frontend**: Svelte-based web interface for HTTP request inspection
+- **Tunnel manager**: Handles SSH connections and port forwarding
+
+### Available Commands
+
+```bash
+# Install inspector dependencies
+make installclient
+
+# Run inspector in development mode
+make runclient
+
+# Build the CLI binary
+make buildcli
+
+# Build inspector for production
+make buildclient
+
+# Run client tests
+make test-cli
+
+# Clean build artifacts
+make clean
+```
+
+### Configuration Files
+
+#### client.dev.yaml
+Development configuration for the CLI:
+
+```yaml
+server_url: localhost:8001
+ssh_url: localhost:2222
+secret_key: your_secret_key_here
+tunnels:
+  - name: test
+    subdomain: test
+    port: 3000
+```
+
+#### Inspector Configuration
+The inspector runs on `http://localhost:7777` by default and automatically connects to active HTTP tunnels.
+
+## Testing Your Changes
+
+### Unit Tests
+
+Run the client test suite:
+
+```bash
+make test-cli
+```
+
+### Integration Testing
+
+1. **Start all services**: admin → tunnel server → client
+2. **Create a test service**: Run a simple HTTP server locally
+3. **Create a tunnel**: Use your built client to tunnel the service
+4. **Test connectivity**: Access the tunnel URL and verify it works
+5. **Test inspector**: Check that HTTP requests appear in the inspector
+
+### Manual Testing
+
+```bash
+# Start a simple HTTP server for testing
+python -m http.server 8080
+
+# In another terminal, create a tunnel
+./portr -c client.dev.yaml http 8080
+
+# Test the tunnel URL in your browser
+```
+
+## Inspector Development
+
+The inspector is a Svelte application that provides:
+
+- **Real-time request monitoring**: View HTTP requests as they happen
+- **Request details**: Headers, body, timing information
+- **Request replay**: Resend requests with modifications
+- **WebSocket support**: Monitor WebSocket connections
+
+### Inspector Structure
+
+```
+tunnel/web/
+├── src/
+│   ├── lib/           # Shared components and utilities
+│   ├── routes/        # SvelteKit routes
+│   └── app.html       # HTML template
+├── static/            # Static assets
+└── package.json       # Dependencies
+```
+
+<Callout type="info">
+  The inspector automatically starts when you create an HTTP tunnel and is accessible at `http://localhost:7777`.
+</Callout>
+
+## Troubleshooting
+
+### Build Issues
+
+**Go build errors**: Ensure you're using Go 1.23+ and all dependencies are available.
+
+**Frontend build errors**: Verify Node.js and pnpm versions, then try deleting `node_modules` and reinstalling.
+
+### Runtime Issues
+
+**Connection refused**: Make sure the tunnel server is running and accessible.
+
+**Authentication failures**: Verify your secret key is correct and the admin server is running.
+
+**Inspector not loading**: Check that port 7777 is available and the frontend build completed successfully.

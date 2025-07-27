@@ -1,0 +1,92 @@
+---
+title: Cloudflare API Token
+description: Getting a Cloudflare API token for wildcard certificates
+---
+
+import { Steps } from 'fumadocs-ui/components/steps';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+<Callout type="info">
+  If you're using Route53 instead of Cloudflare, check out the [Route53 guide](/docs/resources/route53).
+</Callout>
+
+The Cloudflare API token is required by Caddy for provisioning SSL certificates for wildcard subdomains.
+
+## Setup Process
+
+### Navigate to API tokens
+
+Go to [https://dash.cloudflare.com/profile/api-tokens](https://dash.cloudflare.com/profile/api-tokens)
+
+### Create a new token
+
+Click on **"Create Token"** to start the process.
+
+### Configure permissions
+
+Set the following permissions for your token:
+
+```
+Zone - DNS - Read
+Zone - DNS - Edit
+```
+
+### Set zone resources
+
+Configure the zone resources to include your specific domain:
+
+```
+Include - Specific zone - {your domain}
+```
+
+### Generate the token
+
+Click **"Continue to summary"** and then **"Create Token"** to generate your API token.
+
+### Save the token
+
+Copy the generated token and add it to your `.env` file:
+
+```bash
+CLOUDFLARE_API_TOKEN=your_token_here
+```
+
+## Token Permissions Explained
+
+The required permissions allow Caddy to:
+
+- **DNS Read**: Verify existing DNS records
+- **DNS Edit**: Create and modify DNS records for certificate validation
+- **Zone-specific access**: Limit access to only your domain for security
+
+## Security Best Practices
+
+- **Limit scope**: Only grant access to the specific zone you need
+- **Store securely**: Keep your API token in environment variables, never in code
+- **Monitor usage**: Regularly check your Cloudflare dashboard for unusual activity
+- **Rotate tokens**: Consider rotating your API tokens periodically
+
+<Callout type="warning">
+  Keep your API token secure and never commit it to version control. Anyone with this token can modify your DNS records.
+</Callout>
+
+## Troubleshooting
+
+### Certificate Issues
+
+If you're experiencing SSL certificate problems:
+
+1. Verify your API token has the correct permissions
+2. Ensure your domain is properly configured in Cloudflare
+3. Check that your DNS records are propagated
+4. Review the Caddy logs for detailed error messages
+
+### Testing Your Token
+
+You can test your API token using the Cloudflare API:
+
+```bash
+curl -X GET "https://api.cloudflare.com/client/v4/zones" \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json"
+```

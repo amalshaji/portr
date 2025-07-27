@@ -1,0 +1,124 @@
+---
+title: Server Deployment
+description: Learn how to deploy portr admin and tunnel server using docker
+---
+
+import { Steps } from 'fumadocs-ui/components/steps';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+For quick setup, use the `docker-compose.yml` from the Portr repository:
+
+[https://github.com/amalshaji/portr/blob/main/docker-compose.yaml](https://github.com/amalshaji/portr/blob/main/docker-compose.yaml)
+
+## Services Overview
+
+The compose file includes 4 services:
+
+- **caddy**: The reverse proxy for routing and SSL termination
+- **admin**: The admin server for the web dashboard
+- **tunnel**: The tunnel server for handling connections
+- **postgres**: The PostgreSQL database
+
+## Deployment Steps
+
+### Download the compose file
+
+Download the docker-compose.yaml file from the repository and place it in your server directory.
+
+### Set up environment variables
+
+Create a `.env` file in the same directory with the following values:
+
+```bash title=".env"
+PORTR_ADMIN_GITHUB_CLIENT_ID= #optional
+PORTR_ADMIN_GITHUB_CLIENT_SECRET= #optional
+
+PORTR_DOMAIN=example.com
+PORTR_DB_URL=postgres://postgres:postgres@localhost:5432/postgres
+
+PORTR_SERVER_URL=example.com
+PORTR_SSH_URL=example.com:2222
+
+CLOUDFLARE_API_TOKEN=
+
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=postgres
+
+PORTR_ADMIN_ENCRYPTION_KEY=
+```
+
+### Generate encryption key
+
+Generate an encryption key using the following command:
+
+```shell
+python -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
+```
+
+Add this key to the `PORTR_ADMIN_ENCRYPTION_KEY` variable in your `.env` file.
+
+### Start the services
+
+Run the following command to start all services:
+
+```shell
+docker compose up -d
+```
+
+### Access the admin dashboard
+
+Once the servers are running, navigate to your domain (e.g., `https://example.com`) and log in to the admin dashboard. The first login will be treated as a superuser account.
+
+## Alternative Database Setup
+
+<Callout type="info">
+  If you want to run PostgreSQL separately and not as a Docker service, you can exclude the following environment variables from your `.env` file:
+  - `POSTGRES_USER`
+  - `POSTGRES_PASSWORD` 
+  - `POSTGRES_DB`
+</Callout>
+
+## Troubleshooting
+
+### Service Health Checks
+
+Check if all services are running properly:
+
+```bash
+docker compose ps
+```
+
+### View Service Logs
+
+Check logs for any specific service:
+
+```bash
+# View all logs
+docker compose logs
+
+# View logs for a specific service
+docker compose logs admin
+docker compose logs tunnel
+docker compose logs caddy
+```
+
+### SSL Certificate Issues
+
+If you're having SSL certificate issues, ensure:
+
+1. Your DNS records are properly configured
+2. Your Cloudflare API token has the correct permissions
+3. Your domain is added to Cloudflare
+
+### Port Accessibility
+
+Verify that the required ports are accessible:
+
+```bash
+# Check if port 2222 is accessible
+telnet your-domain.com 2222
+
+# Check if HTTP/HTTPS ports are working
+curl https://your-domain.com
+```
