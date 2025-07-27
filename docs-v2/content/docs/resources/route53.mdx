@@ -148,9 +148,36 @@ openssl s_client -connect your-domain.com:443 -servername your-domain.com
 
 ## Cost Considerations
 
-Route53 pricing includes:
-- **Hosted zone**: $0.50 per hosted zone per month
-- **DNS queries**: $0.40 per million queries for the first 1 billion queries
-- **Health checks**: Additional costs if you use Route53 health checks
+AWS Route 53 uses a tiered pricing structure as of 2025:
 
-For most Portr deployments, the DNS costs will be minimal.
+### Hosted Zone Pricing
+- **First 25 hosted zones**: $0.50 per hosted zone per month
+- **Additional hosted zones**: $0.10 per hosted zone per month (zones 26+)
+- **Record sets**: No additional charge for the first 10,000 record sets per hosted zone
+- **Additional record sets**: $0.50 per 10,000 record sets per month
+- **Deletion policy**: No charge for deleting hosted zones, but billing continues until end of billing period
+
+### DNS Query Pricing
+
+| Query Type | Volume | Price per Million Queries |
+|------------|--------|---------------------------|
+| Standard queries | First 1 billion/month | $0.40 |
+| Standard queries | Over 1 billion/month | $0.20 |
+| Latency-based routing | First 1 billion/month | $0.60 |
+| Latency-based routing | Over 1 billion/month | $0.30 |
+| Geo DNS queries | First 1 billion/month | $0.70 |
+| Geo DNS queries | Over 1 billion/month | $0.35 |
+| Alias queries | All volumes | **Free** |
+| Private hosted zone queries | All volumes | **Free** |
+
+### Additional Services
+- **Health checks**: $0.50 per health check per month
+- **Application Recovery Controller**: Additional costs apply
+- **DNS Firewall**: Additional costs for rules and query volume
+- **Resolver**: Additional costs for inbound/outbound endpoints
+
+For most Portr deployments, the DNS costs will be minimal, typically under $1-2 per month for standard usage.
+
+---
+*Last updated: July 2025*  
+*For the most current pricing information, visit the [official AWS Route 53 pricing page](https://aws.amazon.com/route53/pricing/).*
