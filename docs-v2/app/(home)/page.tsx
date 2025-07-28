@@ -104,7 +104,7 @@ export default function HomePage() {
             <GithubInfo
               owner="amalshaji"
               repo="portr"
-              className="w-full md:w-auto px-6 sm:px-8 py-3 sm:py-4 border border-fd-border text-fd-foreground font-semibold rounded-lg hover:bg-fd-accent transition-colors text-base sm:text-lg text-center"
+              className="w-full md:w-auto px-6 sm:px-8 py-3 sm:py-4 border border-fd-border text-fd-foreground font-semibold rounded-lg hover:bg-fd-accent transition-colors text-base sm:text-lg text-center flex flex-row items-center justify-center gap-2 min-h-[3.5rem]"
             />
             <Link
               href="https://news.ycombinator.com/item?id=39913197"
