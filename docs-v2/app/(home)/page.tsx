@@ -64,25 +64,27 @@ export default function HomePage() {
             <div className="w-full max-w-2xl overflow-x-auto">
               <Terminal className="w-full min-w-fit mx-auto">
                 <AnimatedSpan delay={0} className="flex gap-1">
-                  <span className="text-green-400">$ </span>
+                  <span className="text-green-600 dark:text-green-400">$ </span>
                   <TypingAnimation delay={500}>portr http 9000</TypingAnimation>
                 </AnimatedSpan>
                 <AnimatedSpan delay={2000} className="flex gap-1">
-                  <span className="text-blue-400">✓ </span>
-                  <span className="text-gray-300">
+                  <span className="text-blue-600 dark:text-blue-400">✓ </span>
+                  <span className="text-gray-700 dark:text-gray-300">
                     Tunnel created successfully
                   </span>
                 </AnimatedSpan>
                 <AnimatedSpan delay={2500} className="flex gap-1">
-                  <span className="text-gray-400">→ </span>
-                  <span className="text-cyan-300 break-all">
+                  <span className="text-gray-600 dark:text-gray-400">→ </span>
+                  <span className="text-cyan-600 dark:text-cyan-300 break-all">
                     https://abc123.portr.dev
                   </span>
                 </AnimatedSpan>
                 <AnimatedSpan delay={3000} className="flex gap-1">
-                  <span className="text-gray-400">→ </span>
-                  <span className="text-gray-300">Inspector: </span>
-                  <span className="text-yellow-300 break-all">
+                  <span className="text-gray-600 dark:text-gray-400">→ </span>
+                  <span className="text-gray-700 dark:text-gray-300">
+                    Inspector:{" "}
+                  </span>
+                  <span className="text-yellow-600 dark:text-yellow-300 break-all">
                     http://localhost:7777
                   </span>
                 </AnimatedSpan>
