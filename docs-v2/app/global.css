@@ -150,3 +150,8 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* Ensure copy buttons in code blocks have cursor pointer */
+button[aria-label="Copy Text"] {
+    cursor: pointer;
+}
