@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    @media (prefers-color-scheme: light) {
+      .logo-bg { fill: #5672C7; }
+      .logo-primary { fill: #759EC1; }
+      .logo-secondary { fill: #A8D2D7; }
+      .logo-accent { fill: #5773C8; }
+    }
+    @media (prefers-color-scheme: dark) {
+      .logo-bg { fill: #6682D7; }
+      .logo-primary { fill: #8BB4D1; }
+      .logo-secondary { fill: #B8DCE7; }
+      .logo-accent { fill: #6783D8; }
+    }
+  </style>
+
+  <!-- Background circle -->
+  <circle cx="16" cy="16" r="15" class="logo-bg"/>
+
+  <!-- Main geometric shape inspired by the logo -->
+  <path d="M8 12c0-2 1-4 3-5s4-1 6 0c1 1 2 2 2 4v6c0 2-1 4-3 5s-4 1-6 0c-1-1-2-2-2-4v-6z" class="logo-primary"/>
+
+  <!-- Secondary element -->
+  <path d="M12 8c2-1 4 0 5 1s2 3 2 5v4c0 1-1 2-2 2h-6c-1 0-2-1-2-2v-4c0-2 1-4 3-6z" class="logo-secondary"/>
+
+  <!-- Bottom accent -->
+  <rect x="10" y="22" width="12" height="6" rx="3" class="logo-accent"/>
+
+  <!-- Inner highlight -->
+  <ellipse cx="16" cy="14" rx="4" ry="6" fill="white" opacity="0.2"/>
+</svg>

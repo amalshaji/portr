@@ -1,0 +1,58 @@
+---
+title: Getting Started with Portr
+description: Learn what Portr is and how to get started with this self-hosted tunnel solution. Perfect for exposing local HTTP, TCP, or WebSocket connections to the internet.
+keywords: ['portr getting started', 'tunnel setup', 'self-hosted tunnel', 'HTTP tunnel', 'TCP tunnel', 'WebSocket tunnel', 'ngrok alternative']
+author: Portr Team
+lastModified: '2025-01-27'
+preview: 'Get started with Portr in minutes'
+---
+
+import { Card, Cards } from 'fumadocs-ui/components/card';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+Portr is a self-hosted tunnel solution designed for teams. It lets you expose local http, tcp or websocket connections to the internet.
+
+You can use the client to quickly tunnel http, tcp or websocket connections
+
+```bash
+portr http 9000
+```
+
+This command exposes your local http server running at port `9000` on a public https url.
+
+<Callout type="info">
+  Check out how to quickly create a tunnel and inspect requests using portr inspector in the [HTTP tunnel guide](/docs/client/http-tunnel).
+</Callout>
+
+## What you'll need
+
+To get started with Portr, you'll need:
+
+1. **A Portr server** - Either set up your own or use an existing one
+2. **The Portr client** - Install it on your local machine
+3. **A local service** - Something running on your machine that you want to expose
+
+## Next Steps
+
+<Cards>
+  <Card title="Install the Client" href="/docs/client/installation">
+    Download and set up the Portr client on your machine.
+  </Card>
+  <Card title="Set up a Server" href="/docs/server">
+    Deploy your own Portr server with Docker.
+  </Card>
+  <Card title="Create HTTP Tunnels" href="/docs/client/http-tunnel">
+    Learn how to expose HTTP services to the internet.
+  </Card>
+  <Card title="Local Development" href="/docs/local-development">
+    Set up Portr for local development and contribution.
+  </Card>
+</Cards>
+
+## Key Features
+
+- **Multiple tunnel types**: HTTP, TCP, and WebSocket support
+- **Admin dashboard**: Monitor connections and manage teams
+- **Request inspector**: Debug HTTP requests with built-in inspector
+- **Team management**: Collaborate with team members
+- **Self-hosted**: Full control over your tunneling infrastructure

@@ -1,0 +1,183 @@
+---
+title: Using Route53 Instead of Cloudflare
+description: Learn how to setup portr with AWS Route53 for DNS management
+---
+
+import { Steps } from 'fumadocs-ui/components/steps';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+If you prefer to use AWS Route53 instead of Cloudflare for DNS management, you can configure Portr to work with Route53 for SSL certificate provisioning.
+
+<Callout type="info">
+  The [Caddy base image](https://github.com/amalshaji/caddy-docker-proxy) used by Portr is built with both Cloudflare and Route53 plugins.
+</Callout>
+
+## Setup Process
+
+### Create an IAM Policy
+
+Create an IAM policy using the template provided in [libdns/route53](https://github.com/libdns/route53#authenticating).
+
+<Callout type="caution">
+  Make sure you replace the hosted zone in the template with your actual hosted zone ID:
+
+  ```diff
+  - arn:aws:route53:::hostedzone/ZABCD1EFGHIL
+  + arn:aws:route53:::hostedzone/<your-hosted-zone-id>
+  ```
+</Callout>
+
+Here's the complete IAM policy template:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "route53:GetChange"
+            ],
+            "Resource": [
+                "arn:aws:route53:::change/*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "route53:ChangeResourceRecordSets",
+                "route53:ListResourceRecordSets"
+            ],
+            "Resource": [
+                "arn:aws:route53:::hostedzone/<your-hosted-zone-id>"
+            ]
+        }
+    ]
+}
+```
+
+### Create an IAM User
+
+1. Create a new IAM user in the AWS console
+2. Attach the policy created in step 1 to this user
+3. Note down the username for reference
+
+### Generate Access Keys
+
+1. Go to the user → **Security credentials**
+2. Click **Create access key**
+3. Choose **Command Line Interface (CLI)** as the use case
+4. Download or copy the access key ID and secret access key
+
+### Update Environment Variables
+
+Add the Route53 credentials to your `.env` file:
+
+```diff title=".env"
+- CLOUDFLARE_API_TOKEN=
++ ROUTE53_ACCESS_KEY=<access-key-id>
++ ROUTE53_SECRET_ACCESS_KEY=<secret-access-key>
+```
+
+### Update Docker Compose Configuration
+
+Modify the Caddy labels in the tunnel service to use Route53 instead of Cloudflare:
+
+```diff title="docker-compose.yaml"
+labels:
+  caddy_1: "*.$PORTR_DOMAIN"
+  caddy_1.reverse_proxy: "{{upstreams http 8001}}"
+-  caddy_1.tls.dns: "cloudflare $CLOUDFLARE_API_TOKEN"
++  caddy_1.tls.dns: "route53"
++  caddy_1.tls.dns.access_key_id: "$ROUTE53_ACCESS_KEY"
++  caddy_1.tls.dns.secret_access_key: "$ROUTE53_SECRET_ACCESS_KEY"
+  caddy_1.encode: gzip
+```
+
+### Start the Services
+
+Start your Portr services:
+
+```bash
+docker compose up -d
+```
+
+Navigate to your domain to verify the tunnel is working correctly.
+
+## DNS Configuration
+
+Make sure your Route53 hosted zone has the required DNS records:
+
+| Type | Name | Value |
+|------|------|-------|
+| A    | @    | your-server-ipv4 |
+| A    | *    | your-server-ipv4 |
+
+## Security Considerations
+
+- **Minimal permissions**: The IAM policy grants only the necessary permissions for DNS management
+- **Dedicated user**: Use a dedicated IAM user for Portr, not your root AWS account
+- **Key rotation**: Regularly rotate your access keys for enhanced security
+- **Environment variables**: Never commit AWS credentials to version control
+
+## Troubleshooting
+
+### Certificate Issues
+
+If SSL certificates aren't being issued:
+
+1. **Verify permissions**: Ensure the IAM user has the correct permissions
+2. **Check hosted zone**: Confirm the hosted zone ID is correct
+3. **DNS propagation**: Wait for DNS changes to propagate (can take up to 48 hours)
+4. **Review logs**: Check Caddy logs for detailed error messages
+
+### Testing Your Setup
+
+Verify your Route53 configuration:
+
+```bash
+# Check if DNS records are accessible
+dig your-domain.com
+
+# Test wildcard subdomain resolution
+dig test.your-domain.com
+
+# Verify SSL certificate
+openssl s_client -connect your-domain.com:443 -servername your-domain.com
+```
+
+## Cost Considerations
+
+AWS Route 53 uses a tiered pricing structure as of 2025:
+
+### Hosted Zone Pricing
+- **First 25 hosted zones**: $0.50 per hosted zone per month
+- **Additional hosted zones**: $0.10 per hosted zone per month (zones 26+)
+- **Record sets**: No additional charge for the first 10,000 record sets per hosted zone
+- **Additional record sets**: $0.50 per 10,000 record sets per month
+- **Deletion policy**: No charge for deleting hosted zones, but billing continues until end of billing period
+
+### DNS Query Pricing
+
+| Query Type | Volume | Price per Million Queries |
+|------------|--------|---------------------------|
+| Standard queries | First 1 billion/month | $0.40 |
+| Standard queries | Over 1 billion/month | $0.20 |
+| Latency-based routing | First 1 billion/month | $0.60 |
+| Latency-based routing | Over 1 billion/month | $0.30 |
+| Geo DNS queries | First 1 billion/month | $0.70 |
+| Geo DNS queries | Over 1 billion/month | $0.35 |
+| Alias queries | All volumes | **Free** |
+| Private hosted zone queries | All volumes | **Free** |
+
+### Additional Services
+- **Health checks**: $0.50 per health check per month
+- **Application Recovery Controller**: Additional costs apply
+- **DNS Firewall**: Additional costs for rules and query volume
+- **Resolver**: Additional costs for inbound/outbound endpoints
+
+For most Portr deployments, the DNS costs will be minimal, typically under $1-2 per month for standard usage.
+
+---
+*Last updated: July 2025*  
+*For the most current pricing information, visit the [official AWS Route 53 pricing page](https://aws.amazon.com/route53/pricing/).*

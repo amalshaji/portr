@@ -1,0 +1,125 @@
+---
+title: Portr Documentation
+description: Self-hosted tunnel solution designed for teams. Expose local HTTP, TCP, or WebSocket connections to the public internet with admin dashboard, request inspector, and team collaboration.
+keywords: ['portr', 'tunnel', 'ngrok alternative', 'self-hosted', 'HTTP tunnel', 'TCP tunnel', 'WebSocket', 'team collaboration', 'request inspector', 'localhost tunnel', 'documentation']
+author: Portr Team
+lastModified: '2025-01-27'
+preview: 'Complete documentation for Portr, the self-hosted tunnel solution'
+---
+
+import { Card, Cards } from 'fumadocs-ui/components/card';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+Portr is a self-hosted tunnel solution designed for teams. It lets you expose local HTTP, TCP, or WebSocket connections to the internet with a simple command-line interface.
+
+You can use the client to quickly tunnel HTTP, TCP, or WebSocket connections:
+
+```bash
+portr http 9000
+```
+
+This command exposes your local HTTP server running at port `9000` on a public HTTPS URL.
+
+## Demo Videos
+
+<Callout type="info">
+  Check out these videos to see Portr in action and learn how to use its key features.
+</Callout>
+
+### Portr Inspector - Request Debugging
+
+See how to quickly create a tunnel and inspect HTTP requests using the built-in Portr inspector:
+
+<iframe 
+  width="100%" 
+  height="315" 
+  src="https://www.youtube.com/embed/_4tipDzuoSs" 
+  title="Portr Inspector Demo" 
+  frameBorder="0" 
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+  allowFullScreen
+  className="rounded-lg"
+></iframe>
+
+### Admin Dashboard Overview
+
+A quick walkthrough of the admin dashboard where you can monitor connections, create and manage teams and team members:
+
+<iframe 
+  width="100%" 
+  height="315" 
+  src="https://www.youtube.com/embed/Wv5j3YQk3Ew" 
+  title="Portr Admin Dashboard Demo" 
+  frameBorder="0" 
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+  allowFullScreen
+  className="rounded-lg"
+></iframe>
+
+## Key Features
+
+<Cards>
+  <Card title="Admin Dashboard" href="/docs/server">
+    Complete web interface to monitor active connections, manage teams, and control access permissions.
+  </Card>
+  <Card title="Request Inspector" href="/docs/client/http-tunnel">
+    Built-in HTTP request inspector to debug, analyze, and replay requests in real-time.
+  </Card>
+  <Card title="Multiple Protocols" href="/docs/client">
+    Support for HTTP, TCP, and WebSocket tunnels with custom subdomain support.
+  </Card>
+  <Card title="Team Collaboration" href="/docs/server">
+    Create teams, invite members, and share tunnel access across your organization.
+  </Card>
+  <Card title="Self-Hosted" href="/docs/server/start-the-tunnel-server">
+    Deploy on your own infrastructure with full control over your tunneling solution.
+  </Card>
+  <Card title="Easy Setup" href="/docs/client/installation">
+    Simple installation with homebrew, install script, or direct binary download.
+  </Card>
+</Cards>
+
+## Use Cases
+
+Portr is perfect for:
+
+- **Local Development**: Share your development server with teammates or clients
+- **Webhook Testing**: Receive webhooks from external services during development  
+- **API Integration**: Test API integrations with third-party services
+- **Demo Presentations**: Show your work to clients without complex deployments
+- **IoT Development**: Expose local services for IoT device communication
+- **Database Access**: Tunnel database connections for remote development
+
+## Quick Start Guide
+
+<Cards>
+  <Card title="1. Get Started" href="/docs/getting-started">
+    Learn what Portr is and how it can help your development workflow.
+  </Card>
+  <Card title="2. Install Client" href="/docs/client/installation">
+    Download and set up the Portr client on your machine.
+  </Card>
+  <Card title="3. Deploy Server" href="/docs/server">
+    Set up your own Portr server or connect to an existing one.
+  </Card>
+  <Card title="4. Create Tunnels" href="/docs/client/http-tunnel">
+    Start creating secure tunnels to expose your local services.
+  </Card>
+</Cards>
+
+## Community & Resources
+
+<Cards>
+  <Card title="GitHub Repository" href="https://github.com/amalshaji/portr">
+    View source code, report issues, and contribute to the project.
+  </Card>
+  <Card title="Hacker News Discussion" href="https://news.ycombinator.com/item?id=39913197">
+    Join the community discussion with 172+ comments and feedback.
+  </Card>
+  <Card title="Local Development" href="/docs/local-development">
+    Set up Portr for development and contribute to the project.
+  </Card>
+  <Card title="Additional Resources" href="/docs/resources">
+    Extra guides, integrations, and advanced configuration options.
+  </Card>
+</Cards>

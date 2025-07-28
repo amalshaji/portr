@@ -1,0 +1,149 @@
+---
+title: Admin Development Setup
+description: Learn how to setup portr admin for local development
+---
+
+import { Steps } from 'fumadocs-ui/components/steps';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+The admin dashboard is built using Python (FastAPI) for the backend and Svelte for the frontend.
+
+## Requirements
+
+- **[rye](https://github.com/astral-sh/rye)** (0.43.0+) - Python package manager
+- **Node.js** (20+)
+- **pnpm** (9.15.0+)
+- **PostgreSQL** (16+)
+
+## Frontend Setup
+
+### Install frontend dependencies
+
+```shell
+make installclient
+```
+
+### Start the frontend development server
+
+```shell
+make runclient
+```
+
+This starts the Svelte development server with hot reloading enabled.
+
+## Backend Setup
+
+### Navigate to the admin directory
+
+```shell
+cd admin
+```
+
+### Install Python dependencies
+
+```shell
+rye sync
+```
+
+This sets up the relevant Python version and installs packages in a virtual environment.
+
+### Configure environment variables
+
+Create a new `.env` file using the `.env.template` file as a reference. Ensure the following environment variables are set:
+
+```bash title=".env"
+PORTR_ADMIN_ENCRYPTION_KEY=your_encryption_key_here
+PORTR_ADMIN_GITHUB_CLIENT_ID=your_github_client_id  # optional
+PORTR_ADMIN_GITHUB_CLIENT_SECRET=your_github_secret  # optional
+PORTR_DB_URL=postgres://postgres:postgres@localhost:5432/postgres
+```
+
+Generate an encryption key:
+
+```shell
+python -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
+```
+
+### Start the backend server
+
+```shell
+make runserver
+```
+
+This runs the database migrations and starts the FastAPI server at [http://localhost:8000](http://localhost:8000).
+
+## Development Workflow
+
+### File Structure
+
+```
+admin/
+├── apis/           # API routes and endpoints
+├── config/         # Configuration files
+├── models/         # Database models
+├── schemas/        # Pydantic schemas
+├── services/       # Business logic
+├── static/         # Static assets
+├── templates/      # HTML templates
+├── tests/          # Test files
+└── web/            # Svelte frontend source
+```
+
+### Available Commands
+
+Check out the available make targets:
+
+```bash
+# View all available commands
+make help
+
+# Run tests
+make test
+
+# Format code
+make format
+
+# Run linting
+make lint
+
+# Build the frontend
+make buildclient
+```
+
+### Configuration
+
+For detailed configuration options, check out the [admin config file](https://github.com/amalshaji/portr/blob/main/admin/config/settings.py).
+
+<Callout type="info">
+  The admin server needs to be running before you can test tunnel connections, as it manages authentication and tunnel coordination.
+</Callout>
+
+## Database Management
+
+### Running Migrations
+
+Migrations are automatically run when you start the server with `make runserver`. To run them manually:
+
+```shell
+# From the admin directory
+rye run python -m alembic upgrade head
+```
+
+### Creating New Migrations
+
+When you modify database models:
+
+```shell
+# Generate a new migration
+rye run python -m alembic revision --autogenerate -m "Description of changes"
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Port conflicts**: Make sure port 8000 isn't being used by another service.
+
+**Database connection errors**: Verify your PostgreSQL instance is running and the connection string is correct.
+
+**Frontend build errors**: Ensure Node.js and pnpm versions meet the requirements.

@@ -1,0 +1,9 @@
+{
+  "title": "Server",
+  "pages": [
+    "index",
+    "start-the-tunnel-server",
+    "cloudflare-api-token",
+    "github-oauth-app"
+  ]
+}

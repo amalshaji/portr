@@ -1,0 +1,11 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "index",
+    "getting-started",
+    "client",
+    "server",
+    "local-development",
+    "resources"
+  ]
+}

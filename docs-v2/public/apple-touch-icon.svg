@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5672C7"/>
+      <stop offset="100%" stop-color="#759EC1"/>
+    </linearGradient>
+    <linearGradient id="primary" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#759EC1"/>
+      <stop offset="100%" stop-color="#A8D2D7"/>
+    </linearGradient>
+    <linearGradient id="secondary" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#78A0C3"/>
+      <stop offset="100%" stop-color="#ABD4D6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="180" height="180" fill="url(#bg)"/>
+
+  <!-- Main logo elements scaled for touch icon -->
+  <path d="M45 65c0-12 6-24 18-30s24-6 36 0c6 6 12 12 12 24v36c0 12-6 24-18 30s-24 6-36 0c-6-6-12-12-12-24V65z" fill="url(#primary)"/>
+
+  <path d="M65 40c12-6 24 0 30 6s12 18 12 30v24c0 6-6 12-12 12H65c-6 0-12-6-12-12V76c0-12 6-24 18-36z" fill="url(#secondary)"/>
+
+  <rect x="55" y="125" width="70" height="35" rx="17" fill="#5773C8"/>
+
+  <!-- Highlight for depth -->
+  <ellipse cx="90" cy="80" rx="22" ry="32" fill="white" opacity="0.25"/>
+</svg>
