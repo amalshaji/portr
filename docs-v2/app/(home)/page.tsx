@@ -90,7 +90,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4 justify-center items-center mb-8 px-4 sm:px-0">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8 px-4 sm:px-0">
             <Link
               href="/docs"
               className="w-full md:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-fd-primary text-fd-primary-foreground font-semibold rounded-lg hover:opacity-90 transition-opacity text-base sm:text-lg text-center"
