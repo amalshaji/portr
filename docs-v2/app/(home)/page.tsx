@@ -62,7 +62,7 @@ export default function HomePage() {
           {/* Interactive Terminal Demo */}
           <div className="w-full flex justify-center mb-8 px-4 sm:px-0">
             <div className="w-full max-w-2xl overflow-x-auto">
-              <Terminal className="w-full min-w-fit mx-auto">
+              <Terminal className="w-full min-w-0 mx-auto">
                 <AnimatedSpan delay={0} className="flex gap-1">
                   <span className="text-green-600 dark:text-green-400">$ </span>
                   <TypingAnimation delay={500}>portr http 9000</TypingAnimation>
@@ -92,7 +92,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4 justify-center items-center mb-8 px-4 sm:px-0">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8 px-4 sm:px-0">
             <Link
               href="/docs"
               className="w-full md:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-fd-primary text-fd-primary-foreground font-semibold rounded-lg hover:opacity-90 transition-opacity text-base sm:text-lg text-center"
