@@ -62,7 +62,7 @@ export default function HomePage() {
           {/* Interactive Terminal Demo */}
           <div className="w-full flex justify-center mb-8 px-4 sm:px-0">
             <div className="w-full max-w-2xl overflow-x-auto">
-              <Terminal className="w-full min-w-fit mx-auto">
+              <Terminal className="w-full min-w-0 mx-auto">
                 <AnimatedSpan delay={0} className="flex gap-1">
                   <span className="text-green-400">$ </span>
                   <TypingAnimation delay={500}>portr http 9000</TypingAnimation>
