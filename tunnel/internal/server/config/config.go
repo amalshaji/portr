@@ -86,8 +86,9 @@ func new() *Config {
 		UseLocalHost: os.Getenv("PORTR_TUNNEL_USE_LOCALHOST") == "true",
 		Debug:        os.Getenv("PORTR_TUNNEL_DEBUG") == "true",
 		Database: DatabaseConfig{
-			Url:    dbUrl,
-			Driver: dbDriver,
+			Url:         dbUrl,
+			Driver:      dbDriver,
+			AutoMigrate: os.Getenv("PORTR_AUTO_MIGRATE") == "true",
 		},
 	}
 }

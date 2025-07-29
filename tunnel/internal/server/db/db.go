@@ -2,6 +2,8 @@ package db
 
 import (
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/amalshaji/portr/internal/server/config"
@@ -35,6 +37,13 @@ func (d *Db) Connect() {
 				dbPath = parts[1]
 			}
 		}
+		
+		// Ensure the directory exists for SQLite database
+		dbDir := filepath.Dir(dbPath)
+		if err := os.MkdirAll(dbDir, 0755); err != nil {
+			log.Fatalf("failed to create database directory: %v", err)
+		}
+		
 		d.Conn, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	case "postgres", "postgresql":
 		d.Conn, err = gorm.Open(postgres.Open(d.config.Url), &gorm.Config{})

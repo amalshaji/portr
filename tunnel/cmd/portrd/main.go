@@ -149,8 +149,35 @@ func runMigrations(dialect string) error {
 	return nil
 }
 
+// runAutoMigrations runs migrations if AutoMigrate is enabled in config
+func runAutoMigrations(cfg *config.Config) error {
+	if !cfg.Database.AutoMigrate {
+		return nil
+	}
+
+	log.Info("Running auto-migrations...")
+
+	// Map database driver to dialect
+	var dialect string
+	switch cfg.Database.Driver {
+	case "sqlite3", "sqlite":
+		dialect = "sqlite"
+	case "postgres", "postgresql":
+		dialect = "postgres"
+	default:
+		return fmt.Errorf("unsupported database driver for auto-migration: %s", cfg.Database.Driver)
+	}
+
+	return runMigrations(dialect)
+}
+
 func startTunnel(configFilePath string) {
 	config := config.Load(configFilePath)
+
+	// Run auto-migrations if enabled
+	if err := runAutoMigrations(config); err != nil {
+		log.Fatal("Failed to run auto-migrations", "error", err)
+	}
 
 	_db := db.New(&config.Database)
 	_db.Connect()
@@ -182,6 +209,12 @@ func startAdmin() error {
 
 	// Connect to database
 	tunnelConfig := config.Load("")
+
+	// Run auto-migrations if enabled
+	if err := runAutoMigrations(tunnelConfig); err != nil {
+		return fmt.Errorf("failed to run auto-migrations: %w", err)
+	}
+
 	_db := db.New(&tunnelConfig.Database)
 	_db.Connect()
 
@@ -207,6 +240,11 @@ func startAll(configFilePath string) error {
 	// Load configurations
 	tunnelConfig := config.Load(configFilePath)
 	adminCfg := adminConfig.Load()
+
+	// Run auto-migrations if enabled
+	if err := runAutoMigrations(tunnelConfig); err != nil {
+		return fmt.Errorf("failed to run auto-migrations: %w", err)
+	}
 
 	_db := db.New(&tunnelConfig.Database)
 	_db.Connect()

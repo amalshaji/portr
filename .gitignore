@@ -10,5 +10,7 @@ postgres-data
 node_modules
 .mypy_cache
 data/
+!tunnel/data/
+tunnel/data/sqlite.db
 dist
 !tunnel/internal/client/dashboard/dist
