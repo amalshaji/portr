@@ -10,8 +10,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/amalshaji/portr/internal/admin"
-	adminConfig "github.com/amalshaji/portr/internal/admin/config"
+	"github.com/amalshaji/portr/internal/server/admin"
 	"github.com/amalshaji/portr/internal/server/config"
 	"github.com/amalshaji/portr/internal/server/cron"
 	"github.com/amalshaji/portr/internal/server/db"
@@ -204,18 +203,16 @@ func startTunnel(configFilePath string) {
 }
 
 func startAdmin() error {
-	// Load admin configuration
-	cfg := adminConfig.Load()
-
-	// Connect to database
-	tunnelConfig := config.Load("")
+	// Load configuration
+	fullConfig := config.Load("")
+	cfg := &fullConfig.Admin
 
 	// Run auto-migrations if enabled
-	if err := runAutoMigrations(tunnelConfig); err != nil {
+	if err := runAutoMigrations(fullConfig); err != nil {
 		return fmt.Errorf("failed to run auto-migrations: %w", err)
 	}
 
-	_db := db.New(&tunnelConfig.Database)
+	_db := db.New(&fullConfig.Database)
 	_db.Connect()
 
 	adminServer := admin.NewServer(cfg, _db.Conn)
@@ -239,7 +236,7 @@ func startAdmin() error {
 func startAll(configFilePath string) error {
 	// Load configurations
 	tunnelConfig := config.Load(configFilePath)
-	adminCfg := adminConfig.Load()
+	adminCfg := &tunnelConfig.Admin
 
 	// Run auto-migrations if enabled
 	if err := runAutoMigrations(tunnelConfig); err != nil {

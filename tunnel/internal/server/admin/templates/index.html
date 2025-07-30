@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="shortcut icon" href="/static/favicon.svg" type="image/svg+xml" />
+    <title>
+      Portr - Expose local http, tcp or websocket connections to the public
+      internet
+    </title>
+    <style>
+      @font-face {
+        font-family: "Manrope Variable";
+        src: url("/static/Manrope-VariableFont_wght.ttf") format("woff2");
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    {{if .UseVite}}
+    <script
+      type="module"
+      src="http://localhost:5173/static/@vite/client"
+    ></script>
+    <script
+      type="module"
+      src="http://localhost:5173/static/src/main.ts"
+    ></script>
+    {{else}}{{.ViteTags}}{{end}}
+  </body>
+</html>
