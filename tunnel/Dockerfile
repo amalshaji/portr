@@ -22,7 +22,7 @@ LABEL maintainer="Amal Shaji" \
     org.opencontainers.image.description="Server for Portr" \
     org.opencontainers.image.source="https://github.com/amalshaji/portr"
 
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates curl
 
 RUN addgroup -S portr && adduser -S portr -G portr
 
