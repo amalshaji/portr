@@ -6,6 +6,7 @@
     "build": "next build",
     "dev": "next dev --turbo",
     "start": "next start",
+    "export": "next build",
     "mdx": "fumadocs-mdx"
   },
   "dependencies": {
