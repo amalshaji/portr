@@ -17,6 +17,7 @@ RUN apk add --no-cache gcc musl-dev
 WORKDIR /app
 
 COPY go.mod go.sum ./
+
 RUN go mod download
 
 COPY . ./
@@ -36,19 +37,13 @@ LABEL maintainer="Amal Shaji" \
 
 RUN apk --no-cache add ca-certificates curl
 
-RUN addgroup -S portr && adduser -S portr -G portr
-
 WORKDIR /app
 
 COPY --from=builder /app/portrd /app/
 COPY --from=builder /app/migrations /app/migrations
 COPY --from=web-builder /app/static /app/internal/server/admin/static
 
-RUN mkdir -p /app/data && chown portr:portr /app/data /app/portrd
-
-RUN ls -l /app
-
-USER portr
+RUN mkdir -p /app/data
 
 EXPOSE 2222 8000 8001
 
