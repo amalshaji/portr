@@ -11,7 +11,7 @@
   import { writable } from "svelte/store";
   import Pagination from "../Pagination.svelte";
   import Avatar from "./avatar.svelte";
-  import Delete from "./delete.svelte";
+  import UserActions from "./user-actions.svelte";
   import UserEmail from "./user-email.svelte";
   import { UserPlus } from "lucide-svelte";
 
@@ -81,7 +81,7 @@
       accessor: (item: TeamUser) => item,
       header: "",
       cell: (item: any) =>
-        createRender(Delete, {
+        createRender(UserActions, {
           user: item.value,
         }),
     }),

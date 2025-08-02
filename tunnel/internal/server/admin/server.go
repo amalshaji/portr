@@ -145,6 +145,7 @@ func (s *Server) setupTeamRoutes(v1 fiber.Router) {
 	teamGroup.Get("/users", s.auth.RequireTeamUser, teamHandler.GetTeamUsers)
 	teamGroup.Post("/add", s.auth.RequireAdmin, teamHandler.AddUser)
 	teamGroup.Delete("/users/:id", s.auth.RequireAdmin, teamHandler.RemoveUser)
+	teamGroup.Post("/users/:id/reset-password", s.auth.RequireAdmin, teamHandler.ResetUserPassword)
 }
 
 func (s *Server) setupConnectionRoutes(v1 fiber.Router) {

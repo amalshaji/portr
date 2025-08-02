@@ -68,6 +68,10 @@ type AddUserResponse struct {
 	Password *string                  `json:"password,omitempty"`
 }
 
+type ResetPasswordResponse struct {
+	Password string `json:"password"`
+}
+
 func (h *Handler) CreateTeam(c *fiber.Ctx) error {
 	user := middleware.GetCurrentUser(c)
 	if user == nil || !user.IsSuperuser {
@@ -517,6 +521,70 @@ func (h *Handler) RemoveUser(c *fiber.Ctx) error {
 	tx.Commit()
 
 	return c.JSON(fiber.Map{"status": "ok"})
+}
+
+func (h *Handler) ResetUserPassword(c *fiber.Ctx) error {
+	teamUser := middleware.GetCurrentTeamUser(c)
+	if teamUser == nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Team context required",
+		})
+	}
+
+	// Only superusers can reset passwords
+	if !teamUser.User.IsSuperuser {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "Superuser access required",
+		})
+	}
+
+	teamUserID, paramErr := c.ParamsInt("id")
+	if paramErr != nil || teamUserID == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid team user ID",
+		})
+	}
+
+	// Find team user to reset password for
+	var targetTeamUser models.TeamUser
+	err := h.db.Preload("User").Where("id = ? AND team_id = ?", teamUserID, teamUser.TeamID).First(&targetTeamUser).Error
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "User not found in team",
+		})
+	}
+
+	// Generate new password
+	newPassword := generateRandomPassword()
+
+	// Start transaction
+	tx := h.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Update user's password
+	if err := targetTeamUser.User.SetPassword(newPassword); err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to hash password",
+		})
+	}
+
+	if err := tx.Save(&targetTeamUser.User).Error; err != nil {
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update user password",
+		})
+	}
+
+	tx.Commit()
+
+	return c.JSON(ResetPasswordResponse{
+		Password: newPassword,
+	})
 }
 
 func generateRandomPassword() string {
