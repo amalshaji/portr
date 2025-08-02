@@ -57,7 +57,7 @@ func generateViteTagsInternal() string {
 }
 
 func findManifestPath() string {
-	manifestPath := "internal/admin/static/.vite/manifest.json"
+	manifestPath := "internal/server/admin/static/.vite/manifest.json"
 
 	if _, err := os.Stat(manifestPath); err == nil {
 		return manifestPath
