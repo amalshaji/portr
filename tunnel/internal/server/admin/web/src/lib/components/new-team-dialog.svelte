@@ -17,7 +17,10 @@
   const handleTeamNameChange = (e: Event) => {
     teamName = (e.target as HTMLInputElement).value;
     // Generate the slug automatically
-    teamSlug = teamName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    teamSlug = teamName
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "");
   };
 
   const createTeam = async () => {
@@ -39,12 +42,12 @@
       const response = await fetch("/api/v1/team", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           name: teamName,
-          slug: teamSlug
-        })
+          slug: teamSlug,
+        }),
       });
 
       const data = await response.json();
@@ -55,7 +58,7 @@
         // Navigate to the new team
         navigate(`/${teamSlug}/overview`);
       } else {
-        error = data.message || "Failed to create team";
+        error = data.error || data.message || "Failed to create team";
       }
     } catch (err) {
       console.error(err);
@@ -95,7 +98,10 @@
           class="text-sm font-mono bg-gray-50"
           readonly
         />
-        <p class="text-xs text-gray-500">The slug will be used in URLs and is automatically generated from the team name</p>
+        <p class="text-xs text-gray-500">
+          The slug will be used in URLs and is automatically generated from the
+          team name
+        </p>
       </div>
 
       {#if error}
@@ -105,7 +111,10 @@
 
     <AlertDialog.Footer>
       <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-      <Button on:click={createTeam} disabled={submitting || !teamName || !teamSlug}>
+      <Button
+        on:click={createTeam}
+        disabled={submitting || !teamName || !teamSlug}
+      >
         {#if submitting}
           <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
         {/if}

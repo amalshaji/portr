@@ -2,7 +2,7 @@
   import { Button } from "$lib/components/ui/button";
   import * as Card from "$lib/components/ui/card";
   import { Input } from "$lib/components/ui/input";
-  import { LoaderCircle  } from "lucide-svelte";
+  import { LoaderCircle } from "lucide-svelte";
   import { toast } from "svelte-sonner";
   import ErrorText from "../../lib/components/ErrorText.svelte";
 
@@ -31,7 +31,9 @@
         const data = await res.json();
         location.href = `/${data.slug}/overview`;
       } else {
-        teamNameError = (await res.json()).message;
+        const errorData = await res.json();
+        teamNameError =
+          errorData.error || errorData.message || "Failed to create team";
         toast.error("Something went wrong");
       }
     } catch (err) {

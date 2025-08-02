@@ -3,9 +3,11 @@ package team
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"strings"
 
 	"github.com/amalshaji/portr/internal/server/admin/middleware"
 	"github.com/amalshaji/portr/internal/server/admin/models"
+	"github.com/charmbracelet/log"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
 	"gorm.io/gorm"
@@ -68,6 +70,15 @@ type AddUserResponse struct {
 func (h *Handler) CreateTeam(c *fiber.Ctx) error {
 	user := middleware.GetCurrentUser(c)
 	if user == nil || !user.IsSuperuser {
+		log.Warn("CreateTeam: Unauthorized access attempt",
+			"user_id", func() interface{} {
+				if user != nil {
+					return user.ID
+				} else {
+					return nil
+				}
+			}(),
+			"is_superuser", user != nil && user.IsSuperuser)
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Superuser access required",
 		})
@@ -75,21 +86,92 @@ func (h *Handler) CreateTeam(c *fiber.Ctx) error {
 
 	var input NewTeamInput
 	if err := c.BodyParser(&input); err != nil {
+		log.Error("CreateTeam: Invalid input", "user_id", user.ID, "error", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid input",
 		})
 	}
+
+	log.Info("CreateTeam: Starting team creation",
+		"user_id", user.ID,
+		"user_email", user.Email,
+		"team_name", input.Name)
+
+	// Start transaction
+	tx := h.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("CreateTeam: Transaction panic recovered", "panic", r)
+			tx.Rollback()
+		}
+	}()
 
 	// Create team
 	team := &models.Team{
 		Name: input.Name,
 	}
 
-	if err := h.db.Create(team).Error; err != nil {
+	if err := tx.Create(team).Error; err != nil {
+		log.Error("CreateTeam: Failed to create team",
+			"team_name", input.Name,
+			"user_id", user.ID,
+			"error", err)
+		tx.Rollback()
+
+		// Check for specific constraint violations
+		if strings.Contains(err.Error(), "UNIQUE constraint failed: team.name") {
+			log.Warn("CreateTeam: Team name conflict", "team_name", input.Name)
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "A team with this name already exists, please choose a different name",
+			})
+		}
+
+		if strings.Contains(err.Error(), "UNIQUE constraint failed: team.slug") {
+			log.Warn("CreateTeam: Team slug conflict",
+				"team_name", input.Name,
+				"generated_slug", team.Slug)
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "A team with this name already exists, please choose a different name",
+			})
+		}
+
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Failed to create team",
 		})
 	}
+
+	log.Info("CreateTeam: Successfully created team",
+		"team_name", team.Name,
+		"team_id", team.ID,
+		"team_slug", team.Slug,
+		"user_id", user.ID)
+
+	// Add the creating user as an admin to the team
+	teamUser := &models.TeamUser{
+		UserID: user.ID,
+		TeamID: team.ID,
+		Role:   "admin",
+	}
+
+	if err := tx.Create(teamUser).Error; err != nil {
+		log.Error("CreateTeam: Failed to add user as admin to team",
+			"user_id", user.ID,
+			"team_id", team.ID,
+			"error", err)
+		tx.Rollback()
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to add user to team",
+		})
+	}
+
+	log.Info("CreateTeam: Successfully added user as admin to team",
+		"user_id", user.ID,
+		"team_id", team.ID)
+
+	tx.Commit()
+	log.Info("CreateTeam: Transaction committed successfully",
+		"team_name", team.Name,
+		"team_id", team.ID)
 
 	response := TeamResponse{
 		ID:   team.ID,
