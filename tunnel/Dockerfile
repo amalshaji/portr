@@ -1,3 +1,15 @@
+FROM node:22-alpine AS web-builder
+
+WORKDIR /app/web
+
+COPY internal/server/admin/web/package.json internal/server/admin/web/pnpm-lock.yaml ./
+
+RUN npm install -g pnpm && pnpm install
+
+COPY internal/server/admin/web ./
+
+RUN pnpm build
+
 FROM golang:1.24-alpine AS builder
 
 RUN apk add --no-cache gcc musl-dev
@@ -30,6 +42,7 @@ WORKDIR /app
 
 COPY --from=builder /app/portrd /app/
 COPY --from=builder /app/migrations /app/migrations
+COPY --from=web-builder /app/static /app/internal/server/admin/static
 
 RUN mkdir -p /app/data && chown portr:portr /app/data /app/portrd
 
