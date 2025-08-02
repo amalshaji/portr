@@ -6,9 +6,11 @@
     "build": "next build",
     "dev": "next dev --turbo",
     "start": "next start",
+    "export": "next build",
     "mdx": "fumadocs-mdx"
   },
   "dependencies": {
+    "@orama/orama": "^3.1.11",
     "fumadocs-core": "15.6.6",
     "fumadocs-mdx": "11.7.1",
     "fumadocs-ui": "15.6.6",
