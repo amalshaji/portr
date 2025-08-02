@@ -1,8 +1,9 @@
 import "@/app/global.css";
-import { RootProvider } from "fumadocs-ui/provider";
+import { Provider } from "./provider";
 import { GeistSans } from "geist/font/sans";
 import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 
 export const metadata: Metadata = {
   title: {
@@ -76,7 +77,13 @@ export default function Layout({ children }: { children: ReactNode }) {
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="flex flex-col min-h-screen">
-        <RootProvider>{children}</RootProvider>
+        <Provider>{children}</Provider>
+        {/* 100% privacy-first analytics */}
+        <Script
+          data-collect-dnt="true"
+          async
+          src="https://sa.portr.dev/latest.js"
+        />
       </body>
     </html>
   );

@@ -31,14 +31,14 @@ export const metadata: Metadata = {
       "Expose local HTTP, TCP, or WebSocket connections to the public internet with a self-hosted tunnel solution designed for teams.",
     type: "website",
     url: "https://portr.dev",
-    images: "/og-image",
+    images: "/og.png",
   },
   twitter: {
     card: "summary_large_image",
     title: "Portr - Self-Hosted Tunnel Solution for Teams",
     description:
       "Expose local HTTP, TCP, or WebSocket connections to the public internet with a self-hosted tunnel solution designed for teams.",
-    images: "/og-image",
+    images: "/og.png",
   },
 };
 

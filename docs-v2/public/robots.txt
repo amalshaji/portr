@@ -11,4 +11,3 @@ Disallow: /og-image
 
 # Allow everything else
 Allow: /docs/
-Allow: /api/search
