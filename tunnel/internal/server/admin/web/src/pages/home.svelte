@@ -143,7 +143,7 @@
       </div>
     {/if}
 
-    <div class="border-2 border-black bg-white">
+    <div class="border border-gray-200 bg-white">
       <div class="p-6">
         <form class="space-y-6" on:submit|preventDefault={login}>
           <div>

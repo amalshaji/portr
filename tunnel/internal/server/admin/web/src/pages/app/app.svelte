@@ -2,30 +2,28 @@
   import Home from "lucide-svelte/icons/home";
   import Users from "lucide-svelte/icons/users";
 
+  import NewTeamDialog from "$lib/components/new-team-dialog.svelte";
   import Sidebarlink from "$lib/components/sidebarlink.svelte";
   import TeamSelector from "$lib/components/team-selector.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
-  import Separator from "$lib/components/ui/separator/separator.svelte";
   import { currentUser } from "$lib/store";
   import {
     ArrowUpDown,
     EllipsisVertical,
-    LogOut,
-    User,
     HelpCircle,
+    LogOut,
     PlusCircle,
-    Settings2Icon,
+    User,
   } from "lucide-svelte";
   import { onMount, setContext } from "svelte";
-  import { Link, Route, Router, navigate } from "svelte-routing";
+  import { Route, Router, navigate } from "svelte-routing";
   import AppLayout from "../app-layout.svelte";
   import Notfound from "../notfound.svelte";
   import Connections from "./connections.svelte";
   import Myaccount from "./myaccount.svelte";
   import Overview from "./overview.svelte";
   import UsersPage from "./users.svelte";
-  import NewTeamDialog from "$lib/components/new-team-dialog.svelte";
 
   export let team: string;
   export let url = "";
@@ -57,6 +55,17 @@
   onMount(async () => {
     getLoggedInUser();
   });
+
+  const handleImageError = (e: Event) => {
+    const target = e.target as HTMLImageElement;
+    if (target) {
+      target.style.display = "none";
+      const sibling = target.nextElementSibling as HTMLElement;
+      if (sibling) {
+        sibling.style.display = "flex";
+      }
+    }
+  };
 </script>
 
 <NewTeamDialog bind:isOpen={newTeamDialogOpen} />
@@ -120,13 +129,19 @@
               Admin
             </h2>
             <nav class="grid gap-1 px-2">
-              <div
-                class="flex items-center gap-3 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-black cursor-pointer"
+              <button
+                class="flex items-center gap-3 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-black cursor-pointer w-full text-left"
                 on:click={() => (newTeamDialogOpen = true)}
+                on:keydown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    newTeamDialogOpen = true;
+                  }
+                }}
               >
                 <PlusCircle class="h-4 w-4 mr-2" />
                 New Team
-              </div>
+              </button>
             </nav>
           </div>
         {/if}
@@ -172,11 +187,7 @@
                         alt="{$currentUser.user.first_name ||
                           $currentUser.user.email} avatar"
                         style="border-radius: 0;"
-                        on:error={(e) => {
-                          // Hide broken image and show fallback
-                          e.target.style.display = "none";
-                          e.target.nextElementSibling.style.display = "flex";
-                        }}
+                        on:error={handleImageError}
                       />
                       <!-- Fallback for broken images -->
                       <div
@@ -248,7 +259,6 @@
       <Route path="/connections"><Connections /></Route>
       <Route path="/my-account"><Myaccount /></Route>
       <Route path="/users"><UsersPage /></Route>
-      <Route path="/email-settings"><EmailSettings /></Route>
       <Route path="*"><Notfound /></Route>
     </Router>
   </span>
