@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"strings"
 
 	"github.com/amalshaji/portr/internal/server/admin/models"
 	"github.com/amalshaji/portr/internal/server/admin/services"
@@ -267,51 +266,11 @@ func (h *Handler) GitHubCallback(c *fiber.Ctx) error {
 		// GitHub user doesn't exist, check if user with email exists
 		err = h.db.Where("email = ?", githubUser.Email).First(&user).Error
 		if err == gorm.ErrRecordNotFound {
-			// Check if this is the first user
-			var userCount int64
-			h.db.Model(&models.User{}).Count(&userCount)
-
-			// Create new user
-			user = models.User{
-				Email:       githubUser.Email,
-				IsSuperuser: userCount == 0, // First user becomes superuser
-			}
-
-			// Parse name
-			if githubUser.Name != "" {
-				parts := strings.SplitN(githubUser.Name, " ", 2)
-				user.FirstName = &parts[0]
-				if len(parts) > 1 {
-					user.LastName = &parts[1]
-				}
-			}
-
-			if err := h.db.Create(&user).Error; err != nil {
-				return c.Redirect("/?code=user-creation-failed", fiber.StatusFound)
-			}
-
-			// If this is the first user, create default team
-			if userCount == 0 {
-				team := &models.Team{
-					Name: "Default Team",
-				}
-				if err := h.db.Create(team).Error; err != nil {
-					return c.Redirect("/?code=team-creation-failed", fiber.StatusFound)
-				}
-
-				// Add user to team
-				teamUser := &models.TeamUser{
-					UserID: user.ID,
-					TeamID: team.ID,
-					Role:   models.RoleAdmin,
-				}
-				if err := h.db.Create(teamUser).Error; err != nil {
-					return c.Redirect("/?code=team-user-creation-failed", fiber.StatusFound)
-				}
-
-				log.Info("Created first superuser via GitHub", "email", user.Email)
-			}
+			// User doesn't exist - return error (matching original Python behavior)
+			log.Warn("GitHub user attempted login but no account exists", "email", githubUser.Email)
+			return c.Redirect("/?code=user-not-found", fiber.StatusFound)
 		} else if err != nil {
+			log.Error("Database error during GitHub user lookup", "error", err)
 			return c.Redirect("/?code=database-error", fiber.StatusFound)
 		}
 
@@ -335,12 +294,15 @@ func (h *Handler) GitHubCallback(c *fiber.Ctx) error {
 		return c.Redirect("/?code=session-creation-failed", fiber.StatusFound)
 	}
 
-	// Set session cookie
-	sess.Set("user_id", user.ID)
-	sess.Set("session_token", session.Token)
-	if err := sess.Save(); err != nil {
-		return c.Redirect("/?code=session-save-failed", fiber.StatusFound)
-	}
+	// Set authentication cookie (same as regular login)
+	c.Cookie(&fiber.Cookie{
+		Name:     "portr_session",
+		Value:    session.Token,
+		HTTPOnly: true,
+		Secure:   true,
+		MaxAge:   7 * 24 * 60 * 60,
+		SameSite: "Lax",
+	})
 
 	// Get next URL or default redirect
 	nextURL := sess.Get("portr_next_url")
@@ -353,9 +315,21 @@ func (h *Handler) GitHubCallback(c *fiber.Ctx) error {
 		}
 	}
 
-	// Default redirect to root - frontend will handle routing
+	// Get first team for redirect (same as regular login)
+	var team models.Team
+	h.db.Joins("JOIN team_users ON team_users.team_id = team.id").
+		Where("team_users.user_id = ?", user.ID).
+		First(&team)
+
+	if team.ID != 0 {
+		return c.Redirect("/"+team.Slug+"/overview", fiber.StatusFound)
+	}
+
+	// Fallback redirect to root
 	return c.Redirect("/", fiber.StatusFound)
-} // generateRandomString generates a random string of the specified length
+}
+
+// generateRandomString generates a random string of the specified length
 func generateRandomString(length int) (string, error) {
 	bytes := make([]byte, length)
 	if _, err := rand.Read(bytes); err != nil {

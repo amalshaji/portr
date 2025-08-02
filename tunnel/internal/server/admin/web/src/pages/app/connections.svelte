@@ -130,29 +130,31 @@
 </script>
 
 <div class="space-y-6">
-  <h1 class="text-2xl font-bold tracking-tight">Connections</h1>
+  <h1 class="text-2xl font-bold tracking-tight text-black">Connections</h1>
 
-  <Card.Root class="shadow-sm">
-    <Card.Header class="flex flex-col sm:flex-row sm:justify-between gap-4">
-      <div>
-        <Card.Title class="text-xl">Connection History</Card.Title>
-        <Card.Description>View and manage your tunnel connections</Card.Description>
-      </div>
-      <div class="flex items-center">
-        <div class="flex items-center space-x-2">
-          <Checkbox id="active-connections" bind:checked class="rounded-sm" />
-          <Label
-            for="active-connections"
-            class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-          >
-            Show active connections
-          </Label>
+  <div class="border border-gray-300 bg-white">
+    <div class="p-6 border-b border-gray-300">
+      <div class="flex flex-col sm:flex-row sm:justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-semibold text-black">Connection History</h2>
+          <p class="text-gray-600 mt-1">View and manage your tunnel connections</p>
+        </div>
+        <div class="flex items-center">
+          <div class="flex items-center space-x-2">
+            <Checkbox id="active-connections" bind:checked class="border border-gray-400 focus:border-black" style="border-radius: 0;" />
+            <Label
+              for="active-connections"
+              class="text-sm font-medium text-black leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Show active connections
+            </Label>
+          </div>
         </div>
       </div>
-    </Card.Header>
-    <Card.Content>
-      <div class="rounded-sm border overflow-hidden">
-        <div class="w-full flex justify-end p-2 border-b bg-gray-50">
+    </div>
+    <div class="p-6">
+      <div class="border border-gray-300 overflow-hidden">
+        <div class="w-full flex justify-end p-2 border-b border-gray-300 bg-gray-50">
           <Pagination count={totalItems} perPage={10} currentPage={pageNo} />
         </div>
         <DataTable
@@ -162,6 +164,6 @@
           noCard={true}
         />
       </div>
-    </Card.Content>
-  </Card.Root>
+    </div>
+  </div>
 </div>

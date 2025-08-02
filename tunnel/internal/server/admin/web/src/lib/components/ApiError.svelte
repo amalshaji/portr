@@ -5,10 +5,10 @@
   export let error: string | Record<string, any> = "";
 </script>
 
-<Alert.Root>
-  <ExclamationTriangle class="h-4 w-4" />
-  <Alert.Title>Error</Alert.Title>
-  <Alert.Description>
+<Alert.Root variant="destructive" class="border border-red-600 bg-red-50 text-red-800" style="border-radius: 0;">
+  <ExclamationTriangle class="h-4 w-4 text-red-600" />
+  <Alert.Title class="text-red-800">Error</Alert.Title>
+  <Alert.Description class="text-red-700">
     {#if typeof error === "string"}
       {error}
     {:else}

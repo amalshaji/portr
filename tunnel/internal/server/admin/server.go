@@ -23,6 +23,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/fiber/v2/middleware/session"
 	"github.com/gofiber/template/html/v2"
 	"gorm.io/gorm"
 )
@@ -39,6 +40,7 @@ type Server struct {
 	db        *db.AdminDB
 	auth      *middleware.AuthMiddleware
 	scheduler *scheduler.Scheduler
+	store     *session.Store
 	startTime time.Time
 }
 
@@ -64,12 +66,16 @@ func NewServer(cfg *serverConfig.AdminConfig, database *gorm.DB) *Server {
 		AllowCredentials: true,
 	}))
 
+	// Create session store
+	store := session.New()
+
 	server := &Server{
 		app:       app,
 		config:    cfg,
 		db:        db.New(database),
 		auth:      middleware.NewAuthMiddleware(database),
 		scheduler: scheduler.New(database),
+		store:     store,
 		startTime: time.Now(),
 	}
 
@@ -109,7 +115,7 @@ func (s *Server) setupRoutes() {
 }
 
 func (s *Server) setupAuthRoutes(v1 fiber.Router) {
-	authHandler := auth.NewHandler(s.db.DB, nil, s.config)
+	authHandler := auth.NewHandler(s.db.DB, s.store, s.config)
 	authGroup := v1.Group("/auth")
 
 	authGroup.Get("/auth-config", authHandler.GetAuthConfig)
@@ -121,7 +127,7 @@ func (s *Server) setupAuthRoutes(v1 fiber.Router) {
 }
 
 func (s *Server) setupUserRoutes(v1 fiber.Router) {
-	userHandler := user.NewHandler(s.db.DB, nil)
+	userHandler := user.NewHandler(s.db.DB, s.store)
 	userGroup := v1.Group("/user")
 
 	userGroup.Get("/me", s.auth.RequireTeamUser, userHandler.GetCurrentUser)
@@ -132,7 +138,7 @@ func (s *Server) setupUserRoutes(v1 fiber.Router) {
 }
 
 func (s *Server) setupTeamRoutes(v1 fiber.Router) {
-	teamHandler := team.NewHandler(s.db.DB, nil)
+	teamHandler := team.NewHandler(s.db.DB, s.store)
 	teamGroup := v1.Group("/team")
 
 	teamGroup.Post("/", s.auth.RequireSuperuser, teamHandler.CreateTeam)
@@ -142,7 +148,7 @@ func (s *Server) setupTeamRoutes(v1 fiber.Router) {
 }
 
 func (s *Server) setupConnectionRoutes(v1 fiber.Router) {
-	connHandler := connection.NewHandler(s.db.DB, nil)
+	connHandler := connection.NewHandler(s.db.DB, s.store)
 	connGroup := v1.Group("/connections")
 
 	connGroup.Get("/", s.auth.RequireTeamUser, connHandler.GetConnections)
@@ -150,7 +156,7 @@ func (s *Server) setupConnectionRoutes(v1 fiber.Router) {
 }
 
 func (s *Server) setupConfigRoutes(v1 fiber.Router) {
-	configHandler := config.NewHandler(s.db.DB, nil, s.config)
+	configHandler := config.NewHandler(s.db.DB, s.store, s.config)
 	configGroup := v1.Group("/config")
 
 	configGroup.Post("/download", configHandler.DownloadConfig)
@@ -159,7 +165,7 @@ func (s *Server) setupConfigRoutes(v1 fiber.Router) {
 }
 
 func (s *Server) setupInstanceSettingsRoutes(v1 fiber.Router) {
-	configHandler := config.NewHandler(s.db.DB, nil, s.config)
+	configHandler := config.NewHandler(s.db.DB, s.store, s.config)
 	instanceGroup := v1.Group("/instance-settings")
 
 	instanceGroup.Get("/", s.auth.RequireSuperuser, configHandler.GetInstanceSettings)
@@ -204,17 +210,6 @@ func errorHandler(c *fiber.Ctx, err error) error {
 	if e, ok := err.(*fiber.Error); ok {
 		code = e.Code
 		message = e.Message
-	}
-
-	// Filter out misleading 404 errors for team/add endpoint
-	// This is a known Fiber quirk where successful requests sometimes trigger
-	// post-response 404 errors
-	if code == 404 && c.Path() == "/api/v1/team/add" && c.Method() == "POST" {
-		log.Debug("Ignoring misleading 404 for successful team/add request",
-			"path", c.Path(),
-			"method", c.Method())
-		// Don't return an error response since this is likely after a successful response
-		return nil
 	}
 
 	log.Error("Request error", "error", err, "status_code", code)

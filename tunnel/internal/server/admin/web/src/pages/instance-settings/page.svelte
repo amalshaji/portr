@@ -13,8 +13,8 @@
 <AppLayout>
   <span slot="sidebar">
     <div class="flex h-full max-h-screen flex-col gap-2">
-      <div class="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-        <a href="/" class="flex items-center space-x-2">
+      <div class="flex h-14 items-center border-b border-gray-300 px-4 lg:h-[60px] lg:px-6">
+        <a href="/" class="flex items-center space-x-2 text-black hover:text-gray-600">
           <ArrowLeft class="h-4 w-4" />
           <span class="font-semibold">Instance settings</span>
         </a>

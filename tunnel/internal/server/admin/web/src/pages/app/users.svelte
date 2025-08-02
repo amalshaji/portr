@@ -4,15 +4,17 @@
 </script>
 
 <div class="space-y-6">
-  <h1 class="text-2xl font-bold tracking-tight">Team Members</h1>
+  <h1 class="text-2xl font-bold tracking-tight text-black">Team Members</h1>
 
-  <Card.Root class="shadow-sm">
-    <Card.Header>
-      <Card.Title class="text-xl">Team Members</Card.Title>
-      <Card.Description>Manage your team members and their access levels</Card.Description>
-    </Card.Header>
-    <Card.Content>
+  <div class="border border-gray-300 bg-white">
+    <div class="p-6 border-b border-gray-300">
+      <h2 class="text-xl font-semibold text-black">Team Members</h2>
+      <p class="text-gray-600 mt-1">
+        Manage your team members and their access levels
+      </p>
+    </div>
+    <div class="p-6">
       <Members />
-    </Card.Content>
-  </Card.Root>
+    </div>
+  </div>
 </div>

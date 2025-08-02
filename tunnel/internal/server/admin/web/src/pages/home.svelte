@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Github, LoaderCircle, Lock, Mail, TriangleAlert, X } from "lucide-svelte";
+  import { Github, LoaderCircle, Lock, Mail, TriangleAlert, X, Eye, EyeOff } from "lucide-svelte";
   import { onMount } from "svelte";
 
   import * as Alert from "$lib/components/ui/alert";
@@ -43,6 +43,8 @@
     passwordError = "";
 
   let loginLoading = false;
+  let showPassword = false;
+  let rememberMe = false;
 
   if (code) {
     message = getResponseMessage(code);
@@ -81,6 +83,7 @@
         body: JSON.stringify({
           email,
           password,
+          remember_me: rememberMe,
         }),
       });
       if (res.ok) {
@@ -103,16 +106,16 @@
   });
 </script>
 
-<div class="min-h-screen flex items-center justify-center bg-[#f8fafc] py-12 px-4 sm:px-6 lg:px-8">
+<div class="min-h-screen flex items-center justify-center bg-white py-12 px-4 sm:px-6 lg:px-8">
   <div class="max-w-md w-full space-y-8">
     <!-- Logo/Brand -->
     <div class="text-center">
-      <div class="mx-auto h-20 w-20 rounded-full bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center mb-4 shadow-md">
-        <span class="text-3xl font-bold text-white">P</span>
+      <div class="mx-auto h-16 w-16 border-2 border-black bg-black flex items-center justify-center mb-6">
+        <span class="text-2xl font-bold text-white">P</span>
       </div>
-      <h2 class="text-3xl font-extrabold text-gray-900">
+      <h1 class="text-2xl font-bold text-black">
         {isSuperUserSignup ? "Create Account" : "Welcome Back"}
-      </h2>
+      </h1>
       <p class="mt-2 text-sm text-gray-600">
         {isSuperUserSignup
           ? "Set up your admin account to get started"
@@ -121,146 +124,154 @@
     </div>
 
     {#if message}
-      <div class="rounded-md" id="error-message-box">
-        <Alert.Root variant="destructive" class="shadow-md border-red-200 bg-red-50/80">
-          <div class="flex gap-2">
-            <TriangleAlert class="h-5 w-5 text-red-600" />
-            <div class="flex-1">
-              <Alert.Title class="flex justify-between items-center text-red-700">
-                <span>Error</span>
-                <X
-                  class="h-4 w-4 cursor-pointer opacity-70 hover:opacity-100"
-                  on:click={() => {
-                    const element = document.getElementById("error-message-box");
-                    element?.remove();
-                  }}
-                />
-              </Alert.Title>
-              <Alert.Description class="text-sm mt-1 text-red-600">
-                {message}
-              </Alert.Description>
-            </div>
+      <div class="border border-red-600 bg-red-50 p-4" id="error-message-box">
+        <div class="flex">
+          <div class="flex-1">
+            <h3 class="text-sm font-medium text-red-800">Error</h3>
+            <p class="text-sm mt-1 text-red-700">{message}</p>
           </div>
-        </Alert.Root>
+          <button
+            class="text-red-400 hover:text-red-600"
+            on:click={() => {
+              const element = document.getElementById("error-message-box");
+              element?.remove();
+            }}
+          >
+            <X class="h-5 w-5" />
+          </button>
+        </div>
       </div>
     {/if}
 
-    <Card.Root class="overflow-hidden rounded-xl shadow-lg border border-gray-200 backdrop-blur-sm bg-white/80">
-      <Card.Content class="p-8">
+    <div class="border-2 border-black bg-white">
+      <div class="p-6">
         <form class="space-y-6" on:submit|preventDefault={login}>
           <div>
-            <Label for="email" class="block text-sm font-medium text-gray-700 mb-1.5">Email address</Label>
-            <div class="relative">
-              <div class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                <Mail class="h-5 w-5" />
-              </div>
-              <Input
-                id="email"
-                bind:value={email}
-                type="email"
-                placeholder="name@company.com"
-                required
-                class={`pl-10 block w-full rounded-lg border ${
-                  emailError ? "border-red-500 ring-1 ring-red-500" : "border-gray-300"
-                } focus-visible:border-primary focus-visible:outline-none`}
-              />
-            </div>
+            <Label for="email" class="block text-sm font-medium text-black mb-1">Email address</Label>
+            <Input
+              id="email"
+              bind:value={email}
+              type="email"
+              placeholder="name@company.com"
+              required
+              class={`block w-full border px-3 py-2 ${
+                emailError ? "border-red-600" : "border-gray-400"
+              } focus:border-black focus:outline-none focus-visible:outline-none focus-visible:ring-0 bg-white`}
+              style="border-radius: 0;"
+            />
             {#if emailError}
-              <p class="mt-1.5 text-sm text-red-600 flex items-center gap-1">
-                <TriangleAlert class="h-3.5 w-3.5" /> {emailError}
-              </p>
+              <p class="mt-1 text-sm text-red-600">{emailError}</p>
             {/if}
           </div>
 
           <div>
-            <div class="flex items-center justify-between mb-1.5">
-              <Label for="password" class="block text-sm font-medium text-gray-700">Password</Label>
+            <div class="flex items-center justify-between mb-1">
+              <Label for="password" class="block text-sm font-medium text-black">Password</Label>
+              {#if !isSuperUserSignup}
+                <button type="button" class="text-sm text-gray-600 hover:text-black">
+                  Forgot password?
+                </button>
+              {/if}
             </div>
             <div class="relative">
-              <div class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                <Lock class="h-5 w-5" />
-              </div>
               <Input
                 id="password"
                 bind:value={password}
-                type="password"
+                type={showPassword ? "text" : "password"}
                 required
-                class={`pl-10 block w-full rounded-lg border ${
-                  passwordError ? "border-red-500 ring-1 ring-red-500" : "border-gray-300"
-                } focus-visible:border-primary focus-visible:outline-none`}
+                class={`block w-full border px-3 py-2 pr-10 ${
+                  passwordError ? "border-red-600" : "border-gray-400"
+                } focus:border-black focus:outline-none focus-visible:outline-none focus-visible:ring-0 bg-white`}
+                style="border-radius: 0;"
               />
+              <button
+                type="button"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-black"
+                on:click={() => showPassword = !showPassword}
+              >
+                {#if showPassword}
+                  <EyeOff class="h-4 w-4" />
+                {:else}
+                  <Eye class="h-4 w-4" />
+                {/if}
+              </button>
             </div>
             {#if passwordError}
-              <p class="mt-1.5 text-sm text-red-600 flex items-center gap-1">
-                <TriangleAlert class="h-3.5 w-3.5" /> {passwordError}
-              </p>
+              <p class="mt-1 text-sm text-red-600">{passwordError}</p>
             {/if}
           </div>
+
 
           <div>
             <Button
               type="submit"
-              class="w-full justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-md text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-200"
+              disabled={loginLoading}
+              class="w-full py-2 px-4 border-2 border-black bg-black text-white hover:bg-gray-800 focus:outline-none focus:ring-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              style="border-radius: 0;"
             >
               {#if loginLoading}
                 <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+                {isSuperUserSignup ? "Creating..." : "Signing In..."}
+              {:else}
+                {isSuperUserSignup ? "Create Account" : "Sign In"}
               {/if}
-              {isSuperUserSignup ? "Create Account" : "Sign In"}
             </Button>
           </div>
         </form>
 
         {#if githubAuthEnabled && !isSuperUserSignup}
-          <div class="mt-7">
+          <div class="mt-6">
             <div class="relative">
               <div class="absolute inset-0 flex items-center">
-                <div class="w-full border-t border-gray-200"></div>
+                <div class="w-full border-t border-gray-300"></div>
               </div>
               <div class="relative flex justify-center text-sm">
-                <span class="px-3 bg-white text-gray-500">Or continue with</span>
+                <span class="px-2 bg-white text-gray-600">Or</span>
               </div>
             </div>
 
-            <div class="mt-6">
+            <div class="mt-4">
               <Button
                 variant="outline"
-                class="w-full flex justify-center py-2.5 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all duration-200"
+                class="w-full py-2 px-4 border border-gray-400 bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-0 focus:border-black"
+                style="border-radius: 0;"
                 href={encodeURIComponent(next) !== "null"
                   ? `/api/v1/auth/github?next=${encodeURIComponent(next)}`
                   : `/api/v1/auth/github`}
               >
-                <Github class="mr-2 h-5 w-5" />
+                <Github class="mr-2 h-4 w-4" />
                 GitHub
               </Button>
             </div>
           </div>
         {:else if isSuperUserSignup || !githubAuthEnabled}
-          <div class="mt-7">
+          <div class="mt-6">
             <div class="relative">
               <div class="absolute inset-0 flex items-center">
-                <div class="w-full border-t border-gray-200"></div>
+                <div class="w-full border-t border-gray-300"></div>
               </div>
               <div class="relative flex justify-center text-sm">
-                <span class="px-3 bg-white text-gray-500">Social login</span>
+                <span class="px-2 bg-white text-gray-600">Or</span>
               </div>
             </div>
 
-            <div class="mt-6">
+            <div class="mt-4">
               <Button
                 variant="outline"
-                class="w-full flex justify-center py-2.5 px-4 border border-gray-300 rounded-lg shadow-sm bg-white/60 text-sm font-medium text-gray-400 opacity-60 cursor-not-allowed"
+                class="w-full py-2 px-4 border border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed focus:outline-none focus:ring-0"
+                style="border-radius: 0;"
                 disabled
               >
-                <Github class="mr-2 h-5 w-5" />
+                <Github class="mr-2 h-4 w-4" />
                 GitHub
               </Button>
             </div>
           </div>
         {/if}
-      </Card.Content>
-    </Card.Root>
+      </div>
+    </div>
 
-    <div class="text-center mt-8">
+    <div class="text-center mt-6">
       <p class="text-xs text-gray-500">
         &copy; {new Date().getFullYear()} Portr. All rights reserved.
       </p>

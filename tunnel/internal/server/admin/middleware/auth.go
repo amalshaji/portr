@@ -80,16 +80,9 @@ func (m *AuthMiddleware) RequireTeamUser(c *fiber.Ctx) error {
 }
 
 func (m *AuthMiddleware) RequireAdmin(c *fiber.Ctx) error {
-	// First check team membership
-	if err := m.RequireTeamUser(c); err != nil {
+	// First check authentication
+	if err := m.checkAuth(c); err != nil {
 		return err
-	}
-
-	teamUser, ok := c.Locals("team_user").(*models.TeamUser)
-	if !ok || teamUser == nil {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "Access denied",
-		})
 	}
 
 	user, ok := c.Locals("user").(*models.User)
@@ -99,12 +92,35 @@ func (m *AuthMiddleware) RequireAdmin(c *fiber.Ctx) error {
 		})
 	}
 
+	teamSlug := c.Get("X-Team-Slug")
+	if teamSlug == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Team slug required",
+		})
+	}
+
+	// Load team user
+	var teamUser models.TeamUser
+	err := m.db.Preload("Team").Preload("User").
+		Joins("JOIN team ON team.id = team_users.team_id").
+		Where("team.slug = ? AND team_users.user_id = ?", teamSlug, user.ID).
+		First(&teamUser).Error
+
+	if err != nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "Access denied",
+		})
+	}
+
+	// Check admin permissions
 	if !teamUser.IsAdmin() && !user.IsSuperuser {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Admin access required",
 		})
 	}
 
+	// Store team user in context
+	c.Locals("team_user", &teamUser)
 	return c.Next()
 }
 

@@ -39,11 +39,16 @@ type TeamUserResponse struct {
 }
 
 type UserResponse struct {
-	ID          uint    `json:"id"`
-	Email       string  `json:"email"`
-	FirstName   *string `json:"first_name"`
-	LastName    *string `json:"last_name"`
-	IsSuperuser bool    `json:"is_superuser"`
+	ID          uint                 `json:"id"`
+	Email       string               `json:"email"`
+	FirstName   *string              `json:"first_name"`
+	LastName    *string              `json:"last_name"`
+	IsSuperuser bool                 `json:"is_superuser"`
+	GithubUser  *GithubUserResponse  `json:"github_user,omitempty"`
+}
+
+type GithubUserResponse struct {
+	GithubAvatarURL string `json:"github_avatar_url"`
 }
 
 type TeamResponse struct {
@@ -61,22 +66,32 @@ func (h *Handler) GetCurrentUser(c *fiber.Ctx) error {
 		})
 	}
 
-	// Load full user and team data
-	if err := h.db.Preload("User").Preload("Team").First(teamUser, teamUser.ID).Error; err != nil {
+	// Load full user and team data including GitHub user
+	if err := h.db.Preload("User").Preload("User.GithubUser").Preload("Team").First(teamUser, teamUser.ID).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to load user data",
 		})
 	}
 
+	// Build user response with optional GitHub data
+	userResponse := UserResponse{
+		ID:          teamUser.User.ID,
+		Email:       teamUser.User.Email,
+		FirstName:   teamUser.User.FirstName,
+		LastName:    teamUser.User.LastName,
+		IsSuperuser: teamUser.User.IsSuperuser,
+	}
+
+	// Add GitHub user data if it exists
+	if teamUser.User.GithubUser != nil {
+		userResponse.GithubUser = &GithubUserResponse{
+			GithubAvatarURL: teamUser.User.GithubUser.GithubAvatarURL,
+		}
+	}
+
 	response := TeamUserResponse{
-		ID: teamUser.ID,
-		User: UserResponse{
-			ID:          teamUser.User.ID,
-			Email:       teamUser.User.Email,
-			FirstName:   teamUser.User.FirstName,
-			LastName:    teamUser.User.LastName,
-			IsSuperuser: teamUser.User.IsSuperuser,
-		},
+		ID:   teamUser.ID,
+		User: userResponse,
 		Team: TeamResponse{
 			ID:   teamUser.Team.ID,
 			Name: teamUser.Team.Name,

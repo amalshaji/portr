@@ -3,6 +3,7 @@ package team
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"regexp"
 	"strings"
 
 	"github.com/amalshaji/portr/internal/server/admin/middleware"
@@ -269,6 +270,34 @@ func (h *Handler) AddUser(c *fiber.Ctx) error {
 	if err := c.BodyParser(&input); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid input",
+		})
+	}
+
+	// Validate input
+	if input.Email == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Email is required",
+		})
+	}
+
+	// Basic email validation
+	emailRegex := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+	matched, regexErr := regexp.MatchString(emailRegex, input.Email)
+	if regexErr != nil || !matched {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Please enter a valid email address",
+		})
+	}
+
+	if input.Role == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Role is required",
+		})
+	}
+
+	if input.Role != "admin" && input.Role != "member" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Role must be either 'admin' or 'member'",
 		})
 	}
 

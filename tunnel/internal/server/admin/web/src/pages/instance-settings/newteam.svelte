@@ -44,30 +44,36 @@
   };
 </script>
 
-<Card.Root class="border-none shadow-none w-1/2">
-  <Card.Header class="space-y-3">
-    <Card.Title>Create new team</Card.Title>
-  </Card.Header>
-  <Card.Content class="space-y-2">
+<div class="border border-gray-300 bg-white w-1/2">
+  <div class="p-6 border-b border-gray-300">
+    <h2 class="text-xl font-semibold text-black">Create new team</h2>
+  </div>
+  <div class="p-6 space-y-4">
     <div class="sm:col-span-3">
       <Input
         type="text"
         id="team_name"
         placeholder="portr"
         bind:value={teamName}
-        class={teamNameError ? "border-red-500" : ""}
+        class={`border focus:outline-none focus-visible:outline-none focus-visible:ring-0 ${teamNameError ? "border-red-600" : "border-gray-400 focus:border-black"}`}
+        style="border-radius: 0;"
       />
       {#if teamNameError}
         <ErrorText error={teamNameError} />
       {/if}
     </div>
-  </Card.Content>
-  <Card.Footer>
-    <Button on:click={createTeam} disabled={isUpdating}>
+  </div>
+  <div class="p-6 border-t border-gray-300">
+    <Button 
+      on:click={createTeam} 
+      disabled={isUpdating}
+      class="border-2 border-black bg-black text-white hover:bg-gray-800 focus:outline-none focus:ring-0 disabled:opacity-50"
+      style="border-radius: 0;"
+    >
       {#if isUpdating}
         <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
       {/if}
       Create team
     </Button>
-  </Card.Footer>
-</Card.Root>
+  </div>
+</div>

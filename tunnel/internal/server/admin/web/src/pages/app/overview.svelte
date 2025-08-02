@@ -196,12 +196,13 @@
   <!-- Dashboard Header -->
   <div class="flex justify-between items-center">
     <div>
-      <h1 class="text-2xl font-bold tracking-tight">Dashboard</h1>
-      <p class="text-muted-foreground">Welcome to your {team} dashboard.</p>
+      <h1 class="text-2xl font-bold tracking-tight text-black">Dashboard</h1>
+      <p class="text-gray-600">Welcome to your {team} dashboard.</p>
     </div>
     <Button
       variant="outline"
-      class="flex items-center gap-2"
+      class="flex items-center gap-2 border border-gray-400 bg-white text-black hover:bg-gray-50 focus:outline-none focus:ring-0"
+      style="border-radius: 0;"
       href="https://portr.dev"
       target="_blank"
     >
@@ -212,116 +213,116 @@
 
   <!-- Stats Cards -->
   <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-    <Card.Root class="shadow-sm hover:shadow-md transition-shadow">
-      <Card.Content class="p-6">
+    <div class="border border-gray-300 bg-white">
+      <div class="p-6">
         <div class="flex items-center justify-between space-y-0 pb-2">
-          <p class="text-sm font-medium">Active Connections</p>
+          <p class="text-sm font-medium text-black">Active Connections</p>
           <div
-            class="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center"
+            class="h-8 w-8 border border-gray-300 bg-gray-100 flex items-center justify-center"
           >
-            <Globe class="h-4 w-4 text-primary" />
+            <Globe class="h-4 w-4 text-black" />
           </div>
         </div>
         <div class="flex items-center pt-3">
-          <div class="text-2xl font-bold">
+          <div class="text-2xl font-bold text-black">
             {statsLoading ? "..." : dashboardStats.activeConnections}
           </div>
         </div>
-      </Card.Content>
-    </Card.Root>
+      </div>
+    </div>
 
-    <Card.Root class="shadow-sm hover:shadow-md transition-shadow">
-      <Card.Content class="p-6">
+    <div class="border border-gray-300 bg-white">
+      <div class="p-6">
         <div class="flex items-center justify-between space-y-0 pb-2">
-          <p class="text-sm font-medium">Team Members</p>
+          <p class="text-sm font-medium text-black">Team Members</p>
           <div
-            class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center"
+            class="h-8 w-8 border border-gray-300 bg-gray-100 flex items-center justify-center"
           >
-            <Users class="h-4 w-4 text-blue-600" />
+            <Users class="h-4 w-4 text-black" />
           </div>
         </div>
         <div class="pt-3">
-          <div class="text-2xl font-bold">
+          <div class="text-2xl font-bold text-black">
             {statsLoading ? "..." : dashboardStats.totalUsers}
           </div>
         </div>
-      </Card.Content>
-    </Card.Root>
+      </div>
+    </div>
 
-    <Card.Root class="shadow-sm hover:shadow-md transition-shadow">
-      <Card.Content class="p-6">
+    <div class="border border-gray-300 bg-white">
+      <div class="p-6">
         <div class="flex items-center justify-between space-y-0 pb-2">
-          <p class="text-sm font-medium">Server Uptime</p>
+          <p class="text-sm font-medium text-black">Server Uptime</p>
           <div
-            class="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center"
+            class="h-8 w-8 border border-gray-300 bg-gray-100 flex items-center justify-center"
           >
-            <Shield class="h-4 w-4 text-green-600" />
+            <Shield class="h-4 w-4 text-black" />
           </div>
         </div>
         <div class="pt-3">
-          <div class="text-2xl font-bold">
+          <div class="text-2xl font-bold text-black">
             {uptimeDisplay}
           </div>
         </div>
-      </Card.Content>
-    </Card.Root>
+      </div>
+    </div>
 
-    <Card.Root class="shadow-sm hover:shadow-md transition-shadow">
-      <Card.Content class="p-6">
+    <div class="border border-gray-300 bg-white">
+      <div class="p-6">
         <div class="flex items-center justify-between space-y-0 pb-2">
-          <p class="text-sm font-medium">Memory Usage</p>
+          <p class="text-sm font-medium text-black">Memory Usage</p>
           <div
-            class="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center"
+            class="h-8 w-8 border border-gray-300 bg-gray-100 flex items-center justify-center"
           >
-            <HardDrive class="h-4 w-4 text-purple-600" />
+            <HardDrive class="h-4 w-4 text-black" />
           </div>
         </div>
         <div class="pt-3">
-          <div class="text-2xl font-bold">
+          <div class="text-2xl font-bold text-black">
             {statsLoading
               ? "..."
               : `${systemStats.systemMemoryUsagePercent.toFixed(1)}%`}
           </div>
-          <p class="text-xs text-muted-foreground mt-1">
+          <p class="text-xs text-gray-600 mt-1">
             {statsLoading
               ? ""
               : `${systemStats.systemMemoryUsedGB.toFixed(1)}GB / ${systemStats.systemMemoryTotalGB.toFixed(1)}GB`}
           </p>
         </div>
-      </Card.Content>
-    </Card.Root>
+      </div>
+    </div>
 
-    <Card.Root class="shadow-sm hover:shadow-md transition-shadow">
-      <Card.Content class="p-6">
+    <div class="border border-gray-300 bg-white">
+      <div class="p-6">
         <div class="flex items-center justify-between space-y-0 pb-2">
-          <p class="text-sm font-medium">CPU Usage</p>
+          <p class="text-sm font-medium text-black">CPU Usage</p>
           <div
-            class="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center"
+            class="h-8 w-8 border border-gray-300 bg-gray-100 flex items-center justify-center"
           >
-            <Cpu class="h-4 w-4 text-orange-600" />
+            <Cpu class="h-4 w-4 text-black" />
           </div>
         </div>
         <div class="pt-3">
-          <div class="text-2xl font-bold">
+          <div class="text-2xl font-bold text-black">
             {statsLoading
               ? "..."
               : `${systemStats.cpuUsagePercent.toFixed(1)}%`}
           </div>
-          <p class="text-xs text-muted-foreground mt-1">
+          <p class="text-xs text-gray-600 mt-1">
             {statsLoading ? "" : `${systemStats.numCpu} cores`}
           </p>
         </div>
-      </Card.Content>
-    </Card.Root>
+      </div>
+    </div>
   </div>
 
   <!-- System Information -->
-  <Card.Root class="shadow-sm">
-    <Card.Header>
-      <Card.Title class="text-xl">System Information</Card.Title>
-      <Card.Description>Server hardware and runtime details</Card.Description>
-    </Card.Header>
-    <Card.Content>
+  <div class="border border-gray-300 bg-white">
+    <div class="p-6">
+      <div class="mb-6">
+        <h2 class="text-xl font-semibold text-black">System Information</h2>
+        <p class="text-gray-600 mt-1">Server hardware and runtime details</p>
+      </div>
       <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <div class="space-y-2">
           <p class="text-sm font-medium text-muted-foreground">Hostname</p>
@@ -394,22 +395,23 @@
           </p>
         </div>
       </div>
-    </Card.Content>
-  </Card.Root>
+    </div>
+  </div>
 
   <!-- Client Setup Section -->
-  <Card.Root class="shadow-sm">
-    <Card.Header>
-      <Card.Title class="text-xl">Client Setup</Card.Title>
-      <Card.Description>
-        Follow these steps to set up and configure the portr client
-      </Card.Description>
-    </Card.Header>
-    <Card.Content class="space-y-6">
-      <div class="bg-gray-50 rounded-lg p-6 border border-gray-100">
-        <h3 class="text-sm font-medium mb-3 flex items-center gap-2">
+  <div class="border border-gray-300 bg-white">
+    <div class="p-6">
+      <div class="mb-6">
+        <h2 class="text-xl font-semibold text-black">Client Setup</h2>
+        <p class="text-gray-600 mt-1">
+          Follow these steps to set up and configure the portr client
+        </p>
+      </div>
+      <div class="space-y-6">
+      <div class="bg-gray-50 border border-gray-300 p-6">
+        <h3 class="text-sm font-medium mb-3 flex items-center gap-2 text-black">
           <span
-            class="flex h-6 w-6 rounded-full bg-primary/10 items-center justify-center text-xs font-semibold"
+            class="flex h-6 w-6 border border-gray-400 bg-white items-center justify-center text-xs font-semibold text-black"
             >1</span
           >
           Install the portr client
@@ -422,13 +424,13 @@
               <Highlight
                 language={bash}
                 code={installCommand}
-                class="border rounded-md text-sm my-2 overflow-hidden"
+                class="border border-gray-400 text-sm my-2 overflow-hidden"
               />
               <button
-                class="absolute right-2 top-2 p-1 rounded-md bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border"
+                class="absolute right-2 top-2 p-1 bg-white border border-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
                 on:click={() => handleCopy(installCommand)}
               >
-                <Copy class="h-4 w-4" />
+                <Copy class="h-4 w-4 text-black" />
               </button>
             </div>
           </div>
@@ -439,13 +441,13 @@
               <Highlight
                 language={bash}
                 code={homebrewCommand}
-                class="border rounded-md text-sm my-2 overflow-hidden"
+                class="border border-gray-400 text-sm my-2 overflow-hidden"
               />
               <button
-                class="absolute right-2 top-2 p-1 rounded-md bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border"
+                class="absolute right-2 top-2 p-1 bg-white border border-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
                 on:click={() => handleCopy(homebrewCommand)}
               >
-                <Copy class="h-4 w-4" />
+                <Copy class="h-4 w-4 text-black" />
               </button>
             </div>
           </div>
@@ -455,15 +457,15 @@
           You can also download the binary from the <a
             href="https://github.com/amalshaji/portr/releases"
             target="_blank"
-            class="text-primary hover:underline font-medium">GitHub releases</a
+            class="text-black hover:underline font-medium">GitHub releases</a
           >
         </p>
       </div>
 
-      <div class="bg-gray-50 rounded-lg p-6 border border-gray-100">
-        <h3 class="text-sm font-medium mb-3 flex items-center gap-2">
+      <div class="bg-gray-50 border border-gray-300 p-6">
+        <h3 class="text-sm font-medium mb-3 flex items-center gap-2 text-black">
           <span
-            class="flex h-6 w-6 rounded-full bg-primary/10 items-center justify-center text-xs font-semibold"
+            class="flex h-6 w-6 border border-gray-400 bg-white items-center justify-center text-xs font-semibold text-black"
             >2</span
           >
           Run the following command to set up portr client auth
@@ -473,13 +475,13 @@
           <Highlight
             language={bash}
             code={$setupScript}
-            class="border rounded-md text-sm my-2 overflow-hidden"
+            class="border border-gray-400 text-sm my-2 overflow-hidden"
           />
           <button
-            class="absolute right-2 top-2 p-1 rounded-md bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border"
+            class="absolute right-2 top-2 p-1 bg-white border border-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
             on:click={() => handleCopy($setupScript)}
           >
-            <Copy class="h-4 w-4" />
+            <Copy class="h-4 w-4 text-black" />
           </button>
         </div>
 
@@ -494,10 +496,10 @@
         </p>
       </div>
 
-      <div class="bg-gray-50 rounded-lg p-6 border border-gray-100">
-        <h3 class="text-sm font-medium mb-3 flex items-center gap-2">
+      <div class="bg-gray-50 border border-gray-300 p-6">
+        <h3 class="text-sm font-medium mb-3 flex items-center gap-2 text-black">
           <span
-            class="flex h-6 w-6 rounded-full bg-primary/10 items-center justify-center text-xs font-semibold"
+            class="flex h-6 w-6 border border-gray-400 bg-white items-center justify-center text-xs font-semibold text-black"
             >3</span
           >
           You're ready to use the tunnel
@@ -511,12 +513,13 @@
           <a
             href="https://portr.dev"
             target="_blank"
-            class="text-primary hover:underline font-medium"
+            class="text-black hover:underline font-medium"
           >
             client documentation
           </a> for more information.
         </p>
       </div>
-    </Card.Content>
-  </Card.Root>
+      </div>
+    </div>
+  </div>
 </div>
