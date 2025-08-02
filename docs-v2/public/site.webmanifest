@@ -1,6 +1,8 @@
 {
   "name": "Portr",
   "short_name": "Portr",
+  "start_url": ".",
+  "scope": "/",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
