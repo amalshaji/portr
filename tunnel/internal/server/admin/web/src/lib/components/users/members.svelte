@@ -16,6 +16,7 @@
   import { UserPlus } from "lucide-svelte";
 
   let addMemberModalOpen = false;
+  let showPasswordModal = false;
 
   const urlParams = new URLSearchParams(window.location.search);
 
@@ -91,7 +92,7 @@
   });
 </script>
 
-<InviteUser bind:open={addMemberModalOpen} />
+<InviteUser bind:open={addMemberModalOpen} bind:displayPassword={showPasswordModal} />
 
 <div class="flex w-full justify-between items-center mb-4">
   <div>

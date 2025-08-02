@@ -208,12 +208,12 @@
     class="border border-gray-300 bg-white"
     style="border-radius: 0;"
   >
-    <AlertDialog.Header class="border-b border-gray-300 pb-4">
+    <AlertDialog.Header>
       <AlertDialog.Title class="text-black"
         >Here's your password</AlertDialog.Title
       >
       <AlertDialog.Description>
-        <div class="mt-4 space-y-4">
+        <div class="space-y-4">
           <div class="sm:col-span-3 space-y-2">
             <div class="flex items-center space-x-1">
               <Input
@@ -228,7 +228,7 @@
         </div>
       </AlertDialog.Description>
     </AlertDialog.Header>
-    <AlertDialog.Footer class="mt-8 border-t border-gray-300 pt-4">
+    <AlertDialog.Footer class="mt-2">
       <AlertDialog.Cancel
         on:click={() => (generatedPassword = "")}
         class="border border-gray-400 bg-white text-black hover:bg-gray-50 focus:outline-none focus:ring-0"

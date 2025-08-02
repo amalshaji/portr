@@ -323,7 +323,7 @@ func (h *Handler) AddUser(c *fiber.Ctx) error {
 	err := tx.Where("email = ?", input.Email).First(&user).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			// Create new user
+			// Create new user - always generate password for new users
 			generatedPassword := generateRandomPassword()
 			password = &generatedPassword
 
@@ -352,7 +352,24 @@ func (h *Handler) AddUser(c *fiber.Ctx) error {
 			})
 		}
 	} else {
-		// User exists, update superuser status if needed
+		// User exists - check if they're part of any other teams
+		var existingTeamCount int64
+		tx.Model(&models.TeamUser{}).Where("user_id = ?", user.ID).Count(&existingTeamCount)
+
+		// Only generate password if user is not part of any teams
+		if existingTeamCount == 0 {
+			generatedPassword := generateRandomPassword()
+			password = &generatedPassword
+
+			if err := user.SetPassword(generatedPassword); err != nil {
+				tx.Rollback()
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "Failed to hash password",
+				})
+			}
+		}
+
+		// Update superuser status if needed
 		if input.SetSuperuser && !user.IsSuperuser {
 			user.IsSuperuser = true
 			if err := tx.Save(user).Error; err != nil {
