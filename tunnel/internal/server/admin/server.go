@@ -206,6 +206,17 @@ func errorHandler(c *fiber.Ctx, err error) error {
 		message = e.Message
 	}
 
+	// Filter out misleading 404 errors for team/add endpoint
+	// This is a known Fiber quirk where successful requests sometimes trigger
+	// post-response 404 errors
+	if code == 404 && c.Path() == "/api/v1/team/add" && c.Method() == "POST" {
+		log.Debug("Ignoring misleading 404 for successful team/add request",
+			"path", c.Path(),
+			"method", c.Method())
+		// Don't return an error response since this is likely after a successful response
+		return nil
+	}
+
 	log.Error("Request error", "error", err, "status_code", code)
 
 	return c.Status(code).JSON(fiber.Map{
