@@ -77,6 +77,12 @@ export default function Layout({ children }: { children: ReactNode }) {
       </head>
       <body className="flex flex-col min-h-screen">
         <Provider>{children}</Provider>
+        {/* 100% privacy-first analytics */}
+        <script
+          data-collect-dnt="true"
+          async
+          src="https://sa.portr.dev/latest.js"
+        ></script>
       </body>
     </html>
   );
