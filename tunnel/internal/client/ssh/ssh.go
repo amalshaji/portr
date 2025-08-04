@@ -9,7 +9,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -20,7 +19,6 @@ import (
 	"github.com/amalshaji/portr/internal/utils"
 	"github.com/charmbracelet/log"
 	"github.com/go-resty/resty/v2"
-	"github.com/labstack/gommon/color"
 	"gorm.io/datatypes"
 
 	"github.com/amalshaji/portr/internal/client/tui"
@@ -198,8 +196,6 @@ func (s *SshClient) startListenerForClient() error {
 		// Connect to the local endpoint
 		localConn, err := net.Dial("tcp", localEndpoint)
 		if err != nil {
-			// serve local html if the local server is not available
-			// change this to a beautiful template
 			if tunnelType == constants.Http {
 				htmlContent := utils.LocalServerNotOnline(localEndpoint)
 				fmt.Fprintf(remoteConn, "HTTP/1.1 503 Service Unavailable\r\n")
@@ -392,13 +388,10 @@ func (s *SshClient) logHttpRequest(
 		return
 	}
 
-	// Get tunnel name
 	tunnelName := s.config.Tunnel.Name
 	if tunnelName == "" {
 		tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
 	}
-
-	// Send log directly to TUI
 	s.tui.Send(tui.AddLogMsg{
 		Time:   req.LoggedAt.Local().Format("15:04:05"),
 		Name:   tunnelName,
@@ -417,7 +410,6 @@ func (s *SshClient) tcpTunnel(src, dst net.Conn) {
 }
 
 func (s *SshClient) Shutdown(ctx context.Context) error {
-	// Set shutdown flag
 	atomic.StoreInt32(&s.shutdown, 1)
 
 	s.mu.Lock()
@@ -447,19 +439,21 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) {
 	var err error
 
 	for range ticker {
-		retryAttempts++
-		if retryAttempts > s.config.HealthCheckMaxRetries {
-			if s.tui != nil {
-				s.tui.Kill()
-			}
-			fmt.Printf(color.Red("Failed to reconnect to tunnel after %d attempts\n"), retryAttempts)
-			os.Exit(1)
-		}
-
 		err = s.HealthCheck()
 		if err == nil {
 			retryAttempts = 0
 			continue
+		}
+
+		// Increment retry attempts only on failure
+		retryAttempts++
+		if retryAttempts > s.config.HealthCheckMaxRetries {
+			if s.tui != nil {
+				s.tui.Send(tui.ErrorMsg{Error: fmt.Errorf("failed to reconnect to tunnel after %d attempts", retryAttempts)})
+				// Give TUI time to show the error
+				time.Sleep(2 * time.Second)
+			}
+			return
 		}
 
 		if s.config.Debug {
@@ -495,23 +489,19 @@ func (s *SshClient) Start(ctx context.Context) {
 	// Wait for either an error or successful connection
 	select {
 	case err := <-errChan:
-		// Update TUI with error and wait for it to quit
-		s.tui.Send(tui.ErrorMsg{Error: err})
+		// Update TUI with error and wait for it to quit gracefully
+		if s.tui != nil {
+			s.tui.Send(tui.ErrorMsg{Error: err})
 
-		// Wait for TUI to quit
-		done := make(chan struct{})
-		go func() {
-			s.tui.Wait()
-			close(done)
-		}()
-
-		// Wait for either context cancellation or TUI to quit
-		select {
-		case <-ctx.Done():
-			os.Exit(1)
-		case <-done:
-			os.Exit(1)
+			// Give the TUI some time to process the error message
+			select {
+			case <-time.After(2 * time.Second):
+				// TUI had time to show the error, now we can exit
+			case <-ctx.Done():
+				// Context was canceled, exit immediately
+			}
 		}
+		return
 
 	case <-time.After(5 * time.Second):
 		// Start the health check routine for http connections
@@ -619,7 +609,6 @@ func (s *SshClient) HealthCheck() error {
 	portrError := resp.Header().Get("X-Portr-Error")
 	portrErrorReason := resp.Header().Get("X-Portr-Error-Reason")
 
-	// Fix it later to resolve to connection-lost
 	if portrError == "true" && (portrErrorReason == "connection-lost" || portrErrorReason == "unregistered-subdomain") {
 		return fmt.Errorf("unhealthy tunnel")
 	}

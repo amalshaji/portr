@@ -98,7 +98,6 @@ func (c *Client) Shutdown(ctx context.Context) {
 	}
 }
 
-// Create tunnel from cli args and replaces it in config
 func (c *Client) ReplaceTunnelsFromCli(tunnel config.Tunnel) {
 	c.config.Tunnels = []config.Tunnel{tunnel}
 }
