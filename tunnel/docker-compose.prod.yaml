@@ -27,7 +27,7 @@ services:
       retries: 3
       start_period: 40s
     volumes:
-      - server_data:/app/data
+      - ./data:/app/data
     labels:
       caddy_0: $PORTR_DOMAIN
       caddy_0.reverse_proxy: "{{upstreams http 8000}}"
@@ -56,4 +56,3 @@ services:
 volumes:
   postgres_data: {}
   caddy_data: {}
-  server_data: {}
