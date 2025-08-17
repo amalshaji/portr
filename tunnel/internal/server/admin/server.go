@@ -187,7 +187,15 @@ func (s *Server) generateViteTags() template.HTML {
 		return ""
 	}
 
-	return utils.GenerateViteTags()
+	// Read the Vite manifest from the embedded static filesystem and
+	// pass the bytes to the utils helper which generates the tags.
+	manifestBytes, err := staticFS.ReadFile("static/.vite/manifest.json")
+	if err != nil {
+		// If we can't read the manifest (not present), fall back to empty tags.
+		return ""
+	}
+
+	return utils.GenerateViteTagsFromBytes(manifestBytes)
 }
 
 func (s *Server) App() *fiber.App {

@@ -22,6 +22,8 @@ RUN go mod download
 
 COPY . ./
 
+COPY --from=web-builder /app/static /app/internal/server/admin/static
+
 ARG VERSION=dev
 
 RUN CGO_ENABLED=1 go build \
@@ -41,7 +43,6 @@ WORKDIR /app
 
 COPY --from=builder /app/portrd /app/
 COPY --from=builder /app/migrations /app/migrations
-COPY --from=web-builder /app/static /app/internal/server/admin/static
 
 RUN mkdir -p /app/data
 
