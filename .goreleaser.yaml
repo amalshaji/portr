@@ -16,7 +16,8 @@ builds:
       - -s -w -X main.version={{.Version}}
 
 archives:
-  - format: zip
+  - formats:
+      - zip
     name_template: >-
       {{ .Binary }}_
       {{- .Version }}_
@@ -31,7 +32,7 @@ checksum:
   name_template: "checksums.txt"
 
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 
 release:
   name_template: "v{{ .Version }}"
