@@ -1,6 +1,6 @@
 module github.com/amalshaji/portr
 
-go 1.24
+go 1.25
 
 require (
 	github.com/Masterminds/semver v1.5.0
