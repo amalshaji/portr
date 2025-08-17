@@ -36,7 +36,6 @@
   $: isFormValid = email.trim() !== "" && isValidEmail(email.trim());
 
   const setSuperuser = () => {
-    console.log("test");
     if (set_superuser) {
       role = roles[1];
     }
