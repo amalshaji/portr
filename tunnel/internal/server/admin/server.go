@@ -190,6 +190,14 @@ func (s *Server) generateViteTags() template.HTML {
 	return utils.GenerateViteTags()
 }
 
+func (s *Server) App() *fiber.App {
+	return s.app
+}
+
+func (s *Server) Store() *session.Store {
+	return s.store
+}
+
 func (s *Server) Start() error {
 	s.scheduler.Start()
 
