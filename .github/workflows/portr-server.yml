@@ -1,26 +1,26 @@
 # This workflow will build a golang project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
 
-name: Portr tunnel
+name: Portr server
 
 on:
   push:
     branches: ["main"]
     paths:
       - "tunnel/**"
-      - ".github/workflows/portr-tunnel.yml"
+      - ".github/workflows/portr-server.yml"
   pull_request:
     branches: ["main"]
     paths:
       - "tunnel/**"
-      - ".github/workflows/portr-tunnel.yml"
+      - ".github/workflows/portr-server.yml"
 
 permissions:
   contents: read
 
 jobs:
   build:
-    name: Run tunnel tests
+    name: Run server tests
     runs-on: ubuntu-latest
     defaults:
       run:
