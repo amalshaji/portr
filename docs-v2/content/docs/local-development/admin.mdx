@@ -3,147 +3,234 @@ title: Admin Development Setup
 description: Learn how to setup portr admin for local development
 ---
 
-import { Steps } from 'fumadocs-ui/components/steps';
-import { Callout } from 'fumadocs-ui/components/callout';
+import { Steps } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
 
-The admin dashboard is built using Python (FastAPI) for the backend and Svelte for the frontend.
+The admin dashboard is built using Go (Fiber) for the backend and Svelte for the frontend. The admin server is now integrated into the main tunnel server binary.
+
+<Callout type="warning">
+  **Migration Notice**: The admin server has been migrated from Python (FastAPI)
+  to Go (Fiber). The old `admin/` directory is deprecated and will be removed in
+  v1.0. The new admin server is located in `tunnel/internal/server/admin/`.
+</Callout>
 
 ## Requirements
 
-- **[rye](https://github.com/astral-sh/rye)** (0.43.0+) - Python package manager
+- **Go** (1.25+) - Go programming language
 - **Node.js** (20+)
 - **pnpm** (9.15.0+)
-- **PostgreSQL** (16+)
+- **PostgreSQL** (16+) or **SQLite** (3.0+)
 
 ## Frontend Setup
+
+### Navigate to the admin frontend directory
+
+```shell
+cd tunnel/internal/server/admin/web
+```
 
 ### Install frontend dependencies
 
 ```shell
-make installclient
+pnpm install
 ```
 
 ### Start the frontend development server
 
 ```shell
-make runclient
+pnpm dev
 ```
 
 This starts the Svelte development server with hot reloading enabled.
 
 ## Backend Setup
 
-### Navigate to the admin directory
-
-```shell
-cd admin
-```
-
-### Install Python dependencies
-
-```shell
-rye sync
-```
-
-This sets up the relevant Python version and installs packages in a virtual environment.
-
 ### Configure environment variables
 
-Create a new `.env` file using the `.env.template` file as a reference. Ensure the following environment variables are set:
+Create a new `.env` file in the tunnel directory. The admin server uses the following environment variables:
 
 ```bash title=".env"
-PORTR_ADMIN_ENCRYPTION_KEY=your_encryption_key_here
+PORTR_DOMAIN=localhost:8001
+PORTR_DB_URL=postgres://postgres:postgres@localhost:5432/postgres
+PORTR_ADMIN_PORT=8000
+PORTR_ADMIN_DEBUG=true
+PORTR_ADMIN_USE_VITE=true
 PORTR_ADMIN_GITHUB_CLIENT_ID=your_github_client_id  # optional
 PORTR_ADMIN_GITHUB_CLIENT_SECRET=your_github_secret  # optional
-PORTR_DB_URL=postgres://postgres:postgres@localhost:5432/postgres
+PORTR_SSH_PORT=2222
+PORTR_PROXY_PORT=8001
+PORTR_AUTO_MIGRATE=true
 ```
 
-Generate an encryption key:
+### Start the admin server
 
 ```shell
-python -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
+cd tunnel
+go run cmd/portrd/main.go start admin
 ```
 
-### Start the backend server
+This starts the admin server at [http://localhost:8000](http://localhost:8000). The server will automatically run database migrations if `PORTR_AUTO_MIGRATE=true` is set.
+
+### Alternative: Start both tunnel and admin servers
+
+To start both the tunnel server and admin server together:
 
 ```shell
-make runserver
+cd tunnel
+go run cmd/portrd/main.go start all
 ```
-
-This runs the database migrations and starts the FastAPI server at [http://localhost:8000](http://localhost:8000).
 
 ## Development Workflow
 
 ### File Structure
 
 ```
-admin/
-├── apis/           # API routes and endpoints
-├── config/         # Configuration files
-├── models/         # Database models
-├── schemas/        # Pydantic schemas
-├── services/       # Business logic
-├── static/         # Static assets
-├── templates/      # HTML templates
-├── tests/          # Test files
-└── web/            # Svelte frontend source
+tunnel/
+├── internal/server/admin/
+│   ├── api/           # API routes and handlers
+│   │   ├── auth/      # Authentication handlers
+│   │   ├── config/    # Configuration handlers
+│   │   ├── connection/# Connection handlers
+│   │   ├── team/      # Team management handlers
+│   │   └── user/      # User management handlers
+│   ├── db/            # Database connection and queries
+│   ├── middleware/    # HTTP middleware
+│   ├── models/        # Database models (Go structs)
+│   ├── scheduler/     # Background job scheduler
+│   ├── server.go      # Main server setup and routes
+│   ├── services/      # Business logic services
+│   ├── static/        # Embedded static assets
+│   ├── templates/     # HTML templates
+│   ├── utils/         # Utility functions
+│   └── web/           # Svelte frontend source
+│       ├── src/       # Svelte source code
+│       ├── dist/      # Built frontend assets
+│       └── package.json
+├── cmd/portrd/        # Server binary entry point
+├── migrations/        # Database migration files
+└── Makefile           # Build and development commands
 ```
 
 ### Available Commands
 
-Check out the available make targets:
+#### Tunnel Makefile Commands
 
 ```bash
-# View all available commands
-make help
+# Build the portrd server binary
+make buildcli
 
-# Run tests
-make test
+# Install frontend dependencies for the admin dashboard
+make installclient
 
-# Format code
-make format
+# Start the frontend development server
+make runclient
 
-# Run linting
-make lint
-
-# Build the frontend
+# Build the frontend for production
 make buildclient
+```
+
+#### Portrd Server Commands
+
+```bash
+# Start admin server only
+go run cmd/portrd/main.go start admin
+
+# Start tunnel server only
+go run cmd/portrd/main.go start tunnel
+
+# Start both admin and tunnel servers
+go run cmd/portrd/main.go start all
+
+# Run database migrations manually
+go run cmd/portrd/main.go migrate --dialect postgres
+```
+
+#### Go Development Commands
+
+```bash
+# Run tests
+go test ./...
+
+# Format Go code
+go fmt ./...
+
+# Run Go linter
+go vet ./...
+
+# Tidy dependencies
+go mod tidy
 ```
 
 ### Configuration
 
-For detailed configuration options, check out the [admin config file](https://github.com/amalshaji/portr/blob/main/admin/config/settings.py).
+For detailed configuration options, check out the [server config file](https://github.com/amalshaji/portr/blob/main/tunnel/internal/server/config/config.go).
 
 <Callout type="info">
-  The admin server needs to be running before you can test tunnel connections, as it manages authentication and tunnel coordination.
+  The admin server needs to be running before you can test tunnel connections,
+  as it manages authentication and tunnel coordination.
 </Callout>
 
 ## Database Management
 
+### Database Support
+
+The admin server supports both PostgreSQL and SQLite databases:
+
+- **PostgreSQL**: Recommended for production deployments
+- **SQLite**: Great for development and single-user setups
+
 ### Running Migrations
 
-Migrations are automatically run when you start the server with `make runserver`. To run them manually:
+Migrations are automatically run when you start the server if `PORTR_AUTO_MIGRATE=true` is set. To run them manually:
 
 ```shell
-# From the admin directory
-rye run python -m alembic upgrade head
+# For PostgreSQL
+cd tunnel
+go run cmd/portrd/main.go migrate --dialect postgres
+
+# For SQLite
+cd tunnel
+go run cmd/portrd/main.go migrate --dialect sqlite
 ```
 
-### Creating New Migrations
+### Migration Files
 
-When you modify database models:
+Migration files are located in the `tunnel/migrations/` directory and are managed using [goose](https://github.com/pressly/goose).
 
-```shell
-# Generate a new migration
-rye run python -m alembic revision --autogenerate -m "Description of changes"
+### Database Connection
+
+Configure your database connection using the `PORTR_DB_URL` environment variable:
+
+```bash
+# PostgreSQL
+PORTR_DB_URL=postgres://user:password@localhost:5432/portr
+
+# SQLite
+PORTR_DB_URL=sqlite:///path/to/database.db
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-**Port conflicts**: Make sure port 8000 isn't being used by another service.
+**Port conflicts**: Make sure ports 8000 (admin), 8001 (proxy), and 2222 (SSH) aren't being used by another service.
 
-**Database connection errors**: Verify your PostgreSQL instance is running and the connection string is correct.
+**Database connection errors**: Verify your database instance is running and the connection string is correct. For PostgreSQL, ensure the database exists and credentials are valid.
 
-**Frontend build errors**: Ensure Node.js and pnpm versions meet the requirements.
+**Go build errors**: Ensure Go 1.25+ is installed and `go mod tidy` has been run to download dependencies.
+
+**Frontend build errors**: Ensure Node.js 20+ and pnpm 9.15.0+ are installed. Try clearing the pnpm cache with `pnpm store prune`.
+
+**Migration errors**: Ensure the database user has permissions to create/alter tables. For PostgreSQL, the user should have superuser privileges during initial setup.
+
+**Environment variable issues**: Make sure `.env` file is in the `tunnel/` directory and all required variables are set. Use `godotenv` for validation.
+
+### Development Tips
+
+**Hot reloading**: Use `PORTR_ADMIN_USE_VITE=true` for frontend hot reloading during development.
+
+**Debug mode**: Set `PORTR_ADMIN_DEBUG=true` to enable detailed logging.
+
+**Database debugging**: Check the database logs for connection issues. For SQLite, ensure the database file path is writable.
+
+**API debugging**: The admin server provides a health check endpoint at `/api/v1/healthcheck`.

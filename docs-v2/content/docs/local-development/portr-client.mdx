@@ -3,8 +3,8 @@ title: Client Development Setup
 description: Learn how to setup portr client for local development
 ---
 
-import { Steps } from 'fumadocs-ui/components/steps';
-import { Callout } from 'fumadocs-ui/components/callout';
+import { Steps } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
 
 The Portr client is built using Go for the CLI backend and includes a Svelte-based inspector for HTTP tunnels.
 
@@ -98,6 +98,7 @@ make clean
 ### Configuration Files
 
 #### client.dev.yaml
+
 Development configuration for the CLI:
 
 ```yaml
@@ -111,6 +112,7 @@ tunnels:
 ```
 
 #### Inspector Configuration
+
 The inspector runs on `http://localhost:7777` by default and automatically connects to active HTTP tunnels.
 
 ## Testing Your Changes
@@ -165,14 +167,15 @@ tunnel/web/
 ```
 
 <Callout type="info">
-  The inspector automatically starts when you create an HTTP tunnel and is accessible at `http://localhost:7777`.
+  The inspector automatically starts when you create an HTTP tunnel and is
+  accessible at `http://localhost:7777`.
 </Callout>
 
 ## Troubleshooting
 
 ### Build Issues
 
-**Go build errors**: Ensure you're using Go 1.23+ and all dependencies are available.
+**Go build errors**: Ensure you're using Go 1.25+ and all dependencies are available.
 
 **Frontend build errors**: Verify Node.js and pnpm versions, then try deleting `node_modules` and reinstalling.
 
