@@ -25,6 +25,22 @@ func NewTestDB(t *testing.T) (*gorm.DB, func()) {
 		t.Fatalf("failed to open test sqlite DB: %v", err)
 	}
 
+	// Enable SQLite pragmas for better performance and concurrency in tests
+	err = db.Exec("PRAGMA journal_mode=WAL").Error
+	if err != nil {
+		t.Fatalf("failed to set journal_mode: %v", err)
+	}
+
+	err = db.Exec("PRAGMA busy_timeout=5000").Error
+	if err != nil {
+		t.Fatalf("failed to set busy_timeout: %v", err)
+	}
+
+	err = db.Exec("PRAGMA cache_size=10000").Error
+	if err != nil {
+		t.Fatalf("failed to set cache_size: %v", err)
+	}
+
 	// Run AutoMigrate for admin models used by tests.
 	if err := db.AutoMigrate(
 		&models.User{},

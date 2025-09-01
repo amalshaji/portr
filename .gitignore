@@ -11,6 +11,6 @@ node_modules
 .mypy_cache
 data/
 !tunnel/data/
-tunnel/data/sqlite.db
+tunnel/data/sqlite.*
 dist
 !tunnel/internal/client/dashboard/dist
