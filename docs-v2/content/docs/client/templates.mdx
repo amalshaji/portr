@@ -61,6 +61,27 @@ When TUI is disabled, the client will:
 - Show tunnel status updates and health check results
 - Exit gracefully on errors
 
+### Disable Update Checks
+
+You can disable automatic update checks and notifications by adding `disable_update_check: true`:
+
+```yaml
+server_url: example.com
+ssh_url: example.com:2222
+secret_key: { your-secret-key }
+disable_update_check: true
+tunnels:
+  - name: portr
+    subdomain: portr
+    port: 4321
+```
+
+When update checks are disabled, the client will:
+
+- Skip checking for new versions on startup
+- Not display update notifications
+- Reduce startup time and network requests
+
 ### Add more templates
 
 You can create additional tunnel templates under the `tunnels` key:
@@ -120,6 +141,7 @@ These options apply to the entire client configuration:
 - **ssh_url**: The SSH server URL for tunnel connections
 - **secret_key**: Your authentication secret key
 - **disable_tui**: Disable the interactive terminal interface (default: false)
+- **disable_update_check**: Disable automatic update checks and notifications (default: false)
 - **enable_request_logging**: Enable detailed HTTP request logging (default: false)
 - **health_check_interval**: Health check interval in seconds (default: 3)
 - **health_check_max_retries**: Maximum health check retry attempts (default: 10)

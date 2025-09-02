@@ -67,6 +67,7 @@ type Config struct {
 	HealthCheckInterval   int      `yaml:"health_check_interval"`
 	HealthCheckMaxRetries int      `yaml:"health_check_max_retries"`
 	DisableTUI            bool     `yaml:"disable_tui"`
+	DisableUpdateCheck    bool     `yaml:"disable_update_check"`
 }
 
 func (c *Config) SetDefaults() {
