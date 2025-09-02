@@ -20,7 +20,6 @@ import (
 	"github.com/amalshaji/portr/internal/utils"
 	"github.com/charmbracelet/log"
 	"github.com/go-resty/resty/v2"
-	"github.com/labstack/gommon/color"
 	"gorm.io/datatypes"
 
 	"github.com/amalshaji/portr/internal/client/tui"
@@ -170,6 +169,10 @@ func (s *SshClient) startListenerForClient() error {
 			ClientConfig: &s.config,
 			Healthy:      true,
 		})
+	} else {
+		// Log tunnel start when TUI is disabled
+		tunnelAddr := s.config.GetTunnelAddr()
+		fmt.Printf("✅ Tunnel started: %s → %s\n", s.config.Tunnel.GetLocalAddr(), tunnelAddr)
 	}
 
 	for {
@@ -399,13 +402,22 @@ func (s *SshClient) logHttpRequest(
 	}
 
 	// Send log directly to TUI
-	s.tui.Send(tui.AddLogMsg{
-		Time:   req.LoggedAt.Local().Format("15:04:05"),
-		Name:   tunnelName,
-		Method: req.Method,
-		Status: req.ResponseStatusCode,
-		URL:    req.Url,
-	})
+	if s.tui != nil {
+		s.tui.Send(tui.AddLogMsg{
+			Time:   req.LoggedAt.Local().Format("15:04:05"),
+			Name:   tunnelName,
+			Method: req.Method,
+			Status: req.ResponseStatusCode,
+			URL:    req.Url,
+		})
+	} else {
+		// Log to console when TUI is disabled
+		fmt.Printf("[%s] %s %s → %d\n",
+			req.LoggedAt.Local().Format("15:04:05"),
+			req.Method,
+			req.Url,
+			req.ResponseStatusCode)
+	}
 }
 
 func (s *SshClient) tcpTunnel(src, dst net.Conn) {
@@ -452,7 +464,11 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) {
 			if s.tui != nil {
 				s.tui.Kill()
 			}
-			fmt.Printf(color.Red("Failed to reconnect to tunnel after %d attempts\n"), retryAttempts)
+			tunnelName := s.config.Tunnel.Name
+			if tunnelName == "" {
+				tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
+			}
+			fmt.Printf("💀 Failed to reconnect tunnel '%s' after %d attempts\n", tunnelName, retryAttempts)
 			os.Exit(1)
 		}
 
@@ -466,10 +482,15 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) {
 			s.logDebug("Health check failed", err)
 		}
 
-		s.tui.Send(tui.UpdateHealthMsg{
-			Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
-			Healthy: false,
-		})
+		if s.tui != nil {
+			s.tui.Send(tui.UpdateHealthMsg{
+				Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
+				Healthy: false,
+			})
+		} else {
+			// Log unhealthy status when TUI is disabled
+			fmt.Printf("❌ Tunnel unhealthy: %s (attempting reconnect)\n", s.config.GetTunnelAddr())
+		}
 
 		err = s.Reconnect()
 		if err != nil {
@@ -496,20 +517,30 @@ func (s *SshClient) Start(ctx context.Context) {
 	select {
 	case err := <-errChan:
 		// Update TUI with error and wait for it to quit
-		s.tui.Send(tui.ErrorMsg{Error: err})
+		if s.tui != nil {
+			s.tui.Send(tui.ErrorMsg{Error: err})
 
-		// Wait for TUI to quit
-		done := make(chan struct{})
-		go func() {
-			s.tui.Wait()
-			close(done)
-		}()
+			// Wait for TUI to quit
+			done := make(chan struct{})
+			go func() {
+				s.tui.Wait()
+				close(done)
+			}()
 
-		// Wait for either context cancellation or TUI to quit
-		select {
-		case <-ctx.Done():
-			os.Exit(1)
-		case <-done:
+			// Wait for either context cancellation or TUI to quit
+			select {
+			case <-ctx.Done():
+				os.Exit(1)
+			case <-done:
+				os.Exit(1)
+			}
+		} else {
+			// No TUI, just log the error and exit
+			tunnelName := s.config.Tunnel.Name
+			if tunnelName == "" {
+				tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
+			}
+			fmt.Printf("❌ Failed to start tunnel '%s': %v\n", tunnelName, err)
 			os.Exit(1)
 		}
 
@@ -584,6 +615,9 @@ func (s *SshClient) Reconnect() error {
 				Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
 				Healthy: true,
 			})
+		} else {
+			// Log successful reconnection when TUI is disabled
+			fmt.Printf("🔄 Tunnel reconnected: %s\n", s.config.GetTunnelAddr())
 		}
 		return nil
 	case <-time.After(5 * time.Second):
@@ -593,6 +627,9 @@ func (s *SshClient) Reconnect() error {
 				Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
 				Healthy: true,
 			})
+		} else {
+			// Log successful reconnection when TUI is disabled
+			fmt.Printf("🔄 Tunnel reconnected: %s\n", s.config.GetTunnelAddr())
 		}
 		return nil
 	case <-ctx.Done():
@@ -625,12 +662,14 @@ func (s *SshClient) HealthCheck() error {
 	}
 
 	// Update tunnel health status in TUI using the shared instance
-	s.tui.Send(tui.UpdateHealthMsg{
-		Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
-		Healthy: err == nil,
-	})
+	if s.tui != nil {
+		s.tui.Send(tui.UpdateHealthMsg{
+			Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
+			Healthy: true,
+		})
+	}
 
-	return err
+	return nil
 }
 
 func (s *SshClient) logDebug(message string, err error) {
