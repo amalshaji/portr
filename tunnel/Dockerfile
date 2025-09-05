@@ -1,14 +1,14 @@
-FROM node:22-alpine AS web-builder
+FROM oven/bun:1 AS web-builder
 
 WORKDIR /app/web
 
-COPY internal/server/admin/web/package.json internal/server/admin/web/pnpm-lock.yaml ./
+COPY internal/server/admin/web-v2/package.json internal/server/admin/web-v2/bun.lock ./
 
-RUN npm install -g pnpm && pnpm install
+RUN bun install --frozen-lockfile
 
-COPY internal/server/admin/web ./
+COPY internal/server/admin/web-v2 ./
 
-RUN pnpm build
+RUN bun run build
 
 FROM golang:1.25-alpine AS builder
 

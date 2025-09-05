@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="shortcut icon" href="/static/favicon.svg" type="image/svg+xml" />
+    <link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon" />
     <title>
       Portr - Expose local http, tcp or websocket connections to the public
       internet
@@ -16,15 +16,22 @@
     </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="root"></div>
     {{if .UseVite}}
+    <script type="module">
+      import RefreshRuntime from "http://localhost:5173/static/@react-refresh";
+      RefreshRuntime.injectIntoGlobalHook(window);
+      window.$RefreshReg$ = () => {};
+      window.$RefreshSig$ = () => (type) => type;
+      window.__vite_plugin_react_preamble_installed__ = true;
+    </script>
     <script
       type="module"
       src="http://localhost:5173/static/@vite/client"
     ></script>
     <script
       type="module"
-      src="http://localhost:5173/static/src/main.ts"
+      src="http://localhost:5173/static/src/main.tsx"
     ></script>
     {{else}}{{.ViteTags}}{{end}}
   </body>
