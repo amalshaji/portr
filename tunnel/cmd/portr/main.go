@@ -44,22 +44,28 @@ func main() {
 	// because the config file is not loaded when this is set
 	debugForCli := os.Getenv("DEBUG_FOR_CLI") == "1"
 
-	go func() {
-		if err := checkForUpdates(); err != nil {
+	// Load config to check if update checks are disabled
+	cfg, configErr := config.Load(config.DefaultConfigPath)
+	disableUpdateCheck := configErr == nil && cfg.DisableUpdateCheck
+
+	if !disableUpdateCheck {
+		go func() {
+			if err := checkForUpdates(); err != nil {
+				if debugForCli {
+					fmt.Println(color.Red(err.Error()))
+				}
+			}
+		}()
+
+		versionToUpdate, err := getVersionToUpdate()
+		if err != nil {
 			if debugForCli {
 				fmt.Println(color.Red(err.Error()))
 			}
-		}
-	}()
-
-	versionToUpdate, err := getVersionToUpdate()
-	if err != nil {
-		if debugForCli {
-			fmt.Println(color.Red(err.Error()))
-		}
-	} else {
-		if versionToUpdate != "" {
-			fmt.Printf(color.Yellow("A new version of Portr is available: %s. https://github.com/amalshaji/portr/releases/tag/%s\n"), versionToUpdate, versionToUpdate)
+		} else {
+			if versionToUpdate != "" {
+				fmt.Printf(color.Yellow("A new version of Portr is available: %s. https://github.com/amalshaji/portr/releases/tag/%s\n"), versionToUpdate, versionToUpdate)
+			}
 		}
 	}
 
