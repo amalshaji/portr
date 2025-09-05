@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/amalshaji/portr/internal/server/admin/models"
@@ -20,20 +21,34 @@ func NewAuthMiddleware(db *gorm.DB) *AuthMiddleware {
 
 func (m *AuthMiddleware) RequireAuth(c *fiber.Ctx) error {
 	if err := m.checkAuth(c); err != nil {
-		return err
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
+	return c.Next()
+}
+
+func (m *AuthMiddleware) RequireAuthRedirect(c *fiber.Ctx) error {
+	// Don't redirect if already on root path
+	if c.Path() == "/" {
+		return c.Next()
+	}
+
+	if err := m.checkAuth(c); err != nil {
+		// Redirect to home/login page instead of returning JSON
+		return c.Redirect("/", fiber.StatusFound)
+	}
+
 	return c.Next()
 }
 
 func (m *AuthMiddleware) checkAuth(c *fiber.Ctx) error {
 	token := c.Cookies("portr_session")
 	if token == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		return fmt.Errorf("no session token provided")
 	}
 
 	var session models.Session
 	if err := m.db.Preload("User").Where("token = ? AND expires_at > ?", token, time.Now()).First(&session).Error; err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+		return fmt.Errorf("invalid or expired session: %w", err)
 	}
 
 	c.Locals("user", &session.User)
@@ -43,7 +58,7 @@ func (m *AuthMiddleware) checkAuth(c *fiber.Ctx) error {
 func (m *AuthMiddleware) RequireTeamUser(c *fiber.Ctx) error {
 	// First check if user is authenticated
 	if err := m.checkAuth(c); err != nil {
-		return err
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
 	user, ok := c.Locals("user").(*models.User)
@@ -82,7 +97,7 @@ func (m *AuthMiddleware) RequireTeamUser(c *fiber.Ctx) error {
 func (m *AuthMiddleware) RequireAdmin(c *fiber.Ctx) error {
 	// First check authentication
 	if err := m.checkAuth(c); err != nil {
-		return err
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
 	user, ok := c.Locals("user").(*models.User)
@@ -127,7 +142,7 @@ func (m *AuthMiddleware) RequireAdmin(c *fiber.Ctx) error {
 func (m *AuthMiddleware) RequireSuperuser(c *fiber.Ctx) error {
 	// First check if user is authenticated
 	if err := m.checkAuth(c); err != nil {
-		return err
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
 	user, ok := c.Locals("user").(*models.User)

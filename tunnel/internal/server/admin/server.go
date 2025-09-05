@@ -111,7 +111,7 @@ func (s *Server) setupRoutes() {
 
 	s.setupInstanceSettingsRoutes(v1)
 
-	s.app.Get("/*", s.handleIndex)
+	s.app.Get("/*", s.auth.RequireAuthRedirect, s.handleIndex)
 }
 
 func (s *Server) setupAuthRoutes(v1 fiber.Router) {
