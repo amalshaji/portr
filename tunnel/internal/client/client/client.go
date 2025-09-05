@@ -21,26 +21,30 @@ type Client struct {
 }
 
 func NewClient(config *config.Config, db *db.Db) *Client {
-	p := tui.New(config.Debug)
+	var p *tea.Program
 
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
+	if !config.DisableTUI {
+		p = tui.New(config.Debug)
+
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					p.Kill()
+					fmt.Printf("Recovered from panic: %v\n", r)
+					os.Exit(1)
+				}
+			}()
+
+			if _, err := p.Run(); err != nil {
 				p.Kill()
-				fmt.Printf("Recovered from panic: %v\n", r)
+				fmt.Printf("Failed to run TUI: %v\n", err)
 				os.Exit(1)
 			}
-		}()
 
-		if _, err := p.Run(); err != nil {
 			p.Kill()
-			fmt.Printf("Failed to run TUI: %v\n", err)
-			os.Exit(1)
-		}
-
-		p.Kill()
-		os.Exit(0)
-	}()
+			os.Exit(0)
+		}()
+	}
 
 	return &Client{
 		config: config,
@@ -72,6 +76,7 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			EnableRequestLogging:  c.config.EnableRequestLogging,
 			HealthCheckInterval:   c.config.HealthCheckInterval,
 			HealthCheckMaxRetries: c.config.HealthCheckMaxRetries,
+			DisableTUI:            c.config.DisableTUI,
 		})
 	}
 
@@ -80,6 +85,15 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 	}
 
 	for _, clientConfig := range clientConfigs {
+		tunnelName := clientConfig.Tunnel.Name
+		if tunnelName == "" {
+			tunnelName = fmt.Sprintf("%d", clientConfig.Tunnel.Port)
+		}
+
+		if c.config.DisableTUI {
+			fmt.Printf("🚀 Starting tunnel: %s (%s:%d)\n", tunnelName, clientConfig.Tunnel.Host, clientConfig.Tunnel.Port)
+		}
+
 		sshc := ssh.New(clientConfig, c.db, c.tui)
 		c.Add(sshc)
 		go sshc.Start(ctx)
@@ -93,6 +107,10 @@ func (c *Client) Add(sshc *ssh.SshClient) {
 }
 
 func (c *Client) Shutdown(ctx context.Context) {
+	if c.config.DisableTUI {
+		fmt.Printf("🛑 Shutting down tunnels...\n")
+	}
+
 	for _, sshc := range c.sshcs {
 		sshc.Shutdown(ctx)
 	}

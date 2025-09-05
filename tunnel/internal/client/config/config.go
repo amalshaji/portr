@@ -66,6 +66,8 @@ type Config struct {
 	EnableRequestLogging  bool     `yaml:"enable_request_logging"`
 	HealthCheckInterval   int      `yaml:"health_check_interval"`
 	HealthCheckMaxRetries int      `yaml:"health_check_max_retries"`
+	DisableTUI            bool     `yaml:"disable_tui"`
+	DisableUpdateCheck    bool     `yaml:"disable_update_check"`
 }
 
 func (c *Config) SetDefaults() {
@@ -124,6 +126,7 @@ type ClientConfig struct {
 	EnableRequestLogging  bool
 	HealthCheckInterval   int
 	HealthCheckMaxRetries int
+	DisableTUI            bool
 }
 
 func (c *ClientConfig) GetHttpTunnelAddr() string {

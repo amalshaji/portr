@@ -3,8 +3,8 @@ title: Tunnel Templates
 description: Learn how to setup tunnel templates to reuse tunnel settings
 ---
 
-import { Steps } from 'fumadocs-ui/components/steps';
-import { Callout } from 'fumadocs-ui/components/callout';
+import { Steps } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
 
 ## Why Use Templates?
 
@@ -38,6 +38,49 @@ tunnels:
     subdomain: portr
     port: 4321
 ```
+
+### Disable TUI (Terminal User Interface)
+
+You can disable the interactive terminal interface by adding `disable_tui: true` to your configuration:
+
+```yaml
+server_url: example.com
+ssh_url: example.com:2222
+secret_key: { your-secret-key }
+disable_tui: true
+tunnels:
+  - name: portr
+    subdomain: portr
+    port: 4321
+```
+
+When TUI is disabled, the client will:
+
+- Run in headless mode without the interactive interface
+- Log connection events, errors, and HTTP requests directly to the console
+- Show tunnel status updates and health check results
+- Exit gracefully on errors
+
+### Disable Update Checks
+
+You can disable automatic update checks and notifications by adding `disable_update_check: true`:
+
+```yaml
+server_url: example.com
+ssh_url: example.com:2222
+secret_key: { your-secret-key }
+disable_update_check: true
+tunnels:
+  - name: portr
+    subdomain: portr
+    port: 4321
+```
+
+When update checks are disabled, the client will:
+
+- Skip checking for new versions on startup
+- Not display update notifications
+- Reduce startup time and network requests
 
 ### Add more templates
 
@@ -88,18 +131,35 @@ portr start
   For more details about available commands and options, run `portr --help`.
 </Callout>
 
-## Template Configuration Options
+## Configuration Options
+
+### Global Configuration Options
+
+These options apply to the entire client configuration:
+
+- **server_url**: The Portr server URL
+- **ssh_url**: The SSH server URL for tunnel connections
+- **secret_key**: Your authentication secret key
+- **disable_tui**: Disable the interactive terminal interface (default: false)
+- **disable_update_check**: Disable automatic update checks and notifications (default: false)
+- **enable_request_logging**: Enable detailed HTTP request logging (default: false)
+- **health_check_interval**: Health check interval in seconds (default: 3)
+- **health_check_max_retries**: Maximum health check retry attempts (default: 10)
+
+### Tunnel Template Options
 
 Each tunnel template supports the following options:
 
 - **name**: A unique identifier for the tunnel
 - **subdomain**: The subdomain to use for the tunnel
 - **port**: The local port to tunnel
-- **type**: The tunnel type (`http`, `tcp`, or `websocket`)
+- **type**: The tunnel type (`http` or `tcp`)
+- **host**: The local host to bind to (default: localhost)
 
 ## Example Configurations
 
 ### Development Environment
+
 ```yaml
 tunnels:
   - name: frontend
@@ -117,6 +177,7 @@ tunnels:
 ```
 
 ### Testing Environment
+
 ```yaml
 tunnels:
   - name: staging
