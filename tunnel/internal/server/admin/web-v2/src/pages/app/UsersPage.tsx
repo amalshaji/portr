@@ -148,7 +148,7 @@ export default function UsersPage() {
             disabled={currentUser?.role === "member"}
           >
             <Plus className="h-4 w-4 mr-2" />
-            Invite User
+            Add User
           </Button>
         </div>
 
@@ -178,7 +178,6 @@ export default function UsersPage() {
                     <TableHead>User</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Joined</TableHead>
-                    <TableHead>Last Active</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -243,9 +242,6 @@ export default function UsersPage() {
                         <DateField date={teamUser.created_at} />
                       </TableCell>
                       <TableCell>
-                        <DateField date={teamUser.updated_at} />
-                      </TableCell>
-                      <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm">
@@ -253,7 +249,6 @@ export default function UsersPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>Change Role</DropdownMenuItem>
                             {canDeleteUser(teamUser) && (
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>

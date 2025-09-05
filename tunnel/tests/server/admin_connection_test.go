@@ -3,6 +3,7 @@ package server_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -288,5 +289,91 @@ func TestCreateConnection_TCP_Success(t *testing.T) {
 
 	if createdConn.Type != models.ConnectionTypeTCP {
 		t.Fatalf("expected connection type %s, got %s", models.ConnectionTypeTCP, createdConn.Type)
+	}
+}
+
+func TestGetConnections_Pagination(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	// Create user and team, add user as team admin
+	user := CreateTestUser(t, db, "pagination@example.com", false)
+	team, teamUser := CreateTeamAndTeamUser(t, db, "Pagination Team", user, "admin")
+
+	// Create multiple connections for this team
+	connections := make([]models.Connection, 15)
+	for i := 0; i < 15; i++ {
+		subdomain := fmt.Sprintf("testsubdomain%d", i)
+		conn := models.NewConnection(models.ConnectionTypeHTTP, &subdomain, teamUser)
+		conn.Status = models.ConnectionStatusActive
+		if err := db.Create(conn).Error; err != nil {
+			t.Fatalf("failed to create connection %d in DB: %v", i, err)
+		}
+		connections[i] = *conn
+	}
+
+	// Create session for user
+	sess := CreateSessionForUser(t, db, user)
+
+	// Test first page with page_size=10
+	req := httptest.NewRequest("GET", "/api/v1/connections/?page=1&page_size=10", nil)
+	req.Header.Set("Cookie", SessionCookieValue(sess))
+	req.Header.Set("X-Team-Slug", team.Slug)
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK for paginated connections, got %d", resp.StatusCode)
+	}
+
+	var respBody map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	// Check count
+	count, ok := respBody["count"].(float64)
+	if !ok {
+		t.Fatalf("expected count in response, got: %v", respBody)
+	}
+	if count != 15 {
+		t.Fatalf("expected count 15, got %v", count)
+	}
+
+	// Check data length
+	data, ok := respBody["data"].([]interface{})
+	if !ok {
+		t.Fatalf("expected data array in response, got: %v", respBody)
+	}
+	if len(data) != 10 {
+		t.Fatalf("expected 10 items on first page, got %d", len(data))
+	}
+
+	// Test second page
+	req2 := httptest.NewRequest("GET", "/api/v1/connections/?page=2&page_size=10", nil)
+	req2.Header.Set("Cookie", SessionCookieValue(sess))
+	req2.Header.Set("X-Team-Slug", team.Slug)
+
+	resp2 := DoRequest(t, srv, req2)
+	defer resp2.Body.Close()
+
+	if resp2.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK for second page, got %d", resp2.StatusCode)
+	}
+
+	var respBody2 map[string]interface{}
+	if err := json.NewDecoder(resp2.Body).Decode(&respBody2); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	data2, ok := respBody2["data"].([]interface{})
+	if !ok {
+		t.Fatalf("expected data array in response, got: %v", respBody2)
+	}
+	if len(data2) != 5 {
+		t.Fatalf("expected 5 items on second page, got %d", len(data2))
 	}
 }

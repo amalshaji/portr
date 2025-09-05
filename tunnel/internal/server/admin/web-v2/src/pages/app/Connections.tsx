@@ -3,6 +3,13 @@ import { useParams } from "react-router-dom";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -20,6 +27,8 @@ import {
 import ConnectionStatus from "@/components/ConnectionStatus";
 import ConnectionType from "@/components/ConnectionType";
 import DateField from "@/components/DateField";
+import { Pagination } from "@/components/ui/pagination";
+import { Skeleton } from "@/components/ui/skeleton";
 import { updateQueryParam } from "@/lib/utils";
 import type { Connection } from "@/types";
 
@@ -48,18 +57,22 @@ export default function Connections() {
   const [pageNo, setPageNo] = useState(
     parseInt(urlParams.get("page") || "1", 10) || 1
   );
+  const [pageSize, setPageSize] = useState(
+    parseInt(urlParams.get("page_size") || "10", 10) || 10
+  );
   const [totalItems, setTotalItems] = useState(0);
 
   const getConnections = async (
     type: string = "recent",
-    pageNoStr: string = "1"
+    pageNoStr: string = "1",
+    pageSizeStr: string = "10"
   ) => {
     if (!team) return;
 
     setConnectionsLoading(true);
     try {
       const res = await fetch(
-        `/api/v1/connections/?type=${type}&page=${pageNoStr}`,
+        `/api/v1/connections/?type=${type}&page=${pageNoStr}&page_size=${pageSizeStr}`,
         {
           headers: {
             "x-team-slug": team,
@@ -98,8 +111,9 @@ export default function Connections() {
   useEffect(() => {
     updateQueryParam(urlParams, "type", connectionType);
     updateQueryParam(urlParams, "page", pageNo.toString());
-    getConnections(connectionType, pageNo.toString());
-  }, [connectionType, pageNo, team]);
+    updateQueryParam(urlParams, "page_size", pageSize.toString());
+    getConnections(connectionType, pageNo.toString(), pageSize.toString());
+  }, [connectionType, pageNo, pageSize, team]);
 
   return (
     <div className="space-y-6">
@@ -138,9 +152,61 @@ export default function Connections() {
         <CardContent>
           <div className="rounded-sm border overflow-hidden">
             {connectionsLoading ? (
-              <div className="p-6 text-center">
-                <p className="text-muted-foreground">Loading connections...</p>
-              </div>
+              <>
+                <div className="w-full flex justify-between items-center p-2 border-b bg-muted/50">
+                  <div className="flex items-center space-x-2">
+                    <Skeleton className="h-4 w-8" />
+                    <Skeleton className="h-8 w-20" />
+                    <Skeleton className="h-4 w-12" />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Skeleton className="h-8 w-8" />
+                    <Skeleton className="h-8 w-8" />
+                    <Skeleton className="h-8 w-8" />
+                    <Skeleton className="h-8 w-8" />
+                  </div>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Port</TableHead>
+                      <TableHead>Subdomain</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created at</TableHead>
+                      <TableHead>Duration</TableHead>
+                      <TableHead>Created by</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Array.from({ length: pageSize }).map((_, index) => (
+                      <TableRow key={index}>
+                        <TableCell>
+                          <Skeleton className="h-6 w-16" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-12" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-24" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-6 w-20" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-28" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-16" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton className="h-4 w-32" />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </>
             ) : connections.length === 0 ? (
               <div className="p-6 text-center">
                 <p className="text-muted-foreground">No connections found</p>
@@ -152,8 +218,38 @@ export default function Connections() {
               </div>
             ) : (
               <>
-                <div className="w-full flex justify-end p-2 border-b bg-muted/50">
-                  {/* Pagination would go here */}
+                <div className="w-full flex justify-between items-center p-2 border-b bg-muted/50">
+                  <div className="flex items-center space-x-2">
+                    <Label htmlFor="page-size" className="text-sm font-medium">
+                      Show:
+                    </Label>
+                    <Select
+                      value={pageSize.toString()}
+                      onValueChange={(value) => {
+                        setPageSize(parseInt(value, 10));
+                        setPageNo(1);
+                      }}
+                    >
+                      <SelectTrigger className="w-20" id="page-size">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-sm text-muted-foreground">
+                      per page
+                    </span>
+                  </div>
+                  <Pagination
+                    count={totalItems}
+                    perPage={pageSize}
+                    currentPage={pageNo}
+                    onPageChange={setPageNo}
+                  />
                 </div>
                 <Table>
                   <TableHeader>
@@ -218,9 +314,13 @@ export default function Connections() {
       {totalItems > 0 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Showing {connections.length} of {totalItems} connections
+            Showing {(pageNo - 1) * pageSize + 1} to{" "}
+            {Math.min(pageNo * pageSize, totalItems)} of {totalItems}{" "}
+            connections
           </p>
-          {/* Simple pagination could be added here */}
+          <div className="text-sm text-muted-foreground">
+            Page {pageNo} of {Math.ceil(totalItems / pageSize)}
+          </div>
         </div>
       )}
     </div>
