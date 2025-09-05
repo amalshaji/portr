@@ -27,14 +27,31 @@ func (m *AuthMiddleware) RequireAuth(c *fiber.Ctx) error {
 }
 
 func (m *AuthMiddleware) RequireAuthRedirect(c *fiber.Ctx) error {
-	// Don't redirect if already on root path
-	if c.Path() == "/" {
+	err := m.checkAuth(c)
+	if err != nil {
+		if c.Path() != "/" {
+			return c.Redirect("/", fiber.StatusFound)
+		}
 		return c.Next()
 	}
 
-	if err := m.checkAuth(c); err != nil {
-		// Redirect to home/login page instead of returning JSON
-		return c.Redirect("/", fiber.StatusFound)
+	// Handle no error
+	if c.Path() == "/" {
+		// Get user from locals
+		user := GetCurrentUser(c)
+		if user == nil {
+			return c.Next()
+		}
+
+		// Find user's first team
+		var teamUser models.TeamUser
+		err := m.db.Preload("Team").
+			Where("user_id = ?", user.ID).
+			First(&teamUser).Error
+
+		if err == nil && teamUser.Team.Slug != "" {
+			return c.Redirect("/"+teamUser.Team.Slug+"/overview", fiber.StatusFound)
+		}
 	}
 
 	return c.Next()

@@ -239,3 +239,105 @@ func TestRequireSuperuser_NonSuperuserForbidden_SuperuserAllowed(t *testing.T) {
 		t.Fatalf("expected 200 OK for superuser creating team, got %d", respSuper.StatusCode)
 	}
 }
+
+func TestRequireAuthRedirect_UnauthenticatedRootPath_Continues(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	// No session cookie
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 OK for unauthenticated root path, got %d", resp.StatusCode)
+	}
+}
+
+func TestRequireAuthRedirect_UnauthenticatedNonRootPath_RedirectsToRoot(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	req := httptest.NewRequest("GET", "/some/path", nil)
+	// No session cookie
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusFound {
+		t.Fatalf("expected 302 Found for unauthenticated non-root path, got %d", resp.StatusCode)
+	}
+
+	location := resp.Header.Get("Location")
+	if location != "/" {
+		t.Fatalf("expected redirect to '/', got '%s'", location)
+	}
+}
+
+func TestRequireAuthRedirect_AuthenticatedRootPathWithTeam_RedirectsToTeamOverview(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	user := CreateTestUser(t, db, "teamuser@example.com", false)
+	team, _ := CreateTeamAndTeamUser(t, db, "Test Team", user, "member")
+	sess := CreateSessionForUser(t, db, user)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("Cookie", SessionCookieValue(sess))
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusFound {
+		t.Fatalf("expected 302 Found for authenticated root path with team, got %d", resp.StatusCode)
+	}
+
+	expectedLocation := "/" + team.Slug + "/overview"
+	location := resp.Header.Get("Location")
+	if location != expectedLocation {
+		t.Fatalf("expected redirect to '%s', got '%s'", expectedLocation, location)
+	}
+}
+
+func TestRequireAuthRedirect_AuthenticatedRootPathNoTeam_Continues(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	user := CreateTestUser(t, db, "noteamuser@example.com", false)
+	sess := CreateSessionForUser(t, db, user)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("Cookie", SessionCookieValue(sess))
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 OK for authenticated root path with no team, got %d", resp.StatusCode)
+	}
+}
+
+func TestRequireAuthRedirect_AuthenticatedNonRootPath_Continues(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	user := CreateTestUser(t, db, "pathuser@example.com", false)
+	_, _ = CreateTeamAndTeamUser(t, db, "Test Team", user, "member")
+	sess := CreateSessionForUser(t, db, user)
+
+	req := httptest.NewRequest("GET", "/some/path", nil)
+	req.Header.Set("Cookie", SessionCookieValue(sess))
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 OK for authenticated non-root path, got %d", resp.StatusCode)
+	}
+}
