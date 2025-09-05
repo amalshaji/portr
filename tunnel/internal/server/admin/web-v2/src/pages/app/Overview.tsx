@@ -454,14 +454,14 @@ export default function Overview() {
               You're ready to use the tunnel
             </h3>
 
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               Run{" "}
               <code className="bg-muted px-1 py-0.5 rounded text-sm">
                 {helpCommand}
               </code>{" "}
               or check out the{" "}
               <a
-                href="https://portr.dev"
+                href="https://portr.dev/docs/client"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary hover:underline font-medium"
