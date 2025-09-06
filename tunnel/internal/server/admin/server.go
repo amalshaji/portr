@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/amalshaji/portr/internal/server/admin/api/auth"
@@ -90,12 +91,6 @@ func NewServer(cfg *serverConfig.AdminConfig, database *gorm.DB) *Server {
 }
 
 func (s *Server) setupRoutes() {
-	s.app.Use("/static", filesystem.New(filesystem.Config{
-		Root:       http.FS(staticFS),
-		PathPrefix: "static",
-		Browse:     false,
-	}))
-
 	api := s.app.Group("/api")
 	v1 := api.Group("/v1")
 
@@ -111,7 +106,19 @@ func (s *Server) setupRoutes() {
 
 	s.setupInstanceSettingsRoutes(v1)
 
-	s.app.Get("/*", s.auth.RequireAuthRedirect, s.handleIndex)
+	s.app.Use("/static", filesystem.New(filesystem.Config{
+		Root:       http.FS(staticFS),
+		PathPrefix: "static",
+		Browse:     false,
+	}))
+
+	s.app.Get("/*", s.auth.RequireAuthRedirect, func(c *fiber.Ctx) error {
+		// Skip static paths
+		if strings.HasPrefix(c.Path(), "/static/") {
+			return c.Next()
+		}
+		return s.handleIndex(c)
+	})
 }
 
 func (s *Server) setupAuthRoutes(v1 fiber.Router) {
