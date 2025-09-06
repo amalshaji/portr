@@ -104,9 +104,7 @@ export default function HomePage() {
       <div className="max-w-md w-full space-y-8">
         {/* Logo/Brand */}
         <div className="text-center">
-          <div className="mx-auto h-16 w-16 border-2 border-black bg-black flex items-center justify-center mb-6">
-            <span className="text-2xl font-bold text-white">P</span>
-          </div>
+          <img src="/static/logo.svg" alt="Portr Logo" className="mx-auto h-16 w-16 mb-6" />
           <h1 className="text-2xl font-bold text-black">
             {isSuperUserSignup ? 'Create Account' : 'Welcome Back'}
           </h1>
