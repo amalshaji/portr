@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    profiles:
+      - postgres
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER:-postgres}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
+      POSTGRES_DB: "${POSTGRES_DB:-postgres}"
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: "${RESTART_POLICY:-no}"
+
+  tunnel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: "${BUILD_VERSION:-dev}"
+    command: ["start", "all"]
+    env_file:
+      - .env
+    environment:
+      PORTR_DB_URL: "${PORTR_DB_URL}"
+      PORTR_DOMAIN: "${PORTR_DOMAIN}"
+      PORTR_USE_LOCALHOST: "${PORTR_USE_LOCALHOST}"
+      PORTR_ENCRYPTION_KEY: "${PORTR_ENCRYPTION_KEY}"
+      PORTR_ADMIN_PORT: "${PORTR_ADMIN_PORT}"
+      PORTR_ADMIN_DEBUG: "${PORTR_ADMIN_DEBUG}"
+      PORTR_ADMIN_USE_VITE: false
+      PORTR_SERVER_URL: "${PORTR_SERVER_URL}"
+      PORTR_SSH_URL: "${PORTR_SSH_URL}"
+      PORTR_TUNNEL_USE_LOCALHOST: "${PORTR_TUNNEL_USE_LOCALHOST}"
+      PORTR_TUNNEL_DEBUG: "${PORTR_TUNNEL_DEBUG}"
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: "${RESTART_POLICY:-no}"
+    ports:
+      - "2222:2222"
+      - "${PORTR_ADMIN_PORT:-8000}:8000"
+      - "8001:8001"
+
+volumes:
+  postgres-data:
+    driver: local
+  sqlite-data:
+    driver: local
