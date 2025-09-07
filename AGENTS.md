@@ -7,6 +7,7 @@
 - When making any changes, make sure to add/update tests for the same code.
 
 ## Directory structure
+
 - tunnel/ contains all the code for the v1 implementation (admin server + tunnel server + portr cli)
 - tunnel/internal/client/dashboard/ui - code for the client dashboard, written in svelte
 - tunnel/internal/admin/web - code for the old admin dashboard, written in svelte
