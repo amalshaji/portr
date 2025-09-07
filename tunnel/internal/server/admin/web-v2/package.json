@@ -31,6 +31,7 @@
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.2",
     "react-syntax-highlighter": "^15.6.6",
+    "recharts": "2.15.4",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.13",

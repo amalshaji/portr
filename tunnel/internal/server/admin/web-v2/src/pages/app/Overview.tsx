@@ -1,17 +1,10 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import {
-  Copy,
-  Globe,
-  Shield,
-  Terminal,
-  Users,
-  Cpu,
-  HardDrive,
-} from "lucide-react";
+import { Copy, Globe, Shield, Terminal, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { copyCodeToClipboard } from "@/lib/utils";
-import type { DashboardStats, SystemStats } from "@/types";
+import type { DashboardStats, SystemStats, ChartData } from "@/types";
+import { MetricsChart } from "@/components/MetricsChart";
 
 export default function Overview() {
   const { team } = useParams<{ team: string }>();
@@ -37,6 +30,11 @@ export default function Overview() {
     hostname: "",
     os: "",
     architecture: "",
+  });
+
+  const [chartData, setChartData] = useState<ChartData>({
+    memory_usage: [],
+    cpu_usage: [],
   });
 
   const getSetupScript = async () => {
@@ -109,6 +107,15 @@ export default function Overview() {
           architecture: sysStats.architecture || "",
         });
 
+        // Set chart data if available
+        if (data.chart_data) {
+          setChartData({
+            memory_usage: data.chart_data.memory_usage || [],
+            cpu_usage: data.chart_data.cpu_usage || [],
+            latest: data.chart_data.latest,
+          });
+        }
+
         if (sysStats && sysStats.server_start_time && !serverStartTime) {
           setServerStartTime(sysStats.server_start_time);
           setUptimeDisplay(formatUptime(sysStats.server_start_time));
@@ -133,6 +140,10 @@ export default function Overview() {
           hostname: "",
           os: "",
           architecture: "",
+        });
+        setChartData({
+          memory_usage: [],
+          cpu_usage: [],
         });
         setUptimeDisplay("Unknown");
       }
@@ -188,7 +199,7 @@ export default function Overview() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-lg border bg-card p-6">
           <div className="flex items-center justify-between space-y-0 pb-2">
             <p className="text-sm font-medium">Active Connections</p>
@@ -216,41 +227,10 @@ export default function Overview() {
           </div>
           <div className="text-2xl font-bold">{uptimeDisplay}</div>
         </div>
-
-        <div className="rounded-lg border bg-card p-6">
-          <div className="flex items-center justify-between space-y-0 pb-2">
-            <p className="text-sm font-medium">Memory Usage</p>
-            <HardDrive className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="text-2xl font-bold">
-            {statsLoading
-              ? "..."
-              : `${systemStats.systemMemoryUsagePercent.toFixed(1)}%`}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {statsLoading
-              ? ""
-              : `${systemStats.systemMemoryUsedGB.toFixed(
-                  1
-                )}GB / ${systemStats.systemMemoryTotalGB.toFixed(1)}GB`}
-          </p>
-        </div>
-
-        <div className="rounded-lg border bg-card p-6">
-          <div className="flex items-center justify-between space-y-0 pb-2">
-            <p className="text-sm font-medium">CPU Usage</p>
-            <Cpu className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="text-2xl font-bold">
-            {statsLoading
-              ? "..."
-              : `${systemStats.cpuUsagePercent.toFixed(1)}%`}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {statsLoading ? "" : `${systemStats.numCpu} cores`}
-          </p>
-        </div>
       </div>
+
+      {/* Metrics Charts */}
+      <MetricsChart chartData={chartData} isLoading={statsLoading} />
 
       {/* System Information */}
       <div className="rounded-lg border bg-card p-6">

@@ -18,6 +18,7 @@ import (
 	"github.com/amalshaji/portr/internal/server/admin/scheduler"
 	"github.com/amalshaji/portr/internal/server/admin/utils"
 	serverConfig "github.com/amalshaji/portr/internal/server/config"
+	"github.com/amalshaji/portr/internal/server/stats"
 	"github.com/charmbracelet/log"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -36,13 +37,14 @@ var templateFS embed.FS
 var staticFS embed.FS
 
 type Server struct {
-	app       *fiber.App
-	config    *serverConfig.AdminConfig
-	db        *db.AdminDB
-	auth      *middleware.AuthMiddleware
-	scheduler *scheduler.Scheduler
-	store     *session.Store
-	startTime time.Time
+	app            *fiber.App
+	config         *serverConfig.AdminConfig
+	db             *db.AdminDB
+	auth           *middleware.AuthMiddleware
+	scheduler      *scheduler.Scheduler
+	store          *session.Store
+	startTime      time.Time
+	statsCollector *stats.StatsCollector
 }
 
 func NewServer(cfg *serverConfig.AdminConfig, database *gorm.DB) *Server {
@@ -71,13 +73,14 @@ func NewServer(cfg *serverConfig.AdminConfig, database *gorm.DB) *Server {
 	store := session.New()
 
 	server := &Server{
-		app:       app,
-		config:    cfg,
-		db:        db.New(database),
-		auth:      middleware.NewAuthMiddleware(database),
-		scheduler: scheduler.New(database),
-		store:     store,
-		startTime: time.Now(),
+		app:            app,
+		config:         cfg,
+		db:             db.New(database),
+		auth:           middleware.NewAuthMiddleware(database),
+		scheduler:      scheduler.New(database),
+		store:          store,
+		startTime:      time.Now(),
+		statsCollector: stats.NewStatsCollector(),
 	}
 
 	app.Use(func(c *fiber.Ctx) error {
@@ -164,7 +167,7 @@ func (s *Server) setupConnectionRoutes(v1 fiber.Router) {
 }
 
 func (s *Server) setupConfigRoutes(v1 fiber.Router) {
-	configHandler := config.NewHandler(s.db.DB, s.store, s.config)
+	configHandler := config.NewHandler(s.db.DB, s.store, s.config, s.statsCollector)
 	configGroup := v1.Group("/config")
 
 	configGroup.Post("/download", configHandler.DownloadConfig)
@@ -173,7 +176,7 @@ func (s *Server) setupConfigRoutes(v1 fiber.Router) {
 }
 
 func (s *Server) setupInstanceSettingsRoutes(v1 fiber.Router) {
-	configHandler := config.NewHandler(s.db.DB, s.store, s.config)
+	configHandler := config.NewHandler(s.db.DB, s.store, s.config, s.statsCollector)
 	instanceGroup := v1.Group("/instance-settings")
 
 	instanceGroup.Get("/", s.auth.RequireSuperuser, configHandler.GetInstanceSettings)
@@ -215,6 +218,7 @@ func (s *Server) Store() *session.Store {
 
 func (s *Server) Start() error {
 	s.scheduler.Start()
+	s.statsCollector.Start()
 
 	addr := fmt.Sprintf(":%d", s.config.Port)
 	log.Info("Starting admin server", "address", addr)
@@ -223,6 +227,7 @@ func (s *Server) Start() error {
 
 func (s *Server) Shutdown() error {
 	s.scheduler.Stop()
+	s.statsCollector.Stop()
 
 	return s.app.Shutdown()
 }

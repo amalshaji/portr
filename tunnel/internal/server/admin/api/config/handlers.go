@@ -14,6 +14,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
 	"gorm.io/gorm"
+
+	serverStats "github.com/amalshaji/portr/internal/server/stats"
 )
 
 var (
@@ -68,16 +70,18 @@ func calculateCPUUsage(currentCPU types.CPUTimes) float64 {
 }
 
 type Handler struct {
-	db     *gorm.DB
-	store  *session.Store
-	config *serverConfig.AdminConfig
+	db             *gorm.DB
+	store          *session.Store
+	config         *serverConfig.AdminConfig
+	statsCollector *serverStats.StatsCollector
 }
 
-func NewHandler(db *gorm.DB, store *session.Store, cfg *serverConfig.AdminConfig) *Handler {
+func NewHandler(db *gorm.DB, store *session.Store, cfg *serverConfig.AdminConfig, statsCollector *serverStats.StatsCollector) *Handler {
 	return &Handler{
-		db:     db,
-		store:  store,
-		config: cfg,
+		db:             db,
+		store:          store,
+		config:         cfg,
+		statsCollector: statsCollector,
 	}
 }
 
@@ -214,7 +218,33 @@ func (h *Handler) GetStats(c *fiber.Ctx) error {
 		serverStartTime = now
 	}
 
-	// Get system metrics
+	// Get historical stats data from the collector
+	statsData := h.statsCollector.GetStats()
+
+	// Get latest stats for current values
+	var latestStats serverStats.StatsData
+	var hasLatest bool
+	if latest, ok := h.statsCollector.GetLatestStats(); ok {
+		latestStats = latest
+		hasLatest = true
+	}
+
+	// Convert historical data to chart-friendly format
+	var memoryUsageHistory []fiber.Map
+	var cpuUsageHistory []fiber.Map
+
+	for _, data := range statsData {
+		memoryUsageHistory = append(memoryUsageHistory, fiber.Map{
+			"timestamp": data.Timestamp,
+			"value":     data.MemoryUsage,
+		})
+		cpuUsageHistory = append(cpuUsageHistory, fiber.Map{
+			"timestamp": data.Timestamp,
+			"value":     data.CPUUsage,
+		})
+	}
+
+	// Get current system metrics for real-time display
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
@@ -260,11 +290,27 @@ func (h *Handler) GetStats(c *fiber.Ctx) error {
 		}
 	}
 
+	// Prepare chart data
+	chartData := fiber.Map{
+		"memory_usage": memoryUsageHistory,
+		"cpu_usage":    cpuUsageHistory,
+	}
+
+	// Include latest values if available
+	if hasLatest {
+		chartData["latest"] = fiber.Map{
+			"memory_usage": latestStats.MemoryUsage,
+			"cpu_usage":    latestStats.CPUUsage,
+			"timestamp":    latestStats.Timestamp,
+		}
+	}
+
 	return c.JSON(fiber.Map{
 		"team_stats": fiber.Map{
 			"active_connections": activeConnections,
 			"team_members":       teamMembers,
 		},
 		"system_stats": systemStats,
+		"chart_data":   chartData,
 	})
 }

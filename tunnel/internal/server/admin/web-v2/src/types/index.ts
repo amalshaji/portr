@@ -69,6 +69,21 @@ export interface DashboardStats {
   totalUsers: number
 }
 
+export interface ChartDataPoint {
+  timestamp: string
+  value: number
+}
+
+export interface ChartData {
+  memory_usage: ChartDataPoint[]
+  cpu_usage: ChartDataPoint[]
+  latest?: {
+    memory_usage: number
+    cpu_usage: number
+    timestamp: string
+  }
+}
+
 export interface SystemStats {
   memoryUsedMB: number
   memoryTotalMB: number
