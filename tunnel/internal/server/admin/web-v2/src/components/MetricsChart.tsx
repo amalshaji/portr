@@ -194,6 +194,7 @@ function MetricChart({
                 strokeWidth: 2,
                 fill: "#fff",
               }}
+              animationDuration={0}
             />
           </LineChart>
         </ChartContainer>

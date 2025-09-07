@@ -9,6 +9,7 @@ import {
   HelpCircle,
   LogOut,
   EllipsisVertical,
+  Activity,
 } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import SidebarLink from "@/components/SidebarLink";
@@ -35,6 +36,7 @@ import {
 import { useUserStore } from "@/lib/store";
 import NewTeamDialog from "@/components/NewTeamDialog";
 import Overview from "./Overview";
+import Metrics from "./Metrics";
 import Connections from "./Connections";
 import UsersPage from "./UsersPage";
 import MyAccount from "./MyAccount";
@@ -109,6 +111,14 @@ export default function AppPage() {
                   <SidebarLink to={`/${team}/overview`}>
                     <Home className="h-4 w-4" />
                     Overview
+                  </SidebarLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <SidebarLink to={`/${team}/metrics`}>
+                    <Activity className="h-4 w-4" />
+                    Metrics
                   </SidebarLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -269,6 +279,7 @@ export default function AppPage() {
       <AppLayout sidebar={sidebar}>
         <Routes>
           <Route path="/overview" element={<Overview />} />
+          <Route path="/metrics" element={<Metrics />} />
           <Route path="/connections" element={<Connections />} />
           <Route path="/my-account" element={<MyAccount />} />
           <Route path="/users" element={<UsersPage />} />
