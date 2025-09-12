@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"strings"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -55,9 +56,11 @@ func (u *User) SetPassword(password string) error {
 
 	hash := argon2.IDKey([]byte(password), salt, timeParam, memory, threads, keyLength)
 
-	combined := append(salt, hash...)
-	encoded := base64.RawStdEncoding.EncodeToString(combined)
-	u.Password = &encoded
+	// Generate PHC format: $argon2id$v=19$m=65536,t=3,p=4$base64salt$base64hash
+	saltB64 := base64.RawStdEncoding.EncodeToString(salt)
+	hashB64 := base64.RawStdEncoding.EncodeToString(hash)
+	phc := fmt.Sprintf("$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s", memory, timeParam, threads, saltB64, hashB64)
+	u.Password = &phc
 
 	return nil
 }
@@ -67,6 +70,61 @@ func (u *User) CheckPassword(password string) bool {
 		return false
 	}
 
+	// First try the PHC format (Python compatible)
+	if u.checkPasswordPHC(password) {
+		return true
+	}
+
+	// If PHC fails, try the old custom base64 format
+	if u.checkPasswordOldFormat(password) {
+		return true
+	}
+
+	return false
+}
+
+// checkPasswordPHC handles the PHC format (Python compatible)
+func (u *User) checkPasswordPHC(password string) bool {
+	// PHC format: $argon2id$v=19$m=65536,t=3,p=4$base64salt$base64hash
+	parts := strings.Split(*u.Password, "$")
+	if len(parts) != 6 {
+		return false
+	}
+
+	if parts[1] != "argon2id" {
+		return false
+	}
+
+	// Extract salt and hash
+	saltB64 := parts[4]
+	hashB64 := parts[5]
+
+	salt, err := base64.RawStdEncoding.DecodeString(saltB64)
+	if err != nil {
+		return false
+	}
+
+	storedHash, err := base64.RawStdEncoding.DecodeString(hashB64)
+	if err != nil {
+		return false
+	}
+
+	hash := argon2.IDKey([]byte(password), salt, timeParam, memory, threads, keyLength)
+
+	if len(hash) != len(storedHash) {
+		return false
+	}
+
+	var diff byte
+	for i := 0; i < len(hash); i++ {
+		diff |= hash[i] ^ storedHash[i]
+	}
+
+	return diff == 0
+}
+
+// checkPasswordOldFormat handles the old custom base64 format
+func (u *User) checkPasswordOldFormat(password string) bool {
 	decoded, err := base64.RawStdEncoding.DecodeString(*u.Password)
 	if err != nil {
 		return false
