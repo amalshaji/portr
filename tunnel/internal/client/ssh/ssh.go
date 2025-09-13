@@ -53,7 +53,7 @@ func New(config config.ClientConfig, db *db.Db, tui *tea.Program) *SshClient {
 	}
 }
 
-func (s *SshClient) createNewConnection() (string, error) {
+func CreateNewConnection(cfg config.ClientConfig) (string, error) {
 	client := resty.New()
 	var reqErr struct {
 		Message string `json:"message"`
@@ -63,35 +63,39 @@ func (s *SshClient) createNewConnection() (string, error) {
 	}
 
 	payload := map[string]any{
-		"connection_type": string(s.config.Tunnel.Type),
-		"secret_key":      s.config.SecretKey,
+		"connection_type": string(cfg.Tunnel.Type),
+		"secret_key":      cfg.SecretKey,
 		"subdomain":       nil,
 	}
 	request := client.R().
 		SetError(&reqErr).
 		SetResult(&response)
 
-	if s.config.Tunnel.Type == constants.Http {
-		payload["subdomain"] = s.config.Tunnel.Subdomain
+	if cfg.Tunnel.Type == constants.Http {
+		payload["subdomain"] = cfg.Tunnel.Subdomain
 	}
 
-	resp, err := request.SetBody(payload).Post(s.config.GetServerAddr() + "/api/v1/connections/")
+	resp, err := request.SetBody(payload).Post(cfg.GetServerAddr() + "/api/v1/connections/")
 
 	if err != nil {
 		return "", err
 	}
 
 	if resp.StatusCode() != 200 {
-		if s.config.Debug {
-			log.Error("Failed to create new connection", "error", reqErr)
-		}
+		log.Error("Failed to create new connection", "error", reqErr)
 		return "", fmt.Errorf("server error: %s", reqErr.Message)
 	}
 	return response.ConnectionId, nil
 }
 
+func (s *SshClient) createNewConnection() (string, error) {
+	if s.config.ConnectionID != "" {
+		return s.config.ConnectionID, nil
+	}
+	return CreateNewConnection(s.config)
+}
+
 func (s *SshClient) startListenerForClient() error {
-	// Check if we're shutting down
 	if atomic.LoadInt32(&s.shutdown) == 1 {
 		return fmt.Errorf("client is shutting down")
 	}
@@ -111,8 +115,6 @@ func (s *SshClient) startListenerForClient() error {
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	// Create new client with mutex protection
-	// Establish TCP connection with keepalive and reduced latency
 	dialer := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 15 * time.Second}
 	rawConn, err := dialer.Dial("tcp", s.config.SshUrl)
 	if err != nil {
@@ -127,7 +129,6 @@ func (s *SshClient) startListenerForClient() error {
 		_ = tcp.SetNoDelay(true)
 	}
 
-	// Perform SSH handshake over the existing TCP connection
 	cc, chans, reqs, err := ssh.NewClientConn(rawConn, s.config.SshUrl, sshConfig)
 	if err != nil {
 		_ = rawConn.Close()
@@ -142,10 +143,9 @@ func (s *SshClient) startListenerForClient() error {
 	clientRef := s.client
 	s.mu.Unlock()
 
-	// Start SSH application-level keepalive pings in background.
 	go s.startSSHKeepAlive(clientRef)
 
-	localEndpoint := s.config.Tunnel.GetLocalAddr() // Local address to forward to
+	localEndpoint := s.config.Tunnel.GetLocalAddr()
 
 	tunnelType := s.config.Tunnel.Type
 
@@ -159,7 +159,6 @@ func (s *SshClient) startListenerForClient() error {
 	var remotePort int
 	var ln net.Listener
 
-	// try to connect to 10 random ports
 	for _, port := range randomPorts {
 		l, lerr := s.client.Listen("tcp", "0.0.0.0:"+fmt.Sprint(port))
 		if lerr == nil {
@@ -175,14 +174,12 @@ func (s *SshClient) startListenerForClient() error {
 		return fmt.Errorf("failed to listen on remote endpoint: %v", err)
 	}
 
-	// Assign listener and remote port with lock
 	s.mu.Lock()
 	s.listener = ln
 	s.config.Tunnel.RemotePort = remotePort
 	s.mu.Unlock()
 
 	defer func() {
-		// Safe closing of listener with mutex protection
 		s.mu.Lock()
 		if s.listener != nil {
 			s.listener.Close()
@@ -191,7 +188,6 @@ func (s *SshClient) startListenerForClient() error {
 		s.mu.Unlock()
 	}()
 
-	// Safe TUI send with nil check
 	if s.tui != nil {
 		s.tui.Send(tui.AddTunnelMsg{
 			Config:       &s.config.Tunnel,
@@ -199,18 +195,19 @@ func (s *SshClient) startListenerForClient() error {
 			Healthy:      true,
 		})
 	} else {
-		// Log tunnel start when TUI is disabled
 		tunnelAddr := s.config.GetTunnelAddr()
 		fmt.Printf("✅ Tunnel started: %s → %s\n", s.config.Tunnel.GetLocalAddr(), tunnelAddr)
 	}
 
+	if s.tui != nil {
+		s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: 1})
+	}
+
 	for {
-		// Check shutdown state
 		if atomic.LoadInt32(&s.shutdown) == 1 {
 			return fmt.Errorf("client is shutting down")
 		}
 
-		// Safe listener access with read lock
 		s.mu.RLock()
 		listener := s.listener
 		s.mu.RUnlock()
@@ -224,10 +221,12 @@ func (s *SshClient) startListenerForClient() error {
 			if s.config.Debug {
 				log.Error("Failed to accept connection", "error", err)
 			}
+			if s.tui != nil {
+				s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: -1})
+			}
 			break
 		}
 
-		// Connect to the local endpoint
 		localConn, err := net.Dial("tcp", localEndpoint)
 		if err != nil {
 			if tunnelType == constants.Http {
@@ -253,8 +252,6 @@ func (s *SshClient) startListenerForClient() error {
 	return nil
 }
 
-// startSSHKeepAlive periodically sends an SSH global request keepalive.
-// It exits when the client is replaced/closed or shutdown begins.
 func (s *SshClient) startSSHKeepAlive(clientRef *ssh.Client) {
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
@@ -264,7 +261,6 @@ func (s *SshClient) startSSHKeepAlive(clientRef *ssh.Client) {
 			return
 		}
 
-		// Ensure we're still the active client
 		s.mu.RLock()
 		sameClient := s.client == clientRef
 		s.mu.RUnlock()
@@ -274,10 +270,8 @@ func (s *SshClient) startSSHKeepAlive(clientRef *ssh.Client) {
 
 		select {
 		case <-ticker.C:
-			// Fire keepalive with timeout guarding
 			errCh := make(chan error, 1)
 			go func() {
-				// We don't require a server reply to avoid tight coupling; any I/O error indicates a dead link.
 				_, _, err := clientRef.SendRequest("keepalive@openssh.com", false, nil)
 				errCh <- err
 			}()
@@ -288,7 +282,6 @@ func (s *SshClient) startSSHKeepAlive(clientRef *ssh.Client) {
 					if s.config.Debug {
 						s.logDebug("SSH keepalive failed, reconnecting", err)
 					}
-					// Attempt reconnect; Reconnect() guards concurrent calls.
 					_ = s.Reconnect()
 					return
 				}
@@ -300,7 +293,6 @@ func (s *SshClient) startSSHKeepAlive(clientRef *ssh.Client) {
 				return
 			}
 		default:
-			// Small sleep to avoid busy loop if ticker isn't ready
 			time.Sleep(100 * time.Millisecond)
 		}
 	}
@@ -324,7 +316,6 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 		return
 	}
 
-	// Early return for health check requests with a direct response
 	if request.Header.Get("X-Portr-Ping-Request") == "true" {
 		response := &http.Response{
 			Status:     "200 OK",
@@ -347,7 +338,6 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 		return
 	}
 
-	// read and replace request body
 	requestBody, err := io.ReadAll(request.Body)
 	if err != nil {
 		if s.config.Debug {
@@ -375,7 +365,6 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 		return
 	}
 
-	// read and replace response body
 	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		if s.config.Debug {
@@ -396,7 +385,6 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 	srcWriter.Flush()
 
 	if response.StatusCode == http.StatusSwitchingProtocols {
-		// handle websocket
 		s.tcpTunnel(src, dst)
 		return
 	}
@@ -480,7 +468,6 @@ func (s *SshClient) logHttpRequest(
 		tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
 	}
 
-	// Send log directly to TUI
 	if s.tui != nil {
 		s.tui.Send(tui.AddLogMsg{
 			Time:   req.LoggedAt.Local().Format("15:04:05"),
@@ -490,7 +477,6 @@ func (s *SshClient) logHttpRequest(
 			URL:    req.Url,
 		})
 	} else {
-		// Log to console when TUI is disabled
 		fmt.Printf("[%s] %s %s → %d\n",
 			req.LoggedAt.Local().Format("15:04:05"),
 			req.Method,
@@ -526,6 +512,9 @@ func (s *SshClient) Shutdown(ctx context.Context) error {
 		s.client = nil
 	}
 
+	if s.tui != nil {
+		s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: -1})
+	}
 	log.Info("Stopped tunnel connection", "address", s.config.GetTunnelAddr())
 	return err
 }
@@ -705,6 +694,8 @@ func (s *SshClient) Reconnect() error {
 				Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
 				Healthy: true,
 			})
+			// Increase active count after successful reconnect
+			s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: 1})
 		} else {
 			// Log successful reconnection when TUI is disabled
 			fmt.Printf("🔄 Tunnel reconnected: %s\n", s.config.GetTunnelAddr())
@@ -728,7 +719,6 @@ func (s *SshClient) Reconnect() error {
 }
 
 func (s *SshClient) HealthCheck() error {
-	// Make HTTP request to tunnel address with special header
 	client := resty.New().
 		SetTimeout(5 * time.Second)
 
@@ -750,7 +740,6 @@ func (s *SshClient) HealthCheck() error {
 		return fmt.Errorf("unhealthy tunnel")
 	}
 
-	// Update tunnel health status in TUI using the shared instance
 	if s.tui != nil {
 		s.tui.Send(tui.UpdateHealthMsg{
 			Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
@@ -771,7 +760,6 @@ func (s *SshClient) logDebug(message string, err error) {
 		errStr = err.Error()
 	}
 
-	// Safe TUI send with nil check
 	if s.tui != nil {
 		s.tui.Send(tui.AddDebugLogMsg{
 			Time:    time.Now().Format("15:04:05"),

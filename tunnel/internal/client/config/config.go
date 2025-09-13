@@ -41,7 +41,7 @@ func (t *Tunnel) SetDefaults() {
 	}
 
 	if t.PoolSize <= 0 {
-		t.PoolSize = 1
+		t.PoolSize = 2
 	}
 }
 
@@ -125,6 +125,7 @@ type ClientConfig struct {
 	SshUrl                string
 	TunnelUrl             string
 	SecretKey             string
+	ConnectionID          string
 	Tunnel                Tunnel
 	UseLocalHost          bool
 	Debug                 bool

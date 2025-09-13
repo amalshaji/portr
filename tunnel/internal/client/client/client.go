@@ -8,7 +8,7 @@ import (
 
 	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
-	"github.com/amalshaji/portr/internal/client/ssh"
+	sshclient "github.com/amalshaji/portr/internal/client/ssh"
 	"github.com/amalshaji/portr/internal/client/tui"
 	"github.com/amalshaji/portr/internal/constants"
 	tea "github.com/charmbracelet/bubbletea"
@@ -16,7 +16,7 @@ import (
 
 type Client struct {
 	config *config.Config
-	sshcs  []*ssh.SshClient
+	sshcs  []*sshclient.SshClient
 	db     *db.Db
 	tui    *tea.Program
 }
@@ -49,7 +49,7 @@ func NewClient(config *config.Config, db *db.Db) *Client {
 
 	return &Client{
 		config: config,
-		sshcs:  make([]*ssh.SshClient, 0),
+		sshcs:  make([]*sshclient.SshClient, 0),
 		db:     db,
 		tui:    p,
 	}
@@ -101,8 +101,18 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			workers = clientConfig.Tunnel.PoolSize
 		}
 
+		// For HTTP pools, pre-create a single reserved connection ID and share across all workers
+		if clientConfig.Tunnel.Type == constants.Http && workers > 1 && clientConfig.ConnectionID == "" {
+			connID, err := sshclient.CreateNewConnection(clientConfig)
+			if err != nil {
+				return fmt.Errorf("failed to create shared connection for pool: %w", err)
+			}
+			clientConfig.ConnectionID = connID
+		}
+
 		for i := 0; i < workers; i++ {
-			sshc := ssh.New(clientConfig, c.db, c.tui)
+			cfg := clientConfig
+			sshc := sshclient.New(cfg, c.db, c.tui)
 			c.Add(sshc)
 			go sshc.Start(ctx)
 		}
@@ -111,7 +121,7 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 	return nil
 }
 
-func (c *Client) Add(sshc *ssh.SshClient) {
+func (c *Client) Add(sshc *sshclient.SshClient) {
 	c.sshcs = append(c.sshcs, sshc)
 }
 
