@@ -155,6 +155,7 @@ Each tunnel template supports the following options:
 - **port**: The local port to tunnel
 - **type**: The tunnel type (`http` or `tcp`)
 - **host**: The local host to bind to (default: localhost)
+- **pool_size**: HTTP only. Number of SSH workers to run per HTTP tunnel (default: 2). Increases resilience and throughput.
 
 ## Example Configurations
 
@@ -170,6 +171,7 @@ tunnels:
     subdomain: api-dev
     port: 8000
     type: http
+    pool_size: 2
   - name: database
     subdomain: db-dev
     port: 5432
