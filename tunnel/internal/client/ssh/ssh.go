@@ -112,15 +112,38 @@ func (s *SshClient) startListenerForClient() error {
 	}
 
 	// Create new client with mutex protection
-	s.mu.Lock()
-	s.client, err = ssh.Dial("tcp", s.config.SshUrl, sshConfig)
+	// Establish TCP connection with keepalive and reduced latency
+	dialer := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 15 * time.Second}
+	rawConn, err := dialer.Dial("tcp", s.config.SshUrl)
 	if err != nil {
-		s.mu.Unlock()
 		if s.config.Debug {
-			s.logDebug("Failed to connect to ssh server", err)
+			s.logDebug("Failed to dial ssh tcp", err)
 		}
 		return err
 	}
+	if tcp, ok := rawConn.(*net.TCPConn); ok {
+		_ = tcp.SetKeepAlive(true)
+		_ = tcp.SetKeepAlivePeriod(15 * time.Second)
+		_ = tcp.SetNoDelay(true)
+	}
+
+	// Perform SSH handshake over the existing TCP connection
+	cc, chans, reqs, err := ssh.NewClientConn(rawConn, s.config.SshUrl, sshConfig)
+	if err != nil {
+		_ = rawConn.Close()
+		if s.config.Debug {
+			s.logDebug("Failed to establish ssh client conn", err)
+		}
+		return err
+	}
+
+	s.mu.Lock()
+	s.client = ssh.NewClient(cc, chans, reqs)
+	clientRef := s.client
+	s.mu.Unlock()
+
+	// Start SSH application-level keepalive pings in background.
+	go s.startSSHKeepAlive(clientRef)
 
 	localEndpoint := s.config.Tunnel.GetLocalAddr() // Local address to forward to
 
@@ -134,21 +157,27 @@ func (s *SshClient) startListenerForClient() error {
 	}
 
 	var remotePort int
+	var ln net.Listener
 
 	// try to connect to 10 random ports
 	for _, port := range randomPorts {
-		s.listener, err = s.client.Listen("tcp", "0.0.0.0:"+fmt.Sprint(port))
-		remotePort = port
-		if err == nil {
+		l, lerr := s.client.Listen("tcp", "0.0.0.0:"+fmt.Sprint(port))
+		if lerr == nil {
+			ln = l
+			remotePort = port
 			break
+		} else {
+			err = lerr
 		}
 	}
 
-	if s.listener == nil {
-		s.mu.Unlock()
-		return fmt.Errorf("failed to listen on remote endpoint")
+	if ln == nil {
+		return fmt.Errorf("failed to listen on remote endpoint: %v", err)
 	}
 
+	// Assign listener and remote port with lock
+	s.mu.Lock()
+	s.listener = ln
 	s.config.Tunnel.RemotePort = remotePort
 	s.mu.Unlock()
 
@@ -222,6 +251,59 @@ func (s *SshClient) startListenerForClient() error {
 	}
 
 	return nil
+}
+
+// startSSHKeepAlive periodically sends an SSH global request keepalive.
+// It exits when the client is replaced/closed or shutdown begins.
+func (s *SshClient) startSSHKeepAlive(clientRef *ssh.Client) {
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		if atomic.LoadInt32(&s.shutdown) == 1 {
+			return
+		}
+
+		// Ensure we're still the active client
+		s.mu.RLock()
+		sameClient := s.client == clientRef
+		s.mu.RUnlock()
+		if !sameClient {
+			return
+		}
+
+		select {
+		case <-ticker.C:
+			// Fire keepalive with timeout guarding
+			errCh := make(chan error, 1)
+			go func() {
+				// We don't require a server reply to avoid tight coupling; any I/O error indicates a dead link.
+				_, _, err := clientRef.SendRequest("keepalive@openssh.com", false, nil)
+				errCh <- err
+			}()
+
+			select {
+			case err := <-errCh:
+				if err != nil {
+					if s.config.Debug {
+						s.logDebug("SSH keepalive failed, reconnecting", err)
+					}
+					// Attempt reconnect; Reconnect() guards concurrent calls.
+					_ = s.Reconnect()
+					return
+				}
+			case <-time.After(5 * time.Second):
+				if s.config.Debug {
+					s.logDebug("SSH keepalive timed out, reconnecting", nil)
+				}
+				_ = s.Reconnect()
+				return
+			}
+		default:
+			// Small sleep to avoid busy loop if ticker isn't ready
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
 }
 
 func (s *SshClient) httpTunnel(src, dst net.Conn) {

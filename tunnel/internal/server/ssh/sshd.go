@@ -60,9 +60,40 @@ func (s *SshServer) GetReservedConnectionFromSshContext(ctx ssh.Context) (*db.Co
 }
 
 func (s *SshServer) Start() {
+	// Build server and start listening
+	srv := s.Build()
+	s.server = srv
+
+	log.Info("Starting SSH server", "port", s.GetServerAddr())
+
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
+		log.Fatal("Failed to start SSH server", "error", err)
+	}
+}
+
+func (s *SshServer) Shutdown(_ context.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+
+	defer func() { cancel() }()
+
+	if err := s.server.Shutdown(ctx); err != nil {
+		log.Error("Failed to stop SSH server", "error", err)
+		return
+	}
+
+	log.Info("Stopped SSH server")
+}
+
+// Build constructs the ssh.Server with all handlers, without starting it.
+func (s *SshServer) Build() *ssh.Server {
 	forwardHandler := &ssh.ForwardedTCPHandler{}
 
-	server := ssh.Server{
+	requestHandlers := map[string]ssh.RequestHandler{
+		"tcpip-forward":        forwardHandler.HandleSSHRequest,
+		"cancel-tcpip-forward": forwardHandler.HandleSSHRequest,
+	}
+
+	server := &ssh.Server{
 		Addr: s.GetServerAddr(),
 		Handler: ssh.Handler(func(sh ssh.Session) {
 			select {}
@@ -113,35 +144,12 @@ func (s *SshServer) Start() {
 
 			return true
 		}),
-
-		RequestHandlers: map[string]ssh.RequestHandler{
-			"tcpip-forward":        forwardHandler.HandleSSHRequest,
-			"cancel-tcpip-forward": forwardHandler.HandleSSHRequest,
-		},
+		RequestHandlers: requestHandlers,
 		PasswordHandler: func(ctx ssh.Context, password string) bool {
 			_, err := s.GetReservedConnectionFromSshContext(ctx)
 			return err == nil
 		},
 	}
 
-	s.server = &server
-
-	log.Info("Starting SSH server", "port", s.GetServerAddr())
-
-	if err := server.ListenAndServe(); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
-		log.Fatal("Failed to start SSH server", "error", err)
-	}
-}
-
-func (s *SshServer) Shutdown(_ context.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-
-	defer func() { cancel() }()
-
-	if err := s.server.Shutdown(ctx); err != nil {
-		log.Error("Failed to stop SSH server", "error", err)
-		return
-	}
-
-	log.Info("Stopped SSH server")
+	return server
 }
