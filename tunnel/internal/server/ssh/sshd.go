@@ -16,6 +16,7 @@ import (
 	"github.com/amalshaji/portr/internal/server/proxy"
 	"github.com/amalshaji/portr/internal/server/service"
 	"github.com/gliderlabs/ssh"
+	gossh "golang.org/x/crypto/ssh"
 )
 
 type SshServer struct {
@@ -93,6 +94,11 @@ func (s *SshServer) Build() *ssh.Server {
 		"cancel-tcpip-forward": forwardHandler.HandleSSHRequest,
 	}
 
+	// Respond OK to ssh application keepalive requests (global request)
+	requestHandlers["keepalive@openssh.com"] = func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (bool, []byte) {
+		return true, nil
+	}
+
 	server := &ssh.Server{
 		Addr: s.GetServerAddr(),
 		Handler: ssh.Handler(func(sh ssh.Session) {
@@ -113,9 +119,10 @@ func (s *SshServer) Build() *ssh.Server {
 					return false
 				}
 			} else {
-				err = s.proxy.AddRoute(*reservedConnection.Subdomain, proxyTarget)
+				// Add this backend to the subdomain's pool
+				err = s.proxy.AddBackend(*reservedConnection.Subdomain, proxyTarget)
 				if err != nil {
-					log.Error("Failed to add route", "connection_id", reservedConnection.ID, "subdomain", *reservedConnection.Subdomain, "error", err)
+					log.Error("Failed to add backend", "connection_id", reservedConnection.ID, "subdomain", *reservedConnection.Subdomain, "backend", proxyTarget, "error", err)
 					return false
 				}
 			}
@@ -135,9 +142,11 @@ func (s *SshServer) Build() *ssh.Server {
 				}
 
 				if reservedConnection.Type == string(constants.Http) {
-					err := s.proxy.RemoveRoute(*reservedConnection.Subdomain)
+					// Remove only this backend from the pool
+					backend := fmt.Sprintf("%s:%d", host, port)
+					err := s.proxy.RemoveBackend(*reservedConnection.Subdomain, backend)
 					if err != nil {
-						log.Error("Failed to remove route", "connection_id", reservedConnection.ID, "subdomain", *reservedConnection.Subdomain, "error", err)
+						log.Error("Failed to remove backend", "connection_id", reservedConnection.ID, "subdomain", *reservedConnection.Subdomain, "backend", backend, "error", err)
 					}
 				}
 			}()

@@ -10,6 +10,7 @@ import (
 	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/amalshaji/portr/internal/client/ssh"
 	"github.com/amalshaji/portr/internal/client/tui"
+	"github.com/amalshaji/portr/internal/constants"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -94,9 +95,17 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			fmt.Printf("🚀 Starting tunnel: %s (%s:%d)\n", tunnelName, clientConfig.Tunnel.Host, clientConfig.Tunnel.Port)
 		}
 
-		sshc := ssh.New(clientConfig, c.db, c.tui)
-		c.Add(sshc)
-		go sshc.Start(ctx)
+		// If HTTP, start a pool of SSH clients; for TCP keep it single
+		workers := 1
+		if clientConfig.Tunnel.Type == constants.Http && clientConfig.Tunnel.PoolSize > 1 {
+			workers = clientConfig.Tunnel.PoolSize
+		}
+
+		for i := 0; i < workers; i++ {
+			sshc := ssh.New(clientConfig, c.db, c.tui)
+			c.Add(sshc)
+			go sshc.Start(ctx)
+		}
 	}
 
 	return nil
