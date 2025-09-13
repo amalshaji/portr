@@ -1,6 +1,6 @@
 # Project rules and instructions
 
-- Do not add unnecessary comments.
+- Do not add comments unless absolutely necessary.
 - The project uses go for the server and client and svelte for the UI.
 - The admin server now resides in tunnel/internal/server/admin directory. The admin/ at the root is deprecated and will be removed in the v1 release.
 - Use github.com/charmbracelet/log for structured logging.
