@@ -41,7 +41,7 @@ func decompressBody(body []byte, encoding string) ([]byte, error) {
 		return body, nil
 	}
 
-	const maxSize = 10 * 1024 * 1024
+	const maxSize = 2 * 1024 * 1024
 
 	var reader io.Reader
 	var err error
@@ -50,7 +50,7 @@ func decompressBody(body []byte, encoding string) ([]byte, error) {
 	case "gzip":
 		reader, err = gzip.NewReader(bytes.NewReader(body))
 		if err != nil {
-			return body, fmt.Errorf("gzip: %w", err)
+			return body, fmt.Errorf("gzip decompression failed: %w", err)
 		}
 		defer reader.(io.ReadCloser).Close()
 	case "deflate":
@@ -69,11 +69,11 @@ func decompressBody(body []byte, encoding string) ([]byte, error) {
 
 	decompressed, err := io.ReadAll(io.LimitReader(reader, maxSize+1))
 	if err != nil {
-		return body, fmt.Errorf("decompress failed: %w", err)
+		return body, fmt.Errorf("decompression failed: %w", err)
 	}
 
 	if len(decompressed) > maxSize {
-		return body, fmt.Errorf("decompressed size exceeds limit")
+		return body, fmt.Errorf("body too large for display (>2MB)")
 	}
 
 	return decompressed, nil
@@ -120,13 +120,58 @@ func (h *Handler) RenderResponse(c *fiber.Ctx) error {
 			body = decompressed
 		} else {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error":   "Failed to decompress body",
-				"message": "The body was compressed but could not be decompressed for display. The data may be corrupted or in an unsupported format.",
+				"error":      "Failed to decompress body",
+				"message":    err.Error(),
+				"canDownload": true,
 			})
 		}
 	}
 
 	c.Response().Header.Set("Content-Type", contentType[0])
+	c.Response().Header.Set("Content-Length", fmt.Sprintf("%d", len(body)))
+
+	c.Response().BodyWriter().Write(body)
+	return nil
+}
+
+func (h *Handler) DownloadBody(c *fiber.Ctx) error {
+	requestId := c.Params("id")
+	request, err := h.service.GetRequestById(requestId)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to get request"})
+	}
+
+	_type := c.Query("type")
+	if _type == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "type query param is required"})
+	}
+
+	var headers datatypes.JSON
+	var body []byte
+
+	if _type == "request" {
+		headers = request.Headers
+		body = request.Body
+	} else {
+		headers = request.ResponseHeaders
+		body = request.ResponseBody
+	}
+
+	headersMap := make(map[string][]string)
+	err = json.Unmarshal([]byte(headers), &headersMap)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to parse headers"})
+	}
+
+	contentType := headersMap["Content-Type"]
+	if len(contentType) == 0 {
+		contentType = []string{"application/octet-stream"}
+	}
+
+	filename := fmt.Sprintf("%s-%s-body.bin", requestId, _type)
+
+	c.Response().Header.Set("Content-Type", contentType[0])
+	c.Response().Header.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 	c.Response().Header.Set("Content-Length", fmt.Sprintf("%d", len(body)))
 
 	c.Response().BodyWriter().Write(body)

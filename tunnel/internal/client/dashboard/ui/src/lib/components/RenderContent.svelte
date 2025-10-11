@@ -6,6 +6,7 @@
   import RenderMultipartFormData from "./RenderMultipartFormData.svelte";
   import ErrorDisplay from "./ErrorDisplay.svelte";
   import Button from "./ui/button/button.svelte";
+  import { Download } from "lucide-svelte";
 
   export let type: "request" | "response";
 
@@ -19,16 +20,23 @@
     return jsonKeyValue;
   };
 
+  let hasError = false;
+
   const loadResponse = async (url: string) => {
     const response = await fetch(url);
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || errorData.error || 'Failed to load response');
+      const error: any = new Error(errorData.message || errorData.error || 'Failed to load response');
+      error.canDownload = errorData.canDownload || false;
+      hasError = true;
+      throw error;
     }
+    hasError = false;
     return await response.text();
   };
 
   currentRequest.subscribe((value) => {
+    hasError = false;
     if (type === "request") {
       headers = convertJsonToSingleValue(value?.Headers);
     } else {
@@ -54,7 +62,12 @@
         />
       </div>
     {:catch error}
-      <ErrorDisplay message={error.message} />
+      <ErrorDisplay
+        message={error.message}
+        canDownload={error.canDownload}
+        downloadUrl={`/api/tunnels/download/${$currentRequest?.ID}?type=${type}`}
+        contentLength={contentLength}
+      />
     {/await}
   {:else if contentType.startsWith("application/x-www-form-urlencoded")}
     {#await loadResponse(`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`)}
@@ -62,7 +75,12 @@
     {:then response}
       <RenderFormUrlEncoded data={response} />
     {:catch error}
-      <ErrorDisplay message={error.message} />
+      <ErrorDisplay
+        message={error.message}
+        canDownload={error.canDownload}
+        downloadUrl={`/api/tunnels/download/${$currentRequest?.ID}?type=${type}`}
+        contentLength={contentLength}
+      />
     {/await}
   {:else if contentType.startsWith("multipart/form-data")}
     {#await loadResponse(`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`)}
@@ -70,7 +88,12 @@
     {:then response}
       <RenderMultipartFormData />
     {:catch error}
-      <ErrorDisplay message={error.message} />
+      <ErrorDisplay
+        message={error.message}
+        canDownload={error.canDownload}
+        downloadUrl={`/api/tunnels/download/${$currentRequest?.ID}?type=${type}`}
+        contentLength={contentLength}
+      />
     {/await}
   {:else if contentType.startsWith("image/")}
     <img
@@ -106,7 +129,12 @@
     {:then response}
       <pre class="p-4 overflow-auto max-h-[600px]">{response}</pre>
     {:catch error}
-      <ErrorDisplay message={error.message} />
+      <ErrorDisplay
+        message={error.message}
+        canDownload={error.canDownload}
+        downloadUrl={`/api/tunnels/download/${$currentRequest?.ID}?type=${type}`}
+        contentLength={contentLength}
+      />
     {/await}
   {:else}
     <Button
@@ -114,5 +142,22 @@
       class="rounded-sm"
       variant="outline">Load response</Button
     >
+  {/if}
+
+  {#if contentLength !== "0" && !hasError}
+    <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex items-center justify-between gap-4">
+      <div class="text-xs text-gray-500 dark:text-gray-400 font-mono">
+        Raw body ({contentLength} bytes)
+      </div>
+      <Button
+        href={`/api/tunnels/download/${$currentRequest?.ID}?type=${type}`}
+        class="rounded-sm"
+        variant="outline"
+        size="sm"
+      >
+        <Download class="w-3.5 h-3.5 mr-1.5" />
+        Download Raw
+      </Button>
+    </div>
   {/if}
 {/if}
