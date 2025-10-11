@@ -1,13 +1,63 @@
 package handler
 
 import (
+	"bytes"
+	"compress/flate"
+	"compress/gzip"
+	"compress/zlib"
 	"encoding/json"
 	"fmt"
+	"io"
+	"strings"
 
+	"github.com/andybalholm/brotli"
 	"github.com/go-resty/resty/v2"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/datatypes"
 )
+
+func decompressBody(body []byte, encoding string) ([]byte, error) {
+	if len(body) == 0 {
+		return body, nil
+	}
+
+	const maxSize = 10 * 1024 * 1024
+
+	var reader io.Reader
+	var err error
+
+	switch strings.ToLower(strings.TrimSpace(encoding)) {
+	case "gzip":
+		reader, err = gzip.NewReader(bytes.NewReader(body))
+		if err != nil {
+			return body, fmt.Errorf("gzip: %w", err)
+		}
+		defer reader.(io.ReadCloser).Close()
+	case "deflate":
+		reader, err = zlib.NewReader(bytes.NewReader(body))
+		if err != nil {
+			reader = flate.NewReader(bytes.NewReader(body))
+		}
+		if closer, ok := reader.(io.Closer); ok {
+			defer closer.Close()
+		}
+	case "br":
+		reader = brotli.NewReader(bytes.NewReader(body))
+	default:
+		return body, nil
+	}
+
+	decompressed, err := io.ReadAll(io.LimitReader(reader, maxSize+1))
+	if err != nil {
+		return body, fmt.Errorf("decompress failed: %w", err)
+	}
+
+	if len(decompressed) > maxSize {
+		return body, fmt.Errorf("decompressed size exceeds limit")
+	}
+
+	return decompressed, nil
+}
 
 func (h *Handler) GetTunnels(c *fiber.Ctx) error {
 	tunnels, err := h.service.GetTunnels()
@@ -63,13 +113,21 @@ func (h *Handler) RenderResponse(c *fiber.Ctx) error {
 		contentType = []string{"text/html; charset=utf-8"}
 	}
 
-	contentLength := headersMap["Content-Length"]
-	if len(contentLength) == 0 {
-		contentLength = []string{fmt.Sprintf("%d", len(body))}
+	contentEncoding := headersMap["Content-Encoding"]
+	if len(contentEncoding) > 0 && len(body) > 0 {
+		decompressed, err := decompressBody(body, contentEncoding[0])
+		if err == nil {
+			body = decompressed
+		} else {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Failed to decompress body",
+				"message": "The body was compressed but could not be decompressed for display. The data may be corrupted or in an unsupported format.",
+			})
+		}
 	}
 
 	c.Response().Header.Set("Content-Type", contentType[0])
-	c.Response().Header.Set("Content-Length", contentLength[0])
+	c.Response().Header.Set("Content-Length", fmt.Sprintf("%d", len(body)))
 
 	c.Response().BodyWriter().Write(body)
 	return nil

@@ -20,6 +20,10 @@
 
   const loadResponse = async (url: string) => {
     const response = await fetch(url);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || errorData.error || 'Failed to load response');
+    }
     return await response.text();
   };
 
@@ -39,20 +43,57 @@
   {#if contentLength === "0"}
     <div class="text-gray-500 dark:text-gray-400 p-4">No content</div>
   {:else if contentType.startsWith("application/json")}
-    {#await loadResponse(`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`) then response}
-      <Highlight
-        language={json}
-        code={JSON.stringify(JSON.parse(response), null, 2)}
-      />
+    {#await loadResponse(`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`)}
+      <div class="p-4 text-gray-500">Loading...</div>
+    {:then response}
+      <div class="overflow-auto max-h-[600px]">
+        <Highlight
+          language={json}
+          code={JSON.stringify(JSON.parse(response), null, 2)}
+        />
+      </div>
+    {:catch error}
+      <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded">
+        <div class="flex items-start gap-2">
+          <span class="text-red-600 dark:text-red-400 text-xl">⚠️</span>
+          <div class="flex-1">
+            <h4 class="font-semibold text-red-800 dark:text-red-300 mb-1">Error Loading Body</h4>
+            <p class="text-red-700 dark:text-red-400 text-sm">{error.message}</p>
+          </div>
+        </div>
+      </div>
     {/await}
   {:else if contentType.startsWith("application/x-www-form-urlencoded")}
-    {#await loadResponse(`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`) then response}
+    {#await loadResponse(`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`)}
+      <div class="p-4 text-gray-500">Loading...</div>
+    {:then response}
       <RenderFormUrlEncoded data={response} />
+    {:catch error}
+      <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded">
+        <div class="flex items-start gap-2">
+          <span class="text-red-600 dark:text-red-400 text-xl">⚠️</span>
+          <div class="flex-1">
+            <h4 class="font-semibold text-red-800 dark:text-red-300 mb-1">Error Loading Body</h4>
+            <p class="text-red-700 dark:text-red-400 text-sm">{error.message}</p>
+          </div>
+        </div>
+      </div>
     {/await}
   {:else if contentType.startsWith("multipart/form-data")}
-    {#await loadResponse(`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`) then response}
-      <!-- <pre>{response}</pre> -->
+    {#await loadResponse(`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`)}
+      <div class="p-4 text-gray-500">Loading...</div>
+    {:then response}
       <RenderMultipartFormData />
+    {:catch error}
+      <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded">
+        <div class="flex items-start gap-2">
+          <span class="text-red-600 dark:text-red-400 text-xl">⚠️</span>
+          <div class="flex-1">
+            <h4 class="font-semibold text-red-800 dark:text-red-300 mb-1">Error Loading Body</h4>
+            <p class="text-red-700 dark:text-red-400 text-sm">{error.message}</p>
+          </div>
+        </div>
+      </div>
     {/await}
   {:else if contentType.startsWith("image/")}
     <img
@@ -83,8 +124,20 @@
       height="400px"
     ></iframe>
   {:else if contentType.startsWith("text/")}
-    {#await loadResponse(`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`) then response}
-      <pre class="p-4">{response}</pre>
+    {#await loadResponse(`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`)}
+      <div class="p-4 text-gray-500">Loading...</div>
+    {:then response}
+      <pre class="p-4 overflow-auto max-h-[600px]">{response}</pre>
+    {:catch error}
+      <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded">
+        <div class="flex items-start gap-2">
+          <span class="text-red-600 dark:text-red-400 text-xl">⚠️</span>
+          <div class="flex-1">
+            <h4 class="font-semibold text-red-800 dark:text-red-300 mb-1">Error Loading Body</h4>
+            <p class="text-red-700 dark:text-red-400 text-sm">{error.message}</p>
+          </div>
+        </div>
+      </div>
     {/await}
   {:else}
     <Button
