@@ -24,6 +24,7 @@ type Tunnel struct {
 	Host       string                   `yaml:"host"`
 	Type       constants.ConnectionType `yaml:"type"`
 	RemotePort int
+	PoolSize   int `yaml:"pool_size"`
 }
 
 func (t *Tunnel) SetDefaults() {
@@ -37,6 +38,10 @@ func (t *Tunnel) SetDefaults() {
 
 	if t.Host == "" {
 		t.Host = "localhost"
+	}
+
+	if t.PoolSize <= 0 {
+		t.PoolSize = 2
 	}
 }
 
@@ -120,6 +125,7 @@ type ClientConfig struct {
 	SshUrl                string
 	TunnelUrl             string
 	SecretKey             string
+	ConnectionID          string
 	Tunnel                Tunnel
 	UseLocalHost          bool
 	Debug                 bool

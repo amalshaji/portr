@@ -29,6 +29,12 @@ type UpdateHealthMsg struct {
 	Healthy bool
 }
 
+// UpdateConnCountMsg adjusts the active connection count for a tunnel (Delta can be +1 or -1)
+type UpdateConnCountMsg struct {
+	Port  string
+	Delta int
+}
+
 type AddLogMsg struct {
 	Time   string
 	Name   string
@@ -70,6 +76,11 @@ var (
 	unhealthyStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("yellow")).
 			Bold(true)
+
+	// red style for fully unhealthy state (no active connections)
+	redStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#ff0000")).
+			Bold(true)
 )
 
 type tickMsg time.Time
@@ -78,6 +89,8 @@ type tunnelStatus struct {
 	config       *config.Tunnel
 	clientConfig *config.ClientConfig
 	healthy      bool
+	active       int
+	poolSize     int
 }
 
 // Add debug table to model
@@ -194,10 +207,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case AddTunnelMsg:
 		port := fmt.Sprintf("%d", msg.Config.Port)
-		m.tunnels[port] = &tunnelStatus{
-			config:       msg.Config,
-			clientConfig: msg.ClientConfig,
-			healthy:      msg.Healthy,
+		if existing, ok := m.tunnels[port]; ok {
+			// Update pool size if provided; do not change active here
+			if msg.ClientConfig != nil {
+				existing.poolSize = max(existing.poolSize, msg.ClientConfig.Tunnel.PoolSize)
+			}
+		} else {
+			ps := 1
+			if msg.ClientConfig != nil {
+				ps = msg.ClientConfig.Tunnel.PoolSize
+			}
+			m.tunnels[port] = &tunnelStatus{
+				config:       msg.Config,
+				clientConfig: msg.ClientConfig,
+				healthy:      msg.Healthy,
+				active:       0,
+				poolSize:     ps,
+			}
 		}
 		if m.selected == "" {
 			m.selected = port
@@ -206,6 +232,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case UpdateHealthMsg:
 		if tunnel, exists := m.tunnels[msg.Port]; exists {
 			tunnel.healthy = msg.Healthy
+		}
+
+	case UpdateConnCountMsg:
+		if tunnel, exists := m.tunnels[msg.Port]; exists {
+			tunnel.active += msg.Delta
+			if tunnel.active < 0 {
+				tunnel.active = 0
+			}
 		}
 
 	case tea.WindowSizeMsg:
@@ -333,12 +367,19 @@ func (m model) View() string {
 		var tunnelStyle lipgloss.Style
 		var statusText string
 
-		if tunnel.healthy {
-			tunnelStyle = healthyStyle
-			statusText = "🟢 Healthy"
-		} else {
+		// Health coloring:
+		// - No active connections => red (unhealthy)
+		// - Active < poolSize => yellow (partially unhealthy)
+		// - Active >= poolSize => green (healthy)
+		if tunnel.active == 0 {
+			tunnelStyle = redStyle
+			statusText = "🔴 Unhealthy (0/" + fmt.Sprint(max(1, tunnel.poolSize)) + ")"
+		} else if tunnel.active < max(1, tunnel.poolSize) {
 			tunnelStyle = unhealthyStyle
-			statusText = "🟡 Reconnecting"
+			statusText = "� Partial (" + fmt.Sprint(tunnel.active) + "/" + fmt.Sprint(max(1, tunnel.poolSize)) + ")"
+		} else {
+			tunnelStyle = healthyStyle
+			statusText = "� Healthy (" + fmt.Sprint(tunnel.active) + "/" + fmt.Sprint(max(1, tunnel.poolSize)) + ")"
 		}
 
 		tunnelInfo := fmt.Sprintf("%s (%s:%d → %s) [%s] %s",
