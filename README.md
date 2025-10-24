@@ -28,8 +28,8 @@ Portr is primarily designed for small teams looking to expose development server
 
 ## Setup
 
-- [Server setup guide](https://portr.dev/server/)
-- [Client installation guide](https://portr.dev/client/installation/)
+- [Server setup guide](https://portr.dev/docs/server)
+- [Client installation guide](https://portr.dev/docs/client/installation)
 
 ## Contributing
 
