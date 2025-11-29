@@ -307,6 +307,34 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 			return
 		}
 		srcWriter.Flush()
+
+		// Drain any bytes already buffered post-handshake to avoid loss when switching to raw TCP
+		if n := dstReader.Buffered(); n > 0 {
+			buf := make([]byte, n)
+			if _, err := io.ReadFull(dstReader, buf); err == nil {
+				if _, err := srcWriter.Write(buf); err != nil {
+					if s.config.Debug {
+						s.logDebug("Failed to flush buffered server bytes on WS upgrade", err)
+					}
+					return
+				}
+				srcWriter.Flush()
+			}
+		}
+
+		if n := srcReader.Buffered(); n > 0 {
+			buf := make([]byte, n)
+			if _, err := io.ReadFull(srcReader, buf); err == nil {
+				if _, err := dstWriter.Write(buf); err != nil {
+					if s.config.Debug {
+						s.logDebug("Failed to flush buffered client bytes on WS upgrade", err)
+					}
+					return
+				}
+				dstWriter.Flush()
+			}
+		}
+
 		s.tcpTunnel(src, dst)
 		return
 	}
