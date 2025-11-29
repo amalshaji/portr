@@ -342,6 +342,9 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 	// Check for SSE (Server-Sent Events) streams
 	contentType := response.Header.Get("Content-Type")
 	if strings.Contains(contentType, "text/event-stream") {
+		// Ensure SSE response body is closed when streaming finishes or on error
+		defer response.Body.Close()
+
 		// SSE stream - copy the response body in real-time without buffering
 		// Write status line and headers first
 		fmt.Fprintf(srcWriter, "%s %s\r\n", response.Proto, response.Status)
