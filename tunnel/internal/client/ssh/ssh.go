@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -295,7 +296,100 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 		return
 	}
 
-	// read and replace response body
+	// Handle WebSocket upgrades and SSE streams with TCP tunneling
+	if response.StatusCode == http.StatusSwitchingProtocols {
+		// WebSocket upgrade - write response headers and switch to TCP tunneling
+		err = response.Write(srcWriter)
+		if err != nil {
+			if s.config.Debug {
+				s.logDebug("Failed to write WebSocket upgrade response", err)
+			}
+			return
+		}
+		srcWriter.Flush()
+
+		// Drain any bytes already buffered post-handshake to avoid loss when switching to raw TCP
+		if n := dstReader.Buffered(); n > 0 {
+			buf := make([]byte, n)
+			if _, err := io.ReadFull(dstReader, buf); err == nil {
+				if _, err := srcWriter.Write(buf); err != nil {
+					if s.config.Debug {
+						s.logDebug("Failed to flush buffered server bytes on WS upgrade", err)
+					}
+					return
+				}
+				srcWriter.Flush()
+			}
+		}
+
+		if n := srcReader.Buffered(); n > 0 {
+			buf := make([]byte, n)
+			if _, err := io.ReadFull(srcReader, buf); err == nil {
+				if _, err := dstWriter.Write(buf); err != nil {
+					if s.config.Debug {
+						s.logDebug("Failed to flush buffered client bytes on WS upgrade", err)
+					}
+					return
+				}
+				dstWriter.Flush()
+			}
+		}
+
+		s.tcpTunnel(src, dst)
+		return
+	}
+
+	// Check for SSE (Server-Sent Events) streams
+	contentType := response.Header.Get("Content-Type")
+	if strings.Contains(contentType, "text/event-stream") {
+		// Ensure SSE response body is closed when streaming finishes or on error
+		defer response.Body.Close()
+
+		// SSE stream - copy the response body in real-time without buffering
+		// Write status line and headers first
+		fmt.Fprintf(srcWriter, "%s %s\r\n", response.Proto, response.Status)
+
+		// Write headers, excluding Content-Length and Transfer-Encoding
+		// as we'll be streaming the body directly
+		for key, values := range response.Header {
+			if key == "Content-Length" || key == "Transfer-Encoding" {
+				continue
+			}
+			for _, value := range values {
+				fmt.Fprintf(srcWriter, "%s: %s\r\n", key, value)
+			}
+		}
+
+		// Empty line to end headers
+		fmt.Fprintf(srcWriter, "\r\n")
+		srcWriter.Flush()
+
+		// Stream the body with immediate flushing for real-time delivery
+		buf := make([]byte, 32*1024) // 32KB buffer
+		for {
+			n, err := response.Body.Read(buf)
+			if n > 0 {
+				_, writeErr := srcWriter.Write(buf[:n])
+				if writeErr != nil {
+					if s.config.Debug {
+						s.logDebug("Failed to write SSE data", writeErr)
+					}
+					return
+				}
+				// Flush immediately to ensure real-time streaming
+				srcWriter.Flush()
+			}
+			if err != nil {
+				if err != io.EOF && s.config.Debug {
+					s.logDebug("SSE stream ended", err)
+				}
+				break
+			}
+		}
+		return
+	}
+
+	// read and replace response body for regular HTTP responses
 	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		if s.config.Debug {
@@ -314,12 +408,6 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 		return
 	}
 	srcWriter.Flush()
-
-	if response.StatusCode == http.StatusSwitchingProtocols {
-		// handle websocket
-		s.tcpTunnel(src, dst)
-		return
-	}
 
 	s.logHttpRequest(ulid.Make().String(), request, requestBody, response, responseBody)
 }
