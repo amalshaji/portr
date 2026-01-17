@@ -76,6 +76,18 @@ func main() {
 					return runMigrations(c.String("dialect"))
 				},
 			},
+			{
+				Name:  "generate-host-key",
+				Usage: "Generate an Ed25519 SSH host key",
+				Action: func(c *cli.Context) error {
+					key, err := sshd.GenerateHostKey()
+					if err != nil {
+						return fmt.Errorf("failed to generate host key: %w", err)
+					}
+					fmt.Print(key)
+					return nil
+				},
+			},
 		},
 	}
 

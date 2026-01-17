@@ -61,8 +61,14 @@ func (s *SshServer) GetReservedConnectionFromSshContext(ctx ssh.Context) (*db.Co
 }
 
 func (s *SshServer) Start() {
-	// Build server and start listening
 	srv := s.Build()
+
+	hostKeyOption, err := loadHostKey(s.config.HostKey)
+	if err != nil {
+		log.Fatal("Failed to load host key", "error", err)
+	}
+	hostKeyOption(srv)
+
 	s.server = srv
 
 	log.Info("Starting SSH server", "port", s.GetServerAddr())

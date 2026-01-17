@@ -113,7 +113,7 @@ func (s *SshClient) startListenerForClient() error {
 		Auth: []ssh.AuthMethod{
 			ssh.Password(""),
 		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: getHostKeyCallback(s.config.InsecureSkipHostKeyVerification),
 	}
 
 	dialer := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 15 * time.Second}

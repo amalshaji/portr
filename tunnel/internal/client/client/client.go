@@ -78,7 +78,7 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			HealthCheckInterval:             c.config.HealthCheckInterval,
 			HealthCheckMaxRetries:           c.config.HealthCheckMaxRetries,
 			DisableTUI:                      c.config.DisableTUI,
-			InsecureSkipHostKeyVerification: c.config.InsecureSkipHostKeyVerification,
+			InsecureSkipHostKeyVerification: *c.config.InsecureSkipHostKeyVerification,
 		})
 	}
 

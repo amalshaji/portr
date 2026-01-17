@@ -13,7 +13,7 @@ import (
 type SshConfig struct {
 	Host    string
 	Port    int
-	KeysDir string
+	HostKey string
 }
 
 func (s SshConfig) Address() string {
@@ -119,10 +119,13 @@ func new() *Config {
 		sshURL = "localhost:2222"
 	}
 
+	sshHostKey := os.Getenv("PORTR_SSH_HOST_KEY")
+
 	return &Config{
 		Ssh: SshConfig{
-			Host: "localhost",
-			Port: sshPort,
+			Host:    "localhost",
+			Port:    sshPort,
+			HostKey: sshHostKey,
 		},
 		Proxy: ProxyConfig{
 			Host: "localhost",
