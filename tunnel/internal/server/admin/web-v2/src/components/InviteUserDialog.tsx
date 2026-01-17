@@ -100,9 +100,6 @@ export default function InviteUserDialog({
           setGeneratedPassword(password);
           setShowPasswordDialog(true);
         }
-
-        // TODO: Refresh users list in parent component
-        // This would need to be handled by the parent component
       } else {
         const errorData = await res.json();
         setError(errorData.message || "Failed to add user");

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/amalshaji/portr/internal/server/admin"
 	"github.com/amalshaji/portr/internal/server/config"
@@ -188,18 +189,22 @@ func startTunnel(configFilePath string) {
 	cron := cron.New(_db, config, service)
 
 	go proxyServer.Start()
-	defer proxyServer.Shutdown(context.TODO())
-
 	go sshServer.Start()
-	defer sshServer.Shutdown(context.TODO())
-
 	go cron.Start()
-	defer cron.Shutdown()
 
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	<-done
+
+	log.Info("Shutting down tunnel server...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	proxyServer.Shutdown(shutdownCtx)
+	sshServer.Shutdown(shutdownCtx)
+	cron.Shutdown()
 }
 
 func startAdmin() error {
@@ -296,6 +301,9 @@ func startAll(configFilePath string) error {
 	// Shutdown all services
 	log.Info("Shutting down all services...")
 
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer shutdownCancel()
+
 	var shutdownErr error
 
 	// Shutdown admin server
@@ -305,8 +313,8 @@ func startAll(configFilePath string) error {
 	}
 
 	// Shutdown tunnel components
-	proxyServer.Shutdown(context.TODO())
-	sshServer.Shutdown(context.TODO())
+	proxyServer.Shutdown(shutdownCtx)
+	sshServer.Shutdown(shutdownCtx)
 	cronJob.Shutdown()
 
 	// Wait for all goroutines to finish

@@ -55,7 +55,7 @@ CREATE INDEX IF NOT EXISTS "idx_team_slug" ON "team" ("slug");
 CREATE TABLE
     IF NOT EXISTS "team_users" (
         "id" SERIAL PRIMARY KEY,
-        "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "secret_key" TEXT NOT NULL UNIQUE,
         "role" TEXT NOT NULL DEFAULT 'member',
