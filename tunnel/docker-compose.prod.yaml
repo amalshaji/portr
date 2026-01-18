@@ -1,0 +1,58 @@
+services:
+  caddy:
+    image: ghcr.io/amalshaji/caddy-docker-proxy:main
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - caddy_data:/data
+    restart: unless-stopped
+    network_mode: "host"
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: "${BUILD_VERSION:-prod}"
+    command: ["start", "all"]
+    network_mode: "host"
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - ./data:/app/data
+    labels:
+      caddy_0: $PORTR_DOMAIN
+      caddy_0.reverse_proxy: "{{upstreams http 8000}}"
+      caddy_0.encode: gzip
+      caddy_1: "*.$PORTR_DOMAIN"
+      caddy_1.reverse_proxy: "{{upstreams http 8001}}"
+      caddy_1.tls.dns: "cloudflare $CLOUDFLARE_API_TOKEN"
+      caddy_1.encode: gzip
+
+  postgres:
+    image: postgres:16.2
+    network_mode: "host"
+    environment:
+      POSTGRES_USER: $POSTGRES_USER
+      POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+      POSTGRES_DB: $POSTGRES_DB
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data: {}
+  caddy_data: {}

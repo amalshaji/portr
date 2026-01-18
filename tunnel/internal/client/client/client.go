@@ -8,14 +8,15 @@ import (
 
 	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
-	"github.com/amalshaji/portr/internal/client/ssh"
+	sshclient "github.com/amalshaji/portr/internal/client/ssh"
 	"github.com/amalshaji/portr/internal/client/tui"
+	"github.com/amalshaji/portr/internal/constants"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 type Client struct {
 	config *config.Config
-	sshcs  []*ssh.SshClient
+	sshcs  []*sshclient.SshClient
 	db     *db.Db
 	tui    *tea.Program
 }
@@ -48,7 +49,7 @@ func NewClient(config *config.Config, db *db.Db) *Client {
 
 	return &Client{
 		config: config,
-		sshcs:  make([]*ssh.SshClient, 0),
+		sshcs:  make([]*sshclient.SshClient, 0),
 		db:     db,
 		tui:    p,
 	}
@@ -66,17 +67,18 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			continue
 		}
 		clientConfigs = append(clientConfigs, config.ClientConfig{
-			ServerUrl:             c.config.ServerUrl,
-			SshUrl:                c.config.SshUrl,
-			TunnelUrl:             c.config.TunnelUrl,
-			SecretKey:             c.config.SecretKey,
-			Tunnel:                tunnel,
-			UseLocalHost:          c.config.UseLocalHost,
-			Debug:                 c.config.Debug,
-			EnableRequestLogging:  c.config.EnableRequestLogging,
-			HealthCheckInterval:   c.config.HealthCheckInterval,
-			HealthCheckMaxRetries: c.config.HealthCheckMaxRetries,
-			DisableTUI:            c.config.DisableTUI,
+			ServerUrl:                       c.config.ServerUrl,
+			SshUrl:                          c.config.SshUrl,
+			TunnelUrl:                       c.config.TunnelUrl,
+			SecretKey:                       c.config.SecretKey,
+			Tunnel:                          tunnel,
+			UseLocalHost:                    c.config.UseLocalHost,
+			Debug:                           c.config.Debug,
+			EnableRequestLogging:            c.config.EnableRequestLogging,
+			HealthCheckInterval:             c.config.HealthCheckInterval,
+			HealthCheckMaxRetries:           c.config.HealthCheckMaxRetries,
+			DisableTUI:                      c.config.DisableTUI,
+			InsecureSkipHostKeyVerification: *c.config.InsecureSkipHostKeyVerification,
 		})
 	}
 
@@ -94,15 +96,33 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			fmt.Printf("🚀 Starting tunnel: %s (%s:%d)\n", tunnelName, clientConfig.Tunnel.Host, clientConfig.Tunnel.Port)
 		}
 
-		sshc := ssh.New(clientConfig, c.db, c.tui)
-		c.Add(sshc)
-		go sshc.Start(ctx)
+		// If HTTP, start a pool of SSH clients; for TCP keep it single
+		workers := 1
+		if clientConfig.Tunnel.Type == constants.Http && clientConfig.Tunnel.PoolSize > 1 {
+			workers = clientConfig.Tunnel.PoolSize
+		}
+
+		// For HTTP pools, pre-create a single reserved connection ID and share across all workers
+		if clientConfig.Tunnel.Type == constants.Http && workers > 1 && clientConfig.ConnectionID == "" {
+			connID, err := sshclient.CreateNewConnection(clientConfig)
+			if err != nil {
+				return fmt.Errorf("failed to create shared connection for pool: %w", err)
+			}
+			clientConfig.ConnectionID = connID
+		}
+
+		for i := 0; i < workers; i++ {
+			cfg := clientConfig
+			sshc := sshclient.New(cfg, c.db, c.tui)
+			c.Add(sshc)
+			go sshc.Start(ctx)
+		}
 	}
 
 	return nil
 }
 
-func (c *Client) Add(sshc *ssh.SshClient) {
+func (c *Client) Add(sshc *sshclient.SshClient) {
 	c.sshcs = append(c.sshcs, sshc)
 }
 
@@ -116,7 +136,6 @@ func (c *Client) Shutdown(ctx context.Context) {
 	}
 }
 
-// Create tunnel from cli args and replaces it in config
 func (c *Client) ReplaceTunnelsFromCli(tunnel config.Tunnel) {
 	c.config.Tunnels = []config.Tunnel{tunnel}
 }

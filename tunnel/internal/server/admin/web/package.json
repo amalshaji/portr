@@ -1,0 +1,44 @@
+{
+  "name": "portr-web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@dicebear/collection": "^8.0.1",
+    "@dicebear/core": "^8.0.1",
+    "@sveltejs/vite-plugin-svelte": "^2.5.3",
+    "@tsconfig/svelte": "^5.0.4",
+    "autoprefixer": "^10.4.19",
+    "bits-ui": "^0.22.0",
+    "clsx": "^2.1.0",
+    "formsnap": "^0.4.4",
+    "highlight.js": "^11.9.0",
+    "postcss": "^8.4.38",
+    "postcss-load-config": "^4.0.2",
+    "radix-icons-svelte": "^1.2.1",
+    "svelte": "^4.2.19",
+    "svelte-check": "^3.6.9",
+    "svelte-headless-table": "^0.17.7",
+    "svelte-highlight": "^7.6.0",
+    "svelte-routing": "^2.12.0",
+    "tailwind-merge": "^2.2.2",
+    "tailwind-variants": "^0.1.20",
+    "tailwindcss": "^3.4.3",
+    "tslib": "^2.6.2",
+    "typescript": "^5.4.5",
+    "vite": "^5.4.19"
+  },
+  "dependencies": {
+    "lucide-svelte": "0.352.0",
+    "moment": "^2.30.1",
+    "svelte-legos": "^0.2.2",
+    "svelte-sonner": "^0.3.22",
+    "zod": "^3.22.4"
+  }
+}

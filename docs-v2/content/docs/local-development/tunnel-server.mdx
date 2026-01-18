@@ -3,14 +3,14 @@ title: Tunnel Server Development Setup
 description: Learn how to setup portr tunnel server for local development
 ---
 
-import { Steps } from 'fumadocs-ui/components/steps';
-import { Callout } from 'fumadocs-ui/components/callout';
+import { Steps } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
 
 The tunnel server is built using Go and handles SSH remote port forwarding to tunnel HTTP/TCP connections.
 
 ## Requirements
 
-- **Go** (1.23+)
+- **Go** (1.25+)
 - **PostgreSQL** (16+)
 
 ## Setup Process
@@ -40,6 +40,7 @@ time=2024-03-29T19:16:35.023+05:30 level=INFO msg="Starting 1 cron jobs"
 ```
 
 This starts:
+
 - **SSH server** on port `:2222` for tunnel connections
 - **Proxy server** on port `:8001` for routing traffic
 
@@ -48,16 +49,19 @@ This starts:
 The tunnel server consists of several components:
 
 ### SSH Server
+
 - Handles incoming tunnel connections from clients
 - Manages SSH remote port forwarding
 - Authenticates clients using tokens
 
 ### Proxy Server
+
 - Routes incoming HTTP requests to the appropriate tunnels
 - Handles subdomain routing
 - Manages SSL termination in production
 
 ### Cron Jobs
+
 - Cleans up expired tunnel connections
 - Performs maintenance tasks
 
@@ -87,6 +91,7 @@ make lint
 For all configuration variables, check out the [tunnel server config file](https://github.com/amalshaji/portr/blob/main/tunnel/internal/server/config/config.go).
 
 Key configuration options include:
+
 - **Database connection**: PostgreSQL connection string
 - **SSH server settings**: Port, host keys, and authentication
 - **Proxy settings**: HTTP server configuration
@@ -95,7 +100,8 @@ Key configuration options include:
 ## Testing Tunnel Connections
 
 <Callout type="info">
-  Make sure the admin server is running before testing tunnel connections, as it handles client authentication.
+  Make sure the admin server is running before testing tunnel connections, as it
+  handles client authentication.
 </Callout>
 
 ### Local Testing

@@ -16,6 +16,7 @@ import (
 	"github.com/amalshaji/portr/internal/server/proxy"
 	"github.com/amalshaji/portr/internal/server/service"
 	"github.com/gliderlabs/ssh"
+	gossh "golang.org/x/crypto/ssh"
 )
 
 type SshServer struct {
@@ -60,9 +61,51 @@ func (s *SshServer) GetReservedConnectionFromSshContext(ctx ssh.Context) (*db.Co
 }
 
 func (s *SshServer) Start() {
+	srv := s.Build()
+
+	hostKeyOption, err := loadHostKey(s.config.HostKey)
+	if err != nil {
+		log.Fatal("Failed to load host key", "error", err)
+	}
+	hostKeyOption(srv)
+
+	s.server = srv
+
+	log.Info("Starting SSH server", "port", s.GetServerAddr())
+
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
+		log.Fatal("Failed to start SSH server", "error", err)
+	}
+}
+
+func (s *SshServer) Shutdown(_ context.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+
+	defer func() { cancel() }()
+
+	if err := s.server.Shutdown(ctx); err != nil {
+		log.Error("Failed to stop SSH server", "error", err)
+		return
+	}
+
+	log.Info("Stopped SSH server")
+}
+
+// Build constructs the ssh.Server with all handlers, without starting it.
+func (s *SshServer) Build() *ssh.Server {
 	forwardHandler := &ssh.ForwardedTCPHandler{}
 
-	server := ssh.Server{
+	requestHandlers := map[string]ssh.RequestHandler{
+		"tcpip-forward":        forwardHandler.HandleSSHRequest,
+		"cancel-tcpip-forward": forwardHandler.HandleSSHRequest,
+	}
+
+	// Respond OK to ssh application keepalive requests (global request)
+	requestHandlers["keepalive@openssh.com"] = func(ctx ssh.Context, srv *ssh.Server, req *gossh.Request) (bool, []byte) {
+		return true, nil
+	}
+
+	server := &ssh.Server{
 		Addr: s.GetServerAddr(),
 		Handler: ssh.Handler(func(sh ssh.Session) {
 			select {}
@@ -82,9 +125,10 @@ func (s *SshServer) Start() {
 					return false
 				}
 			} else {
-				err = s.proxy.AddRoute(*reservedConnection.Subdomain, proxyTarget)
+				// Add this backend to the subdomain's pool
+				err = s.proxy.AddBackend(*reservedConnection.Subdomain, proxyTarget)
 				if err != nil {
-					log.Error("Failed to add route", "connection_id", reservedConnection.ID, "subdomain", *reservedConnection.Subdomain, "error", err)
+					log.Error("Failed to add backend", "connection_id", reservedConnection.ID, "subdomain", *reservedConnection.Subdomain, "backend", proxyTarget, "error", err)
 					return false
 				}
 			}
@@ -104,44 +148,23 @@ func (s *SshServer) Start() {
 				}
 
 				if reservedConnection.Type == string(constants.Http) {
-					err := s.proxy.RemoveRoute(*reservedConnection.Subdomain)
+					// Remove only this backend from the pool
+					backend := fmt.Sprintf("%s:%d", host, port)
+					err := s.proxy.RemoveBackend(*reservedConnection.Subdomain, backend)
 					if err != nil {
-						log.Error("Failed to remove route", "connection_id", reservedConnection.ID, "subdomain", *reservedConnection.Subdomain, "error", err)
+						log.Error("Failed to remove backend", "connection_id", reservedConnection.ID, "subdomain", *reservedConnection.Subdomain, "backend", backend, "error", err)
 					}
 				}
 			}()
 
 			return true
 		}),
-
-		RequestHandlers: map[string]ssh.RequestHandler{
-			"tcpip-forward":        forwardHandler.HandleSSHRequest,
-			"cancel-tcpip-forward": forwardHandler.HandleSSHRequest,
-		},
+		RequestHandlers: requestHandlers,
 		PasswordHandler: func(ctx ssh.Context, password string) bool {
 			_, err := s.GetReservedConnectionFromSshContext(ctx)
 			return err == nil
 		},
 	}
 
-	s.server = &server
-
-	log.Info("Starting SSH server", "port", s.GetServerAddr())
-
-	if err := server.ListenAndServe(); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
-		log.Fatal("Failed to start SSH server", "error", err)
-	}
-}
-
-func (s *SshServer) Shutdown(_ context.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-
-	defer func() { cancel() }()
-
-	if err := s.server.Shutdown(ctx); err != nil {
-		log.Error("Failed to stop SSH server", "error", err)
-		return
-	}
-
-	log.Info("Stopped SSH server")
+	return server
 }

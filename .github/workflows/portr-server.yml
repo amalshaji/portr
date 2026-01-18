@@ -1,0 +1,53 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: Portr server
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "tunnel/**"
+      - ".github/workflows/portr-server.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "tunnel/**"
+      - ".github/workflows/portr-server.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Run server tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./tunnel
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup client
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+          run_install: false
+
+      - name: Install client dependencies
+        run: pnpm --dir internal/client/dashboard/ui install
+
+      - name: Build client
+        run: pnpm --dir internal/client/dashboard/ui build
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache: true
+
+      - name: Build tunnel
+        run: go build -v ./...
+
+      - name: Test tunnel
+        run: go test -v ./...

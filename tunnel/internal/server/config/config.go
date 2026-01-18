@@ -2,16 +2,18 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/charmbracelet/log"
+	_ "github.com/joho/godotenv/autoload"
 )
 
 type SshConfig struct {
 	Host    string
 	Port    int
-	KeysDir string
+	HostKey string
 }
 
 func (s SshConfig) Address() string {
@@ -33,6 +35,25 @@ type DatabaseConfig struct {
 	AutoMigrate bool
 }
 
+type AdminConfig struct {
+	Port                   int
+	Domain                 string
+	Debug                  bool
+	UseVite                bool
+	GithubClientID         string
+	GithubSecret           string
+	ServerURL              string
+	SshURL                 string
+	SshHostKeyVerification bool
+}
+
+func (c *AdminConfig) DomainAddress() string {
+	if c.Debug || c.Domain == "localhost:8000" {
+		return "http://" + c.Domain
+	}
+	return "https://" + c.Domain
+}
+
 type Config struct {
 	Ssh          SshConfig
 	Proxy        ProxyConfig
@@ -40,6 +61,7 @@ type Config struct {
 	UseLocalHost bool
 	Debug        bool
 	Database     DatabaseConfig
+	Admin        AdminConfig
 }
 
 func new() *Config {
@@ -49,7 +71,7 @@ func new() *Config {
 	}
 	sshPort, err := strconv.Atoi(sshPortStr)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Invalid PORTR_SSH_PORT", "port", sshPortStr, "error", err)
 	}
 
 	proxyPortStr := os.Getenv("PORTR_PROXY_PORT")
@@ -58,7 +80,7 @@ func new() *Config {
 	}
 	proxyPort, err := strconv.Atoi(proxyPortStr)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Invalid PORTR_PROXY_PORT", "port", proxyPortStr, "error", err)
 	}
 
 	domain := os.Getenv("PORTR_DOMAIN")
@@ -73,10 +95,38 @@ func new() *Config {
 
 	dbDriver := strings.Split(os.Getenv("PORTR_DB_URL"), "://")[0]
 
+	// Admin configuration
+	adminPortStr := os.Getenv("PORTR_ADMIN_PORT")
+	if adminPortStr == "" {
+		adminPortStr = "8000"
+	}
+	adminPort, err := strconv.Atoi(adminPortStr)
+	if err != nil {
+		log.Fatal("Invalid PORTR_ADMIN_PORT", "port", adminPortStr, "error", err)
+	}
+
+	adminDomain := os.Getenv("PORTR_DOMAIN")
+	if adminDomain == "" {
+		adminDomain = "localhost:8000"
+	}
+
+	serverURL := os.Getenv("PORTR_SERVER_URL")
+	if serverURL == "" {
+		serverURL = "http://localhost:8001"
+	}
+
+	sshURL := os.Getenv("PORTR_SSH_URL")
+	if sshURL == "" {
+		sshURL = "localhost:2222"
+	}
+
+	sshHostKey := os.Getenv("PORTR_SSH_HOST_KEY")
+
 	return &Config{
 		Ssh: SshConfig{
-			Host: "localhost",
-			Port: sshPort,
+			Host:    "localhost",
+			Port:    sshPort,
+			HostKey: sshHostKey,
 		},
 		Proxy: ProxyConfig{
 			Host: "localhost",
@@ -86,8 +136,20 @@ func new() *Config {
 		UseLocalHost: os.Getenv("PORTR_TUNNEL_USE_LOCALHOST") == "true",
 		Debug:        os.Getenv("PORTR_TUNNEL_DEBUG") == "true",
 		Database: DatabaseConfig{
-			Url:    dbUrl,
-			Driver: dbDriver,
+			Url:         dbUrl,
+			Driver:      dbDriver,
+			AutoMigrate: os.Getenv("PORTR_AUTO_MIGRATE") == "true",
+		},
+		Admin: AdminConfig{
+			Port:                   adminPort,
+			Domain:                 adminDomain,
+			Debug:                  os.Getenv("PORTR_ADMIN_DEBUG") == "true",
+			UseVite:                os.Getenv("PORTR_ADMIN_USE_VITE") == "true",
+			GithubClientID:         os.Getenv("PORTR_ADMIN_GITHUB_CLIENT_ID"),
+			GithubSecret:           os.Getenv("PORTR_ADMIN_GITHUB_CLIENT_SECRET"),
+			ServerURL:              serverURL,
+			SshURL:                 sshURL,
+			SshHostKeyVerification: sshHostKey != "",
 		},
 	}
 }
