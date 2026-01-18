@@ -152,7 +152,6 @@ func (h *Handler) DownloadConfig(c *fiber.Ctx) error {
 		})
 	}
 
-	// Find team user by secret key
 	var teamUser models.TeamUser
 	err := h.db.Where("secret_key = ?", input.SecretKey).First(&teamUser).Error
 	if err != nil {
@@ -161,15 +160,19 @@ func (h *Handler) DownloadConfig(c *fiber.Ctx) error {
 		})
 	}
 
-	// Generate config content
 	configContent := fmt.Sprintf(`server_url: %s
 ssh_url: %s
-secret_key: %s
-enable_request_logging: false
+secret_key: %s`, h.config.ServerURL, h.config.SshURL, teamUser.SecretKey)
+
+	if h.config.SshHostKeyVerification {
+		configContent += "\ninsecure_skip_host_key_verification: false"
+	}
+
+	configContent += `
 tunnels:
   - name: portr
     subdomain: portr
-    port: 4321`, h.config.ServerURL, h.config.SshURL, teamUser.SecretKey)
+    port: 4321`
 
 	return c.JSON(fiber.Map{
 		"message": configContent,

@@ -36,14 +36,15 @@ type DatabaseConfig struct {
 }
 
 type AdminConfig struct {
-	Port           int
-	Domain         string
-	Debug          bool
-	UseVite        bool
-	GithubClientID string
-	GithubSecret   string
-	ServerURL      string
-	SshURL         string
+	Port                   int
+	Domain                 string
+	Debug                  bool
+	UseVite                bool
+	GithubClientID         string
+	GithubSecret           string
+	ServerURL              string
+	SshURL                 string
+	SshHostKeyVerification bool
 }
 
 func (c *AdminConfig) DomainAddress() string {
@@ -140,14 +141,15 @@ func new() *Config {
 			AutoMigrate: os.Getenv("PORTR_AUTO_MIGRATE") == "true",
 		},
 		Admin: AdminConfig{
-			Port:           adminPort,
-			Domain:         adminDomain,
-			Debug:          os.Getenv("PORTR_ADMIN_DEBUG") == "true",
-			UseVite:        os.Getenv("PORTR_ADMIN_USE_VITE") == "true",
-			GithubClientID: os.Getenv("PORTR_ADMIN_GITHUB_CLIENT_ID"),
-			GithubSecret:   os.Getenv("PORTR_ADMIN_GITHUB_CLIENT_SECRET"),
-			ServerURL:      serverURL,
-			SshURL:         sshURL,
+			Port:                   adminPort,
+			Domain:                 adminDomain,
+			Debug:                  os.Getenv("PORTR_ADMIN_DEBUG") == "true",
+			UseVite:                os.Getenv("PORTR_ADMIN_USE_VITE") == "true",
+			GithubClientID:         os.Getenv("PORTR_ADMIN_GITHUB_CLIENT_ID"),
+			GithubSecret:           os.Getenv("PORTR_ADMIN_GITHUB_CLIENT_SECRET"),
+			ServerURL:              serverURL,
+			SshURL:                 sshURL,
+			SshHostKeyVerification: sshHostKey != "",
 		},
 	}
 }
