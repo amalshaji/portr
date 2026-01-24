@@ -25,6 +25,7 @@
     "vite": "^5.4.21"
   },
   "dependencies": {
+    "@fontsource/geist": "^5.2.8",
     "bits-ui": "^0.19.7",
     "clsx": "^2.1.0",
     "http-status-codes": "^2.3.0",
