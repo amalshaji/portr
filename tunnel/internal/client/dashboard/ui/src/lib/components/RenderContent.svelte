@@ -25,14 +25,33 @@
   const loadResponse = async (url: string) => {
     const response = await fetch(url);
     if (!response.ok) {
-      const errorData = await response.json();
-      const error: any = new Error(errorData.message || errorData.error || 'Failed to load response');
-      error.canDownload = errorData.canDownload || false;
+      let message = "Failed to load response";
+      let canDownload = false;
+      try {
+        const errorData = await response.json();
+        message = errorData.message || errorData.error || message;
+        canDownload = !!errorData.canDownload;
+      } catch {
+        try {
+          message = await response.text();
+        } catch { /* noop */ }
+      }
       hasError = true;
-      throw error;
+      const err: any = new Error(message);
+      err.canDownload = canDownload;
+      throw err;
     }
     hasError = false;
     return await response.text();
+  };
+
+  const tryParseJson = (text: string): { valid: boolean; formatted: string } => {
+    try {
+      const parsed = JSON.parse(text);
+      return { valid: true, formatted: JSON.stringify(parsed, null, 2) };
+    } catch {
+      return { valid: false, formatted: "" };
+    }
   };
 
   currentRequest.subscribe((value) => {
@@ -49,18 +68,26 @@
 </script>
 
 {#if $currentRequest}
-  {#if contentLength === "0"}
-    <div class="text-gray-500 dark:text-gray-400 p-4">No content</div>
-  {:else if contentType.startsWith("application/json")}
+  {#if contentType?.startsWith("application/json")}
     {#await loadResponse(`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`)}
       <div class="p-4 text-gray-500">Loading...</div>
     {:then response}
-      <div class="overflow-auto max-h-[600px]">
-        <Highlight
-          language={json}
-          code={JSON.stringify(JSON.parse(response), null, 2)}
+      {@const jsonResult = tryParseJson(response)}
+      {#if jsonResult.valid}
+        <div class="overflow-auto max-h-[600px]">
+          <Highlight
+            language={json}
+            code={jsonResult.formatted}
+          />
+        </div>
+      {:else}
+        <ErrorDisplay
+          message="Invalid JSON payload: unable to parse"
+          canDownload={true}
+          downloadUrl={`/api/tunnels/download/${$currentRequest?.ID}?type=${type}`}
+          contentLength={contentLength}
         />
-      </div>
+      {/if}
     {:catch error}
       <ErrorDisplay
         message={error.message}
@@ -69,7 +96,7 @@
         contentLength={contentLength}
       />
     {/await}
-  {:else if contentType.startsWith("application/x-www-form-urlencoded")}
+  {:else if contentType?.startsWith("application/x-www-form-urlencoded")}
     {#await loadResponse(`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`)}
       <div class="p-4 text-gray-500">Loading...</div>
     {:then response}
@@ -82,7 +109,7 @@
         contentLength={contentLength}
       />
     {/await}
-  {:else if contentType.startsWith("multipart/form-data")}
+  {:else if contentType?.startsWith("multipart/form-data")}
     {#await loadResponse(`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`)}
       <div class="p-4 text-gray-500">Loading...</div>
     {:then response}
@@ -95,12 +122,12 @@
         contentLength={contentLength}
       />
     {/await}
-  {:else if contentType.startsWith("image/")}
+  {:else if contentType?.startsWith("image/")}
     <img
       src={`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`}
       alt="portr"
     />
-  {:else if contentType.startsWith("video/")}
+  {:else if contentType?.startsWith("video/")}
     <!-- svelte-ignore a11y-media-has-caption -->
     <video controls>
       <source
@@ -108,7 +135,7 @@
         type={contentType}
       />
     </video>
-  {:else if contentType.startsWith("audio/")}
+  {:else if contentType?.startsWith("audio/")}
     <!-- svelte-ignore a11y-media-has-caption -->
     <audio controls>
       <source
@@ -116,14 +143,14 @@
         type={contentType}
       />
     </audio>
-  {:else if contentType.startsWith("text/html")}
+  {:else if contentType?.startsWith("text/html")}
     <!-- svelte-ignore a11y-missing-attribute -->
     <iframe
       src={`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`}
       width="100%"
       height="400px"
     ></iframe>
-  {:else if contentType.startsWith("text/")}
+  {:else if contentType?.startsWith("text/")}
     {#await loadResponse(`/api/tunnels/render/${$currentRequest?.ID}?type=${type}`)}
       <div class="p-4 text-gray-500">Loading...</div>
     {:then response}
