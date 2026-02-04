@@ -116,6 +116,15 @@ func (c *Client) Shutdown(ctx context.Context) {
 	}
 }
 
+// SetDashboardURL updates the local dashboard URL shown in the TUI.
+// It is safe to call when the TUI is disabled.
+func (c *Client) SetDashboardURL(url string) {
+	if c.tui == nil {
+		return
+	}
+	c.tui.Send(tui.SetDashboardURLMsg{URL: url})
+}
+
 // Create tunnel from cli args and replaces it in config
 func (c *Client) ReplaceTunnelsFromCli(tunnel config.Tunnel) {
 	c.config.Tunnels = []config.Tunnel{tunnel}

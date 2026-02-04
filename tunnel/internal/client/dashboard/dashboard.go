@@ -90,6 +90,10 @@ func New(db *db.Db, config *config.Config) *Dashboard {
 	}
 }
 
+func (d *Dashboard) Port() int {
+	return d.port
+}
+
 func (d *Dashboard) Start() error {
 	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/is-this-portr-server", d.port))
 	if err == nil {

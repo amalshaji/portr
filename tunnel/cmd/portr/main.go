@@ -25,6 +25,10 @@ func main() {
 				Usage:   "Config file",
 				Value:   config.DefaultConfigPath,
 			},
+			&cli.BoolFlag{
+				Name:  "disable-dashboard",
+				Usage: "Disable local dashboard server",
+			},
 		},
 		Commands: []*cli.Command{
 			startCmd(),

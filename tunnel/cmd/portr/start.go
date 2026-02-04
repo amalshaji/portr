@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"os"
@@ -18,6 +19,11 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 	config, err := config.Load(c.String("config"))
 	if err != nil {
 		return err
+	}
+
+	// CLI overrides for local dashboard settings.
+	if c.IsSet("disable-dashboard") && c.Bool("disable-dashboard") {
+		config.DisableDashboard = true
 	}
 
 	db := db.New(&config)
@@ -42,19 +48,28 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 		return err
 	}
 
-	dash := dashboard.New(db, _c.GetConfig())
-	go func() {
-		if err := dash.Start(); err != nil {
-			log.Fatalf("Failed to start dashboard server: error: %v", err)
-		}
-	}()
+	var dash *dashboard.Dashboard
+
+	if !_c.GetConfig().DisableDashboard {
+		dash = dashboard.New(db, _c.GetConfig())
+		_c.SetDashboardURL(fmt.Sprintf("http://localhost:%d", dash.Port()))
+		go func() {
+			if err := dash.Start(); err != nil {
+				log.Fatalf("Failed to start dashboard server: error: %v", err)
+			}
+		}()
+	}
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
 	<-signalCh
 
 	_c.Shutdown(c.Context)
-	dash.Shutdown()
+
+	if dash != nil {
+		dash.Shutdown()
+	}
+
 	return nil
 }
 
