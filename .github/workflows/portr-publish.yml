@@ -58,7 +58,7 @@ jobs:
         uses: prefix-dev/rattler-build-action@v0.2.34
         with:
           recipe-path: conda.recipe/recipe.yaml
-          upload-to-prefix: your-channel-name
+          upload-to-prefix: ${{ github.repository_owner }}
           build-args: |
             --target-platform ${{ matrix.target }}
             --set PKG_NAME=${{ matrix.package }}
