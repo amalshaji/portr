@@ -1,10 +1,10 @@
 context:
-  pkg_name: ${{ env["PKG_NAME"] }}
-  version: ${{ env["PKG_VERSION"] }}
+  pkg_name: ${{ env.get("PKG_NAME", default="portr")}}
+  pkg_version: ${{ env.get("PKG_VERSION", default="0.0.1") }}
 
 package:
   name: ${{ pkg_name|lower }}
-  version: ${{ version }}
+  version: ${{ pkg_version }}
 
 source:
   path: ..

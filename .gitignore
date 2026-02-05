@@ -13,3 +13,4 @@ data/
 dist
 !tunnel/internal/client/dashboard/dist
 /tunnel/bin
+/output
