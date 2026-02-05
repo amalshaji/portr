@@ -64,8 +64,6 @@ jobs:
           upload-artifact: true
           build-args: |
             --target-platform ${{ matrix.target }}
-            --set PKG_NAME=${{ matrix.package }}
-            --set PKG_VERSION=${{ env.STRIPPED_TAG }}
 
       - name: Publish to prefix.dev
         shell: bash
