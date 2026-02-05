@@ -171,9 +171,9 @@ func (s *SshClient) startListenerForClient() error {
 			Healthy:      true,
 		})
 	} else {
-		// Log tunnel start when TUI is disabled
+		// Log tunnel start when TUI is disabled.
 		tunnelAddr := s.config.GetTunnelAddr()
-		fmt.Printf("✅ Tunnel started: %s → %s\n", s.config.Tunnel.GetLocalAddr(), tunnelAddr)
+		log.Info("Tunnel started", "local", s.config.Tunnel.GetLocalAddr(), "remote", tunnelAddr)
 	}
 
 	for {
@@ -499,12 +499,14 @@ func (s *SshClient) logHttpRequest(
 			URL:    req.Url,
 		})
 	} else {
-		// Log to console when TUI is disabled
-		fmt.Printf("[%s] %s %s → %d\n",
-			req.LoggedAt.Local().Format("15:04:05"),
-			req.Method,
-			req.Url,
-			req.ResponseStatusCode)
+		// Log requests to debug when TUI is disabled.
+		log.Debug("Request",
+			"time", req.LoggedAt.Local().Format("15:04:05"),
+			"method", req.Method,
+			"url", req.Url,
+			"status", req.ResponseStatusCode,
+			"tunnel", tunnelName,
+		)
 	}
 }
 
@@ -556,7 +558,7 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) {
 			if tunnelName == "" {
 				tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
 			}
-			fmt.Printf("💀 Failed to reconnect tunnel '%s' after %d attempts\n", tunnelName, retryAttempts)
+			log.Error("Failed to reconnect tunnel after max attempts", "tunnel", tunnelName, "attempts", retryAttempts)
 			os.Exit(1)
 		}
 
@@ -576,8 +578,7 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) {
 				Healthy: false,
 			})
 		} else {
-			// Log unhealthy status when TUI is disabled
-			fmt.Printf("❌ Tunnel unhealthy: %s (attempting reconnect)\n", s.config.GetTunnelAddr())
+			log.Warn("Tunnel unhealthy (attempting reconnect)", "address", s.config.GetTunnelAddr())
 		}
 
 		err = s.Reconnect()
@@ -628,7 +629,7 @@ func (s *SshClient) Start(ctx context.Context) {
 			if tunnelName == "" {
 				tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
 			}
-			fmt.Printf("❌ Failed to start tunnel '%s': %v\n", tunnelName, err)
+			log.Error("Failed to start tunnel", "tunnel", tunnelName, "error", err)
 			os.Exit(1)
 		}
 
@@ -704,8 +705,7 @@ func (s *SshClient) Reconnect() error {
 				Healthy: true,
 			})
 		} else {
-			// Log successful reconnection when TUI is disabled
-			fmt.Printf("🔄 Tunnel reconnected: %s\n", s.config.GetTunnelAddr())
+			log.Info("Tunnel reconnected", "address", s.config.GetTunnelAddr())
 		}
 		return nil
 	case <-time.After(5 * time.Second):
@@ -716,8 +716,7 @@ func (s *SshClient) Reconnect() error {
 				Healthy: true,
 			})
 		} else {
-			// Log successful reconnection when TUI is disabled
-			fmt.Printf("🔄 Tunnel reconnected: %s\n", s.config.GetTunnelAddr())
+			log.Info("Tunnel reconnected", "address", s.config.GetTunnelAddr())
 		}
 		return nil
 	case <-ctx.Done():

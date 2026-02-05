@@ -10,6 +10,7 @@ import (
 
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/amalshaji/portr/internal/utils"
+	"github.com/charmbracelet/log"
 	"github.com/go-resty/resty/v2"
 	"github.com/labstack/gommon/color"
 	"gopkg.in/yaml.v3"
@@ -232,13 +233,13 @@ func EditConfig() error {
 	case "windows":
 		editorCmd = "start"
 	default:
-		fmt.Println(UNABLE_TO_OPEN_EDITOR)
+		log.Warn(UNABLE_TO_OPEN_EDITOR)
 		return nil
 	}
 
 	cmd := exec.Command(editorCmd, DefaultConfigPath)
 	if err := cmd.Run(); err != nil {
-		fmt.Println(UNABLE_TO_OPEN_EDITOR)
+		log.Warn(UNABLE_TO_OPEN_EDITOR)
 		return nil
 	}
 

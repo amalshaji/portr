@@ -6,7 +6,7 @@ import (
 
 	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/utils"
-	"github.com/labstack/gommon/color"
+	"github.com/charmbracelet/log"
 	"github.com/urfave/cli/v2"
 )
 
@@ -24,6 +24,12 @@ func main() {
 				Aliases: []string{"c"},
 				Usage:   "Config file",
 				Value:   config.DefaultConfigPath,
+			},
+			&cli.StringFlag{
+				Name:    "log-level",
+				Usage:   "Log level (debug, info, warn, error)",
+				Value:   "info",
+				EnvVars: []string{"LOG_LEVEL"},
 			},
 			&cli.BoolFlag{
 				Name:    "disable-config",
@@ -61,6 +67,20 @@ func main() {
 	}
 
 	app.Before = func(c *cli.Context) error {
+		// Configure logger early so startup errors are consistent.
+		log.SetOutput(os.Stdout)
+		log.SetFormatter(log.TextFormatter)
+		log.SetReportTimestamp(true)
+		log.SetTimeFormat(log.DefaultTimeFormat)
+		log.SetReportCaller(false)
+		log.SetCallerOffset(1)
+
+		level, err := log.ParseLevel(c.String("log-level"))
+		if err != nil {
+			return fmt.Errorf("invalid --log-level: %w", err)
+		}
+		log.SetLevel(level)
+
 		// for debugging cli commands
 		// because the config file is not loaded when this is set
 		debugForCli := os.Getenv("DEBUG_FOR_CLI") == "1"
@@ -86,7 +106,7 @@ func main() {
 			go func() {
 				if err := checkForUpdates(); err != nil {
 					if debugForCli {
-						fmt.Println(color.Red(err.Error()))
+						log.Debug("Update check failed", "error", err)
 					}
 				}
 			}()
@@ -94,11 +114,11 @@ func main() {
 			versionToUpdate, err := getVersionToUpdate()
 			if err != nil {
 				if debugForCli {
-					fmt.Println(color.Red(err.Error()))
+					log.Debug("Failed to determine update version", "error", err)
 				}
 			} else {
 				if versionToUpdate != "" {
-					fmt.Printf(color.Yellow("A new version of Portr is available: %s. https://github.com/amalshaji/portr/releases/tag/%s\n"), versionToUpdate, versionToUpdate)
+					log.Info("A new version of Portr is available", "version", versionToUpdate, "release", "https://github.com/amalshaji/portr/releases/tag/"+versionToUpdate)
 				}
 			}
 		}
@@ -107,7 +127,7 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		fmt.Println(color.Red(err.Error()))
+		log.Error("Command failed", "error", err)
 		os.Exit(0)
 	}
 }

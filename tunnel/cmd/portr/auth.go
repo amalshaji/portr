@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/amalshaji/portr/internal/client/config"
-	"github.com/labstack/gommon/color"
+	"github.com/charmbracelet/log"
 
 	"github.com/urfave/cli/v2"
 )
@@ -28,7 +28,7 @@ func authCmd() *cli.Command {
 						return err
 					}
 
-					fmt.Println(color.Green("Cli auth success!"))
+					log.Info("CLI auth success")
 					return nil
 				},
 			},
