@@ -178,6 +178,19 @@ func Load(configFile string) (Config, error) {
 	return config, nil
 }
 
+// LoadFromBytes loads a config from yaml bytes without reading from disk.
+func LoadFromBytes(configBytes []byte) (Config, error) {
+	var config Config
+
+	if err := yaml.Unmarshal(configBytes, &config); err != nil {
+		return Config{}, err
+	}
+
+	config.SetDefaults()
+
+	return config, nil
+}
+
 var homedir, _ = os.UserHomeDir()
 var DefaultConfigDir = homedir + "/.portr"
 var DefaultConfigPath = DefaultConfigDir + "/config.yaml"
@@ -243,7 +256,8 @@ func SetConfig(config string) error {
 	return os.WriteFile(DefaultConfigPath, []byte(config), 0644)
 }
 
-func GetConfig(token string, remote string) error {
+// downloadConfig fetches the yaml config from the remote server without writing it to disk.
+func downloadConfig(token string, remote string) (string, error) {
 	payloadMap := map[string]string{
 		"secret_key": token,
 	}
@@ -264,12 +278,32 @@ func GetConfig(token string, remote string) error {
 
 	resp, err := client.R().SetError(&response).SetResult(&response).SetBody(payloadMap).Post(remote + "/api/v1/config/download")
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("%s", response.Message)
+		return "", fmt.Errorf("%s", response.Message)
 	}
 
-	return SetConfig(response.Message)
+	return response.Message, nil
+}
+
+// LoadFromRemote downloads config from the server and keeps it in memory.
+// This performs no disk reads or writes.
+func LoadFromRemote(token string, remote string) (Config, error) {
+	configYAML, err := downloadConfig(token, remote)
+	if err != nil {
+		return Config{}, err
+	}
+
+	return LoadFromBytes([]byte(configYAML))
+}
+
+func GetConfig(token string, remote string) error {
+	configYAML, err := downloadConfig(token, remote)
+	if err != nil {
+		return err
+	}
+
+	return SetConfig(configYAML)
 }

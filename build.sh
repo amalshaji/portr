@@ -20,6 +20,8 @@ if [[ "$PKG_NAME" == "portr" ]]; then
   pnpm install
   pnpm build
 
+  rm -rf node_modules
+
   popd >/dev/null
 else
   echo "Skipping dashboard build"
@@ -34,7 +36,7 @@ go test ./...
 
 PREFIX="${PREFIX:-$(pwd)}"
 mkdir -p "$PREFIX/bin"
-go build -o "$PREFIX/bin/${PKG_NAME}" "./cmd/${PKG_NAME}"
+go build -trimpath -ldflags="-s -w" -o "$PREFIX/bin/${PKG_NAME}" "./cmd/${PKG_NAME}"
 
 popd >/dev/null
 

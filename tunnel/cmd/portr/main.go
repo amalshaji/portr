@@ -26,6 +26,21 @@ func main() {
 				Value:   config.DefaultConfigPath,
 			},
 			&cli.BoolFlag{
+				Name:    "disable-config",
+				Usage:   "Disable file backed configs (do not read or write config files)",
+				EnvVars: []string{"PORTR_DISABLE_CONFIG"},
+			},
+			&cli.StringFlag{
+				Name:    "token",
+				Usage:   "Auth token used to download config (used with --disable-config)",
+				EnvVars: []string{"PORTR_AUTH_TOKEN"},
+			},
+			&cli.StringFlag{
+				Name:    "remote",
+				Usage:   "Remote server URL used to download config (used with --disable-config)",
+				EnvVars: []string{"PORTR_AUTH_REMOTE"},
+			},
+			&cli.BoolFlag{
 				Name:    "disable-tui",
 				Usage:   "Disable the terminal UI (TUI)",
 				EnvVars: []string{"PORTR_DISABLE_TUI"},
@@ -45,38 +60,50 @@ func main() {
 		},
 	}
 
-	if err := utils.EnsureDirExists(config.DefaultConfigDir); err != nil {
-		fmt.Println(color.Red(err.Error()))
-		os.Exit(0)
-	}
+	app.Before = func(c *cli.Context) error {
+		// for debugging cli commands
+		// because the config file is not loaded when this is set
+		debugForCli := os.Getenv("DEBUG_FOR_CLI") == "1"
 
-	// for debugging cli commands
-	// because the config file is not loaded when this is set
-	debugForCli := os.Getenv("DEBUG_FOR_CLI") == "1"
+		// When config is disabled we must not touch disk.
+		if c.Bool("disable-config") {
+			// If the user explicitly set a config path, error out.
+			if c.IsSet("config") {
+				return fmt.Errorf("--config cannot be used with --disable-config")
+			}
+			return nil
+		}
 
-	// Load config to check if update checks are disabled
-	cfg, configErr := config.Load(config.DefaultConfigPath)
-	disableUpdateCheck := configErr == nil && cfg.DisableUpdateCheck
+		if err := utils.EnsureDirExists(config.DefaultConfigDir); err != nil {
+			return err
+		}
 
-	if !disableUpdateCheck {
-		go func() {
-			if err := checkForUpdates(); err != nil {
+		// Load config to check if update checks are disabled
+		cfg, configErr := config.Load(c.String("config"))
+		disableUpdateCheck := configErr == nil && cfg.DisableUpdateCheck
+
+		if !disableUpdateCheck {
+			go func() {
+				if err := checkForUpdates(); err != nil {
+					if debugForCli {
+						fmt.Println(color.Red(err.Error()))
+					}
+				}
+			}()
+
+			versionToUpdate, err := getVersionToUpdate()
+			if err != nil {
 				if debugForCli {
 					fmt.Println(color.Red(err.Error()))
 				}
-			}
-		}()
-
-		versionToUpdate, err := getVersionToUpdate()
-		if err != nil {
-			if debugForCli {
-				fmt.Println(color.Red(err.Error()))
-			}
-		} else {
-			if versionToUpdate != "" {
-				fmt.Printf(color.Yellow("A new version of Portr is available: %s. https://github.com/amalshaji/portr/releases/tag/%s\n"), versionToUpdate, versionToUpdate)
+			} else {
+				if versionToUpdate != "" {
+					fmt.Printf(color.Yellow("A new version of Portr is available: %s. https://github.com/amalshaji/portr/releases/tag/%s\n"), versionToUpdate, versionToUpdate)
+				}
 			}
 		}
+
+		return nil
 	}
 
 	if err := app.Run(os.Args); err != nil {

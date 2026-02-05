@@ -16,24 +16,45 @@ import (
 )
 
 func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
-	config, err := config.Load(c.String("config"))
-	if err != nil {
-		return err
+	var cfg config.Config
+	var err error
+
+	if c.Bool("disable-config") {
+		// --config is not allowed when file backed configs are disabled.
+		if c.IsSet("config") {
+			return fmt.Errorf("--config cannot be used with --disable-config")
+		}
+
+		token := c.String("token")
+		remote := c.String("remote")
+		if token == "" || remote == "" {
+			return fmt.Errorf("--token and --remote are required with --disable-config")
+		}
+
+		cfg, err = config.LoadFromRemote(token, remote)
+		if err != nil {
+			return err
+		}
+	} else {
+		cfg, err = config.Load(c.String("config"))
+		if err != nil {
+			return err
+		}
 	}
 
 	// CLI/env overrides for TUI settings.
 	if c.IsSet("disable-tui") && c.Bool("disable-tui") {
-		config.DisableTUI = true
+		cfg.DisableTUI = true
 	}
 
 	// CLI overrides for local dashboard settings.
 	if c.IsSet("disable-dashboard") && c.Bool("disable-dashboard") {
-		config.DisableDashboard = true
+		cfg.DisableDashboard = true
 	}
 
-	db := db.New(&config)
+	db := db.New(&cfg)
 
-	_c := client.NewClient(&config, db)
+	_c := client.NewClient(&cfg, db)
 
 	if tunnelFromCli != nil {
 		tunnelFromCli.SetDefaults()
@@ -43,7 +64,7 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 		_c.ReplaceTunnelsFromCli(*tunnelFromCli)
 		err = _c.Start(c.Context)
 	} else {
-		if err := config.Validate(); err != nil {
+		if err := cfg.Validate(); err != nil {
 			return err
 		}
 		err = _c.Start(c.Context, c.Args().Slice()...)
