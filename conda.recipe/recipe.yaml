@@ -7,21 +7,13 @@ package:
   version: ${{ pkg_version }}
 
 source:
-  path: ..
+  - path: ..
+    use_gitignore: false
 
 build:
   number: 0
   script:
-    - pushd tunnel/internal/client/dashboard/ui
-    - corepack enable >/dev/null 2>&1 || true
-    - pnpm install
-    - pnpm build
-    - popd
-    - pushd tunnel
-    - go test ./...
-    - mkdir -p $PREFIX/bin
-    - go build -o $PREFIX/bin/${{ pkg_name }} ./cmd/${{ pkg_name }}
-    - popd
+    - PKG_NAME="${{ pkg_name }}" bash ./build.sh
 
 requirements:
   build:
