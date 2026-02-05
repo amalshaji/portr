@@ -1,6 +1,7 @@
 context:
   pkg_name: ${{ env.get("PKG_NAME", default="portr")}}
   pkg_version: ${{ env.get("PKG_VERSION", default="0.0.1") }}
+  go_nocgo: ${{ env.get("GO_NOCGO", default="false") }}
 
 package:
   name: ${{ pkg_name|lower }}
@@ -8,15 +9,21 @@ package:
 
 source:
   - path: ..
-    use_gitignore: false
+  - path: ../tunnel/internal/client/dashboard/ui/dist
+    target_directory: tunnel/internal/client/dashboard/ui/dist
 
 build:
   number: 0
   script:
-    - PKG_NAME="${{ pkg_name }}" bash ./build.sh
+    - export PKG_NAME="${{ pkg_name }}"
+    - bash ./build.sh
 
 requirements:
   build:
-    - ${{ compiler('go-nocgo') }}
+    - if: go_nocgo
+      then:
+        - go-nocgo
+      else:
+        - ${{ compiler('go-nocgo') }}
     - pnpm
     - nodejs
