@@ -63,6 +63,12 @@ Start a test tunnel:
 ./portr -c client.dev.yaml http 9999
 ```
 
+If you do not want to run the local dashboard (inspector), or port 7777 is already in use, you can disable it:
+
+```shell
+./portr -c client.dev.yaml --disable-dashboard http 9999
+```
+
 ## Development Workflow
 
 ### Client Architecture
@@ -112,6 +118,7 @@ tunnels:
 
 #### Inspector Configuration
 The inspector runs on `http://localhost:7777` by default and automatically connects to active HTTP tunnels.
+You can disable the local dashboard with `--disable-dashboard`.
 
 ## Testing Your Changes
 
