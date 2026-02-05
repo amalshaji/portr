@@ -20,9 +20,6 @@ if [[ "$PKG_NAME" == "portr" ]]; then
   pnpm install
   pnpm build
 
-  # Prevent node_modules from leaking into the package
-  rm -rf node_modules
-
   popd >/dev/null
 else
   echo "Skipping dashboard build"
