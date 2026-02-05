@@ -40,12 +40,12 @@ func main() {
 			&cli.StringFlag{
 				Name:    "token",
 				Usage:   "Auth token used to download config (used with --disable-config)",
-				EnvVars: []string{"PORTR_AUTH_TOKEN"},
+				EnvVars: []string{"PORTR_TOKEN"},
 			},
 			&cli.StringFlag{
 				Name:    "remote",
 				Usage:   "Remote server URL used to download config (used with --disable-config)",
-				EnvVars: []string{"PORTR_AUTH_REMOTE"},
+				EnvVars: []string{"PORTR_REMOTE"},
 			},
 			&cli.BoolFlag{
 				Name:    "disable-tui",
