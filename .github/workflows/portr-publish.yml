@@ -62,10 +62,5 @@ jobs:
           upload-artifact: true
           build-args: |
             --target-platform ${{ matrix.target }}
-
-      - name: Publish to prefix.dev
-        shell: bash
-        run: |
-          for pkg in output/**/*.conda; do
-            rattler-build upload prefix -c ${{ github.repository_owner }} "$pkg"
-          done
+            --set pkg_name=${{ matrix.package }}
+            --set version=${{ env.STRIPPED_TAG }}
