@@ -32,7 +32,11 @@ fi
 # ----------------------------
 pushd "./tunnel" >/dev/null
 
-go test ./...
+if [[ "$PKG_NAME" == "portrc" ]]; then
+  go test -tags nodashboard,nosql ./...
+else
+  go test ./...
+fi
 
 PREFIX="${PREFIX:-$(pwd)}"
 mkdir -p "$PREFIX/bin"

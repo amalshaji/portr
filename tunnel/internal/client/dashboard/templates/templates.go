@@ -1,3 +1,5 @@
+//go:build !nodashboard
+
 package templates
 
 import "embed"

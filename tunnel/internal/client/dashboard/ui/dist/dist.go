@@ -1,3 +1,5 @@
+//go:build !nodashboard
+
 package dist
 
 import "embed"
