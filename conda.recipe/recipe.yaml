@@ -1,6 +1,6 @@
 context:
-  pkg_name: ""
-  version: ""
+  pkg_name: ${{ env["PKG_NAME"] }}
+  version: ${{ env["PKG_VERSION"] }}
 
 package:
   name: ${{ pkg_name|lower }}
