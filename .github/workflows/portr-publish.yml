@@ -7,6 +7,7 @@ on:
 
 jobs:
   build-and-publish:
+    if: vars.DISABLE_PORTR_PUBLISH != 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
