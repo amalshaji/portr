@@ -2,6 +2,7 @@ name: Publish to prefix.dev
 
 on:
   push:
+    branches: ["main"]
     tags:
       - "v*"
 
