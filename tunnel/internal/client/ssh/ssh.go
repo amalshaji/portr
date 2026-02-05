@@ -21,7 +21,6 @@ import (
 	"github.com/amalshaji/portr/internal/utils"
 	"github.com/charmbracelet/log"
 	"github.com/go-resty/resty/v2"
-	"gorm.io/datatypes"
 
 	"github.com/amalshaji/portr/internal/client/tui"
 	tea "github.com/charmbracelet/bubbletea"
@@ -459,26 +458,25 @@ func (s *SshClient) logHttpRequest(
 		return
 	}
 
-	req := db.Request{
-		ID:                 id,
-		Host:               request.Host,
-		Url:                request.URL.String(),
-		Subdomain:          s.config.Tunnel.Subdomain,
-		Localport:          s.config.Tunnel.Port,
-		Method:             request.Method,
-		Headers:            datatypes.JSON(requestHeadersBytes),
-		Body:               requestBody,
-		ResponseHeaders:    datatypes.JSON(responseHeadersBytes),
-		ResponseBody:       responseBody,
-		ResponseStatusCode: response.StatusCode,
-		LoggedAt:           time.Now().UTC(),
-		IsReplayed:         isReplayedRequest,
-		ParentID:           replayedRequestId,
+	req := db.RequestLog{
+		ID:                  id,
+		Host:                request.Host,
+		URL:                 request.URL.String(),
+		Subdomain:           s.config.Tunnel.Subdomain,
+		LocalPort:           s.config.Tunnel.Port,
+		Method:              request.Method,
+		HeadersJSON:         requestHeadersBytes,
+		Body:                requestBody,
+		ResponseHeadersJSON: responseHeadersBytes,
+		ResponseBody:        responseBody,
+		ResponseStatusCode:  response.StatusCode,
+		LoggedAt:            time.Now().UTC(),
+		IsReplayed:          isReplayedRequest,
+		ParentID:            replayedRequestId,
 	}
-	result := s.db.Conn.Create(&req)
-	if result.Error != nil {
+	if err := s.db.LogRequest(&req); err != nil {
 		if s.config.Debug {
-			s.logDebug("Failed to log request", result.Error)
+			s.logDebug("Failed to log request", err)
 		}
 		return
 	}
@@ -496,14 +494,14 @@ func (s *SshClient) logHttpRequest(
 			Name:   tunnelName,
 			Method: req.Method,
 			Status: req.ResponseStatusCode,
-			URL:    req.Url,
+			URL:    req.URL,
 		})
 	} else {
 		// Log requests to debug when TUI is disabled.
 		log.Debug("Request",
 			"time", req.LoggedAt.Local().Format("15:04:05"),
 			"method", req.Method,
-			"url", req.Url,
+			"url", req.URL,
 			"status", req.ResponseStatusCode,
 			"tunnel", tunnelName,
 		)

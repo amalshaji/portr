@@ -5,6 +5,9 @@ builds:
     dir: tunnel
     env:
       - CGO_ENABLED=0
+    flags:
+      - -trimpath
+      - -buildvcs=false
     goos:
       - linux
       - windows
@@ -14,6 +17,27 @@ builds:
       - arm64
     ldflags:
       - -s -w -X main.version={{.Version}}
+  - id: "portrc"
+    main: ./cmd/portr
+    binary: "portrc"
+    dir: tunnel
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+      - -buildvcs=false
+    tags:
+      - nodashboard
+      - nosql
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.appName=portrc
 
 archives:
   - formats:
@@ -27,6 +51,17 @@ archives:
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
     id: portr
+  - formats:
+      - zip
+    name_template: >-
+      {{ .Binary }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    id: portrc
 
 checksum:
   name_template: "checksums.txt"

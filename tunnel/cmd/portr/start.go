@@ -2,15 +2,12 @@ package main
 
 import (
 	"fmt"
-	"log"
-
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/amalshaji/portr/internal/client/client"
 	"github.com/amalshaji/portr/internal/client/config"
-	"github.com/amalshaji/portr/internal/client/dashboard"
 	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/urfave/cli/v2"
 )
@@ -47,10 +44,7 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 		cfg.DisableTUI = true
 	}
 
-	// CLI overrides for local dashboard settings.
-	if c.IsSet("disable-dashboard") && c.Bool("disable-dashboard") {
-		cfg.DisableDashboard = true
-	}
+	applyDashboardCLIOverrides(c, &cfg)
 
 	db := db.New(&cfg)
 
@@ -74,16 +68,9 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 		return err
 	}
 
-	var dash *dashboard.Dashboard
-
-	if !_c.GetConfig().DisableDashboard {
-		dash = dashboard.New(db, _c.GetConfig())
-		_c.SetDashboardURL(fmt.Sprintf("http://localhost:%d", dash.Port()))
-		go func() {
-			if err := dash.Start(); err != nil {
-				log.Fatalf("Failed to start dashboard server: error: %v", err)
-			}
-		}()
+	dashboardShutdown, err := startDashboardIfEnabled(_c, db)
+	if err != nil {
+		return err
 	}
 
 	signalCh := make(chan os.Signal, 1)
@@ -92,8 +79,8 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 
 	_c.Shutdown(c.Context)
 
-	if dash != nil {
-		dash.Shutdown()
+	if dashboardShutdown != nil {
+		dashboardShutdown()
 	}
 
 	return nil

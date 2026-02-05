@@ -1,3 +1,5 @@
+//go:build !nosql
+
 package db
 
 import (
@@ -79,4 +81,30 @@ type Request struct {
 	LoggedAt           time.Time
 	IsReplayed         bool
 	ParentID           string
+}
+
+// LogRequest persists a request log to the local sqlite database.
+func (d *Db) LogRequest(req *RequestLog) error {
+	if d == nil || d.Conn == nil || req == nil {
+		return nil
+	}
+
+	r := Request{
+		ID:                 req.ID,
+		Subdomain:          req.Subdomain,
+		Localport:          req.LocalPort,
+		Host:               req.Host,
+		Url:                req.URL,
+		Method:             req.Method,
+		Headers:            datatypes.JSON(req.HeadersJSON),
+		Body:               req.Body,
+		ResponseHeaders:    datatypes.JSON(req.ResponseHeadersJSON),
+		ResponseBody:       req.ResponseBody,
+		ResponseStatusCode: req.ResponseStatusCode,
+		LoggedAt:           req.LoggedAt,
+		IsReplayed:         req.IsReplayed,
+		ParentID:           req.ParentID,
+	}
+
+	return d.Conn.Create(&r).Error
 }

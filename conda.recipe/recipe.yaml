@@ -24,5 +24,7 @@ requirements:
         - go-nocgo
       else:
         - ${{ compiler('go-nocgo') }}
-    - pnpm
-    - nodejs
+    - if: pkg_name == "portr"
+      then:
+        - pnpm
+        - nodejs

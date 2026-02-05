@@ -8,11 +8,12 @@ on:
 jobs:
   build-and-publish:
     if: vars.DISABLE_PORTR_PUBLISH != 'true'
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.platform.os }}
     strategy:
       fail-fast: false
       matrix:
-        include:
+        pkg_name: [portr, portrc]
+        platform:
           - os: ubuntu-latest
             target: linux-64
           - os: macos-latest
@@ -33,14 +34,14 @@ jobs:
       - name: Set Variables
         shell: bash
         run: |
-          echo "PKG_NAME=portr" >> $GITHUB_ENV
+          echo "PKG_NAME=${{ matrix.pkg_name }}" >> $GITHUB_ENV
           echo "PKG_VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
 
       - name: Build conda package
         uses: prefix-dev/rattler-build-action@v0.2.34
         with:
-          artifact-name: portr-${{ matrix.target }}
-          build-args: --target-platform ${{ matrix.target }}
+          artifact-name: ${{ matrix.pkg_name }}-${{ matrix.platform.target }}
+          build-args: --target-platform ${{ matrix.platform.target }}
 
       - name: Upload packages
         shell: bash

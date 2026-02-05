@@ -36,7 +36,15 @@ go test ./...
 
 PREFIX="${PREFIX:-$(pwd)}"
 mkdir -p "$PREFIX/bin"
-go build -trimpath -ldflags="-s -w" -o "$PREFIX/bin/${PKG_NAME}" "./cmd/${PKG_NAME}"
+
+# Build target mapping:
+# - portr  => ./cmd/portr (dashboard enabled)
+# - portrc => ./cmd/portr with -tags nodashboard (dashboard disabled)
+if [[ "$PKG_NAME" == "portrc" ]]; then
+  CGO_ENABLED=0 go build -trimpath -buildvcs=false -tags nodashboard,nosql -ldflags="-s -w -X main.appName=portrc" -o "$PREFIX/bin/${PKG_NAME}" "./cmd/portr"
+else
+  CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="-s -w" -o "$PREFIX/bin/${PKG_NAME}" "./cmd/${PKG_NAME}"
+fi
 
 popd >/dev/null
 

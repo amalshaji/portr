@@ -12,10 +12,11 @@ import (
 
 // Set at build time
 var version = "0.0.0"
+var appName = "portr"
 
 func main() {
 	app := &cli.App{
-		Name:    "portr",
+		Name:    appName,
 		Usage:   "Expose local ports to the public internet",
 		Version: version,
 		Flags: []cli.Flag{
@@ -51,11 +52,6 @@ func main() {
 				Usage:   "Disable the terminal UI (TUI)",
 				EnvVars: []string{"PORTR_DISABLE_TUI"},
 			},
-			&cli.BoolFlag{
-				Name:    "disable-dashboard",
-				Usage:   "Disable local dashboard server",
-				EnvVars: []string{"PORTR_DISABLE_DASHBOARD"},
-			},
 		},
 		Commands: []*cli.Command{
 			startCmd(),
@@ -65,6 +61,7 @@ func main() {
 			authCmd(),
 		},
 	}
+	app.Flags = append(app.Flags, dashboardFlags()...)
 
 	app.Before = func(c *cli.Context) error {
 		// Configure logger early so startup errors are consistent.
