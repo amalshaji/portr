@@ -1,6 +1,6 @@
 package:
-  name: ${{ pkg_name|lower }}
-  version: ${{ version }}
+  name: {{ pkg_name | lower }}
+  version: {{ version }}
 source:
   path: ..
 
