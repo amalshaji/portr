@@ -56,9 +56,11 @@ jobs:
 
       - name: Build conda package
         uses: prefix-dev/rattler-build-action@v0.2.34
+        env:
+          PKG_NAME: ${{ matrix.package }}
+          PKG_VERSION: ${{ env.STRIPPED_TAG }}
         with:
           recipe-path: conda.recipe/recipe.yaml
-          # upload-to-prefix is removed. We use upload-artifact instead.
           upload-artifact: true
           build-args: |
             --target-platform ${{ matrix.target }}
