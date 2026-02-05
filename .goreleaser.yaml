@@ -1,3 +1,7 @@
+before:
+  hooks:
+    - sh -c "cd tunnel/internal/client/dashboard/ui && (corepack enable >/dev/null 2>&1 || true) && pnpm install && pnpm build"
+
 builds:
   - id: "portr"
     main: ./cmd/portr
@@ -14,9 +18,27 @@ builds:
       - arm64
     ldflags:
       - -s -w -X main.version={{.Version}}
+  - id: "portrd"
+    main: ./cmd/portrd
+    binary: "portrd"
+    dir: tunnel
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
 
 archives:
-  - formats:
+  - id: portr
+    builds:
+      - portr
+    formats:
       - zip
     name_template: >-
       {{ .Binary }}_
@@ -26,7 +48,19 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-    id: portr
+  - id: portrd
+    builds:
+      - portrd
+    formats:
+      - zip
+    name_template: >-
+      {{ .Binary }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
 
 checksum:
   name_template: "checksums.txt"

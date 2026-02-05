@@ -1,0 +1,28 @@
+context:
+  pkg_name: ${{ env["PKG_NAME"] }}
+  version: ${{ env["PKG_VERSION"] }}
+
+package:
+  name: ${{ pkg_name|lower }}
+  version: ${{ version }}
+source:
+  path: ..
+
+build:
+  number: 0
+  script:
+    - pushd tunnel/internal/client/dashboard/ui
+    - corepack enable >/dev/null 2>&1 || true
+    - pnpm install
+    - pnpm build
+    - popd
+    - pushd tunnel
+    - go test ./...
+    - go build -o $PREFIX/bin/${{ pkg_name }} ./cmd/${{ pkg_name }}
+    - popd
+
+requirements:
+  build:
+    - ${{ compiler('go-nocgo') }}
+    - pnpm
+    - nodejs
