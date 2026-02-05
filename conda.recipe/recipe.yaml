@@ -1,6 +1,11 @@
+context:
+  pkg_name: ""
+  version: ""
+
 package:
-  name: "{{ pkg_name | lower }}"
-  version: "{{ version }}"
+  name: ${{ pkg_name|lower }}
+  version: ${{ version }}
+
 source:
   path: ..
 
@@ -14,6 +19,7 @@ build:
     - popd
     - pushd tunnel
     - go test ./...
+    - mkdir -p $PREFIX/bin
     - go build -o $PREFIX/bin/${{ pkg_name }} ./cmd/${{ pkg_name }}
     - popd
 
