@@ -21,6 +21,11 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 		return err
 	}
 
+	// CLI/env overrides for TUI settings.
+	if c.IsSet("disable-tui") && c.Bool("disable-tui") {
+		config.DisableTUI = true
+	}
+
 	// CLI overrides for local dashboard settings.
 	if c.IsSet("disable-dashboard") && c.Bool("disable-dashboard") {
 		config.DisableDashboard = true

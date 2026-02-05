@@ -26,8 +26,14 @@ func main() {
 				Value:   config.DefaultConfigPath,
 			},
 			&cli.BoolFlag{
-				Name:  "disable-dashboard",
-				Usage: "Disable local dashboard server",
+				Name:    "disable-tui",
+				Usage:   "Disable the terminal UI (TUI)",
+				EnvVars: []string{"PORTR_DISABLE_TUI"},
+			},
+			&cli.BoolFlag{
+				Name:    "disable-dashboard",
+				Usage:   "Disable local dashboard server",
+				EnvVars: []string{"PORTR_DISABLE_DASHBOARD"},
 			},
 		},
 		Commands: []*cli.Command{
