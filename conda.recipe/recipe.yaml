@@ -15,8 +15,7 @@ source:
 build:
   number: 0
   script:
-    - export PKG_NAME="${{ pkg_name }}"
-    - bash ./build.sh
+    - bash ./build.sh "${{ pkg_name }}"
 
 requirements:
   build:
