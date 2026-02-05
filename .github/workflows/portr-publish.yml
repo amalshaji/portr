@@ -42,8 +42,10 @@ jobs:
           artifact-name: portr-${{ matrix.target }}
           build-args: --target-platform ${{ matrix.target }}
 
-      - run: |
+      - name: Upload packages
+        shell: bash
+        run: |
           for pkg in $(find output -type f \( -name "*.conda" -o -name "*.tar.bz2" \)); do
             echo "Uploading ${pkg}"
-            rattler-build upload prefix -c ${{ github.repository_owner }} "${pkg}"
+            rattler-build upload prefix -c "${{ github.repository_owner }}" "${pkg}"
           done
