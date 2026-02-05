@@ -49,9 +49,8 @@ jobs:
       - name: Set Variables
         shell: bash
         run: |
-          # Use a fallback if GITHUB_REF_NAME isn't a tag (e.g. on main branch)
-          CLEAN_TAG=${GITHUB_REF_NAME#v}
-          echo "STRIPPED_TAG=${CLEAN_TAG:-0.0.0}" >> $GITHUB_ENV
+          echo "STRIPPED_TAG=${GITHUB_REF_NAME#v}"
+          echo "STRIPPED_TAG=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
 
       - name: Build conda package
         uses: prefix-dev/rattler-build-action@v0.2.34
