@@ -32,9 +32,10 @@ pushd "./tunnel" >/dev/null
 
 go test ./...
 
-mkdir -p "./bin"
-go build -o "./bin/${PKG_NAME}" "./cmd/${PKG_NAME}"
+PREFIX="${PREFIX:-$(pwd)}"
+mkdir -p "$PREFIX/bin"
+go build -o "$PREFIX/bin/${PKG_NAME}" "./cmd/${PKG_NAME}"
 
 popd >/dev/null
 
-echo "Build complete: ./bin/${PKG_NAME}"
+echo "Build complete: $PREFIX/bin/${PKG_NAME}"
