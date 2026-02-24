@@ -9,6 +9,8 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -32,6 +34,45 @@ import (
 var (
 	ErrLocalSetupIncomplete = fmt.Errorf("local setup incomplete")
 )
+
+type requestLogContextKey struct{}
+
+type requestLogData struct {
+	id      string
+	request *http.Request
+	body    []byte
+}
+
+type singleConnListener struct {
+	conn     net.Conn
+	accepted bool
+	closed   bool
+	mu       sync.Mutex
+}
+
+func (l *singleConnListener) Accept() (net.Conn, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if l.closed || l.accepted {
+		return nil, net.ErrClosed
+	}
+
+	l.accepted = true
+	return l.conn, nil
+}
+
+func (l *singleConnListener) Close() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.closed = true
+	return nil
+}
+
+func (l *singleConnListener) Addr() net.Addr {
+	return l.conn.LocalAddr()
+}
 
 type SshClient struct {
 	config       config.ClientConfig
@@ -228,6 +269,156 @@ func (s *SshClient) startListenerForClient() error {
 }
 
 func (s *SshClient) httpTunnel(src, dst net.Conn) {
+	if s.config.EnableHttpReverseProxy {
+		s.httpTunnelReverseProxy(src, dst)
+		return
+	}
+
+	s.httpTunnelLegacy(src, dst)
+}
+
+func (s *SshClient) httpTunnelReverseProxy(src, dst net.Conn) {
+	defer src.Close()
+
+	target := &url.URL{
+		Scheme: "http",
+		Host:   s.config.Tunnel.GetLocalAddr(),
+	}
+
+	var firstConnMu sync.Mutex
+	firstConnUsed := false
+
+	transport := &http.Transport{
+		Proxy:             http.ProxyFromEnvironment,
+		ForceAttemptHTTP2: false,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			firstConnMu.Lock()
+			if !firstConnUsed {
+				firstConnUsed = true
+				firstConnMu.Unlock()
+				return dst, nil
+			}
+			firstConnMu.Unlock()
+
+			var d net.Dialer
+			return d.DialContext(ctx, network, addr)
+		},
+	}
+	defer func() {
+		transport.CloseIdleConnections()
+
+		firstConnMu.Lock()
+		used := firstConnUsed
+		firstConnMu.Unlock()
+
+		if !used {
+			dst.Close()
+		}
+	}()
+
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	proxy.Transport = transport
+
+	defaultDirector := proxy.Director
+	proxy.Director = func(request *http.Request) {
+		host := request.Host
+		defaultDirector(request)
+		request.Host = host
+	}
+
+	proxy.ModifyResponse = func(response *http.Response) error {
+		if !s.config.EnableRequestLogging {
+			return nil
+		}
+
+		if response.StatusCode == http.StatusSwitchingProtocols {
+			return nil
+		}
+
+		if strings.Contains(response.Header.Get("Content-Type"), "text/event-stream") {
+			return nil
+		}
+
+		logData, ok := response.Request.Context().Value(requestLogContextKey{}).(*requestLogData)
+		if !ok || logData == nil || logData.request == nil {
+			return nil
+		}
+
+		responseBody, err := io.ReadAll(response.Body)
+		if err != nil {
+			if s.config.Debug {
+				s.logDebug("Failed to read response body from reverse proxy", err)
+			}
+			return err
+		}
+		response.Body.Close()
+		response.Body = io.NopCloser(bytes.NewBuffer(responseBody))
+
+		s.logHttpRequest(logData.id, logData.request, logData.body, response, responseBody)
+		return nil
+	}
+
+	proxy.ErrorHandler = func(writer http.ResponseWriter, request *http.Request, err error) {
+		if s.config.Debug {
+			s.logDebug("HTTP reverse proxy failed", err)
+		}
+		http.Error(writer, "Bad Gateway", http.StatusBadGateway)
+	}
+
+	handler := http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Header.Get("X-Portr-Ping-Request") == "true" {
+			writer.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if !s.config.EnableRequestLogging {
+			proxy.ServeHTTP(writer, request)
+			return
+		}
+
+		requestBody, err := io.ReadAll(request.Body)
+		if err != nil {
+			if s.config.Debug {
+				s.logDebug("Failed to read request body for reverse proxy logging", err)
+			}
+			http.Error(writer, "Bad Request", http.StatusBadRequest)
+			return
+		}
+		request.Body.Close()
+		request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
+
+		requestForLog := request.Clone(context.Background())
+		requestForLog.Header = request.Header.Clone()
+		requestForLog.Host = request.Host
+		if request.URL != nil {
+			clonedURL := *request.URL
+			requestForLog.URL = &clonedURL
+		}
+
+		logCtx := context.WithValue(request.Context(), requestLogContextKey{}, &requestLogData{
+			id:      ulid.Make().String(),
+			request: requestForLog,
+			body:    requestBody,
+		})
+
+		proxy.ServeHTTP(writer, request.WithContext(logCtx))
+	})
+
+	server := &http.Server{
+		Handler:           handler,
+		ReadHeaderTimeout: 15 * time.Second,
+	}
+
+	listener := &singleConnListener{conn: src}
+	err := server.Serve(listener)
+	if err != nil && err != net.ErrClosed {
+		if s.config.Debug {
+			s.logDebug("Reverse proxy tunnel closed with error", err)
+		}
+	}
+}
+
+func (s *SshClient) httpTunnelLegacy(src, dst net.Conn) {
 	defer src.Close()
 	defer dst.Close()
 

@@ -55,19 +55,20 @@ func (t *Tunnel) GetLocalAddr() string {
 }
 
 type Config struct {
-	ServerUrl             string   `yaml:"server_url"`
-	SshUrl                string   `yaml:"ssh_url"`
-	TunnelUrl             string   `yaml:"tunnel_url"`
-	SecretKey             string   `yaml:"secret_key"`
-	Tunnels               []Tunnel `yaml:"tunnels"`
-	UseLocalHost          bool     `yaml:"use_localhost"`
-	Debug                 bool     `yaml:"debug"`
-	UseVite               bool     `yaml:"use_vite"`
-	EnableRequestLogging  bool     `yaml:"enable_request_logging"`
-	HealthCheckInterval   int      `yaml:"health_check_interval"`
-	HealthCheckMaxRetries int      `yaml:"health_check_max_retries"`
-	DisableTUI            bool     `yaml:"disable_tui"`
-	DisableUpdateCheck    bool     `yaml:"disable_update_check"`
+	ServerUrl              string   `yaml:"server_url"`
+	SshUrl                 string   `yaml:"ssh_url"`
+	TunnelUrl              string   `yaml:"tunnel_url"`
+	SecretKey              string   `yaml:"secret_key"`
+	Tunnels                []Tunnel `yaml:"tunnels"`
+	UseLocalHost           bool     `yaml:"use_localhost"`
+	Debug                  bool     `yaml:"debug"`
+	UseVite                bool     `yaml:"use_vite"`
+	EnableRequestLogging   bool     `yaml:"enable_request_logging"`
+	HealthCheckInterval    int      `yaml:"health_check_interval"`
+	HealthCheckMaxRetries  int      `yaml:"health_check_max_retries"`
+	DisableTUI             bool     `yaml:"disable_tui"`
+	EnableHttpReverseProxy bool     `yaml:"enable_http_reverse_proxy"`
+	DisableUpdateCheck     bool     `yaml:"disable_update_check"`
 }
 
 func (c *Config) SetDefaults() {
@@ -116,17 +117,18 @@ func (c Config) GetAdminAddress() string {
 }
 
 type ClientConfig struct {
-	ServerUrl             string
-	SshUrl                string
-	TunnelUrl             string
-	SecretKey             string
-	Tunnel                Tunnel
-	UseLocalHost          bool
-	Debug                 bool
-	EnableRequestLogging  bool
-	HealthCheckInterval   int
-	HealthCheckMaxRetries int
-	DisableTUI            bool
+	ServerUrl              string
+	SshUrl                 string
+	TunnelUrl              string
+	SecretKey              string
+	Tunnel                 Tunnel
+	UseLocalHost           bool
+	Debug                  bool
+	EnableRequestLogging   bool
+	HealthCheckInterval    int
+	HealthCheckMaxRetries  int
+	DisableTUI             bool
+	EnableHttpReverseProxy bool
 }
 
 func (c *ClientConfig) GetHttpTunnelAddr() string {
