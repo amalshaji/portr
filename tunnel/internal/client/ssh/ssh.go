@@ -199,27 +199,15 @@ func (s *SshClient) startListenerForClient() error {
 			break
 		}
 
-		// Connect to the local endpoint
-		localConn, err := net.Dial("tcp", localEndpoint)
-		if err != nil {
-			// serve local html if the local server is not available
-			// change this to a beautiful template
-			if tunnelType == constants.Http {
-				htmlContent := utils.LocalServerNotOnline(localEndpoint)
-				fmt.Fprintf(remoteConn, "HTTP/1.1 503 Service Unavailable\r\n")
-				fmt.Fprintf(remoteConn, "Content-Length: %d\r\n", len(htmlContent))
-				fmt.Fprintf(remoteConn, "Content-Type: text/html\r\n")
-				fmt.Fprintf(remoteConn, "X-Portr-Error: true\r\n")
-				fmt.Fprintf(remoteConn, "X-Portr-Error-Reason: local-server-not-online\r\n\r\n")
-				fmt.Fprint(remoteConn, htmlContent)
-			}
-			remoteConn.Close()
-			continue
-		}
-
 		if tunnelType == constants.Http {
-			go s.httpTunnel(remoteConn, localConn)
+			go s.httpTunnel(remoteConn, localEndpoint)
 		} else {
+			// Connect to the local endpoint for TCP passthrough.
+			localConn, err := net.Dial("tcp", localEndpoint)
+			if err != nil {
+				remoteConn.Close()
+				continue
+			}
 			go s.tcpTunnel(remoteConn, localConn)
 		}
 	}
@@ -227,15 +215,13 @@ func (s *SshClient) startListenerForClient() error {
 	return nil
 }
 
-func (s *SshClient) httpTunnel(src, dst net.Conn) {
+func (s *SshClient) httpTunnel(src net.Conn, localEndpoint string) {
+	var dst net.Conn
+
 	defer src.Close()
-	defer dst.Close()
 
 	srcReader := bufio.NewReader(src)
 	srcWriter := bufio.NewWriter(src)
-
-	dstReader := bufio.NewReader(dst)
-	dstWriter := bufio.NewWriter(dst)
 
 	request, err := http.ReadRequest(srcReader)
 	if err != nil {
@@ -267,6 +253,25 @@ func (s *SshClient) httpTunnel(src, dst net.Conn) {
 		srcWriter.Flush()
 		return
 	}
+
+	// Connect to the local endpoint only after filtering internal health checks.
+	dst, err = net.Dial("tcp", localEndpoint)
+	if err != nil {
+		// serve local html if the local server is not available
+		// change this to a beautiful template
+		htmlContent := utils.LocalServerNotOnline(localEndpoint)
+		fmt.Fprintf(src, "HTTP/1.1 503 Service Unavailable\r\n")
+		fmt.Fprintf(src, "Content-Length: %d\r\n", len(htmlContent))
+		fmt.Fprintf(src, "Content-Type: text/html\r\n")
+		fmt.Fprintf(src, "X-Portr-Error: true\r\n")
+		fmt.Fprintf(src, "X-Portr-Error-Reason: local-server-not-online\r\n\r\n")
+		fmt.Fprint(src, htmlContent)
+		return
+	}
+	defer dst.Close()
+
+	dstReader := bufio.NewReader(dst)
+	dstWriter := bufio.NewWriter(dst)
 
 	// read and replace request body
 	requestBody, err := io.ReadAll(request.Body)
