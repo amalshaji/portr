@@ -1,9 +1,16 @@
 package handler
 
 import (
+	"bytes"
+	"compress/flate"
+	"compress/gzip"
+	"compress/zlib"
 	"encoding/json"
 	"fmt"
+	"io"
+	"strings"
 
+	"github.com/andybalholm/brotli"
 	"github.com/go-resty/resty/v2"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/datatypes"
@@ -27,6 +34,49 @@ func (h *Handler) GetRequests(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"requests": tunnels})
+}
+
+func decompressBody(body []byte, encoding string) ([]byte, error) {
+	if len(body) == 0 {
+		return body, nil
+	}
+
+	const maxSize = 2 * 1024 * 1024
+
+	var reader io.Reader
+	var err error
+
+	switch strings.ToLower(strings.TrimSpace(encoding)) {
+	case "gzip":
+		reader, err = gzip.NewReader(bytes.NewReader(body))
+		if err != nil {
+			return body, fmt.Errorf("gzip decompression failed: %w", err)
+		}
+		defer reader.(io.ReadCloser).Close()
+	case "deflate":
+		reader, err = zlib.NewReader(bytes.NewReader(body))
+		if err != nil {
+			reader = flate.NewReader(bytes.NewReader(body))
+		}
+		if closer, ok := reader.(io.Closer); ok {
+			defer closer.Close()
+		}
+	case "br":
+		reader = brotli.NewReader(bytes.NewReader(body))
+	default:
+		return body, nil
+	}
+
+	decompressed, err := io.ReadAll(io.LimitReader(reader, maxSize+1))
+	if err != nil {
+		return body, fmt.Errorf("decompression failed: %w", err)
+	}
+
+	if len(decompressed) > maxSize {
+		return body, fmt.Errorf("body too large for display (>2MB)")
+	}
+
+	return decompressed, nil
 }
 
 func (h *Handler) RenderResponse(c *fiber.Ctx) error {
@@ -63,13 +113,66 @@ func (h *Handler) RenderResponse(c *fiber.Ctx) error {
 		contentType = []string{"text/html; charset=utf-8"}
 	}
 
-	contentLength := headersMap["Content-Length"]
-	if len(contentLength) == 0 {
-		contentLength = []string{fmt.Sprintf("%d", len(body))}
+	contentEncoding := headersMap["Content-Encoding"]
+	if len(contentEncoding) > 0 && len(body) > 0 {
+		decompressed, err := decompressBody(body, contentEncoding[0])
+		if err == nil {
+			body = decompressed
+		} else {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":      "Failed to decompress body",
+				"message":    err.Error(),
+				"canDownload": true,
+			})
+		}
 	}
 
 	c.Response().Header.Set("Content-Type", contentType[0])
-	c.Response().Header.Set("Content-Length", contentLength[0])
+	c.Response().Header.Set("Content-Length", fmt.Sprintf("%d", len(body)))
+
+	c.Response().BodyWriter().Write(body)
+	return nil
+}
+
+func (h *Handler) DownloadBody(c *fiber.Ctx) error {
+	requestId := c.Params("id")
+	request, err := h.service.GetRequestById(requestId)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to get request"})
+	}
+
+	_type := c.Query("type")
+	if _type == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "type query param is required"})
+	}
+
+	var headers datatypes.JSON
+	var body []byte
+
+	if _type == "request" {
+		headers = request.Headers
+		body = request.Body
+	} else {
+		headers = request.ResponseHeaders
+		body = request.ResponseBody
+	}
+
+	headersMap := make(map[string][]string)
+	err = json.Unmarshal([]byte(headers), &headersMap)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to parse headers"})
+	}
+
+	contentType := headersMap["Content-Type"]
+	if len(contentType) == 0 {
+		contentType = []string{"application/octet-stream"}
+	}
+
+	filename := fmt.Sprintf("%s-%s-body.bin", requestId, _type)
+
+	c.Response().Header.Set("Content-Type", contentType[0])
+	c.Response().Header.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	c.Response().Header.Set("Content-Length", fmt.Sprintf("%d", len(body)))
 
 	c.Response().BodyWriter().Write(body)
 	return nil
