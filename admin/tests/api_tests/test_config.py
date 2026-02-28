@@ -30,7 +30,7 @@ class ConfigTests(test.TestCase):
             "/api/v1/config/download", json={"secret_key": self.team_user.secret_key}
         )
         assert resp.json() == {
-            "message": f"server_url: {settings.server_url}\nssh_url: {settings.ssh_url}\nsecret_key: {self.team_user.secret_key}\nenable_request_logging: false\ntunnels:\n  - name: portr\n    subdomain: portr\n    port: 4321"
+            "message": f"server_url: {settings.server_url}\nssh_url: {settings.ssh_url}\nsecret_key: {self.team_user.secret_key}\nenable_request_logging: false\nconnection_log_retention_days: 0\ntunnels:\n  - name: portr\n    subdomain: portr\n    port: 4321"
         }
 
     def test_download_config_with_wrong_secret_key_should_fail(self):

@@ -82,6 +82,26 @@ When update checks are disabled, the client will:
 - Not display update notifications
 - Reduce startup time and network requests
 
+### Auto-Clear Connection Logs
+
+You can automatically clear old connection logs by adding `connection_log_retention_days`:
+
+```yaml
+server_url: example.com
+ssh_url: example.com:2222
+secret_key: { your-secret-key }
+connection_log_retention_days: 7
+tunnels:
+  - name: portr
+    subdomain: portr
+    port: 4321
+```
+
+When `connection_log_retention_days` is set to:
+
+- `0` (default): automatic cleanup is disabled
+- `> 0`: logs older than the configured number of days are removed
+
 ### Add more templates
 
 You can create additional tunnel templates under the `tunnels` key:
@@ -143,6 +163,7 @@ These options apply to the entire client configuration:
 - **disable_tui**: Disable the interactive terminal interface (default: false)
 - **disable_update_check**: Disable automatic update checks and notifications (default: false)
 - **enable_request_logging**: Enable detailed HTTP request logging (default: false)
+- **connection_log_retention_days**: Auto-delete connection logs older than N days (default: 0, disabled)
 - **health_check_interval**: Health check interval in seconds (default: 3)
 - **health_check_max_retries**: Maximum health check retry attempts (default: 10)
 
