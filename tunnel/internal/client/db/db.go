@@ -80,3 +80,8 @@ type Request struct {
 	IsReplayed         bool
 	ParentID           string
 }
+
+func (d *Db) DeleteRequestsOlderThan(cutoff time.Time) (int64, error) {
+	result := d.Conn.Where("logged_at < ?", cutoff).Delete(&Request{})
+	return result.RowsAffected, result.Error
+}

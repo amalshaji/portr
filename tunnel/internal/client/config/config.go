@@ -55,19 +55,20 @@ func (t *Tunnel) GetLocalAddr() string {
 }
 
 type Config struct {
-	ServerUrl             string   `yaml:"server_url"`
-	SshUrl                string   `yaml:"ssh_url"`
-	TunnelUrl             string   `yaml:"tunnel_url"`
-	SecretKey             string   `yaml:"secret_key"`
-	Tunnels               []Tunnel `yaml:"tunnels"`
-	UseLocalHost          bool     `yaml:"use_localhost"`
-	Debug                 bool     `yaml:"debug"`
-	UseVite               bool     `yaml:"use_vite"`
-	EnableRequestLogging  bool     `yaml:"enable_request_logging"`
-	HealthCheckInterval   int      `yaml:"health_check_interval"`
-	HealthCheckMaxRetries int      `yaml:"health_check_max_retries"`
-	DisableTUI            bool     `yaml:"disable_tui"`
-	DisableUpdateCheck    bool     `yaml:"disable_update_check"`
+	ServerUrl                  string   `yaml:"server_url"`
+	SshUrl                     string   `yaml:"ssh_url"`
+	TunnelUrl                  string   `yaml:"tunnel_url"`
+	SecretKey                  string   `yaml:"secret_key"`
+	Tunnels                    []Tunnel `yaml:"tunnels"`
+	UseLocalHost               bool     `yaml:"use_localhost"`
+	Debug                      bool     `yaml:"debug"`
+	UseVite                    bool     `yaml:"use_vite"`
+	EnableRequestLogging       bool     `yaml:"enable_request_logging"`
+	ConnectionLogRetentionDays int      `yaml:"connection_log_retention_days"`
+	HealthCheckInterval        int      `yaml:"health_check_interval"`
+	HealthCheckMaxRetries      int      `yaml:"health_check_max_retries"`
+	DisableTUI                 bool     `yaml:"disable_tui"`
+	DisableUpdateCheck         bool     `yaml:"disable_update_check"`
 }
 
 func (c *Config) SetDefaults() {
@@ -97,6 +98,10 @@ func (c *Config) SetDefaults() {
 }
 
 func (c Config) Validate() error {
+	if c.ConnectionLogRetentionDays < 0 {
+		return fmt.Errorf("connection_log_retention_days must be greater than or equal to 0")
+	}
+
 	for _, tunnel := range c.Tunnels {
 		if err := tunnel.Validate(); err != nil {
 			return err
