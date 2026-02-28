@@ -38,7 +38,9 @@
         filterRequestsBasedOnUrl();
       }
 
-      if (!$currentRequest && requests.length > 0) {
+      if ($currentRequest && !requests.some((request) => request.ID === $currentRequest?.ID)) {
+        currentRequest.set(requests[0] || null);
+      } else if (!$currentRequest && requests.length > 0) {
         currentRequest.set(requests[0]);
       }
     } catch (error) {
@@ -111,7 +113,7 @@
       <div class="relative">
         <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
         <Input
-          class="pl-10 w-64"
+          class="h-8 pl-10 w-56 text-xs"
           placeholder="Filter URL"
           bind:value={search}
           on:input={(e) => filterRequestsBasedOnUrl()}
