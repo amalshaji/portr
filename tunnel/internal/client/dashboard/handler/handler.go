@@ -22,5 +22,6 @@ func (h *Handler) RegisterTunnelRoutes(group fiber.Router) {
 	group.Get("/", h.GetTunnels)
 	group.Get("/render/:id", h.RenderResponse)
 	group.Get("/replay/:id", h.ReplayRequest)
+	group.Delete("/:subdomain/:port", h.DeleteRequests)
 	group.Get("/:subdomain/:port", h.GetRequests)
 }
