@@ -46,3 +46,13 @@ func (s *Service) ReplayRequestById(id string) error {
 	}
 	return nil
 }
+
+func (s *Service) DeleteTunnelLogs(subdomain string, port int) (int64, error) {
+	result := s.db.Conn.Where(
+		"subdomain = ? AND localport = ?",
+		subdomain,
+		port,
+	).Delete(&db.Request{})
+
+	return result.RowsAffected, result.Error
+}

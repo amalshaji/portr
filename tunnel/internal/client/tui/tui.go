@@ -90,6 +90,7 @@ type model struct {
 	err        error
 	lastUpdate time.Time
 	selected   string
+	width      int
 }
 
 func New(debug bool) *tea.Program {
@@ -114,7 +115,7 @@ func New(debug bool) *tea.Program {
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithFocused(true),
-		table.WithHeight(10), // Reduced default height
+		table.WithHeight(14), // Larger default height
 	)
 
 	// Debug table setup with minimum widths
@@ -128,7 +129,7 @@ func New(debug bool) *tea.Program {
 	dt := table.New(
 		table.WithColumns(debugColumns),
 		table.WithFocused(false),
-		table.WithHeight(6), // Reduced default height
+		table.WithHeight(6),
 	)
 
 	// Set styles for both tables
@@ -148,6 +149,7 @@ func New(debug bool) *tea.Program {
 			table:      t,
 			debugTable: dt,
 			debug:      debug,
+			width:      80,
 		},
 		tea.WithAltScreen(),
 	)
@@ -209,17 +211,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.WindowSizeMsg:
+		m.width = msg.Width
+
 		// Calculate dynamic widths based on terminal size
-		totalWidth := msg.Width - 4 // Account for margins
+		totalWidth := max(msg.Width-6, 30) // Account for borders and terminal edges
 
 		// Adjust table heights based on terminal height
-		tableHeight := (msg.Height - 15) / 2 // Account for headers and other UI elements
-		tableHeight = max(tableHeight, 5)
-
-		m.table.SetHeight(tableHeight)
+		availableHeight := msg.Height - 15 // Account for headers and other UI elements
+		availableHeight = max(availableHeight, 8)
 
 		if m.debug {
-			m.debugTable.SetHeight(tableHeight / 2)
+			// Prioritize request logs when debug is enabled.
+			mainTableHeight := max((availableHeight*2)/3, 8)
+			debugTableHeight := max(availableHeight-mainTableHeight-1, 4)
+			m.table.SetHeight(mainTableHeight)
+			m.debugTable.SetHeight(debugTableHeight)
+		} else {
+			// Use nearly all available space for request logs when debug table is hidden.
+			m.table.SetHeight(availableHeight)
 		}
 
 		// Adjust URL column width to fill remaining space
@@ -227,9 +236,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		tunnelWidth := 15
 		methodWidth := 8
 		statusWidth := 8
-		urlWidth := totalWidth - (timeWidth + tunnelWidth + methodWidth + statusWidth + 5)
+		mainCellPadding := 2 * 5 // table default style adds left/right padding to each cell
+		urlWidth := totalWidth - (timeWidth + tunnelWidth + methodWidth + statusWidth + mainCellPadding + 1)
 
-		urlWidth = max(urlWidth, 20)
+		urlWidth = max(urlWidth, 10)
 
 		// Update main table columns
 		cols := []table.Column{
@@ -243,14 +253,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Update debug table columns if debug is enabled
 		if m.debug {
-			debugWidth := totalWidth / 2
-			debugWidth = max(debugWidth, 40)
+			debugCellPadding := 2 * 4 // four columns with left/right padding
+			debugContentWidth := totalWidth - (timeWidth + methodWidth + debugCellPadding + 1)
+			debugContentWidth = max(debugContentWidth, 24)
+
+			messageWidth := max(debugContentWidth/2, 12)
+			errorWidth := max(debugContentWidth-messageWidth, 12)
 
 			debugCols := []table.Column{
 				{Title: "Time", Width: timeWidth},
 				{Title: "Level", Width: methodWidth},
-				{Title: "Message", Width: debugWidth / 2},
-				{Title: "Error", Width: debugWidth / 2},
+				{Title: "Message", Width: messageWidth},
+				{Title: "Error", Width: errorWidth},
 			}
 			m.debugTable.SetColumns(debugCols)
 		}
@@ -328,6 +342,7 @@ func (m model) View() string {
 	})
 
 	// Show tunnel statuses in sorted order
+	lineWidth := max(m.width-4, 20)
 	for _, st := range sortedTunnels {
 		tunnel := st.tunnel
 		var tunnelStyle lipgloss.Style
@@ -349,7 +364,7 @@ func (m model) View() string {
 			tunnel.config.Subdomain,
 			statusText,
 		)
-		s += tunnelStyle.Render(tunnelInfo) + "\n"
+		s += tunnelStyle.MaxWidth(lineWidth).Render(tunnelInfo) + "\n"
 	}
 	s += "\n"
 

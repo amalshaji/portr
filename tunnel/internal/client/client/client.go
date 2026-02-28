@@ -5,19 +5,23 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"time"
 
 	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/amalshaji/portr/internal/client/ssh"
 	"github.com/amalshaji/portr/internal/client/tui"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/log"
 )
 
 type Client struct {
-	config *config.Config
-	sshcs  []*ssh.SshClient
-	db     *db.Db
-	tui    *tea.Program
+	config          *config.Config
+	sshcs           []*ssh.SshClient
+	db              *db.Db
+	tui             *tea.Program
+	retentionCancel context.CancelFunc
+	retentionDone   chan struct{}
 }
 
 func NewClient(config *config.Config, db *db.Db) *Client {
@@ -99,6 +103,8 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 		go sshc.Start(ctx)
 	}
 
+	c.startConnectionLogRetention(ctx)
+
 	return nil
 }
 
@@ -107,6 +113,15 @@ func (c *Client) Add(sshc *ssh.SshClient) {
 }
 
 func (c *Client) Shutdown(ctx context.Context) {
+	if c.retentionCancel != nil {
+		c.retentionCancel()
+		if c.retentionDone != nil {
+			<-c.retentionDone
+		}
+		c.retentionCancel = nil
+		c.retentionDone = nil
+	}
+
 	if c.config.DisableTUI {
 		fmt.Printf("🛑 Shutting down tunnels...\n")
 	}
@@ -119,4 +134,57 @@ func (c *Client) Shutdown(ctx context.Context) {
 // Create tunnel from cli args and replaces it in config
 func (c *Client) ReplaceTunnelsFromCli(tunnel config.Tunnel) {
 	c.config.Tunnels = []config.Tunnel{tunnel}
+}
+
+func (c *Client) startConnectionLogRetention(ctx context.Context) {
+	if c.config.ConnectionLogRetentionDays <= 0 || c.retentionCancel != nil {
+		return
+	}
+
+	retentionCtx, cancel := context.WithCancel(context.Background())
+	c.retentionCancel = cancel
+	c.retentionDone = make(chan struct{})
+
+	go func() {
+		defer close(c.retentionDone)
+
+		c.pruneConnectionLogs()
+
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-retentionCtx.Done():
+				return
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				c.pruneConnectionLogs()
+			}
+		}
+	}()
+}
+
+func (c *Client) pruneConnectionLogs() {
+	if c.config.ConnectionLogRetentionDays <= 0 {
+		return
+	}
+
+	cutoff := time.Now().UTC().AddDate(0, 0, -c.config.ConnectionLogRetentionDays)
+	deletedCount, err := c.db.DeleteRequestsOlderThan(cutoff)
+	if err != nil {
+		if c.config.Debug {
+			log.Error("Failed to prune connection logs", "error", err)
+		}
+		return
+	}
+
+	if c.config.Debug && deletedCount > 0 {
+		log.Debug(
+			"Pruned connection logs",
+			"deleted", deletedCount,
+			"retention_days", c.config.ConnectionLogRetentionDays,
+		)
+	}
 }
