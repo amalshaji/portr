@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/gofiber/fiber/v2"
@@ -138,4 +139,21 @@ func (h *Handler) ReplayRequest(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"message": "replayed request"})
+}
+
+func (h *Handler) DeleteRequests(c *fiber.Ctx) error {
+	subdomain := c.Params("subdomain")
+	port := c.Params("port")
+
+	localPort, err := strconv.Atoi(port)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "invalid port"})
+	}
+
+	deletedCount, err := h.service.DeleteTunnelLogs(subdomain, localPort)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to delete tunnel logs"})
+	}
+
+	return c.JSON(fiber.Map{"deleted_count": deletedCount})
 }

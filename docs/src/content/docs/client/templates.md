@@ -20,6 +20,7 @@ This should open a file with the following contents
 server_url: example.com
 ssh_url: example.com:2222
 secret_key: { your-secret-key }
+connection_log_retention_days: 0
 tunnels:
   - name: portr
     subdomain: portr
@@ -43,5 +44,7 @@ tunnels:
 And start multiple services by using the command `portr start portr pg`.
 
 To start all the services, use the command `portr start`.
+
+Set `connection_log_retention_days` to a value greater than `0` to auto-clear old connection logs. Keep it `0` to disable auto-cleanup.
 
 For more details, run `portr --help`.
