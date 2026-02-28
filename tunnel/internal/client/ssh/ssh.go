@@ -240,27 +240,15 @@ func (s *SshClient) startListenerForClient() error {
 			break
 		}
 
-		// Connect to the local endpoint
-		localConn, err := net.Dial("tcp", localEndpoint)
-		if err != nil {
-			// serve local html if the local server is not available
-			// change this to a beautiful template
-			if tunnelType == constants.Http {
-				htmlContent := utils.LocalServerNotOnline(localEndpoint)
-				fmt.Fprintf(remoteConn, "HTTP/1.1 503 Service Unavailable\r\n")
-				fmt.Fprintf(remoteConn, "Content-Length: %d\r\n", len(htmlContent))
-				fmt.Fprintf(remoteConn, "Content-Type: text/html\r\n")
-				fmt.Fprintf(remoteConn, "X-Portr-Error: true\r\n")
-				fmt.Fprintf(remoteConn, "X-Portr-Error-Reason: local-server-not-online\r\n\r\n")
-				fmt.Fprint(remoteConn, htmlContent)
-			}
-			remoteConn.Close()
-			continue
-		}
-
 		if tunnelType == constants.Http {
-			go s.httpTunnel(remoteConn, localConn)
+			go s.httpTunnel(remoteConn, localEndpoint)
 		} else {
+			// Connect to the local endpoint for TCP passthrough.
+			localConn, err := net.Dial("tcp", localEndpoint)
+			if err != nil {
+				remoteConn.Close()
+				continue
+			}
 			go s.tcpTunnel(remoteConn, localConn)
 		}
 	}
@@ -268,53 +256,32 @@ func (s *SshClient) startListenerForClient() error {
 	return nil
 }
 
-func (s *SshClient) httpTunnel(src, dst net.Conn) {
+func (s *SshClient) httpTunnel(src net.Conn, localEndpoint string) {
 	if s.config.EnableHttpReverseProxy {
-		s.httpTunnelReverseProxy(src, dst)
+		s.httpTunnelReverseProxy(src, localEndpoint)
 		return
 	}
 
-	s.httpTunnelLegacy(src, dst)
+	s.httpTunnelLegacy(src, localEndpoint)
 }
 
-func (s *SshClient) httpTunnelReverseProxy(src, dst net.Conn) {
+func (s *SshClient) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 	defer src.Close()
 
 	target := &url.URL{
 		Scheme: "http",
-		Host:   s.config.Tunnel.GetLocalAddr(),
+		Host:   localEndpoint,
 	}
-
-	var firstConnMu sync.Mutex
-	firstConnUsed := false
 
 	transport := &http.Transport{
 		Proxy:             http.ProxyFromEnvironment,
 		ForceAttemptHTTP2: false,
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			firstConnMu.Lock()
-			if !firstConnUsed {
-				firstConnUsed = true
-				firstConnMu.Unlock()
-				return dst, nil
-			}
-			firstConnMu.Unlock()
-
 			var d net.Dialer
-			return d.DialContext(ctx, network, addr)
+			return d.DialContext(ctx, network, localEndpoint)
 		},
 	}
-	defer func() {
-		transport.CloseIdleConnections()
-
-		firstConnMu.Lock()
-		used := firstConnUsed
-		firstConnMu.Unlock()
-
-		if !used {
-			dst.Close()
-		}
-	}()
+	defer transport.CloseIdleConnections()
 
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = transport
@@ -362,7 +329,13 @@ func (s *SshClient) httpTunnelReverseProxy(src, dst net.Conn) {
 		if s.config.Debug {
 			s.logDebug("HTTP reverse proxy failed", err)
 		}
-		http.Error(writer, "Bad Gateway", http.StatusBadGateway)
+
+		htmlContent := utils.LocalServerNotOnline(localEndpoint)
+		writer.Header().Set("X-Portr-Error", "true")
+		writer.Header().Set("X-Portr-Error-Reason", "local-server-not-online")
+		writer.Header().Set("Content-Type", "text/html")
+		writer.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = writer.Write([]byte(htmlContent))
 	}
 
 	handler := http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -418,15 +391,13 @@ func (s *SshClient) httpTunnelReverseProxy(src, dst net.Conn) {
 	}
 }
 
-func (s *SshClient) httpTunnelLegacy(src, dst net.Conn) {
+func (s *SshClient) httpTunnelLegacy(src net.Conn, localEndpoint string) {
+	var dst net.Conn
+
 	defer src.Close()
-	defer dst.Close()
 
 	srcReader := bufio.NewReader(src)
 	srcWriter := bufio.NewWriter(src)
-
-	dstReader := bufio.NewReader(dst)
-	dstWriter := bufio.NewWriter(dst)
 
 	request, err := http.ReadRequest(srcReader)
 	if err != nil {
@@ -458,6 +429,25 @@ func (s *SshClient) httpTunnelLegacy(src, dst net.Conn) {
 		srcWriter.Flush()
 		return
 	}
+
+	// Connect to the local endpoint only after filtering internal health checks.
+	dst, err = net.Dial("tcp", localEndpoint)
+	if err != nil {
+		// serve local html if the local server is not available
+		// change this to a beautiful template
+		htmlContent := utils.LocalServerNotOnline(localEndpoint)
+		fmt.Fprintf(src, "HTTP/1.1 503 Service Unavailable\r\n")
+		fmt.Fprintf(src, "Content-Length: %d\r\n", len(htmlContent))
+		fmt.Fprintf(src, "Content-Type: text/html\r\n")
+		fmt.Fprintf(src, "X-Portr-Error: true\r\n")
+		fmt.Fprintf(src, "X-Portr-Error-Reason: local-server-not-online\r\n\r\n")
+		fmt.Fprint(src, htmlContent)
+		return
+	}
+	defer dst.Close()
+
+	dstReader := bufio.NewReader(dst)
+	dstWriter := bufio.NewWriter(dst)
 
 	// read and replace request body
 	requestBody, err := io.ReadAll(request.Body)
