@@ -11,7 +11,7 @@ require (
 	github.com/glebarez/sqlite v1.11.0
 	github.com/gliderlabs/ssh v0.3.7
 	github.com/go-resty/resty/v2 v2.12.0
-	github.com/gofiber/fiber/v2 v2.52.9
+	github.com/gofiber/fiber/v2 v2.52.12
 	github.com/gofiber/template/django/v3 v3.1.11
 	github.com/gookit/validate v1.5.2
 	github.com/labstack/gommon v0.4.2
