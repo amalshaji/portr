@@ -45,6 +45,10 @@ type AddDebugLogMsg struct {
 	Error   string
 }
 
+type SetDashboardURLMsg struct {
+	URL string
+}
+
 var (
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
@@ -86,10 +90,12 @@ type model struct {
 	table      table.Model
 	debugTable table.Model // New debug table
 	debug      bool        // Whether debug mode is enabled
-	quitting   bool
-	err        error
-	lastUpdate time.Time
-	selected   string
+	// dashboardURL is rendered in the header section when set.
+	dashboardURL string
+	quitting     bool
+	err          error
+	lastUpdate   time.Time
+	selected     string
 }
 
 func New(debug bool) *tea.Program {
@@ -270,6 +276,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case AddDebugLogMsg:
 		m.AddDebugLog(msg)
 		return m, nil
+
+	case SetDashboardURLMsg:
+		m.dashboardURL = msg.URL
+		return m, nil
 	}
 
 	m.table, cmd = m.table.Update(msg)
@@ -293,7 +303,11 @@ func (m model) View() string {
 
 	s += titleStyle.Render("🌍 Portr Tunnel Dashboard") + "\n"
 	s += subtitleStyle.Render(fmt.Sprintf("Active Tunnels: %d", len(m.tunnels))) + "\n"
-	s += subtitleStyle.Render("Local Dashboard: http://localhost:7777") + "\n\n"
+	if m.dashboardURL != "" {
+		s += subtitleStyle.Render("Local Dashboard: "+m.dashboardURL) + "\n\n"
+	} else {
+		s += subtitleStyle.Render("Local Dashboard: disabled") + "\n\n"
+	}
 
 	if len(m.tunnels) == 0 {
 		s += subtitleStyle.Render("Waiting for tunnels to connect...") + "\n"

@@ -1,28 +1,54 @@
 package main
 
 import (
-	"log"
-
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/amalshaji/portr/internal/client/client"
 	"github.com/amalshaji/portr/internal/client/config"
-	"github.com/amalshaji/portr/internal/client/dashboard"
 	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/urfave/cli/v2"
 )
 
 func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
-	config, err := config.Load(c.String("config"))
-	if err != nil {
-		return err
+	var cfg config.Config
+	var err error
+
+	if c.Bool("disable-config") {
+		// --config is not allowed when file backed configs are disabled.
+		if c.IsSet("config") {
+			return fmt.Errorf("--config cannot be used with --disable-config")
+		}
+
+		token := c.String("token")
+		remote := c.String("remote")
+		if token == "" || remote == "" {
+			return fmt.Errorf("--token and --remote are required with --disable-config")
+		}
+
+		cfg, err = config.LoadFromRemote(token, remote)
+		if err != nil {
+			return err
+		}
+	} else {
+		cfg, err = config.Load(c.String("config"))
+		if err != nil {
+			return err
+		}
 	}
 
-	db := db.New(&config)
+	// CLI/env overrides for TUI settings.
+	if c.IsSet("disable-tui") && c.Bool("disable-tui") {
+		cfg.DisableTUI = true
+	}
 
-	_c := client.NewClient(&config, db)
+	applyDashboardCLIOverrides(c, &cfg)
+
+	db := db.New(&cfg)
+
+	_c := client.NewClient(&cfg, db)
 
 	if tunnelFromCli != nil {
 		tunnelFromCli.SetDefaults()
@@ -32,7 +58,7 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 		_c.ReplaceTunnelsFromCli(*tunnelFromCli)
 		err = _c.Start(c.Context)
 	} else {
-		if err := config.Validate(); err != nil {
+		if err := cfg.Validate(); err != nil {
 			return err
 		}
 		err = _c.Start(c.Context, c.Args().Slice()...)
@@ -42,19 +68,21 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 		return err
 	}
 
-	dash := dashboard.New(db, _c.GetConfig())
-	go func() {
-		if err := dash.Start(); err != nil {
-			log.Fatalf("Failed to start dashboard server: error: %v", err)
-		}
-	}()
+	dashboardShutdown, err := startDashboardIfEnabled(_c, db)
+	if err != nil {
+		return err
+	}
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
 	<-signalCh
 
 	_c.Shutdown(c.Context)
-	dash.Shutdown()
+
+	if dashboardShutdown != nil {
+		dashboardShutdown()
+	}
+
 	return nil
 }
 

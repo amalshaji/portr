@@ -14,6 +14,10 @@ func configCmd() *cli.Command {
 				Name:  "edit",
 				Usage: "Edit the default config file",
 				Action: func(c *cli.Context) error {
+					// This command opens (and may create) config files on disk. Disallow it when file backed configs are disabled.
+					if c.Bool("disable-config") {
+						return cli.Exit("config edit cannot be used with --disable-config", 1)
+					}
 					return config.EditConfig()
 				},
 			},

@@ -1,5 +1,5 @@
 buildcli:
-	go build -o portr cmd/portr/*.go
+	CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="-s -w" -o portr ./cmd/portr
 
 installclient:
 	pnpm --dir internal/client/dashboard/ui install

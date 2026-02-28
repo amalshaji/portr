@@ -1,3 +1,5 @@
+//go:build !nodashboard
+
 package dashboard
 
 import (
@@ -88,6 +90,10 @@ func New(db *db.Db, config *config.Config) *Dashboard {
 		db:     db,
 		port:   7777,
 	}
+}
+
+func (d *Dashboard) Port() int {
+	return d.port
 }
 
 func (d *Dashboard) Start() error {

@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   goreleaser:
+    if: vars.DISABLE_PORTR_RELEASE != 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -53,6 +54,7 @@ jobs:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
   docker:
+    if: vars.DISABLE_PORTR_RELEASE != 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

@@ -1,0 +1,30 @@
+context:
+  pkg_name: ${{ env.get("PKG_NAME", default="portr")}}
+  pkg_version: ${{ env.get("PKG_VERSION", default="0.0.1") }}
+  go_nocgo: ${{ env.get("GO_NOCGO", default="false") }}
+
+package:
+  name: ${{ pkg_name|lower }}
+  version: ${{ pkg_version }}
+
+source:
+  - path: ..
+  - path: ../tunnel/internal/client/dashboard/ui/dist
+    target_directory: tunnel/internal/client/dashboard/ui/dist
+
+build:
+  number: 0
+  script:
+    - bash ./build.sh "${{ pkg_name }}"
+
+requirements:
+  build:
+    - if: go_nocgo
+      then:
+        - go-nocgo
+      else:
+        - ${{ compiler('go-nocgo') }}
+    - if: pkg_name == "portr"
+      then:
+        - pnpm
+        - nodejs

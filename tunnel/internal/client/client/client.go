@@ -11,6 +11,7 @@ import (
 	"github.com/amalshaji/portr/internal/client/ssh"
 	"github.com/amalshaji/portr/internal/client/tui"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/log"
 )
 
 type Client struct {
@@ -30,14 +31,14 @@ func NewClient(config *config.Config, db *db.Db) *Client {
 			defer func() {
 				if r := recover(); r != nil {
 					p.Kill()
-					fmt.Printf("Recovered from panic: %v\n", r)
+					log.Error("Recovered from panic in TUI", "panic", r)
 					os.Exit(1)
 				}
 			}()
 
 			if _, err := p.Run(); err != nil {
 				p.Kill()
-				fmt.Printf("Failed to run TUI: %v\n", err)
+				log.Error("Failed to run TUI", "error", err)
 				os.Exit(1)
 			}
 
@@ -91,7 +92,7 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 		}
 
 		if c.config.DisableTUI {
-			fmt.Printf("🚀 Starting tunnel: %s (%s:%d)\n", tunnelName, clientConfig.Tunnel.Host, clientConfig.Tunnel.Port)
+			log.Info("Starting tunnel", "name", tunnelName, "host", clientConfig.Tunnel.Host, "port", clientConfig.Tunnel.Port)
 		}
 
 		sshc := ssh.New(clientConfig, c.db, c.tui)
@@ -108,12 +109,21 @@ func (c *Client) Add(sshc *ssh.SshClient) {
 
 func (c *Client) Shutdown(ctx context.Context) {
 	if c.config.DisableTUI {
-		fmt.Printf("🛑 Shutting down tunnels...\n")
+		log.Info("Shutting down tunnels")
 	}
 
 	for _, sshc := range c.sshcs {
 		sshc.Shutdown(ctx)
 	}
+}
+
+// SetDashboardURL updates the local dashboard URL shown in the TUI.
+// It is safe to call when the TUI is disabled.
+func (c *Client) SetDashboardURL(url string) {
+	if c.tui == nil {
+		return
+	}
+	c.tui.Send(tui.SetDashboardURLMsg{URL: url})
 }
 
 // Create tunnel from cli args and replaces it in config

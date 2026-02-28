@@ -27,6 +27,7 @@ env:
 
 jobs:
   test:
+    if: vars.DISABLE_PORTR_ADMIN != 'true'
     name: Run admin tests
     runs-on: ubuntu-latest
     defaults:
