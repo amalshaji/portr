@@ -1,5 +1,5 @@
 buildcli:
-	go build -o portr cmd/portr/*.go
+	go build -o portr ./cmd/portr
 
 installclient:
 	pnpm --dir internal/client/dashboard/ui install

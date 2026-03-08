@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     profiles:
       - postgres
     env_file:
@@ -52,7 +52,3 @@ services:
       - "2222:2222"
       - "${PORTR_ADMIN_PORT:-8000}:8000"
       - "8001:8001"
-
-volumes:
-  postgres-data:
-    driver: local
