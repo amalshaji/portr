@@ -5,6 +5,7 @@ secret_key:
 use_vite: true
 use_localhost: true
 debug: true
+connection_log_retention_days: 0
 tunnels:
   - name: portr
     subdomain: portr

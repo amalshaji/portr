@@ -24,6 +24,7 @@ type Tunnel struct {
 	Host       string                   `yaml:"host"`
 	Type       constants.ConnectionType `yaml:"type"`
 	RemotePort int
+	PoolSize   int `yaml:"pool_size"`
 }
 
 func (t *Tunnel) SetDefaults() {
@@ -37,6 +38,10 @@ func (t *Tunnel) SetDefaults() {
 
 	if t.Host == "" {
 		t.Host = "localhost"
+	}
+
+	if t.PoolSize <= 0 {
+		t.PoolSize = 2
 	}
 }
 
@@ -55,19 +60,22 @@ func (t *Tunnel) GetLocalAddr() string {
 }
 
 type Config struct {
-	ServerUrl             string   `yaml:"server_url"`
-	SshUrl                string   `yaml:"ssh_url"`
-	TunnelUrl             string   `yaml:"tunnel_url"`
-	SecretKey             string   `yaml:"secret_key"`
-	Tunnels               []Tunnel `yaml:"tunnels"`
-	UseLocalHost          bool     `yaml:"use_localhost"`
-	Debug                 bool     `yaml:"debug"`
-	UseVite               bool     `yaml:"use_vite"`
-	EnableRequestLogging  bool     `yaml:"enable_request_logging"`
-	HealthCheckInterval   int      `yaml:"health_check_interval"`
-	HealthCheckMaxRetries int      `yaml:"health_check_max_retries"`
-	DisableTUI            bool     `yaml:"disable_tui"`
-	DisableUpdateCheck    bool     `yaml:"disable_update_check"`
+	ServerUrl                       string   `yaml:"server_url"`
+	SshUrl                          string   `yaml:"ssh_url"`
+	TunnelUrl                       string   `yaml:"tunnel_url"`
+	SecretKey                       string   `yaml:"secret_key"`
+	Tunnels                         []Tunnel `yaml:"tunnels"`
+	UseLocalHost                    bool     `yaml:"use_localhost"`
+	Debug                           bool     `yaml:"debug"`
+	UseVite                         bool     `yaml:"use_vite"`
+	EnableRequestLogging            bool     `yaml:"enable_request_logging"`
+	ConnectionLogRetentionDays      int      `yaml:"connection_log_retention_days"`
+	HealthCheckInterval             int      `yaml:"health_check_interval"`
+	HealthCheckMaxRetries           int      `yaml:"health_check_max_retries"`
+	DisableTUI                      bool     `yaml:"disable_tui"`
+	EnableHttpReverseProxy          bool     `yaml:"enable_http_reverse_proxy"`
+	DisableUpdateCheck              bool     `yaml:"disable_update_check"`
+	InsecureSkipHostKeyVerification *bool    `yaml:"insecure_skip_host_key_verification"`
 }
 
 func (c *Config) SetDefaults() {
@@ -91,12 +99,21 @@ func (c *Config) SetDefaults() {
 		c.HealthCheckMaxRetries = 10
 	}
 
+	if c.InsecureSkipHostKeyVerification == nil {
+		defaultValue := true
+		c.InsecureSkipHostKeyVerification = &defaultValue
+	}
+
 	for i := range c.Tunnels {
 		c.Tunnels[i].SetDefaults()
 	}
 }
 
 func (c Config) Validate() error {
+	if c.ConnectionLogRetentionDays < 0 {
+		return fmt.Errorf("connection_log_retention_days must be greater than or equal to 0")
+	}
+
 	for _, tunnel := range c.Tunnels {
 		if err := tunnel.Validate(); err != nil {
 			return err
@@ -116,17 +133,20 @@ func (c Config) GetAdminAddress() string {
 }
 
 type ClientConfig struct {
-	ServerUrl             string
-	SshUrl                string
-	TunnelUrl             string
-	SecretKey             string
-	Tunnel                Tunnel
-	UseLocalHost          bool
-	Debug                 bool
-	EnableRequestLogging  bool
-	HealthCheckInterval   int
-	HealthCheckMaxRetries int
-	DisableTUI            bool
+	ServerUrl                       string
+	SshUrl                          string
+	TunnelUrl                       string
+	SecretKey                       string
+	ConnectionID                    string
+	Tunnel                          Tunnel
+	UseLocalHost                    bool
+	Debug                           bool
+	EnableRequestLogging            bool
+	HealthCheckInterval             int
+	HealthCheckMaxRetries           int
+	DisableTUI                      bool
+	EnableHttpReverseProxy          bool
+	InsecureSkipHostKeyVerification bool
 }
 
 func (c *ClientConfig) GetHttpTunnelAddr() string {

@@ -21,6 +21,7 @@ server_url: {server_url}
 ssh_url: {ssh_url}
 secret_key: {secret_key}
 enable_request_logging: false
+connection_log_retention_days: 0
 tunnels:
   - name: portr
     subdomain: portr

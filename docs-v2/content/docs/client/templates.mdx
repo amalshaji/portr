@@ -82,6 +82,26 @@ When update checks are disabled, the client will:
 - Not display update notifications
 - Reduce startup time and network requests
 
+### Auto-Clear Connection Logs
+
+You can automatically clear old connection logs by adding `connection_log_retention_days`:
+
+```yaml
+server_url: example.com
+ssh_url: example.com:2222
+secret_key: { your-secret-key }
+connection_log_retention_days: 7
+tunnels:
+  - name: portr
+    subdomain: portr
+    port: 4321
+```
+
+When `connection_log_retention_days` is set to:
+
+- `0` (default): automatic cleanup is disabled
+- `> 0`: logs older than the configured number of days are removed
+
 ### Add more templates
 
 You can create additional tunnel templates under the `tunnels` key:
@@ -143,8 +163,35 @@ These options apply to the entire client configuration:
 - **disable_tui**: Disable the interactive terminal interface (default: false)
 - **disable_update_check**: Disable automatic update checks and notifications (default: false)
 - **enable_request_logging**: Enable detailed HTTP request logging (default: false)
+- **connection_log_retention_days**: Auto-delete connection logs older than N days (default: 0, disabled)
 - **health_check_interval**: Health check interval in seconds (default: 3)
 - **health_check_max_retries**: Maximum health check retry attempts (default: 10)
+- **insecure_skip_host_key_verification**: Skip SSH host key verification (default: true)
+
+### SSH Host Key Verification
+
+By default, the Portr client skips SSH host key verification for ease of use. You can enable host key verification for additional security:
+
+```yaml
+server_url: example.com
+ssh_url: example.com:2222
+secret_key: { your-secret-key }
+insecure_skip_host_key_verification: false
+tunnels:
+  - name: portr
+    subdomain: portr
+    port: 4321
+```
+
+When host key verification is enabled:
+
+- On first connection, the server's host key is automatically saved to `~/.portr/known_hosts` (Trust On First Use)
+- Subsequent connections verify the server's key matches the saved key
+- If the key changes unexpectedly, the connection fails with a warning (potential security issue)
+
+<Callout type="warn">
+  If you enable host key verification, ensure your server persists SSH host keys across restarts using the `PORTR_SSH_KEYS_DIR` environment variable. Otherwise, clients will fail to connect after each server restart.
+</Callout>
 
 ### Tunnel Template Options
 
@@ -155,6 +202,7 @@ Each tunnel template supports the following options:
 - **port**: The local port to tunnel
 - **type**: The tunnel type (`http` or `tcp`)
 - **host**: The local host to bind to (default: localhost)
+- **pool_size**: HTTP only. Number of SSH workers to run per HTTP tunnel (default: 2). Increases resilience and throughput.
 
 ## Example Configurations
 
@@ -170,6 +218,7 @@ tunnels:
     subdomain: api-dev
     port: 8000
     type: http
+    pool_size: 2
   - name: database
     subdomain: db-dev
     port: 5432
