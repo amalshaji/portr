@@ -3,22 +3,14 @@ title: Admin Development Setup
 description: Learn how to setup portr admin for local development
 ---
 
-import { Steps } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
 
-The admin dashboard is built using Go (Fiber) for the backend and Svelte for the frontend. The admin server is now integrated into the main tunnel server binary.
-
-<Callout type="warning">
-  **Migration Notice**: The admin server has been migrated from Python (FastAPI)
-  to Go (Fiber). The old `admin/` directory is deprecated and will be removed in
-  v1.0. The new admin server is located in `tunnel/internal/server/admin/`.
-</Callout>
+The admin dashboard is built using Go (Fiber) for the backend and React for the frontend. The admin server is integrated into the main `portrd` binary.
 
 ## Requirements
 
 - **Go** (1.25+) - Go programming language
-- **Node.js** (20+)
-- **pnpm** (9.15.0+)
+- **Bun** (1.1+)
 - **PostgreSQL** (16+) or **SQLite** (3.0+)
 
 ## Frontend Setup
@@ -26,32 +18,35 @@ The admin dashboard is built using Go (Fiber) for the backend and Svelte for the
 ### Navigate to the admin frontend directory
 
 ```shell
-cd tunnel/internal/server/admin/web
+cd internal/server/admin/web-v2
 ```
 
 ### Install frontend dependencies
 
 ```shell
-pnpm install
+bun install --frozen-lockfile
 ```
 
 ### Start the frontend development server
 
 ```shell
-pnpm dev
+bun run dev
 ```
 
-This starts the Svelte development server with hot reloading enabled.
+This starts the React development server with hot reloading enabled.
 
 ## Backend Setup
 
 ### Configure environment variables
 
-Create a new `.env` file in the tunnel directory. The admin server uses the following environment variables:
+Create a new `.env` file in the repo root. The admin server uses the following environment variables:
 
 ```bash title=".env"
-PORTR_DOMAIN=localhost:8001
+PORTR_DOMAIN=localhost:8000
 PORTR_DB_URL=postgres://postgres:postgres@localhost:5432/postgres
+PORTR_SERVER_URL=http://localhost:8000
+PORTR_SSH_URL=localhost:2222
+PORTR_TUNNEL_USE_LOCALHOST=true
 PORTR_ADMIN_PORT=8000
 PORTR_ADMIN_DEBUG=true
 PORTR_ADMIN_USE_VITE=true
@@ -65,8 +60,7 @@ PORTR_AUTO_MIGRATE=true
 ### Start the admin server
 
 ```shell
-cd tunnel
-go run cmd/portrd/main.go start admin
+go run ./cmd/portrd start admin
 ```
 
 This starts the admin server at [http://localhost:8000](http://localhost:8000). The server will automatically run database migrations if `PORTR_AUTO_MIGRATE=true` is set.
@@ -76,8 +70,7 @@ This starts the admin server at [http://localhost:8000](http://localhost:8000). 
 To start both the tunnel server and admin server together:
 
 ```shell
-cd tunnel
-go run cmd/portrd/main.go start all
+go run ./cmd/portrd start all
 ```
 
 ## Development Workflow
@@ -85,64 +78,43 @@ go run cmd/portrd/main.go start all
 ### File Structure
 
 ```
-tunnel/
-├── internal/server/admin/
-│   ├── api/           # API routes and handlers
-│   │   ├── auth/      # Authentication handlers
-│   │   ├── config/    # Configuration handlers
-│   │   ├── connection/# Connection handlers
-│   │   ├── team/      # Team management handlers
-│   │   └── user/      # User management handlers
-│   ├── db/            # Database connection and queries
-│   ├── middleware/    # HTTP middleware
-│   ├── models/        # Database models (Go structs)
-│   ├── scheduler/     # Background job scheduler
-│   ├── server.go      # Main server setup and routes
-│   ├── services/      # Business logic services
-│   ├── static/        # Embedded static assets
-│   ├── templates/     # HTML templates
-│   ├── utils/         # Utility functions
-│   └── web/           # Svelte frontend source
-│       ├── src/       # Svelte source code
-│       ├── dist/      # Built frontend assets
-│       └── package.json
-├── cmd/portrd/        # Server binary entry point
-├── migrations/        # Database migration files
-└── Makefile           # Build and development commands
+internal/server/admin/
+├── api/               # API routes and handlers
+├── db/                # Database connection helpers
+├── middleware/        # HTTP middleware
+├── models/            # Database models
+├── scheduler/         # Background job scheduler
+├── static/            # Embedded static assets
+├── templates/         # HTML templates
+├── utils/             # Utility functions
+└── web-v2/            # React admin frontend source
 ```
 
 ### Available Commands
 
-#### Tunnel Makefile Commands
+#### Frontend Commands
 
 ```bash
-# Build the portrd server binary
-make buildcli
-
-# Install frontend dependencies for the admin dashboard
-make installclient
-
-# Start the frontend development server
-make runclient
-
-# Build the frontend for production
-make buildclient
+cd internal/server/admin/web-v2
+bun install --frozen-lockfile
+bun run dev
+bun run build
 ```
 
 #### Portrd Server Commands
 
 ```bash
 # Start admin server only
-go run cmd/portrd/main.go start admin
+go run ./cmd/portrd start admin
 
 # Start tunnel server only
-go run cmd/portrd/main.go start tunnel
+go run ./cmd/portrd start tunnel
 
 # Start both admin and tunnel servers
-go run cmd/portrd/main.go start all
+go run ./cmd/portrd start all
 
 # Run database migrations manually
-go run cmd/portrd/main.go migrate --dialect postgres
+go run ./cmd/portrd migrate --dialect postgres
 ```
 
 #### Go Development Commands
@@ -163,7 +135,7 @@ go mod tidy
 
 ### Configuration
 
-For detailed configuration options, check out the [server config file](https://github.com/amalshaji/portr/blob/main/tunnel/internal/server/config/config.go).
+For detailed configuration options, check out the [server config file](https://github.com/amalshaji/portr/blob/main/internal/server/config/config.go).
 
 <Callout type="info">
   The admin server needs to be running before you can test tunnel connections,
@@ -185,17 +157,15 @@ Migrations are automatically run when you start the server if `PORTR_AUTO_MIGRAT
 
 ```shell
 # For PostgreSQL
-cd tunnel
-go run cmd/portrd/main.go migrate --dialect postgres
+go run ./cmd/portrd migrate --dialect postgres
 
 # For SQLite
-cd tunnel
-go run cmd/portrd/main.go migrate --dialect sqlite
+go run ./cmd/portrd migrate --dialect sqlite
 ```
 
 ### Migration Files
 
-Migration files are located in the `tunnel/migrations/` directory and are managed using [goose](https://github.com/pressly/goose).
+Migration files are located in the `migrations/` directory and are managed using [goose](https://github.com/pressly/goose).
 
 ### Database Connection
 
@@ -219,11 +189,11 @@ PORTR_DB_URL=sqlite:///path/to/database.db
 
 **Go build errors**: Ensure Go 1.25+ is installed and `go mod tidy` has been run to download dependencies.
 
-**Frontend build errors**: Ensure Node.js 20+ and pnpm 9.15.0+ are installed. Try clearing the pnpm cache with `pnpm store prune`.
+**Frontend build errors**: Ensure Bun is installed and the lockfile is up to date. Try reinstalling dependencies with `bun install --frozen-lockfile`.
 
 **Migration errors**: Ensure the database user has permissions to create/alter tables. For PostgreSQL, the user should have superuser privileges during initial setup.
 
-**Environment variable issues**: Make sure `.env` file is in the `tunnel/` directory and all required variables are set. Use `godotenv` for validation.
+**Environment variable issues**: Make sure the `.env` file is in the repo root and all required variables are set.
 
 ### Development Tips
 

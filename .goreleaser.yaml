@@ -2,7 +2,6 @@ builds:
   - id: "portr"
     main: ./cmd/portr
     binary: "portr"
-    dir: tunnel
     env:
       - CGO_ENABLED=0
     goos:
