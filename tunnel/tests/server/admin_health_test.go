@@ -35,3 +35,27 @@ func TestHealthcheck(t *testing.T) {
 		t.Fatalf("expected status 'ok', got %q", status)
 	}
 }
+
+func TestVersion(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	req := httptest.NewRequest("GET", "/api/v1/version", nil)
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK, got %d", resp.StatusCode)
+	}
+
+	var body map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if body["version"] != "1.0.0" {
+		t.Fatalf("expected version '1.0.0', got %q", body["version"])
+	}
+}

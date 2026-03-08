@@ -223,6 +223,7 @@ func startAdmin() error {
 	// Load configuration
 	fullConfig := config.Load("")
 	cfg := &fullConfig.Admin
+	cfg.Version = version
 
 	// Run auto-migrations if enabled
 	if err := runAutoMigrations(fullConfig); err != nil {
@@ -254,6 +255,7 @@ func startAll(configFilePath string) error {
 	// Load configurations
 	tunnelConfig := config.Load(configFilePath)
 	adminCfg := &tunnelConfig.Admin
+	adminCfg.Version = version
 
 	// Run auto-migrations if enabled
 	if err := runAutoMigrations(tunnelConfig); err != nil {

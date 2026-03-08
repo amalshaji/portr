@@ -4,7 +4,6 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/pem"
-	"errors"
 
 	"github.com/charmbracelet/log"
 	"github.com/gliderlabs/ssh"
@@ -13,7 +12,7 @@ import (
 
 func loadHostKey(pemKey string) (ssh.Option, error) {
 	if pemKey == "" {
-		return nil, errors.New("PORTR_SSH_HOST_KEY is required")
+		return nil, nil
 	}
 
 	if _, err := gossh.ParsePrivateKey([]byte(pemKey)); err != nil {

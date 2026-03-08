@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -162,7 +163,7 @@ func (h *Handler) DownloadConfig(c *fiber.Ctx) error {
 
 	configContent := fmt.Sprintf(`server_url: %s
 ssh_url: %s
-secret_key: %s`, h.config.ServerURL, h.config.SshURL, teamUser.SecretKey)
+secret_key: %s`, stripScheme(h.config.ServerURL), h.config.SshURL, teamUser.SecretKey)
 
 	if h.config.SshHostKeyVerification {
 		configContent += "\ninsecure_skip_host_key_verification: false"
@@ -316,4 +317,8 @@ func (h *Handler) GetStats(c *fiber.Ctx) error {
 		"system_stats": systemStats,
 		"chart_data":   chartData,
 	})
+}
+
+func stripScheme(value string) string {
+	return strings.TrimPrefix(strings.TrimPrefix(value, "https://"), "http://")
 }

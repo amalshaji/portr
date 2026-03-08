@@ -33,6 +33,7 @@ import (
 
 var (
 	ErrLocalSetupIncomplete = fmt.Errorf("local setup incomplete")
+	newRestyClient          = resty.New
 )
 
 type requestLogContextKey struct{}
@@ -96,7 +97,7 @@ func New(config config.ClientConfig, db *db.Db, tui *tea.Program) *SshClient {
 }
 
 func CreateNewConnection(cfg config.ClientConfig) (string, error) {
-	client := resty.New()
+	client := newRestyClient()
 	var reqErr struct {
 		Message string `json:"message"`
 	}

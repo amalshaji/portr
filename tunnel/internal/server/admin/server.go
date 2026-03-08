@@ -100,6 +100,13 @@ func (s *Server) setupRoutes() {
 	v1.Get("/healthcheck", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
 	})
+	v1.Get("/version", func(c *fiber.Ctx) error {
+		version := s.config.Version
+		if version == "" {
+			version = "0.0.0"
+		}
+		return c.JSON(fiber.Map{"version": version})
+	})
 
 	s.setupAuthRoutes(v1)
 	s.setupUserRoutes(v1)

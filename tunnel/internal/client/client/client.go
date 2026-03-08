@@ -91,6 +91,14 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 		return fmt.Errorf("please enter a valid service name")
 	}
 
+	poolingSupported := true
+	for _, clientConfig := range clientConfigs {
+		if desiredWorkers(clientConfig, true) > 1 {
+			poolingSupported = supportsHTTPPooling(c.config.ServerUrl, c.config.UseLocalHost)
+			break
+		}
+	}
+
 	for _, clientConfig := range clientConfigs {
 		tunnelName := clientConfig.Tunnel.Name
 		if tunnelName == "" {
@@ -101,13 +109,8 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			fmt.Printf("🚀 Starting tunnel: %s (%s:%d)\n", tunnelName, clientConfig.Tunnel.Host, clientConfig.Tunnel.Port)
 		}
 
-		// If HTTP, start a pool of SSH clients; for TCP keep it single
-		workers := 1
-		if clientConfig.Tunnel.Type == constants.Http && clientConfig.Tunnel.PoolSize > 1 {
-			workers = clientConfig.Tunnel.PoolSize
-		}
+		workers := desiredWorkers(clientConfig, poolingSupported)
 
-		// For HTTP pools, pre-create a single reserved connection ID and share across all workers
 		if clientConfig.Tunnel.Type == constants.Http && workers > 1 && clientConfig.ConnectionID == "" {
 			connID, err := sshclient.CreateNewConnection(clientConfig)
 			if err != nil {

@@ -45,6 +45,7 @@ type AdminConfig struct {
 	ServerURL              string
 	SshURL                 string
 	SshHostKeyVerification bool
+	Version                string
 }
 
 func (c *AdminConfig) DomainAddress() string {

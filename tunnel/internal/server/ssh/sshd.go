@@ -67,7 +67,9 @@ func (s *SshServer) Start() {
 	if err != nil {
 		log.Fatal("Failed to load host key", "error", err)
 	}
-	hostKeyOption(srv)
+	if hostKeyOption != nil {
+		hostKeyOption(srv)
+	}
 
 	s.server = srv
 

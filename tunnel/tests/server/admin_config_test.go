@@ -50,6 +50,9 @@ func TestDownloadConfig_ValidSecretKeyReturnsConfig(t *testing.T) {
 	if !strings.Contains(message, "server_url:") || !strings.Contains(message, "ssh_url:") {
 		t.Fatalf("expected config content to include server_url and ssh_url, got: %s", message)
 	}
+	if strings.Contains(message, "server_url: http://") || strings.Contains(message, "server_url: https://") {
+		t.Fatalf("expected downloaded config to use a host-only server_url, got: %s", message)
+	}
 	if !strings.Contains(message, teamUser.SecretKey) {
 		t.Fatalf("expected config content to include secret key, got: %s", message)
 	}
