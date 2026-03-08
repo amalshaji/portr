@@ -1,0 +1,58 @@
+name: Publish tip docker image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "tunnel/**"
+      - ".github/workflows/portr-tip.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portr-tip-docker
+  cancel-in-progress: true
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image metadata
+        id: vars
+        run: |
+          echo "version=main-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: amalshaji
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./tunnel
+          file: ./tunnel/Dockerfile
+          push: true
+          tags: amalshaji/portr:tip
+          platforms: |
+            linux/amd64
+            linux/arm64
+          build-args: |
+            VERSION=${{ steps.vars.outputs.version }}
+          labels: |
+            org.opencontainers.image.created=${{ steps.vars.outputs.created }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/amalshaji/portr
+            org.opencontainers.image.version=${{ steps.vars.outputs.version }}
