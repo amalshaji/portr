@@ -1,6 +1,6 @@
 tmp
-portr
-portrd
+/portr
+/portrd
 .env
 internal/client
 cmd/portr

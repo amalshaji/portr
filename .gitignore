@@ -4,8 +4,8 @@ db.sqlite
 .env
 *.fiber.gz
 tmp
-portr
-portrd
+/portr
+/portrd
 !**/portr/
 postgres-data
 node_modules
