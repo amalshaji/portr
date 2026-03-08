@@ -3,8 +3,8 @@ title: Local Development
 description: Set up Portr for local development and contribution
 ---
 
-import { Card, Cards } from 'fumadocs-ui/components/card';
-import { Callout } from 'fumadocs-ui/components/callout';
+import { Card, Cards } from "fumadocs-ui/components/card";
+import { Callout } from "fumadocs-ui/components/callout";
 
 This guide covers how to set up Portr for local development, whether you want to contribute to the project or modify it for your needs.
 
@@ -12,7 +12,7 @@ This guide covers how to set up Portr for local development, whether you want to
 
 Portr consists of several components:
 
-- **Admin Server**: Python/FastAPI backend with Svelte frontend
+- **Admin Server**: Go/Fiber backend with Svelte frontend (integrated with tunnel server)
 - **Tunnel Server**: Go-based SSH and proxy server
 - **Client**: Go-based CLI tool for creating tunnels
 
@@ -22,7 +22,10 @@ Portr consists of several components:
   <Card title="Admin Setup" href="/docs/local-development/admin">
     Set up the admin dashboard for local development.
   </Card>
-  <Card title="Tunnel Server Setup" href="/docs/local-development/tunnel-server">
+  <Card
+    title="Tunnel Server Setup"
+    href="/docs/local-development/tunnel-server"
+  >
     Run the tunnel server locally for development.
   </Card>
   <Card title="Client Setup" href="/docs/local-development/portr-client">
@@ -34,16 +37,16 @@ Portr consists of several components:
 
 Before you begin, ensure you have the following installed:
 
-- **Python 3.11+** with [rye](https://github.com/astral-sh/rye) (0.43.0+)
-- **Go 1.23+**
+- **Go 1.25+**
 - **Node.js 20+**
 - **pnpm 9.15.0+**
-- **PostgreSQL 16+**
+- **PostgreSQL 16+** or **SQLite 3.0+**
 
 ## Quick Start
 
 <Callout type="info">
-  The recommended development approach is to start all components in the following order: database → admin server → tunnel server → client.
+  The recommended development approach is to start all components in the
+  following order: database → admin server → tunnel server → client.
 </Callout>
 
 ### 1. Clone the repository
@@ -90,12 +93,15 @@ We welcome contributions! Here's how to get started:
 Each component has its own test suite. Run tests before submitting changes:
 
 ```bash
-# Admin tests (from admin/ directory)
-make test
+# Go tests (from tunnel/ directory)
+go test ./...
 
-# Tunnel server tests (from tunnel/ directory)  
-make test
+# Admin frontend tests (from tunnel/internal/server/admin/web/)
+cd tunnel/internal/server/admin/web && pnpm test
 
-# Client tests (from tunnel/ directory)
-make test-cli
+# Format Go code
+go fmt ./...
+
+# Run Go linter
+go vet ./...
 ```

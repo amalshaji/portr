@@ -27,7 +27,7 @@ jobs:
       - name: Setup go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: "1.25"
           cache: true
 
       - name: Setup client
@@ -54,16 +54,6 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - dockerfile: ./admin/Dockerfile
-            image: amalshaji/portr-admin
-            context: ./admin
-          - dockerfile: ./tunnel/Dockerfile
-            image: amalshaji/portr-tunnel
-            context: ./tunnel
     steps:
       - uses: actions/checkout@v4
         with:
@@ -79,7 +69,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ matrix.image }}
+          images: amalshaji/portr
           tags: |
             type=semver,pattern={{version}}
 
@@ -92,12 +82,12 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.context }}
+          context: ./tunnel
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           platforms: |
             linux/amd64
             linux/arm64
-          file: ${{ matrix.dockerfile }}
+          file: ./tunnel/Dockerfile
           build-args: |
             VERSION=${{ github.ref_name }}

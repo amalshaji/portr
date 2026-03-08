@@ -9,15 +9,16 @@ import (
 
 	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
-	"github.com/amalshaji/portr/internal/client/ssh"
+	sshclient "github.com/amalshaji/portr/internal/client/ssh"
 	"github.com/amalshaji/portr/internal/client/tui"
+	"github.com/amalshaji/portr/internal/constants"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
 )
 
 type Client struct {
 	config          *config.Config
-	sshcs           []*ssh.SshClient
+	sshcs           []*sshclient.SshClient
 	db              *db.Db
 	tui             *tea.Program
 	retentionCancel context.CancelFunc
@@ -52,7 +53,7 @@ func NewClient(config *config.Config, db *db.Db) *Client {
 
 	return &Client{
 		config: config,
-		sshcs:  make([]*ssh.SshClient, 0),
+		sshcs:  make([]*sshclient.SshClient, 0),
 		db:     db,
 		tui:    p,
 	}
@@ -70,23 +71,32 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			continue
 		}
 		clientConfigs = append(clientConfigs, config.ClientConfig{
-			ServerUrl:              c.config.ServerUrl,
-			SshUrl:                 c.config.SshUrl,
-			TunnelUrl:              c.config.TunnelUrl,
-			SecretKey:              c.config.SecretKey,
-			Tunnel:                 tunnel,
-			UseLocalHost:           c.config.UseLocalHost,
-			Debug:                  c.config.Debug,
-			EnableRequestLogging:   c.config.EnableRequestLogging,
-			HealthCheckInterval:    c.config.HealthCheckInterval,
-			HealthCheckMaxRetries:  c.config.HealthCheckMaxRetries,
-			DisableTUI:             c.config.DisableTUI,
-			EnableHttpReverseProxy: c.config.EnableHttpReverseProxy,
+			ServerUrl:                       c.config.ServerUrl,
+			SshUrl:                          c.config.SshUrl,
+			TunnelUrl:                       c.config.TunnelUrl,
+			SecretKey:                       c.config.SecretKey,
+			Tunnel:                          tunnel,
+			UseLocalHost:                    c.config.UseLocalHost,
+			Debug:                           c.config.Debug,
+			EnableRequestLogging:            c.config.EnableRequestLogging,
+			HealthCheckInterval:             c.config.HealthCheckInterval,
+			HealthCheckMaxRetries:           c.config.HealthCheckMaxRetries,
+			DisableTUI:                      c.config.DisableTUI,
+			EnableHttpReverseProxy:          c.config.EnableHttpReverseProxy,
+			InsecureSkipHostKeyVerification: *c.config.InsecureSkipHostKeyVerification,
 		})
 	}
 
 	if len(clientConfigs) == 0 {
 		return fmt.Errorf("please enter a valid service name")
+	}
+
+	poolingSupported := true
+	for _, clientConfig := range clientConfigs {
+		if desiredWorkers(clientConfig, true) > 1 {
+			poolingSupported = supportsHTTPPooling(c.config.ServerUrl, c.config.UseLocalHost)
+			break
+		}
 	}
 
 	for _, clientConfig := range clientConfigs {
@@ -99,9 +109,22 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			fmt.Printf("🚀 Starting tunnel: %s (%s:%d)\n", tunnelName, clientConfig.Tunnel.Host, clientConfig.Tunnel.Port)
 		}
 
-		sshc := ssh.New(clientConfig, c.db, c.tui)
-		c.Add(sshc)
-		go sshc.Start(ctx)
+		workers := desiredWorkers(clientConfig, poolingSupported)
+
+		if clientConfig.Tunnel.Type == constants.Http && workers > 1 && clientConfig.ConnectionID == "" {
+			connID, err := sshclient.CreateNewConnection(clientConfig)
+			if err != nil {
+				return fmt.Errorf("failed to create shared connection for pool: %w", err)
+			}
+			clientConfig.ConnectionID = connID
+		}
+
+		for i := 0; i < workers; i++ {
+			cfg := clientConfig
+			sshc := sshclient.New(cfg, c.db, c.tui)
+			c.Add(sshc)
+			go sshc.Start(ctx)
+		}
 	}
 
 	c.startConnectionLogRetention(ctx)
@@ -109,7 +132,7 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 	return nil
 }
 
-func (c *Client) Add(sshc *ssh.SshClient) {
+func (c *Client) Add(sshc *sshclient.SshClient) {
 	c.sshcs = append(c.sshcs, sshc)
 }
 
@@ -132,7 +155,6 @@ func (c *Client) Shutdown(ctx context.Context) {
 	}
 }
 
-// Create tunnel from cli args and replaces it in config
 func (c *Client) ReplaceTunnelsFromCli(tunnel config.Tunnel) {
 	c.config.Tunnels = []config.Tunnel{tunnel}
 }

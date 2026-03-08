@@ -21,8 +21,7 @@ func New(db *db.Db) *Service {
 
 func (s *Service) GetReservedConnectionById(ctx context.Context, connectionId string) (*db.Connection, error) {
 	var connection db.Connection
-
-	err := s.db.Conn.Preload("CreatedBy").Where("status = 'reserved' AND id = ?", connectionId).First(&connection).Error
+	err := s.db.Conn.Preload("CreatedBy").Where("id = ?", connectionId).First(&connection).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Error("Connection not found", "connection_id", connectionId)
