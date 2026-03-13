@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/amalshaji/portr/internal/client/config"
+	requestlogs "github.com/amalshaji/portr/internal/client/logs"
 	"github.com/amalshaji/portr/internal/utils"
 	"github.com/labstack/gommon/color"
 	"github.com/urfave/cli/v2"
@@ -31,12 +33,13 @@ func main() {
 			configCmd(),
 			httpCmd(),
 			tcpCmd(),
+			logsCmd(),
 			authCmd(),
 		},
 	}
 
 	if err := utils.EnsureDirExists(config.DefaultConfigDir); err != nil {
-		fmt.Println(color.Red(err.Error()))
+		fmt.Fprintln(os.Stderr, color.Red(err.Error()))
 		os.Exit(0)
 	}
 
@@ -47,12 +50,13 @@ func main() {
 	// Load config to check if update checks are disabled
 	cfg, configErr := config.Load(config.DefaultConfigPath)
 	disableUpdateCheck := configErr == nil && cfg.DisableUpdateCheck
+	suppressUpdateNotice := shouldSuppressUpdateNotice(os.Args)
 
 	if !disableUpdateCheck {
 		go func() {
 			if err := checkForUpdates(); err != nil {
 				if debugForCli {
-					fmt.Println(color.Red(err.Error()))
+					fmt.Fprintln(os.Stderr, color.Red(err.Error()))
 				}
 			}
 		}()
@@ -60,17 +64,68 @@ func main() {
 		versionToUpdate, err := getVersionToUpdate()
 		if err != nil {
 			if debugForCli {
-				fmt.Println(color.Red(err.Error()))
+				fmt.Fprintln(os.Stderr, color.Red(err.Error()))
 			}
 		} else {
-			if versionToUpdate != "" {
-				fmt.Printf(color.Yellow("A new version of Portr is available: %s. https://github.com/amalshaji/portr/releases/tag/%s\n"), versionToUpdate, versionToUpdate)
+			if versionToUpdate != "" && !suppressUpdateNotice {
+				fmt.Fprintf(os.Stderr, color.Yellow("A new version of Portr is available: %s. https://github.com/amalshaji/portr/releases/tag/%s\n"), versionToUpdate, versionToUpdate)
 			}
 		}
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		fmt.Println(color.Red(err.Error()))
+		fmt.Fprintln(os.Stderr, color.Red(err.Error()))
 		os.Exit(0)
 	}
+}
+
+func shouldSuppressUpdateNotice(args []string) bool {
+	commandArgs, ok := commandArgs(args, "logs")
+	if !ok {
+		return false
+	}
+
+	if requestlogs.WantsHelp(commandArgs) {
+		return true
+	}
+
+	opts, err := requestlogs.ParseCommandArgs(commandArgs)
+	if err == nil {
+		return opts.JSON
+	}
+
+	for _, arg := range commandArgs {
+		if strings.TrimSpace(arg) == "--json" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func commandArgs(args []string, command string) ([]string, bool) {
+	for i := 1; i < len(args); i++ {
+		arg := strings.TrimSpace(args[i])
+		if arg == "" {
+			continue
+		}
+
+		switch {
+		case arg == "--config" || arg == "-c":
+			i++
+			continue
+		case strings.HasPrefix(arg, "--config="):
+			continue
+		case strings.HasPrefix(arg, "-"):
+			continue
+		}
+
+		if arg == command {
+			return args[i+1:], true
+		}
+
+		return nil, false
+	}
+
+	return nil, false
 }

@@ -40,5 +40,5 @@ Login to the admin, copy your secret key and add it to client.dev.yaml.
 Start the tunnel connection
 
 ```shell
-./portr -c client.dev.yaml http 9999
+portr -c client.dev.yaml http 9999
 ```
