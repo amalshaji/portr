@@ -40,7 +40,7 @@ func main() {
 
 	if err := utils.EnsureDirExists(config.DefaultConfigDir); err != nil {
 		fmt.Fprintln(os.Stderr, color.Red(err.Error()))
-		os.Exit(0)
+		os.Exit(1)
 	}
 
 	// for debugging cli commands
@@ -75,7 +75,7 @@ func main() {
 
 	if err := app.Run(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, color.Red(err.Error()))
-		os.Exit(0)
+		os.Exit(1)
 	}
 }
 
@@ -89,18 +89,7 @@ func shouldSuppressUpdateNotice(args []string) bool {
 		return true
 	}
 
-	opts, err := requestlogs.ParseCommandArgs(commandArgs)
-	if err == nil {
-		return opts.JSON
-	}
-
-	for _, arg := range commandArgs {
-		if strings.TrimSpace(arg) == "--json" {
-			return true
-		}
-	}
-
-	return false
+	return requestlogs.WantsJSON(commandArgs)
 }
 
 func commandArgs(args []string, command string) ([]string, bool) {

@@ -1,6 +1,7 @@
 package logs
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -35,6 +36,23 @@ type CommandOptions struct {
 
 type Store struct {
 	conn *gorm.DB
+}
+
+func WantsJSON(args []string) bool {
+	for _, arg := range args {
+		trimmed := strings.TrimSpace(arg)
+		if trimmed == "" {
+			continue
+		}
+		if trimmed == "--" {
+			return false
+		}
+		if trimmed == "--json" {
+			return true
+		}
+	}
+
+	return false
 }
 
 func WantsHelp(args []string) bool {
@@ -77,6 +95,16 @@ func Open(path string) (*Store, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to open request log database at %s: %w", path, err)
+	}
+
+	sqlDB, err := conn.DB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get request log database connection at %s: %w", path, err)
+	}
+
+	if err := applyPragmas(sqlDB); err != nil {
+		_ = sqlDB.Close()
+		return nil, fmt.Errorf("failed to configure request log database at %s: %w", path, err)
 	}
 
 	return &Store{conn: conn}, nil
@@ -295,4 +323,14 @@ func normalizeQueryOptions(opts QueryOptions) (QueryOptions, error) {
 func likePattern(value string) string {
 	replacer := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 	return "%" + strings.ToLower(replacer.Replace(value)) + "%"
+}
+
+func applyPragmas(conn *sql.DB) error {
+	for _, pragma := range clientdb.SQLITE_PRAGMAS {
+		if _, err := conn.Exec(pragma); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

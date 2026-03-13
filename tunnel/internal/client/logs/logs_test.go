@@ -324,9 +324,42 @@ func TestWantsHelp(t *testing.T) {
 	}
 }
 
+func TestWantsJSON(t *testing.T) {
+	if !WantsJSON([]string{"amal-test", "--json"}) {
+		t.Fatal("expected --json to request json output")
+	}
+
+	if WantsJSON([]string{"amal-test", "--", "--json"}) {
+		t.Fatal("expected --json after -- to be treated as positional")
+	}
+
+	if WantsJSON([]string{"amal-test"}) {
+		t.Fatal("expected plain args not to request json output")
+	}
+}
+
 func TestJSONFlagUsageMentionsPayloads(t *testing.T) {
 	if !strings.Contains(JSONFlagUsage, "payload") {
 		t.Fatalf("expected JSONFlagUsage to mention payloads, got %q", JSONFlagUsage)
+	}
+}
+
+func TestOpenAppliesSQLitePragmas(t *testing.T) {
+	store := openTestStore(t, nil)
+	defer store.Close()
+
+	sqlDB, err := store.conn.DB()
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	var busyTimeout int
+	if err := sqlDB.QueryRow("PRAGMA busy_timeout;").Scan(&busyTimeout); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if busyTimeout != 5000 {
+		t.Fatalf("expected busy_timeout 5000, got %d", busyTimeout)
 	}
 }
 
