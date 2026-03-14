@@ -23,6 +23,7 @@ services:
     labels:
       caddy_0: $PORTR_DOMAIN
       caddy_0.reverse_proxy: "{{upstreams http 8000}}"
+      caddy_0.tls.dns: "cloudflare $CLOUDFLARE_API_TOKEN"
       caddy_0.encode: gzip
 
   tunnel:
