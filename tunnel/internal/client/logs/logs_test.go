@@ -306,6 +306,25 @@ func TestParseCommandArgsRejectsUnknownFlag(t *testing.T) {
 	}
 }
 
+func TestParseCommandArgsRejectsNonPositiveCount(t *testing.T) {
+	testCases := [][]string{
+		{"amal-test", "--count", "0"},
+		{"amal-test", "--count=-1"},
+		{"amal-test", "-n=0"},
+	}
+
+	for _, args := range testCases {
+		_, err := ParseCommandArgs(args)
+		if err == nil {
+			t.Fatalf("expected error for args %#v, got nil", args)
+		}
+
+		if err.Error() != "count must be greater than 0" {
+			t.Fatalf("expected count error for args %#v, got %v", args, err)
+		}
+	}
+}
+
 func TestWantsHelp(t *testing.T) {
 	if !WantsHelp([]string{"--help"}) {
 		t.Fatal("expected --help to request help")
@@ -339,8 +358,8 @@ func TestWantsJSON(t *testing.T) {
 }
 
 func TestJSONFlagUsageMentionsPayloads(t *testing.T) {
-	if !strings.Contains(JSONFlagUsage, "payload") {
-		t.Fatalf("expected JSONFlagUsage to mention payloads, got %q", JSONFlagUsage)
+	if !strings.Contains(JSONFlagUsage, "BodyText") {
+		t.Fatalf("expected JSONFlagUsage to mention BodyText, got %q", JSONFlagUsage)
 	}
 }
 
@@ -421,8 +440,20 @@ func TestRenderJSON(t *testing.T) {
 			Url:                "/alpha",
 			Method:             "GET",
 			Body:               []byte("hello"),
+			ResponseBody:       []byte("world"),
 			ResponseStatusCode: 200,
 			LoggedAt:           testTime(2026, 3, 14, 10, 0, 0),
+		},
+		{
+			ID:                 "req-2",
+			Subdomain:          "demo",
+			Localport:          3001,
+			Url:                "/binary",
+			Method:             "POST",
+			Body:               []byte{0xff, 0xfe},
+			ResponseBody:       []byte{0x00, 0xff},
+			ResponseStatusCode: 201,
+			LoggedAt:           testTime(2026, 3, 14, 11, 0, 0),
 		},
 	}
 
@@ -430,17 +461,47 @@ func TestRenderJSON(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	var decoded []clientdb.Request
+	var decoded []struct {
+		Subdomain        string
+		Body             string
+		ResponseBody     string
+		BodyText         *string
+		ResponseBodyText *string
+	}
 	if err := json.Unmarshal(output.Bytes(), &decoded); err != nil {
 		t.Fatalf("expected valid json, got %v", err)
 	}
 
-	if len(decoded) != 1 {
-		t.Fatalf("expected 1 request, got %d", len(decoded))
+	if len(decoded) != 2 {
+		t.Fatalf("expected 2 requests, got %d", len(decoded))
 	}
 
-	if decoded[0].Subdomain != expected[0].Subdomain || string(decoded[0].Body) != "hello" {
+	if decoded[0].Subdomain != expected[0].Subdomain {
 		t.Fatalf("unexpected decoded request: %#v", decoded[0])
+	}
+
+	if decoded[0].Body != "aGVsbG8=" {
+		t.Fatalf("expected request body to be base64 encoded, got %q", decoded[0].Body)
+	}
+
+	if decoded[0].ResponseBody != "d29ybGQ=" {
+		t.Fatalf("expected response body to be base64 encoded, got %q", decoded[0].ResponseBody)
+	}
+
+	if decoded[0].BodyText == nil || *decoded[0].BodyText != "hello" {
+		t.Fatalf("expected request body text to be decoded, got %#v", decoded[0].BodyText)
+	}
+
+	if decoded[0].ResponseBodyText == nil || *decoded[0].ResponseBodyText != "world" {
+		t.Fatalf("expected response body text to be decoded, got %#v", decoded[0].ResponseBodyText)
+	}
+
+	if decoded[1].BodyText != nil {
+		t.Fatalf("expected binary request body text to be omitted, got %#v", decoded[1].BodyText)
+	}
+
+	if decoded[1].ResponseBodyText != nil {
+		t.Fatalf("expected binary response body text to be omitted, got %#v", decoded[1].ResponseBodyText)
 	}
 
 	output.Reset()

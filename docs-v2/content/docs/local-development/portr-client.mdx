@@ -80,14 +80,14 @@ portr logs amal-test /api/
 # Increase the result window or bound it by date
 portr logs amal-test --count 100 --since 2026-03-14
 
-# Emit full stored request records as JSON, including request and response payloads
+# Emit full stored request records as JSON; body bytes stay base64-encoded and text payloads also include BodyText/ResponseBodyText
 portr logs amal-test --json
 ```
 
 Notes:
 
 - `portr logs <subdomain> [filter]` searches only by request URL substring.
-- `--json` emits the full stored record, including headers, request body, response headers, response body, status code, replay metadata, and timestamp.
+- `--json` emits the full stored record, including headers, status code, replay metadata, and timestamp. `Body` and `ResponseBody` stay base64-encoded, and valid UTF-8 payloads also include `BodyText` and `ResponseBodyText`.
 - `--since` accepts either RFC3339 timestamps or `YYYY-MM-DD`.
 
 ## Development Workflow

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/amalshaji/portr/internal/client/config"
 	clientdb "github.com/amalshaji/portr/internal/client/db"
@@ -20,7 +21,7 @@ import (
 )
 
 const DefaultCount = 20
-const JSONFlagUsage = "Emit full stored request records as JSON, including request and response payloads"
+const JSONFlagUsage = "Emit full stored request records as JSON; body bytes stay base64-encoded and text payloads also include BodyText/ResponseBodyText"
 
 type QueryOptions struct {
 	Count  int
@@ -208,21 +209,21 @@ func ParseCommandArgs(args []string) (CommandOptions, error) {
 				return CommandOptions{}, fmt.Errorf("missing value for %s", arg)
 			}
 			i++
-			count, err := strconv.Atoi(strings.TrimSpace(args[i]))
+			count, err := parseCount(strings.TrimSpace(args[i]))
 			if err != nil {
-				return CommandOptions{}, fmt.Errorf("invalid count value %q", args[i])
+				return CommandOptions{}, err
 			}
 			opts.Query.Count = count
 		case strings.HasPrefix(arg, "--count="):
-			count, err := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(arg, "--count=")))
+			count, err := parseCount(strings.TrimSpace(strings.TrimPrefix(arg, "--count=")))
 			if err != nil {
-				return CommandOptions{}, fmt.Errorf("invalid count value %q", strings.TrimPrefix(arg, "--count="))
+				return CommandOptions{}, err
 			}
 			opts.Query.Count = count
 		case strings.HasPrefix(arg, "-n="):
-			count, err := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(arg, "-n=")))
+			count, err := parseCount(strings.TrimSpace(strings.TrimPrefix(arg, "-n=")))
 			if err != nil {
-				return CommandOptions{}, fmt.Errorf("invalid count value %q", strings.TrimPrefix(arg, "-n="))
+				return CommandOptions{}, err
 			}
 			opts.Query.Count = count
 		case arg == "--since":
@@ -302,9 +303,31 @@ func RenderJSON(w io.Writer, requests []clientdb.Request) error {
 		requests = make([]clientdb.Request, 0)
 	}
 
+	rendered := make([]jsonRequest, 0, len(requests))
+	for _, request := range requests {
+		rendered = append(rendered, jsonRequest{
+			Request:          request,
+			BodyText:         utf8Text(request.Body),
+			ResponseBodyText: utf8Text(request.ResponseBody),
+		})
+	}
+
 	encoder := json.NewEncoder(w)
 	encoder.SetEscapeHTML(false)
-	return encoder.Encode(requests)
+	return encoder.Encode(rendered)
+}
+
+func parseCount(value string) (int, error) {
+	count, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, fmt.Errorf("invalid count value %q", value)
+	}
+
+	if count <= 0 {
+		return 0, errors.New("count must be greater than 0")
+	}
+
+	return count, nil
 }
 
 func normalizeQueryOptions(opts QueryOptions) (QueryOptions, error) {
@@ -333,4 +356,19 @@ func applyPragmas(conn *sql.DB) error {
 	}
 
 	return nil
+}
+
+type jsonRequest struct {
+	clientdb.Request
+	BodyText         *string `json:"BodyText,omitempty"`
+	ResponseBodyText *string `json:"ResponseBodyText,omitempty"`
+}
+
+func utf8Text(value []byte) *string {
+	if value == nil || !utf8.Valid(value) {
+		return nil
+	}
+
+	text := string(value)
+	return &text
 }

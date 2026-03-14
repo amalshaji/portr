@@ -55,7 +55,7 @@ portr start my-service
 # Read local request logs for a tunnel subdomain
 portr logs my-app --count 20
 
-# Emit full stored request records as JSON, including request and response payloads
+# Emit full stored request records as JSON; body bytes stay base64-encoded and text payloads also include BodyText/ResponseBodyText
 portr logs my-app --json
 
 # Get help
