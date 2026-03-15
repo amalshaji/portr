@@ -46,7 +46,9 @@ cd tunnel
 make buildcli
 ```
 
-This creates the `portr` binary in the current directory.
+This creates the `portr` binary in the current directory. The examples below
+assume the binary is available on your `PATH`. From `tunnel/`, you can do that
+during local development with `export PATH="$PWD:$PATH"`.
 
 ### Configure authentication
 
@@ -60,8 +62,33 @@ This creates the `portr` binary in the current directory.
 Start a test tunnel:
 
 ```shell
-./portr -c client.dev.yaml http 9999
+portr -c client.dev.yaml http 9999
 ```
+
+### Read request logs from the CLI
+
+The client stores HTTP request logs locally in `~/.portr/db.sqlite`. Coding agents
+can read them directly with `portr logs` without opening the inspector UI.
+
+```shell
+# Show the latest 20 logs for a subdomain
+portr logs amal-test
+
+# Filter by URL substring
+portr logs amal-test /api/
+
+# Increase the result window or bound it by date
+portr logs amal-test --count 100 --since 2026-03-14
+
+# Emit full stored request records as JSON; body bytes stay base64-encoded and text payloads also include BodyText/ResponseBodyText
+portr logs amal-test --json
+```
+
+Notes:
+
+- `portr logs <subdomain> [filter]` searches only by request URL substring.
+- `--json` emits the full stored record, including headers, status code, replay metadata, and timestamp. `Body` and `ResponseBody` stay base64-encoded, and valid UTF-8 payloads also include `BodyText` and `ResponseBodyText`.
+- `--since` accepts either RFC3339 timestamps or `YYYY-MM-DD`.
 
 ## Development Workflow
 
@@ -140,7 +167,7 @@ make test-cli
 python -m http.server 8080
 
 # In another terminal, create a tunnel
-./portr -c client.dev.yaml http 8080
+portr -c client.dev.yaml http 8080
 
 # Test the tunnel URL in your browser
 ```

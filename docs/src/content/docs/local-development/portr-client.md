@@ -35,10 +35,14 @@ Build the binary
 make buildcli
 ```
 
+This creates the `portr` binary in the current directory. The examples below
+assume the binary is available on your `PATH`. From `tunnel/`, you can do that
+during local development with `export PATH="$PWD:$PATH"`.
+
 Login to the admin, copy your secret key and add it to client.dev.yaml.
 
 Start the tunnel connection
 
 ```shell
-./portr -c client.dev.yaml http 9999
+portr -c client.dev.yaml http 9999
 ```
