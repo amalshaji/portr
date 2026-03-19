@@ -26,10 +26,10 @@ importers:
     devDependencies:
       '@dicebear/collection':
         specifier: ^8.0.1
-        version: 8.0.2(@dicebear/core@8.0.2)
+        version: 8.0.2(@dicebear/core@8.0.3)
       '@dicebear/core':
-        specifier: ^8.0.1
-        version: 8.0.2
+        specifier: ^8.0.3
+        version: 8.0.3
       '@sveltejs/vite-plugin-svelte':
         specifier: ^2.5.3
         version: 2.5.3(svelte@4.2.19)(vite@5.4.19)
@@ -164,8 +164,8 @@ packages:
     peerDependencies:
       '@dicebear/core': ^8.0.0
 
-  '@dicebear/converter@8.0.2':
-    resolution: {integrity: sha512-mREmyQLIfHnt30Xzjc9ZHgDgIzbF7BXApBCYolnB2kO2Kpb14OdmsyLRsYe/Tt+Vt6sLgiigWoZFcRvbStRhLA==}
+  '@dicebear/converter@8.0.3':
+    resolution: {integrity: sha512-GRC9Yzmsw8PNlEEvWHEiRYZY20y2y7aQF0AafYMY5AtgO0ctVvATH2Q/vG7BYYzFqXbRhP0PJtCG6Z74YlstxQ==}
     engines: {node: '>=16.0.0'}
     peerDependencies:
       '@resvg/resvg-js': ^2.4.1
@@ -179,8 +179,8 @@ packages:
       sharp:
         optional: true
 
-  '@dicebear/core@8.0.2':
-    resolution: {integrity: sha512-Zr3dBAH+6BBYc2kjz7KvJCMYasQlsY9CZ7D3abgZhk/XRT4B3qxo8kP+FL8YjJvrOJyV2P7h08BAKZlTWuKXPA==}
+  '@dicebear/core@8.0.3':
+    resolution: {integrity: sha512-Dh0pUFE2ufx/AvN+RUtNIadPiu1kEZ4MG92UmlnZoA9esgPQLAy0r1hJdKXODKKZfuNPTCV3bgzsdelRys7kBA==}
     engines: {node: '>=16.0.0'}
 
   '@dicebear/croodles-neutral@8.0.2':
@@ -465,6 +465,9 @@ packages:
 
   '@jridgewell/sourcemap-codec@1.5.0':
     resolution: {integrity: sha512-gv3ZRaISU3fjPAgNsriBRqGWQL6quFx04YMPW/zD8XMLsU32mhCCbfbO6KZFLjvYpCZ8zyDEgqsgf+PwPaM7GQ==}
+
+  '@jridgewell/sourcemap-codec@1.5.5':
+    resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
   '@jridgewell/trace-mapping@0.3.25':
     resolution: {integrity: sha512-vNk6aEwybGtawWmy/PzwnGDOjCkLWSD2wqvjGGAgOAwCGWySYXfYoxt00IJkTF+8Lb57DwOb3Aa0o9CApepiYQ==}
@@ -791,8 +794,8 @@ packages:
   devalue@4.3.3:
     resolution: {integrity: sha512-UH8EL6H2ifcY8TbD2QsxwCC/pr5xSwPvv85LrLXVihmHVC3T3YqTCIwnR5ak0yO1KYqlxrPVOA/JVZJYPy2ATg==}
 
-  devalue@5.1.1:
-    resolution: {integrity: sha512-maua5KUiapvEwiEAe+XnlZ3Rh0GD+qI1J/nb9vrJc3muPXvcF/8gXYTWF76+5DAqHyDUtOIImEuo0YKE9mshVw==}
+  devalue@5.6.4:
+    resolution: {integrity: sha512-Gp6rDldRsFh/7XuouDbxMH3Mx8GMCcgzIb1pDTvNyn8pZGQ22u+Wa+lGV9dQCltFQ7uVw0MhRyb8XDskNFOReA==}
 
   didyoumean@1.2.2:
     resolution: {integrity: sha512-gxtyfqMg7GKyhQmb056K7M3xszy/myH8w+B4RT+QXBQsvAOdc3XymqDDPHx1BgPgsdAA5SIifona89YtRATDzw==}
@@ -879,11 +882,12 @@ packages:
 
   glob@10.4.5:
     resolution: {integrity: sha512-7Bv8RF0k6xjo7d4A/PxYLbUCfb6c+Vpd2/mB2yRDlew7Jb5hEXiCD9ibfO7wpk8i4sevK6DFny9h7EYbM3/sHg==}
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     hasBin: true
 
   glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
-    deprecated: Glob versions prior to v9 are no longer supported
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
@@ -896,8 +900,8 @@ packages:
     resolution: {integrity: sha512-Xwwo44whKBVCYoliBQwaPvtd/2tYFkRQtXDWj1nackaV2JPXx3L0+Jvd8/qCJ2p+ML0/XVkJ2q+Mr+UVdpJK5w==}
     engines: {node: '>=12.0.0'}
 
-  import-meta-resolve@4.1.0:
-    resolution: {integrity: sha512-I6fiaX09Xivtk+THaMfAwnA3MVA5Big1WHF1Dfx9hFuvNIWpXnorlkzhcQf6ehrqQiiZECRt1poOAkPmer3ruw==}
+  import-meta-resolve@4.2.0:
+    resolution: {integrity: sha512-Iqv2fzaTQN28s/FwZAoFq0ZSs/7hMAHJVX+w8PZl3cY19Pxk6jFFalxQoIfW2826i/fDLXv8IiEZRIT0lDuWcg==}
 
   inflight@1.0.6:
     resolution: {integrity: sha512-k92I/b08q4wvFscXCLvqfsHCrjrF7yiXsQuIVvVE7N82W3+aqpzuUdBbfhWcy/FZR3/4IgflMgKLOsvPDrGCJA==}
@@ -971,6 +975,9 @@ packages:
 
   magic-string@0.30.17:
     resolution: {integrity: sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA==}
+
+  magic-string@0.30.21:
+    resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
 
   mdn-data@2.0.30:
     resolution: {integrity: sha512-GaqWWShW4kv/G9IEucWScBx9G1/vsFZZJUO+tD26M8J8z3Kw5RDQjaoZe03YAClgeS/SWPOcb4nkFBTEi5DUEA==}
@@ -1180,8 +1187,8 @@ packages:
   sander@0.5.1:
     resolution: {integrity: sha512-3lVqBir7WuKDHGrKRDn/1Ye3kwpXaDOMsiRP1wd6wpZW56gJhsbp5RqQpA6JG/P+pkXizygnr1dKR8vzWaVsfA==}
 
-  set-cookie-parser@2.7.1:
-    resolution: {integrity: sha512-IOc8uWeOZgnb3ptbCURJWNjWUPcO3ZnTTdzsurqERrP6nPyv+paC55vJM0LpOlT2ne+Ix+9+CRG1MNLlyZ4GjQ==}
+  set-cookie-parser@2.7.2:
+    resolution: {integrity: sha512-oeM1lpU/UvhTxw+g3cIfxXHyJRc/uidd3yK1P242gzHds0udQBYzs3y8j4gCCW+ZJ7ad0yctld8RYO+bdurlvw==}
 
   shebang-command@2.0.0:
     resolution: {integrity: sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==}
@@ -1195,8 +1202,8 @@ packages:
     resolution: {integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==}
     engines: {node: '>=14'}
 
-  sirv@3.0.1:
-    resolution: {integrity: sha512-FoqMu0NCGBLCcAkS1qA+XJIQTR6/JHfQXl+uGteNCQ76T91DMUjPa9xfmeqMY3z80nLSg9yQmNjK0Px6RWsH/A==}
+  sirv@3.0.2:
+    resolution: {integrity: sha512-2wcC/oGxHis/BoHkkPwldgiPSYcpZK3JU28WoMVv55yHJgcZ8rlXvuG9iZggz+sU1d4bRgIGASwyWqjxu3FM0g==}
     engines: {node: '>=18'}
 
   sorcery@0.11.1:
@@ -1362,8 +1369,8 @@ packages:
   tmp-promise@3.0.3:
     resolution: {integrity: sha512-RwM7MoPojPxsOBYnyd2hy0bxtIlVrihNs9pj5SUvY8Zz1sQcQG2tG1hSr8PDxfgEB8RNKDhqbIlroIarSNDNsQ==}
 
-  tmp@0.2.3:
-    resolution: {integrity: sha512-nZD7m9iCPC5g0pYmcaxogYKggSfLsdxl8of3Q/oIbqCqLLIO9IAF0GWjX1z9NZRHPiXv8Wex4yDCaZsgEw0Y8w==}
+  tmp@0.2.5:
+    resolution: {integrity: sha512-voyz6MApa1rQGUxT3E+BK7/ROe8itEx7vD8/HEvt4xwXucvQ5G5oeEiHkmHZJuBO21RpOf+YYm9MOivj709jow==}
     engines: {node: '>=14.14'}
 
   to-regex-range@5.0.1:
@@ -1466,163 +1473,163 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.8
       '@jridgewell/trace-mapping': 0.3.25
 
-  '@dicebear/adventurer-neutral@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/adventurer-neutral@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/adventurer@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/adventurer@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/avataaars-neutral@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/avataaars-neutral@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/avataaars@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/avataaars@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/big-ears-neutral@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/big-ears-neutral@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/big-ears@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/big-ears@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/big-smile@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/big-smile@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/bottts-neutral@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/bottts-neutral@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/bottts@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/bottts@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/collection@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/collection@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/adventurer': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/adventurer-neutral': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/avataaars': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/avataaars-neutral': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/big-ears': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/big-ears-neutral': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/big-smile': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/bottts': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/bottts-neutral': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/core': 8.0.2
-      '@dicebear/croodles': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/croodles-neutral': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/fun-emoji': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/icons': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/identicon': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/initials': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/lorelei': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/lorelei-neutral': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/micah': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/miniavs': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/notionists': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/notionists-neutral': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/open-peeps': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/personas': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/pixel-art': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/pixel-art-neutral': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/rings': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/shapes': 8.0.2(@dicebear/core@8.0.2)
-      '@dicebear/thumbs': 8.0.2(@dicebear/core@8.0.2)
+      '@dicebear/adventurer': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/adventurer-neutral': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/avataaars': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/avataaars-neutral': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/big-ears': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/big-ears-neutral': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/big-smile': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/bottts': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/bottts-neutral': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/core': 8.0.3
+      '@dicebear/croodles': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/croodles-neutral': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/fun-emoji': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/icons': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/identicon': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/initials': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/lorelei': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/lorelei-neutral': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/micah': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/miniavs': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/notionists': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/notionists-neutral': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/open-peeps': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/personas': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/pixel-art': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/pixel-art-neutral': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/rings': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/shapes': 8.0.2(@dicebear/core@8.0.3)
+      '@dicebear/thumbs': 8.0.2(@dicebear/core@8.0.3)
 
-  '@dicebear/converter@8.0.2':
+  '@dicebear/converter@8.0.3':
     dependencies:
       '@types/json-schema': 7.0.15
       tmp-promise: 3.0.3
 
-  '@dicebear/core@8.0.2':
+  '@dicebear/core@8.0.3':
     dependencies:
-      '@dicebear/converter': 8.0.2
+      '@dicebear/converter': 8.0.3
       '@types/json-schema': 7.0.15
     transitivePeerDependencies:
       - '@resvg/resvg-js'
       - exiftool-vendored
       - sharp
 
-  '@dicebear/croodles-neutral@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/croodles-neutral@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/croodles@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/croodles@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/fun-emoji@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/fun-emoji@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/icons@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/icons@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/identicon@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/identicon@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/initials@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/initials@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/lorelei-neutral@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/lorelei-neutral@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/lorelei@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/lorelei@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/micah@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/micah@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/miniavs@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/miniavs@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/notionists-neutral@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/notionists-neutral@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/notionists@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/notionists@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/open-peeps@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/open-peeps@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/personas@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/personas@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/pixel-art-neutral@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/pixel-art-neutral@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/pixel-art@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/pixel-art@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/rings@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/rings@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/shapes@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/shapes@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
-  '@dicebear/thumbs@8.0.2(@dicebear/core@8.0.2)':
+  '@dicebear/thumbs@8.0.2(@dicebear/core@8.0.3)':
     dependencies:
-      '@dicebear/core': 8.0.2
+      '@dicebear/core': 8.0.3
 
   '@esbuild/aix-ppc64@0.21.5':
     optional: true
@@ -1729,6 +1736,8 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.0': {}
 
+  '@jridgewell/sourcemap-codec@1.5.5': {}
+
   '@jridgewell/trace-mapping@0.3.25':
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
@@ -1826,15 +1835,15 @@ snapshots:
       '@sveltejs/vite-plugin-svelte': 2.5.3(svelte@4.2.19)(vite@5.4.19)
       '@types/cookie': 0.6.0
       cookie: 0.6.0
-      devalue: 5.1.1
+      devalue: 5.6.4
       esm-env: 1.2.2
-      import-meta-resolve: 4.1.0
+      import-meta-resolve: 4.2.0
       kleur: 4.1.5
-      magic-string: 0.30.17
+      magic-string: 0.30.21
       mrmime: 2.0.1
       sade: 1.8.1
-      set-cookie-parser: 2.7.1
-      sirv: 3.0.1
+      set-cookie-parser: 2.7.2
+      sirv: 3.0.2
       svelte: 4.2.19
       vite: 5.4.19
 
@@ -2010,7 +2019,7 @@ snapshots:
 
   devalue@4.3.3: {}
 
-  devalue@5.1.1: {}
+  devalue@5.6.4: {}
 
   didyoumean@1.2.2: {}
 
@@ -2134,7 +2143,7 @@ snapshots:
 
   highlight.js@11.11.1: {}
 
-  import-meta-resolve@4.1.0: {}
+  import-meta-resolve@4.2.0: {}
 
   inflight@1.0.6:
     dependencies:
@@ -2194,6 +2203,10 @@ snapshots:
   magic-string@0.30.17:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.0
+
+  magic-string@0.30.21:
+    dependencies:
+      '@jridgewell/sourcemap-codec': 1.5.5
 
   mdn-data@2.0.30: {}
 
@@ -2387,7 +2400,7 @@ snapshots:
       mkdirp: 0.5.6
       rimraf: 2.7.1
 
-  set-cookie-parser@2.7.1: {}
+  set-cookie-parser@2.7.2: {}
 
   shebang-command@2.0.0:
     dependencies:
@@ -2397,7 +2410,7 @@ snapshots:
 
   signal-exit@4.1.0: {}
 
-  sirv@3.0.1:
+  sirv@3.0.2:
     dependencies:
       '@polka/url': 1.0.0-next.29
       mrmime: 2.0.1
@@ -2595,9 +2608,9 @@ snapshots:
 
   tmp-promise@3.0.3:
     dependencies:
-      tmp: 0.2.3
+      tmp: 0.2.5
 
-  tmp@0.2.3: {}
+  tmp@0.2.5: {}
 
   to-regex-range@5.0.1:
     dependencies:
