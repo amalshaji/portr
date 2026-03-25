@@ -54,6 +54,12 @@ func main() {
 
 	if !disableUpdateCheck {
 		go func() {
+			defer func() {
+				if r := recover(); r != nil && debugForCli {
+					fmt.Fprintln(os.Stderr, color.Red(fmt.Sprintf("update check panic: %v", r)))
+				}
+			}()
+
 			if err := checkForUpdates(); err != nil {
 				if debugForCli {
 					fmt.Fprintln(os.Stderr, color.Red(err.Error()))
