@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -32,6 +33,7 @@ import (
 
 var (
 	ErrLocalSetupIncomplete = fmt.Errorf("local setup incomplete")
+	errClientShuttingDown   = errors.New("client is shutting down")
 	newRestyClient          = resty.New
 )
 
@@ -123,6 +125,42 @@ func (s *SshClient) goSafe(scope string, fn func()) {
 	}()
 }
 
+func (s *SshClient) shouldIgnoreListenerError(ctx context.Context, err error) bool {
+	return err == nil ||
+		ctx.Err() != nil ||
+		atomic.LoadInt32(&s.shutdown) == 1 ||
+		errors.Is(err, errClientShuttingDown)
+}
+
+func (s *SshClient) forwardListenerErrors(ctx context.Context, errChan <-chan error) {
+	go func() {
+		select {
+		case err := <-errChan:
+			if s.shouldIgnoreListenerError(ctx, err) {
+				return
+			}
+			s.reportFatal(err)
+		case <-ctx.Done():
+		}
+	}()
+}
+
+func (s *SshClient) handleAcceptError(listener net.Listener, err error) error {
+	if err == nil {
+		return nil
+	}
+
+	s.mu.RLock()
+	currentListener := s.listener
+	s.mu.RUnlock()
+
+	if atomic.LoadInt32(&s.shutdown) == 1 || currentListener != listener {
+		return errClientShuttingDown
+	}
+
+	return fmt.Errorf("failed to accept connection: %w", err)
+}
+
 func CreateNewConnection(cfg config.ClientConfig) (string, error) {
 	client := newRestyClient()
 	var reqErr struct {
@@ -167,7 +205,7 @@ func (s *SshClient) createNewConnection() (string, error) {
 
 func (s *SshClient) startListenerForClient() error {
 	if atomic.LoadInt32(&s.shutdown) == 1 {
-		return fmt.Errorf("client is shutting down")
+		return errClientShuttingDown
 	}
 
 	var err error
@@ -277,7 +315,7 @@ func (s *SshClient) startListenerForClient() error {
 
 	for {
 		if atomic.LoadInt32(&s.shutdown) == 1 {
-			return fmt.Errorf("client is shutting down")
+			return errClientShuttingDown
 		}
 
 		s.mu.RLock()
@@ -296,7 +334,7 @@ func (s *SshClient) startListenerForClient() error {
 			if s.tui != nil {
 				s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: -1})
 			}
-			break
+			return s.handleAcceptError(listener, err)
 		}
 
 		if tunnelType == constants.Http {
@@ -315,8 +353,6 @@ func (s *SshClient) startListenerForClient() error {
 			})
 		}
 	}
-
-	return nil
 }
 
 func (s *SshClient) startSSHKeepAlive(clientRef *ssh.Client) {
@@ -898,6 +934,10 @@ func (s *SshClient) Start(ctx context.Context) error {
 
 	select {
 	case err := <-errChan:
+		if s.shouldIgnoreListenerError(ctx, err) {
+			return nil
+		}
+
 		tunnelName := s.config.Tunnel.Name
 		if tunnelName == "" {
 			tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
@@ -905,6 +945,8 @@ func (s *SshClient) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to start tunnel '%s': %w", tunnelName, err)
 
 	case <-time.After(5 * time.Second):
+		s.forwardListenerErrors(ctx, errChan)
+
 		if s.config.Tunnel.Type == constants.Http {
 			return s.StartHealthCheck(ctx)
 		}
@@ -924,7 +966,7 @@ func (s *SshClient) Reconnect() error {
 
 	// Check if we're shutting down
 	if atomic.LoadInt32(&s.shutdown) == 1 {
-		return fmt.Errorf("client is shutting down")
+		return errClientShuttingDown
 	}
 
 	// Close existing connections with mutex protection
