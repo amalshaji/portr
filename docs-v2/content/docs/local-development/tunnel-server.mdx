@@ -3,7 +3,6 @@ title: Tunnel Server Development Setup
 description: Learn how to setup portr tunnel server for local development
 ---
 
-import { Steps } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
 
 The tunnel server is built using Go and handles SSH remote port forwarding to tunnel HTTP/TCP connections.
@@ -11,15 +10,9 @@ The tunnel server is built using Go and handles SSH remote port forwarding to tu
 ## Requirements
 
 - **Go** (1.25+)
-- **PostgreSQL** (16+)
+- **PostgreSQL** (16+) or **SQLite** (3.0+)
 
 ## Setup Process
-
-### Navigate to the tunnel directory
-
-```shell
-cd tunnel
-```
 
 ### Configure environment variables
 
@@ -28,7 +21,7 @@ Create a new `.env` file using the `.env.template` file as a reference.
 ### Start the server
 
 ```shell
-make runserver
+go run ./cmd/portrd start tunnel
 ```
 
 You should see output similar to:
@@ -71,24 +64,24 @@ The tunnel server consists of several components:
 
 ```bash
 # Start the server
-make runserver
+go run ./cmd/portrd start tunnel
 
 # Build the server
-make build
+go build ./...
 
 # Run tests
-make test
+go test ./...
 
 # Format code
-make fmt
+go fmt ./...
 
 # Run linting
-make lint
+go vet ./...
 ```
 
 ### Configuration
 
-For all configuration variables, check out the [tunnel server config file](https://github.com/amalshaji/portr/blob/main/tunnel/internal/server/config/config.go).
+For all configuration variables, check out the [tunnel server config file](https://github.com/amalshaji/portr/blob/main/internal/server/config/config.go).
 
 Key configuration options include:
 
@@ -129,16 +122,15 @@ Key configuration options include:
 
 ### Debugging
 
-Enable debug logging by setting the appropriate log level in your configuration:
+Enable tunnel debug logging with:
 
-```go
-// In your .env or config
-LOG_LEVEL=debug
+```bash
+PORTR_TUNNEL_DEBUG=true
 ```
 
 View detailed logs to troubleshoot connection issues:
 
 ```bash
 # Follow server logs
-make runserver | grep -E "(ERROR|WARN|DEBUG)"
+go run ./cmd/portrd start tunnel
 ```

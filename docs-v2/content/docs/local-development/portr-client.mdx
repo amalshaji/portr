@@ -3,7 +3,6 @@ title: Client Development Setup
 description: Learn how to setup portr client for local development
 ---
 
-import { Steps } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
 
 The Portr client is built using Go for the CLI backend and includes a Svelte-based inspector for HTTP tunnels.
@@ -34,19 +33,15 @@ This starts the Svelte-based inspector interface with hot reloading.
 
 ## CLI Setup
 
-### Navigate to the tunnel directory
-
-```shell
-cd tunnel
-```
-
 ### Build the CLI binary
 
 ```shell
 make buildcli
 ```
 
-This creates the `portr` binary in the current directory.
+This creates the `portr` binary in the current directory. The examples below
+assume the binary is available on your `PATH`. From `tunnel/`, you can do that
+during local development with `export PATH="$PWD:$PATH"`.
 
 ### Configure authentication
 
@@ -60,8 +55,33 @@ This creates the `portr` binary in the current directory.
 Start a test tunnel:
 
 ```shell
-./portr -c client.dev.yaml http 9999
+portr -c client.dev.yaml http 9999
 ```
+
+### Read request logs from the CLI
+
+The client stores HTTP request logs locally in `~/.portr/db.sqlite`. Coding agents
+can read them directly with `portr logs` without opening the inspector UI.
+
+```shell
+# Show the latest 20 logs for a subdomain
+portr logs amal-test
+
+# Filter by URL substring
+portr logs amal-test /api/
+
+# Increase the result window or bound it by date
+portr logs amal-test --count 100 --since 2026-03-14
+
+# Emit full stored request records as JSON; body bytes stay base64-encoded and text payloads also include BodyText/ResponseBodyText
+portr logs amal-test --json
+```
+
+Notes:
+
+- `portr logs <subdomain> [filter]` searches only by request URL substring.
+- `--json` emits the full stored record, including headers, status code, replay metadata, and timestamp. `Body` and `ResponseBody` stay base64-encoded, and valid UTF-8 payloads also include `BodyText` and `ResponseBodyText`.
+- `--since` accepts either RFC3339 timestamps or `YYYY-MM-DD`.
 
 ## Development Workflow
 
@@ -89,10 +109,7 @@ make buildcli
 make buildclient
 
 # Run client tests
-make test-cli
-
-# Clean build artifacts
-make clean
+go test ./...
 ```
 
 ### Configuration Files
@@ -122,7 +139,7 @@ The inspector runs on `http://localhost:7777` by default and automatically conne
 Run the client test suite:
 
 ```bash
-make test-cli
+go test ./...
 ```
 
 ### Integration Testing
@@ -140,7 +157,7 @@ make test-cli
 python -m http.server 8080
 
 # In another terminal, create a tunnel
-./portr -c client.dev.yaml http 8080
+portr -c client.dev.yaml http 8080
 
 # Test the tunnel URL in your browser
 ```
@@ -157,12 +174,10 @@ The inspector is a Svelte application that provides:
 ### Inspector Structure
 
 ```
-tunnel/web/
-├── src/
-│   ├── lib/           # Shared components and utilities
-│   ├── routes/        # SvelteKit routes
-│   └── app.html       # HTML template
-├── static/            # Static assets
+internal/client/dashboard/ui/
+├── src/               # Svelte source code
+├── public/            # Static assets
+├── dist/              # Embedded Go assets
 └── package.json       # Dependencies
 ```
 

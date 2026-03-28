@@ -3,27 +3,25 @@ title: Server Deployment
 description: Learn how to deploy portr admin and tunnel server using docker
 ---
 
-import { Steps } from 'fumadocs-ui/components/steps';
 import { Callout } from 'fumadocs-ui/components/callout';
 
-For quick setup, use the `docker-compose.yml` from the Portr repository:
+For quick setup, use the production compose file from the Portr repository:
 
-[https://github.com/amalshaji/portr/blob/main/docker-compose.yaml](https://github.com/amalshaji/portr/blob/main/docker-compose.yaml)
+[https://github.com/amalshaji/portr/blob/main/docker-compose.prod.yaml](https://github.com/amalshaji/portr/blob/main/docker-compose.prod.yaml)
 
 ## Services Overview
 
-The compose file includes 4 services:
+The production compose file includes 3 services:
 
 - **caddy**: The reverse proxy for routing and SSL termination
-- **admin**: The admin server for the web dashboard
-- **tunnel**: The tunnel server for handling connections
+- **server**: The combined admin and tunnel server
 - **postgres**: The PostgreSQL database
 
 ## Deployment Steps
 
 ### Download the compose file
 
-Download the docker-compose.yaml file from the repository and place it in your server directory.
+Download `docker-compose.prod.yaml` from the repository and place it in your server directory.
 
 ### Set up environment variables
 
@@ -36,8 +34,9 @@ PORTR_ADMIN_GITHUB_CLIENT_SECRET= #optional
 PORTR_DOMAIN=example.com
 PORTR_DB_URL=postgres://postgres:postgres@postgres:5432/postgres
 
-PORTR_SERVER_URL=example.com
+PORTR_SERVER_URL=https://example.com
 PORTR_SSH_URL=example.com:2222
+PORTR_AUTO_MIGRATE=true
 
 PORTR_SSH_HOST_KEY= # PEM-encoded Ed25519 private key
 
@@ -46,8 +45,6 @@ CLOUDFLARE_API_TOKEN=
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_DB=postgres
-
-PORTR_ADMIN_ENCRYPTION_KEY=
 ```
 
 ### Environment Variable Reference
@@ -63,7 +60,6 @@ PORTR_ADMIN_ENCRYPTION_KEY=
 | `PORTR_ADMIN_PORT` | Admin server port | `8000` |
 | `PORTR_ADMIN_GITHUB_CLIENT_ID` | GitHub OAuth client ID | Optional |
 | `PORTR_ADMIN_GITHUB_CLIENT_SECRET` | GitHub OAuth client secret | Optional |
-| `PORTR_ADMIN_ENCRYPTION_KEY` | Encryption key for sensitive data | Required |
 | `PORTR_AUTO_MIGRATE` | Auto-run database migrations | `false` |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token for SSL | Required |
 
@@ -87,22 +83,12 @@ portrd generate-host-key
   For Docker deployments, you can pass the key as a multi-line environment variable in your `.env` file or use Docker secrets.
 </Callout>
 
-### Generate encryption key
-
-Generate an encryption key using the following command:
-
-```shell
-python -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
-```
-
-Add this key to the `PORTR_ADMIN_ENCRYPTION_KEY` variable in your `.env` file.
-
 ### Start the services
 
 Run the following command to start all services:
 
 ```shell
-docker compose up -d
+docker compose -f docker-compose.prod.yaml up -d
 ```
 
 ### Access the admin dashboard
@@ -125,7 +111,7 @@ Once the servers are running, navigate to your domain (e.g., `https://example.co
 Check if all services are running properly:
 
 ```bash
-docker compose ps
+docker compose -f docker-compose.prod.yaml ps
 ```
 
 ### View Service Logs
@@ -134,12 +120,12 @@ Check logs for any specific service:
 
 ```bash
 # View all logs
-docker compose logs
+docker compose -f docker-compose.prod.yaml logs
 
 # View logs for a specific service
-docker compose logs admin
-docker compose logs tunnel
-docker compose logs caddy
+docker compose -f docker-compose.prod.yaml logs server
+docker compose -f docker-compose.prod.yaml logs caddy
+docker compose -f docker-compose.prod.yaml logs postgres
 ```
 
 ### SSL Certificate Issues

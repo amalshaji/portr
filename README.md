@@ -1,6 +1,6 @@
 
 <div align="center">
-  <img src="docs/src/assets/icon.png" height="300px">
+  <img src="docs-v2/public/icon.png" height="300px">
 </div>
 
 <br />
@@ -33,7 +33,7 @@ Portr is primarily designed for small teams looking to expose development server
 
 ## Contributing
 
-Please read through [our contributing guide](.github/contributing.md) and set up your [development environment](https://portr.dev/local-development/admin/).
+Please read through [our contributing guide](.github/contributing.md) and set up your [development environment](https://portr.dev/docs/local-development).
 
 ## License
 

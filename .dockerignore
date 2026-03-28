@@ -1,1 +1,8 @@
+tmp
+/portr
+/portrd
+.env
+internal/client
+cmd/portr
+docs-v2
 **/node_modules

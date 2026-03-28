@@ -1,6 +1,0 @@
-tmp
-portr
-.env
-internal/client
-cmd/portr/
-**/node_modules/

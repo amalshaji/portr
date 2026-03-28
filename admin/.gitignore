@@ -1,4 +1,0 @@
-.venv
-.mypy_cache
-.pytest_cache
-__pycache__

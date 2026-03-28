@@ -12,7 +12,7 @@ This guide covers how to set up Portr for local development, whether you want to
 
 Portr consists of several components:
 
-- **Admin Server**: Go/Fiber backend with Svelte frontend (integrated with tunnel server)
+- **Admin Server**: Go/Fiber backend with a React frontend
 - **Tunnel Server**: Go-based SSH and proxy server
 - **Client**: Go-based CLI tool for creating tunnels
 
@@ -39,6 +39,7 @@ Before you begin, ensure you have the following installed:
 
 - **Go 1.25+**
 - **Node.js 20+**
+- **Bun 1.1+**
 - **pnpm 9.15.0+**
 - **PostgreSQL 16+** or **SQLite 3.0+**
 
@@ -93,11 +94,14 @@ We welcome contributions! Here's how to get started:
 Each component has its own test suite. Run tests before submitting changes:
 
 ```bash
-# Go tests (from tunnel/ directory)
+# Go tests
 go test ./...
 
-# Admin frontend tests (from tunnel/internal/server/admin/web/)
-cd tunnel/internal/server/admin/web && pnpm test
+# Build the admin frontend
+bun --cwd internal/server/admin/web-v2 run build
+
+# Build the client dashboard
+pnpm --dir internal/client/dashboard/ui build
 
 # Format Go code
 go fmt ./...
