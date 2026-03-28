@@ -5,7 +5,14 @@ on:
     branches:
       - main
     paths:
-      - "tunnel/**"
+      - "cmd/**"
+      - "internal/**"
+      - "migrations/**"
+      - "tests/**"
+      - "go.mod"
+      - "go.sum"
+      - "Dockerfile"
+      - ".dockerignore"
       - ".github/workflows/portr-tip.yml"
 
 permissions:
@@ -42,8 +49,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: ./tunnel
-          file: ./tunnel/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: true
           tags: amalshaji/portr:tip
           platforms: |
