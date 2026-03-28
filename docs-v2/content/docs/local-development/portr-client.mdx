@@ -3,7 +3,6 @@ title: Client Development Setup
 description: Learn how to setup portr client for local development
 ---
 
-import { Steps } from "fumadocs-ui/components/steps";
 import { Callout } from "fumadocs-ui/components/callout";
 
 The Portr client is built using Go for the CLI backend and includes a Svelte-based inspector for HTTP tunnels.
@@ -33,12 +32,6 @@ make runclient
 This starts the Svelte-based inspector interface with hot reloading.
 
 ## CLI Setup
-
-### Navigate to the tunnel directory
-
-```shell
-cd tunnel
-```
 
 ### Build the CLI binary
 
@@ -116,10 +109,7 @@ make buildcli
 make buildclient
 
 # Run client tests
-make test-cli
-
-# Clean build artifacts
-make clean
+go test ./...
 ```
 
 ### Configuration Files
@@ -149,7 +139,7 @@ The inspector runs on `http://localhost:7777` by default and automatically conne
 Run the client test suite:
 
 ```bash
-make test-cli
+go test ./...
 ```
 
 ### Integration Testing
@@ -184,12 +174,10 @@ The inspector is a Svelte application that provides:
 ### Inspector Structure
 
 ```
-tunnel/web/
-├── src/
-│   ├── lib/           # Shared components and utilities
-│   ├── routes/        # SvelteKit routes
-│   └── app.html       # HTML template
-├── static/            # Static assets
+internal/client/dashboard/ui/
+├── src/               # Svelte source code
+├── public/            # Static assets
+├── dist/              # Embedded Go assets
 └── package.json       # Dependencies
 ```
 

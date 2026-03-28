@@ -7,12 +7,24 @@ on:
   push:
     branches: ["main"]
     paths:
-      - "tunnel/**"
+      - "cmd/**"
+      - "internal/**"
+      - "migrations/**"
+      - "tests/**"
+      - "go.mod"
+      - "go.sum"
+      - "Dockerfile"
       - ".github/workflows/portr-server.yml"
   pull_request:
     branches: ["main"]
     paths:
-      - "tunnel/**"
+      - "cmd/**"
+      - "internal/**"
+      - "migrations/**"
+      - "tests/**"
+      - "go.mod"
+      - "go.sum"
+      - "Dockerfile"
       - ".github/workflows/portr-server.yml"
 
 permissions:
@@ -22,9 +34,6 @@ jobs:
   build:
     name: Run server tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./tunnel
     steps:
       - uses: actions/checkout@v4
 
@@ -46,8 +55,8 @@ jobs:
           go-version: "1.25"
           cache: true
 
-      - name: Build tunnel
+      - name: Build server
         run: go build -v ./...
 
-      - name: Test tunnel
+      - name: Test server
         run: go test -v ./...

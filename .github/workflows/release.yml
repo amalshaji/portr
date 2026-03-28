@@ -14,9 +14,6 @@ permissions:
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./tunnel
 
     steps:
       - uses: actions/checkout@v4
@@ -82,12 +79,12 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: ./tunnel
+          context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           platforms: |
             linux/amd64
             linux/arm64
-          file: ./tunnel/Dockerfile
+          file: ./Dockerfile
           build-args: |
             VERSION=${{ github.ref_name }}
