@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/amalshaji/portr/internal/client/config"
@@ -113,7 +112,7 @@ func (d *Dashboard) Start() error {
 	return nil
 }
 
-func (d *Dashboard) Shutdown() {
+func (d *Dashboard) Shutdown() error {
 	if d.config.Debug {
 		log.Debug("Stopping dashboard server")
 	}
@@ -125,6 +124,8 @@ func (d *Dashboard) Shutdown() {
 		if d.config.Debug {
 			log.Error("Failed to stop dashboard server", "error", err)
 		}
-		os.Exit(1)
+		return err
 	}
+
+	return nil
 }

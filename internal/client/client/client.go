@@ -2,9 +2,10 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"os"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/amalshaji/portr/internal/client/config"
@@ -23,44 +24,99 @@ type Client struct {
 	tui             *tea.Program
 	retentionCancel context.CancelFunc
 	retentionDone   chan struct{}
+	exitCh          chan error
+	exitOnce        sync.Once
+	tuiStart        chan struct{}
+	tuiDone         chan struct{}
+	tuiStopOnce     sync.Once
 }
 
 func NewClient(config *config.Config, db *db.Db) *Client {
 	var p *tea.Program
-
-	if !config.DisableTUI {
-		p = tui.New(config.Debug)
-
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					p.Kill()
-					fmt.Printf("Recovered from panic: %v\n", r)
-					os.Exit(1)
-				}
-			}()
-
-			if _, err := p.Run(); err != nil {
-				p.Kill()
-				fmt.Printf("Failed to run TUI: %v\n", err)
-				os.Exit(1)
-			}
-
-			p.Kill()
-			os.Exit(0)
-		}()
-	}
-
-	return &Client{
+	c := &Client{
 		config: config,
 		sshcs:  make([]*sshclient.SshClient, 0),
 		db:     db,
-		tui:    p,
+		exitCh: make(chan error, 1),
 	}
+
+	if !config.DisableTUI {
+		p = tui.New(config.Debug)
+		c.tui = p
+		c.tuiStart = make(chan struct{})
+		c.tuiDone = make(chan struct{})
+		go c.runTUI()
+	}
+
+	return c
 }
 
 func (c *Client) GetConfig() *config.Config {
 	return c.config
+}
+
+func (c *Client) Done() <-chan error {
+	return c.exitCh
+}
+
+func (c *Client) reportExit(err error) {
+	c.exitOnce.Do(func() {
+		c.exitCh <- err
+	})
+}
+
+func (c *Client) stopTUI() {
+	if c.tui == nil {
+		return
+	}
+
+	c.tuiStopOnce.Do(func() {
+		<-c.tuiStart
+		c.tui.Kill()
+		<-c.tuiDone
+	})
+}
+
+func (c *Client) reportFatal(err error) {
+	if err == nil {
+		return
+	}
+
+	c.reportExit(err)
+	c.stopTUI()
+}
+
+func (c *Client) runTUI() {
+	close(c.tuiStart)
+	defer close(c.tuiDone)
+	defer func() {
+		if r := recover(); r != nil {
+			c.reportExit(fmt.Errorf("tui panic: %v", r))
+		}
+	}()
+
+	_, err := c.tui.Run()
+	switch {
+	case err == nil:
+		c.reportExit(nil)
+	case errors.Is(err, tea.ErrProgramKilled):
+	default:
+		c.reportExit(fmt.Errorf("failed to run TUI: %w", err))
+	}
+}
+
+func (c *Client) runFatalWorker(name string, fn func() error) {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				c.reportFatal(fmt.Errorf("%s panic: %v", name, r))
+			}
+		}()
+
+		if err := fn(); err != nil {
+			c.reportFatal(err)
+		}
+	}()
 }
 
 func (c *Client) Start(ctx context.Context, services ...string) error {
@@ -121,9 +177,11 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 
 		for i := 0; i < workers; i++ {
 			cfg := clientConfig
-			sshc := sshclient.New(cfg, c.db, c.tui)
+			sshc := sshclient.New(cfg, c.db, c.tui, c.reportFatal)
 			c.Add(sshc)
-			go sshc.Start(ctx)
+			c.runFatalWorker("tunnel worker", func() error {
+				return sshc.Start(ctx)
+			})
 		}
 	}
 
@@ -137,6 +195,8 @@ func (c *Client) Add(sshc *sshclient.SshClient) {
 }
 
 func (c *Client) Shutdown(ctx context.Context) {
+	c.stopTUI()
+
 	if c.retentionCancel != nil {
 		c.retentionCancel()
 		if c.retentionDone != nil {
@@ -170,6 +230,11 @@ func (c *Client) startConnectionLogRetention(ctx context.Context) {
 
 	go func() {
 		defer close(c.retentionDone)
+		defer func() {
+			if r := recover(); r != nil {
+				c.reportFatal(fmt.Errorf("connection log retention panic: %v", r))
+			}
+		}()
 
 		c.pruneConnectionLogs()
 

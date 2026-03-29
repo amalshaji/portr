@@ -5,13 +5,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -33,6 +33,7 @@ import (
 
 var (
 	ErrLocalSetupIncomplete = fmt.Errorf("local setup incomplete")
+	errClientShuttingDown   = errors.New("client is shutting down")
 	newRestyClient          = resty.New
 )
 
@@ -81,19 +82,83 @@ type SshClient struct {
 	db           *db.Db
 	client       *ssh.Client
 	tui          *tea.Program
+	fatal        func(error)
 	mu           sync.RWMutex
 	reconnecting int32 // atomic flag to prevent concurrent reconnects
 	shutdown     int32 // atomic flag for shutdown state
 }
 
-func New(config config.ClientConfig, db *db.Db, tui *tea.Program) *SshClient {
+func New(config config.ClientConfig, db *db.Db, tui *tea.Program, fatal func(error)) *SshClient {
 	return &SshClient{
 		config:   config,
 		listener: nil,
 		db:       db,
 		client:   nil,
 		tui:      tui,
+		fatal:    fatal,
 	}
+}
+
+func (s *SshClient) reportFatal(err error) {
+	if err == nil {
+		return
+	}
+
+	if s.fatal != nil {
+		s.fatal(err)
+		return
+	}
+
+	log.Error("Tunnel worker failed", "error", err, "address", s.config.GetTunnelAddr())
+}
+
+func (s *SshClient) recoverPanic(scope string) {
+	if r := recover(); r != nil {
+		s.reportFatal(fmt.Errorf("%s panic: %v", scope, r))
+	}
+}
+
+func (s *SshClient) goSafe(scope string, fn func()) {
+	go func() {
+		defer s.recoverPanic(scope)
+		fn()
+	}()
+}
+
+func (s *SshClient) shouldIgnoreListenerError(ctx context.Context, err error) bool {
+	return err == nil ||
+		ctx.Err() != nil ||
+		atomic.LoadInt32(&s.shutdown) == 1 ||
+		errors.Is(err, errClientShuttingDown)
+}
+
+func (s *SshClient) forwardListenerErrors(ctx context.Context, errChan <-chan error) {
+	go func() {
+		select {
+		case err := <-errChan:
+			if s.shouldIgnoreListenerError(ctx, err) {
+				return
+			}
+			s.reportFatal(err)
+		case <-ctx.Done():
+		}
+	}()
+}
+
+func (s *SshClient) handleAcceptError(listener net.Listener, err error) error {
+	if err == nil {
+		return nil
+	}
+
+	s.mu.RLock()
+	currentListener := s.listener
+	s.mu.RUnlock()
+
+	if atomic.LoadInt32(&s.shutdown) == 1 || currentListener != listener {
+		return errClientShuttingDown
+	}
+
+	return fmt.Errorf("failed to accept connection: %w", err)
 }
 
 func CreateNewConnection(cfg config.ClientConfig) (string, error) {
@@ -140,7 +205,7 @@ func (s *SshClient) createNewConnection() (string, error) {
 
 func (s *SshClient) startListenerForClient() error {
 	if atomic.LoadInt32(&s.shutdown) == 1 {
-		return fmt.Errorf("client is shutting down")
+		return errClientShuttingDown
 	}
 
 	var err error
@@ -186,7 +251,9 @@ func (s *SshClient) startListenerForClient() error {
 	clientRef := s.client
 	s.mu.Unlock()
 
-	go s.startSSHKeepAlive(clientRef)
+	s.goSafe("ssh keepalive", func() {
+		s.startSSHKeepAlive(clientRef)
+	})
 
 	localEndpoint := s.config.Tunnel.GetLocalAddr()
 
@@ -248,7 +315,7 @@ func (s *SshClient) startListenerForClient() error {
 
 	for {
 		if atomic.LoadInt32(&s.shutdown) == 1 {
-			return fmt.Errorf("client is shutting down")
+			return errClientShuttingDown
 		}
 
 		s.mu.RLock()
@@ -267,11 +334,13 @@ func (s *SshClient) startListenerForClient() error {
 			if s.tui != nil {
 				s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: -1})
 			}
-			break
+			return s.handleAcceptError(listener, err)
 		}
 
 		if tunnelType == constants.Http {
-			go s.httpTunnel(remoteConn, localEndpoint)
+			s.goSafe("http tunnel", func() {
+				s.httpTunnel(remoteConn, localEndpoint)
+			})
 		} else {
 			// Connect to the local endpoint for TCP passthrough.
 			localConn, err := net.Dial("tcp", localEndpoint)
@@ -279,11 +348,11 @@ func (s *SshClient) startListenerForClient() error {
 				remoteConn.Close()
 				continue
 			}
-			go s.tcpTunnel(remoteConn, localConn)
+			s.goSafe("tcp tunnel", func() {
+				s.tcpTunnel(remoteConn, localConn)
+			})
 		}
 	}
-
-	return nil
 }
 
 func (s *SshClient) startSSHKeepAlive(clientRef *ssh.Client) {
@@ -305,10 +374,10 @@ func (s *SshClient) startSSHKeepAlive(clientRef *ssh.Client) {
 		select {
 		case <-ticker.C:
 			errCh := make(chan error, 1)
-			go func() {
+			s.goSafe("ssh keepalive request", func() {
 				_, _, err := clientRef.SendRequest("keepalive@openssh.com", false, nil)
 				errCh <- err
-			}()
+			})
 
 			select {
 			case err := <-errCh:
@@ -765,8 +834,10 @@ func (s *SshClient) tcpTunnel(src, dst net.Conn) {
 	defer src.Close()
 	defer dst.Close()
 
-	go io.Copy(dst, src)
-	io.Copy(src, dst)
+	s.goSafe("tcp tunnel copy", func() {
+		_, _ = io.Copy(dst, src)
+	})
+	_, _ = io.Copy(src, dst)
 }
 
 func (s *SshClient) Shutdown(ctx context.Context) error {
@@ -795,42 +866,25 @@ func (s *SshClient) Shutdown(ctx context.Context) error {
 	return err
 }
 
-func (s *SshClient) StartHealthCheck(ctx context.Context) {
-	ticker := time.Tick(time.Duration(s.config.HealthCheckInterval) * time.Second)
+func (s *SshClient) StartHealthCheck(ctx context.Context) error {
+	ticker := time.NewTicker(time.Duration(s.config.HealthCheckInterval) * time.Second)
+	defer ticker.Stop()
 	retryAttempts := 0
 
-	var err error
-
-	for range ticker {
-		retryAttempts++
-		if retryAttempts > s.config.HealthCheckMaxRetries {
-			if s.tui != nil {
-				s.tui.Kill()
-			}
-			tunnelName := s.config.Tunnel.Name
-			if tunnelName == "" {
-				tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
-			}
-			fmt.Printf("💀 Failed to reconnect tunnel '%s' after %d attempts\n", tunnelName, retryAttempts)
-			os.Exit(1)
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
 		}
 
-		err = s.HealthCheck()
+		err := s.HealthCheck()
 		if err == nil {
 			retryAttempts = 0
 			continue
 		}
 
-		// Increment retry attempts only on failure
 		retryAttempts++
-		if retryAttempts > s.config.HealthCheckMaxRetries {
-			if s.tui != nil {
-				s.tui.Send(tui.ErrorMsg{Error: fmt.Errorf("failed to reconnect to tunnel after %d attempts", retryAttempts)})
-				// Give TUI time to show the error
-				time.Sleep(2 * time.Second)
-			}
-			return
-		}
 
 		if s.config.Debug {
 			s.logDebug("Health check failed", err)
@@ -846,64 +900,60 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) {
 			fmt.Printf("❌ Tunnel unhealthy: %s (attempting reconnect)\n", s.config.GetTunnelAddr())
 		}
 
-		err = s.Reconnect()
-		if err != nil {
+		reconnectErr := s.Reconnect()
+		if reconnectErr != nil {
 			if s.config.Debug {
-				s.logDebug(fmt.Sprintf("Failed to reconnect to ssh tunnel (attempt %d)", retryAttempts), err)
+				s.logDebug(fmt.Sprintf("Failed to reconnect to ssh tunnel (attempt %d)", retryAttempts), reconnectErr)
+			}
+			if retryAttempts > s.config.HealthCheckMaxRetries {
+				tunnelName := s.config.Tunnel.Name
+				if tunnelName == "" {
+					tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
+				}
+				return fmt.Errorf("failed to reconnect tunnel '%s' after %d attempts: %w", tunnelName, retryAttempts, reconnectErr)
 			}
 		} else {
 			retryAttempts = 0
 		}
-
 	}
 }
 
-func (s *SshClient) Start(ctx context.Context) {
+func (s *SshClient) Start(ctx context.Context) error {
 	errChan := make(chan error, 1)
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				errChan <- fmt.Errorf("tunnel listener panic: %v", r)
+			}
+		}()
 		if err := s.startListenerForClient(); err != nil {
 			errChan <- err
 		}
 	}()
 
-	// Wait for either an error or successful connection
 	select {
 	case err := <-errChan:
-		// Update TUI with error and wait for it to quit
-		if s.tui != nil {
-			s.tui.Send(tui.ErrorMsg{Error: err})
-
-			// Wait for TUI to quit
-			done := make(chan struct{})
-			go func() {
-				s.tui.Wait()
-				close(done)
-			}()
-
-			// Wait for either context cancellation or TUI to quit
-			select {
-			case <-ctx.Done():
-				os.Exit(1)
-			case <-done:
-				os.Exit(1)
-			}
-		} else {
-			// No TUI, just log the error and exit
-			tunnelName := s.config.Tunnel.Name
-			if tunnelName == "" {
-				tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
-			}
-			fmt.Printf("❌ Failed to start tunnel '%s': %v\n", tunnelName, err)
-			os.Exit(1)
+		if s.shouldIgnoreListenerError(ctx, err) {
+			return nil
 		}
-		return
+
+		tunnelName := s.config.Tunnel.Name
+		if tunnelName == "" {
+			tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
+		}
+		return fmt.Errorf("failed to start tunnel '%s': %w", tunnelName, err)
 
 	case <-time.After(5 * time.Second):
-		// Start the health check routine for http connections
+		s.forwardListenerErrors(ctx, errChan)
+
 		if s.config.Tunnel.Type == constants.Http {
-			s.StartHealthCheck(ctx)
+			return s.StartHealthCheck(ctx)
 		}
+		return nil
+
+	case <-ctx.Done():
+		return nil
 	}
 }
 
@@ -916,7 +966,7 @@ func (s *SshClient) Reconnect() error {
 
 	// Check if we're shutting down
 	if atomic.LoadInt32(&s.shutdown) == 1 {
-		return fmt.Errorf("client is shutting down")
+		return errClientShuttingDown
 	}
 
 	// Close existing connections with mutex protection
@@ -950,6 +1000,15 @@ func (s *SshClient) Reconnect() error {
 
 	// Start the listener in a goroutine with context
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				select {
+				case errChan <- fmt.Errorf("reconnect panic: %v", r):
+				default:
+					s.reportFatal(fmt.Errorf("reconnect panic: %v", r))
+				}
+			}
+		}()
 		defer close(done)
 		if err := s.startListenerForClient(); err != nil {
 			select {
