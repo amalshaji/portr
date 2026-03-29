@@ -29,4 +29,4 @@ const (
 	Tcp  ConnectionType = "tcp"
 )
 
-const ClientUiViteDistDir = "./internal/client/dashboard/ui/dist/static/.vite/manifest.json"
+const ClientUiViteDistDir = "./internal/client/dashboard/ui-v2/dist/static/.vite/manifest.json"

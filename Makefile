@@ -2,10 +2,13 @@ buildcli:
 	go build -o portr ./cmd/portr
 
 installclient:
-	pnpm --dir internal/client/dashboard/ui install
+	bun --cwd internal/client/dashboard/ui-v2 install
 
 runclient:
-	pnpm --dir internal/client/dashboard/ui dev
+	bun --cwd internal/client/dashboard/ui-v2 run dev
 
 buildclient:
-	pnpm --dir internal/client/dashboard/ui build
+	bun --cwd internal/client/dashboard/ui-v2 run build
+
+runclienttestserver:
+	cd test-server && uv run main.py

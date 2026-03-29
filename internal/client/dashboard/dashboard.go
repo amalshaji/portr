@@ -12,7 +12,7 @@ import (
 	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/dashboard/handler"
 	"github.com/amalshaji/portr/internal/client/dashboard/service"
-	"github.com/amalshaji/portr/internal/client/dashboard/ui/dist"
+	"github.com/amalshaji/portr/internal/client/dashboard/ui-v2/dist"
 	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/amalshaji/portr/internal/client/vite"
 	"github.com/charmbracelet/log"
@@ -51,7 +51,7 @@ func New(db *db.Db, config *config.Config) *Dashboard {
 	app.Use(recover.New())
 
 	if config.UseVite {
-		app.Static("/static", "./internal/client/dashboard/static")
+		app.Static("/static", "./internal/client/dashboard/ui-v2/public")
 	} else {
 		app.Use("/static", filesystem.New(filesystem.Config{
 			Root:       http.FS(dist.EmbeddedDirStatic),

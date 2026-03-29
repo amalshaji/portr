@@ -101,7 +101,7 @@ go test ./...
 bun --cwd internal/server/admin/web-v2 run build
 
 # Build the client dashboard
-pnpm --dir internal/client/dashboard/ui build
+bun --cwd internal/client/dashboard/ui-v2 run build
 
 # Format Go code
 go fmt ./...

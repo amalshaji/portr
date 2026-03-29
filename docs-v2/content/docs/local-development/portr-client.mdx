@@ -5,13 +5,12 @@ description: Learn how to setup portr client for local development
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-The Portr client is built using Go for the CLI backend and includes a Svelte-based inspector for HTTP tunnels.
+The Portr client is built using Go for the CLI backend and includes a React + shadcn inspector for HTTP tunnels.
 
 ## Requirements
 
 - **Go** (1.25+)
-- **Node.js** (20+)
-- **pnpm** (9.15.0+)
+- **Bun** (1.3+)
 - **Running admin server** (for authentication)
 - **Running tunnel server** (for tunnel connections)
 
@@ -29,7 +28,7 @@ make installclient
 make runclient
 ```
 
-This starts the Svelte-based inspector interface with hot reloading.
+This starts the React-based inspector interface with hot reloading.
 
 ## CLI Setup
 
@@ -90,7 +89,7 @@ Notes:
 The client consists of:
 
 - **CLI interface**: Command-line tool for creating tunnels
-- **Inspector frontend**: Svelte-based web interface for HTTP request inspection
+- **Inspector frontend**: React + shadcn web interface for HTTP and WebSocket inspection
 - **Tunnel manager**: Handles SSH connections and port forwarding
 
 ### Available Commands
@@ -164,18 +163,18 @@ portr -c client.dev.yaml http 8080
 
 ## Inspector Development
 
-The inspector is a Svelte application that provides:
+The inspector is a React application that provides:
 
 - **Real-time request monitoring**: View HTTP requests as they happen
 - **Request details**: Headers, body, timing information
-- **Request replay**: Resend requests with modifications
+- **Request replay**: Resend requests or edit them before replaying
 - **WebSocket support**: Monitor WebSocket connections
 
 ### Inspector Structure
 
 ```
-internal/client/dashboard/ui/
-├── src/               # Svelte source code
+internal/client/dashboard/ui-v2/
+├── src/               # React source code
 ├── public/            # Static assets
 ├── dist/              # Embedded Go assets
 └── package.json       # Dependencies
@@ -192,7 +191,7 @@ internal/client/dashboard/ui/
 
 **Go build errors**: Ensure you're using Go 1.25+ and all dependencies are available.
 
-**Frontend build errors**: Verify Node.js and pnpm versions, then try deleting `node_modules` and reinstalling.
+**Frontend build errors**: Verify Bun is installed, then try deleting `node_modules` and reinstalling.
 
 ### Runtime Issues
 
