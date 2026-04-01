@@ -162,17 +162,17 @@ export function HomePage() {
   }
 
   return (
-    <div className="min-h-svh bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.10),_transparent_22%),linear-gradient(180deg,_rgba(255,255,255,0.96),_rgba(248,250,252,1))] dark:bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.18),_transparent_22%),linear-gradient(180deg,_rgba(2,6,23,1),_rgba(3,7,18,0.96))]">
+    <div className="min-h-svh bg-background">
       <div className="mx-auto flex w-full max-w-none flex-col gap-4 px-3 py-4 sm:px-4 lg:px-5">
-        <header className="overflow-hidden border border-border/70 bg-background/85 shadow-sm backdrop-blur">
-          <div className="grid gap-6 p-6 lg:grid-cols-[1.2fr_0.8fr] lg:p-8">
+        <header className="overflow-hidden border border-border bg-card shadow-none">
+          <div className="grid gap-6 px-6 pt-6 pb-4 lg:grid-cols-[1.2fr_0.8fr] lg:px-8 lg:pt-8 lg:pb-5">
             <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-700 dark:text-sky-300">
+              <div className="inline-flex items-center gap-2 border border-border bg-muted px-2.5 py-0.5 font-mono text-[11px] text-muted-foreground">
                 <Activity className="size-3.5" />
                 Local inspector at `localhost:7777`
               </div>
               <div className="space-y-2">
-                <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
                   Portr inspector dashboard
                 </h1>
                 <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
@@ -185,7 +185,7 @@ export function HomePage() {
                 <div className="relative min-w-0 flex-1 sm:max-w-md">
                   <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    className="h-10 border-border/70 bg-background/80 pl-10"
+                    className="h-7 border-border bg-background pl-9 text-sm"
                     onChange={(event) => setSearch(event.target.value)}
                     placeholder="Search by subdomain or port"
                     value={search}
@@ -215,37 +215,37 @@ export function HomePage() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-              <Card className="border-border/70 bg-gradient-to-br from-slate-950 to-slate-900 text-white shadow-sm dark:from-slate-900 dark:to-slate-800">
-                <CardContent className="space-y-3 p-5">
-                  <p className="text-xs tracking-[0.2em] text-white/60 uppercase">
+              <Card className="border-border bg-card shadow-none">
+                <CardContent className="space-y-1.5 p-4">
+                  <p className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
                     Tunnels
                   </p>
-                  <div className="text-3xl font-semibold">{tunnels.length}</div>
-                  <p className="text-sm text-white/70">
+                  <div className="font-mono text-2xl font-medium">{tunnels.length}</div>
+                  <p className="text-xs text-muted-foreground">
                     Distinct ports with recorded traffic
                   </p>
                 </CardContent>
               </Card>
-              <Card className="border-border/70 bg-background/90 shadow-sm">
-                <CardContent className="space-y-3 p-5">
-                  <p className="text-xs tracking-[0.2em] text-muted-foreground uppercase">
+              <Card className="border-border bg-card shadow-none">
+                <CardContent className="space-y-1.5 p-4">
+                  <p className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
                     HTTP logs
                   </p>
-                  <div className="text-3xl font-semibold">{stats.http}</div>
-                  <p className="text-sm text-muted-foreground">
+                  <div className="font-mono text-2xl font-medium">{stats.http}</div>
+                  <p className="text-xs text-muted-foreground">
                     Stored requests across all tunnels
                   </p>
                 </CardContent>
               </Card>
-              <Card className="border-border/70 bg-background/90 shadow-sm">
-                <CardContent className="space-y-3 p-5">
-                  <p className="text-xs tracking-[0.2em] text-muted-foreground uppercase">
+              <Card className="border-border bg-card shadow-none">
+                <CardContent className="space-y-1.5 p-4">
+                  <p className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
                     WebSockets
                   </p>
-                  <div className="text-3xl font-semibold">
+                  <div className="font-mono text-2xl font-medium">
                     {stats.websocket}
                   </div>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {stats.active} session{stats.active === 1 ? "" : "s"} still
                     open
                   </p>
@@ -255,7 +255,7 @@ export function HomePage() {
           </div>
         </header>
 
-        <Card className="overflow-hidden border-border/70 bg-background/85 shadow-sm backdrop-blur">
+        <Card className="overflow-hidden border-border bg-card shadow-none">
           <CardContent className="p-0">
             {loading ? (
               <div className="grid gap-3 p-6">
@@ -280,7 +280,7 @@ export function HomePage() {
               <div className="hidden lg:block">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-border/70">
+                    <TableRow className="border-border">
                       <TableHead className="w-14">Select</TableHead>
                       <TableHead>Tunnel</TableHead>
                       <TableHead>Latest trace</TableHead>
@@ -291,7 +291,7 @@ export function HomePage() {
                   <TableBody>
                     {filteredTunnels.map((tunnel) => (
                       <TableRow
-                        className="cursor-pointer border-border/60 hover:bg-muted/40"
+                        className="cursor-pointer border-border hover:bg-muted/30"
                         key={tunnelKey(tunnel)}
                         onClick={(event) => {
                           const target = event.target as HTMLElement
@@ -323,13 +323,13 @@ export function HomePage() {
                         </TableCell>
                         <TableCell>
                           <div className="space-y-1">
-                            <div className="font-medium">
+                            <div className="font-mono text-sm font-medium">
                               {tunnel.Subdomain}
-                              <span className="ml-2 text-sm text-muted-foreground">
+                              <span className="ml-1 text-muted-foreground">
                                 :{tunnel.Localport}
                               </span>
                             </div>
-                            <div className="text-xs text-muted-foreground">
+                            <div className="font-mono text-xs text-muted-foreground">
                               Last activity{" "}
                               {formatDateTime(tunnel.last_activity_at)}
                             </div>
@@ -354,17 +354,17 @@ export function HomePage() {
                                 {reasonPhrase(tunnel.last_status)}
                               </Badge>
                             ) : null}
-                            <span className="truncate text-sm text-muted-foreground">
-                              {tunnel.last_url || "Waiting for first request"}
+                            <span className="truncate font-mono text-xs text-muted-foreground">
+                              {tunnel.last_url || "—"}
                             </span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                            <Badge variant="outline">
+                          <div className="flex flex-wrap gap-1.5 text-xs text-muted-foreground">
+                            <Badge className="font-mono" variant="outline">
                               {tunnel.http_request_count} HTTP
                             </Badge>
-                            <Badge variant="outline">
+                            <Badge className="font-mono" variant="outline">
                               {tunnel.websocket_session_count} WS
                             </Badge>
                           </div>
@@ -386,7 +386,7 @@ export function HomePage() {
               <div className="grid gap-3 p-4 lg:hidden">
                 {filteredTunnels.map((tunnel) => (
                   <button
-                    className="border border-border/70 bg-background/90 p-4 text-left shadow-sm transition hover:border-sky-500/40 hover:bg-muted/30"
+                    className="border border-border bg-card p-4 text-left transition hover:bg-muted/20"
                     key={tunnelKey(tunnel)}
                     onClick={() =>
                       navigate(`/${tunnel.Subdomain}-${tunnel.Localport}`)
@@ -395,13 +395,13 @@ export function HomePage() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-1">
-                        <div className="font-medium">
+                        <div className="font-mono text-sm font-medium">
                           {tunnel.Subdomain}
-                          <span className="ml-2 text-sm text-muted-foreground">
+                          <span className="ml-1 text-muted-foreground">
                             :{tunnel.Localport}
                           </span>
                         </div>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="font-mono text-xs text-muted-foreground">
                           {formatDateTime(tunnel.last_activity_at)}
                         </p>
                       </div>
@@ -438,15 +438,15 @@ export function HomePage() {
                           {tunnel.last_status}
                         </Badge>
                       ) : null}
-                      <Badge variant="outline">
+                      <Badge className="font-mono" variant="outline">
                         {tunnel.http_request_count} HTTP
                       </Badge>
-                      <Badge variant="outline">
+                      <Badge className="font-mono" variant="outline">
                         {tunnel.websocket_session_count} WS
                       </Badge>
                     </div>
-                    <p className="mt-3 truncate text-sm text-muted-foreground">
-                      {tunnel.last_url || "Waiting for first request"}
+                    <p className="mt-3 truncate font-mono text-xs text-muted-foreground">
+                      {tunnel.last_url || "—"}
                     </p>
                   </button>
                 ))}

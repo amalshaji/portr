@@ -81,11 +81,11 @@ function bodyMetric(headers: Record<string, string[]>, body: string) {
 
 function DetailMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-border/70 bg-muted/20 px-4 py-3">
-      <p className="text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
+    <div className="border border-border bg-muted/10 px-3 py-2.5">
+      <p className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
         {label}
       </p>
-      <p className="mt-2 text-sm font-medium break-all">{value}</p>
+      <p className="mt-1 font-mono text-xs break-all">{value}</p>
     </div>
   )
 }
@@ -102,21 +102,21 @@ function HeaderTable({ headers }: { headers: Record<string, string> }) {
   }
 
   return (
-    <div className="overflow-hidden border border-border/70 bg-background">
-      <div className="grid grid-cols-[minmax(12rem,18rem)_minmax(0,1fr)] border-b border-border/70 bg-muted/30 px-4 py-2 text-[11px] font-medium tracking-[0.18em] text-muted-foreground uppercase">
+    <div className="overflow-hidden border border-border bg-background">
+      <div className="grid grid-cols-[minmax(12rem,18rem)_minmax(0,1fr)] border-b border-border bg-muted/20 px-4 py-1.5 font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
         <span>Header</span>
         <span>Value</span>
       </div>
-      <div className="max-h-[24rem] divide-y divide-border/60 overflow-auto">
+      <div className="max-h-[24rem] divide-y divide-border overflow-auto">
         {entries.map(([key, value]) => (
           <div
-            className="grid grid-cols-1 gap-2 px-4 py-3 md:grid-cols-[minmax(12rem,18rem)_minmax(0,1fr)] md:gap-4"
+            className="grid grid-cols-1 gap-2 px-4 py-2.5 md:grid-cols-[minmax(12rem,18rem)_minmax(0,1fr)] md:gap-4"
             key={key}
           >
-            <div className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
+            <div className="font-mono text-xs text-muted-foreground">
               {key}
             </div>
-            <div className="text-sm leading-6 break-all whitespace-pre-wrap">
+            <div className="font-mono text-xs leading-5 break-all whitespace-pre-wrap text-foreground">
               {value}
             </div>
           </div>
@@ -145,7 +145,7 @@ function RequestDetail({
 
   if (!request) {
     return (
-      <Card className="border-border/70 bg-background/80 shadow-sm">
+      <Card className="border-border bg-card shadow-none">
         <CardContent className="flex min-h-[32rem] flex-col items-center justify-center gap-3 p-8 text-center">
           <div className="rounded-md border border-dashed border-border/80 bg-muted/30 p-4">
             <ArrowLeft className="size-6 text-muted-foreground" />
@@ -190,7 +190,7 @@ function RequestDetail({
 
   return (
     <>
-      <Card className="border-border/70 bg-background/85 shadow-sm xl:h-full xl:min-h-0">
+      <Card className="border-border bg-card shadow-none xl:h-full xl:min-h-0">
         <CardContent className="space-y-6 p-4 sm:p-5 xl:flex xl:h-full xl:min-h-0 xl:flex-col">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-3">
@@ -213,10 +213,10 @@ function RequestDetail({
                 ) : null}
               </div>
               <div className="space-y-1">
-                <h2 className="text-xl font-semibold tracking-tight break-all">
+                <h2 className="font-mono text-base font-medium tracking-tight break-all">
                   {request.Url}
                 </h2>
-                <p className="text-sm text-muted-foreground">
+                <p className="font-mono text-xs text-muted-foreground">
                   {formatDateTime(request.LoggedAt)}
                 </p>
               </div>
@@ -374,11 +374,11 @@ function WebSocketDetail({
 
   React.useEffect(() => {
     setSelectedEventID(events[0]?.id || null)
-  }, [events, session?.ID])
+  }, [session?.ID])
 
   if (!session) {
     return (
-      <Card className="border-border/70 bg-background/80 shadow-sm">
+      <Card className="border-border bg-card shadow-none">
         <CardContent className="flex min-h-[32rem] flex-col items-center justify-center gap-3 p-8 text-center">
           <div className="rounded-md border border-dashed border-border/80 bg-muted/30 p-4">
             <Waves className="size-6 text-muted-foreground" />
@@ -399,7 +399,7 @@ function WebSocketDetail({
     events.find((event) => event.id === selectedEventID) || events[0] || null
 
   return (
-    <Card className="border-border/70 bg-background/85 shadow-sm xl:h-full xl:min-h-0">
+    <Card className="border-border bg-card shadow-none xl:h-full xl:min-h-0">
       <CardContent className="space-y-6 p-4 sm:p-5 xl:flex xl:h-full xl:min-h-0 xl:flex-col">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-2">
@@ -410,18 +410,18 @@ function WebSocketDetail({
               >
                 {session.Method}
               </Badge>
-              <Badge variant="outline">{session.EventCount} frames</Badge>
-              <Badge variant="outline">
+              <Badge className="font-mono" variant="outline">{session.EventCount} frames</Badge>
+              <Badge className="font-mono" variant="outline">
                 {session.ClosedAt
                   ? `Closed ${formatTime(session.ClosedAt)}`
                   : "Open"}
               </Badge>
             </div>
             <div className="space-y-1">
-              <h2 className="text-xl font-semibold tracking-tight break-all">
+              <h2 className="font-mono text-base font-medium tracking-tight break-all">
                 {session.URL}
               </h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="font-mono text-xs text-muted-foreground">
                 Started {formatDateTime(session.StartedAt)}
               </p>
             </div>
@@ -456,19 +456,19 @@ function WebSocketDetail({
                 No frames captured yet.
               </div>
             ) : (
-              <div className="overflow-hidden border border-border/70">
-                <div className="grid grid-cols-[auto_auto_auto_1fr_auto] gap-3 border-b bg-muted/40 px-4 py-3 text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
+              <div className="overflow-hidden border border-border">
+                <div className="grid grid-cols-[auto_auto_auto_1fr_auto] gap-3 border-b border-border bg-muted/20 px-4 py-2 font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
                   <span>Dir</span>
                   <span>Type</span>
                   <span>At</span>
                   <span>Preview</span>
                   <span className="text-right">Size</span>
                 </div>
-                <div className="divide-y">
+                <div className="divide-y divide-border">
                   {events.map((event) => (
                     <div
-                      className={`grid cursor-pointer grid-cols-[auto_auto_auto_1fr_auto] items-center gap-3 px-4 py-3 text-sm transition hover:bg-muted/20 ${
-                        event.id === selectedEvent?.id ? "bg-muted/30" : ""
+                      className={`grid cursor-pointer grid-cols-[auto_auto_auto_1fr_auto] items-center gap-3 px-4 py-2.5 font-mono text-xs transition hover:bg-muted/20 ${
+                        event.id === selectedEvent?.id ? "bg-muted/30 shadow-[inset_2px_0_0_0_hsl(var(--primary))]" : ""
                       }`}
                       key={event.id}
                       onClick={() => setSelectedEventID(event.id)}
@@ -485,11 +485,11 @@ function WebSocketDetail({
                       >
                         {event.opcode_name}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="font-mono text-[10px] text-muted-foreground">
                         {formatTime(event.logged_at)}
                       </span>
                       <div className="min-w-0">
-                        <p className="truncate font-medium">
+                        <p className="truncate font-mono text-xs">
                           {payloadPreview(event)}
                         </p>
                         {event.payload && !event.payload_text ? (
@@ -666,23 +666,25 @@ export function TunnelPage() {
     }
   )
 
+  const pollTick = React.useEffectEvent(() => {
+    loadSummary(true)
+    if (selectedSessionId) {
+      loadSelectedSession(selectedSessionId)
+    }
+  })
+
   React.useEffect(() => {
     if (!tunnel) {
       return
     }
 
     loadSummary()
-    const interval = window.setInterval(() => {
-      loadSummary(true)
-      if (selectedSessionId) {
-        loadSelectedSession(selectedSessionId)
-      }
-    }, 2000)
+    const interval = window.setInterval(pollTick, 2000)
 
     return () => {
       window.clearInterval(interval)
     }
-  }, [selectedSessionId, tunnel])
+  }, [tunnel])
 
   React.useEffect(() => {
     if (!requests.length) {
@@ -756,9 +758,9 @@ export function TunnelPage() {
   }
 
   return (
-    <div className="min-h-svh bg-[radial-gradient(circle_at_top_left,_rgba(6,182,212,0.12),_transparent_24%),linear-gradient(180deg,_rgba(255,255,255,0.96),_rgba(248,250,252,1))] xl:h-svh xl:overflow-hidden dark:bg-[radial-gradient(circle_at_top_left,_rgba(6,182,212,0.22),_transparent_24%),linear-gradient(180deg,_rgba(2,6,23,1),_rgba(3,7,18,0.96))]">
+    <div className="min-h-svh bg-background xl:h-svh xl:overflow-hidden">
       <div className="mx-auto flex w-full max-w-none flex-col gap-4 px-3 py-4 sm:px-4 lg:px-5 xl:h-full xl:min-h-0">
-        <header className="overflow-hidden border border-border/70 bg-background/85 p-4 shadow-sm backdrop-blur sm:p-5">
+        <header className="overflow-hidden border border-border bg-card p-4 shadow-none sm:p-5">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-3">
               <Link
@@ -769,9 +771,9 @@ export function TunnelPage() {
                 Back to dashboard
               </Link>
               <div className="space-y-1">
-                <h1 className="text-3xl font-semibold tracking-tight">
+                <h1 className="font-mono text-2xl font-semibold tracking-tight">
                   {tunnel.subdomain}
-                  <span className="ml-3 text-base font-normal text-muted-foreground">
+                  <span className="ml-2 font-mono text-sm font-normal text-muted-foreground">
                     :{tunnel.localport}
                   </span>
                 </h1>
@@ -786,7 +788,7 @@ export function TunnelPage() {
               <div className="relative min-w-0 flex-1 sm:min-w-72">
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  className="h-10 border-border/70 bg-background/80 pl-10"
+                  className="h-7 border-border bg-background pl-9 text-sm"
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder={
                     activeTab === "http"
@@ -812,28 +814,28 @@ export function TunnelPage() {
         </header>
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card className="border-border/70 bg-background/85 shadow-sm">
-            <CardContent className="p-5">
-              <p className="text-xs tracking-[0.2em] text-muted-foreground uppercase">
+          <Card className="border-border bg-card shadow-none">
+            <CardContent className="p-4">
+              <p className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
                 HTTP requests
               </p>
-              <p className="mt-2 text-3xl font-semibold">{requests.length}</p>
+              <p className="mt-1.5 font-mono text-2xl font-medium">{requests.length}</p>
             </CardContent>
           </Card>
-          <Card className="border-border/70 bg-background/85 shadow-sm">
-            <CardContent className="p-5">
-              <p className="text-xs tracking-[0.2em] text-muted-foreground uppercase">
+          <Card className="border-border bg-card shadow-none">
+            <CardContent className="p-4">
+              <p className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
                 WS sessions
               </p>
-              <p className="mt-2 text-3xl font-semibold">{sessions.length}</p>
+              <p className="mt-1.5 font-mono text-2xl font-medium">{sessions.length}</p>
             </CardContent>
           </Card>
-          <Card className="border-border/70 bg-background/85 shadow-sm">
-            <CardContent className="p-5">
-              <p className="text-xs tracking-[0.2em] text-muted-foreground uppercase">
+          <Card className="border-border bg-card shadow-none">
+            <CardContent className="p-4">
+              <p className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
                 Active upgrades
               </p>
-              <p className="mt-2 text-3xl font-semibold">
+              <p className="mt-1.5 font-mono text-2xl font-medium">
                 {sessions.filter((session) => !session.ClosedAt).length}
               </p>
             </CardContent>
@@ -864,7 +866,7 @@ export function TunnelPage() {
 
           <TabsContent className="xl:min-h-0" value="http">
             <div className="grid gap-4 xl:h-full xl:min-h-0 xl:grid-cols-[18rem_minmax(0,1fr)] 2xl:grid-cols-[19rem_minmax(0,1fr)]">
-              <Card className="border-border/70 bg-background/80 shadow-sm xl:min-h-0">
+              <Card className="border-border bg-card shadow-none xl:min-h-0">
                 <CardContent className="flex h-full min-h-0 flex-col p-0">
                   {loading ? (
                     <div className="grid flex-1 gap-3 p-4">
@@ -893,10 +895,10 @@ export function TunnelPage() {
                     <div className="min-h-0 flex-1 divide-y overflow-y-auto">
                       {filteredRequests.map((request) => (
                         <button
-                          className={`w-full px-4 py-4 text-left transition hover:bg-muted/30 ${
+                          className={`w-full px-3 py-3 text-left transition hover:bg-muted/20 ${
                             request.ID === selectedRequest?.ID
-                              ? "bg-muted/40"
-                              : ""
+                              ? "border-l-2 border-primary bg-muted/30"
+                              : "border-l-2 border-transparent"
                           }`}
                           key={request.ID}
                           onClick={() =>
@@ -928,11 +930,11 @@ export function TunnelPage() {
                                   <Badge variant="outline">Replay</Badge>
                                 ) : null}
                               </div>
-                              <p className="truncate font-medium">
+                              <p className="truncate font-mono text-xs">
                                 {request.Url}
                               </p>
                             </div>
-                            <p className="shrink-0 text-xs text-muted-foreground">
+                            <p className="shrink-0 font-mono text-[10px] text-muted-foreground">
                               {formatTime(request.LoggedAt)}
                             </p>
                           </div>
@@ -962,7 +964,7 @@ export function TunnelPage() {
 
           <TabsContent className="xl:min-h-0" value="websocket">
             <div className="grid gap-4 xl:h-full xl:min-h-0 xl:grid-cols-[18rem_minmax(0,1fr)] 2xl:grid-cols-[19rem_minmax(0,1fr)]">
-              <Card className="border-border/70 bg-background/80 shadow-sm xl:min-h-0">
+              <Card className="border-border bg-card shadow-none xl:min-h-0">
                 <CardContent className="flex h-full min-h-0 flex-col p-0">
                   {loading ? (
                     <div className="grid flex-1 gap-3 p-4">
@@ -991,10 +993,10 @@ export function TunnelPage() {
                     <div className="min-h-0 flex-1 divide-y overflow-y-auto">
                       {filteredSessions.map((session) => (
                         <button
-                          className={`w-full px-4 py-4 text-left transition hover:bg-muted/30 ${
+                          className={`w-full px-3 py-3 text-left transition hover:bg-muted/20 ${
                             session.ID === selectedSessionId
-                              ? "bg-muted/40"
-                              : ""
+                              ? "border-l-2 border-primary bg-muted/30"
+                              : "border-l-2 border-transparent"
                           }`}
                           key={session.ID}
                           onClick={() =>
@@ -1013,20 +1015,20 @@ export function TunnelPage() {
                               >
                                 {session.Method}
                               </Badge>
-                              <span className="text-xs text-muted-foreground">
+                              <span className="font-mono text-[10px] text-muted-foreground">
                                 {session.ClosedAt
                                   ? formatTime(session.ClosedAt)
                                   : "Open"}
                               </span>
                             </div>
-                            <p className="truncate font-medium">
+                            <p className="truncate font-mono text-xs">
                               {session.URL}
                             </p>
-                            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                              <Badge variant="outline">
+                            <div className="flex flex-wrap gap-1.5 text-xs text-muted-foreground">
+                              <Badge className="font-mono" variant="outline">
                                 {session.EventCount} frames
                               </Badge>
-                              <Badge variant="outline">
+                              <Badge className="font-mono" variant="outline">
                                 {session.ClosedAt ? "Closed" : "Open"}
                               </Badge>
                             </div>

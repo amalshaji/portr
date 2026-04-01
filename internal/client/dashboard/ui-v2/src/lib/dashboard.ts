@@ -42,56 +42,56 @@ export function formatTime(value: string | null | undefined) {
 export function methodTone(method: string) {
   switch (method.toUpperCase()) {
     case "GET":
-      return "bg-emerald-500/12 text-emerald-700 ring-emerald-500/20 dark:text-emerald-300"
+      return "bg-emerald-500/10 text-emerald-600 ring-emerald-500/25 dark:bg-emerald-500/15 dark:text-emerald-400 dark:ring-emerald-500/30"
     case "POST":
-      return "bg-sky-500/12 text-sky-700 ring-sky-500/20 dark:text-sky-300"
+      return "bg-blue-500/10 text-blue-600 ring-blue-500/25 dark:bg-blue-500/15 dark:text-blue-400 dark:ring-blue-500/30"
     case "PUT":
-      return "bg-amber-500/12 text-amber-700 ring-amber-500/20 dark:text-amber-300"
+      return "bg-amber-500/10 text-amber-600 ring-amber-500/25 dark:bg-amber-500/15 dark:text-amber-400 dark:ring-amber-500/30"
     case "PATCH":
-      return "bg-violet-500/12 text-violet-700 ring-violet-500/20 dark:text-violet-300"
+      return "bg-violet-500/10 text-violet-600 ring-violet-500/25 dark:bg-violet-500/15 dark:text-violet-400 dark:ring-violet-500/30"
     case "DELETE":
-      return "bg-rose-500/12 text-rose-700 ring-rose-500/20 dark:text-rose-300"
+      return "bg-red-500/10 text-red-600 ring-red-500/25 dark:bg-red-500/15 dark:text-red-400 dark:ring-red-500/30"
     default:
-      return "bg-slate-500/12 text-slate-700 ring-slate-500/20 dark:text-slate-300"
+      return "bg-zinc-500/10 text-zinc-600 ring-zinc-500/25 dark:bg-zinc-500/15 dark:text-zinc-400 dark:ring-zinc-500/30"
   }
 }
 
 export function statusTone(status: number) {
   if (status >= 500) {
-    return "bg-rose-500/12 text-rose-700 ring-rose-500/20 dark:text-rose-300"
+    return "bg-red-500/10 text-red-600 ring-red-500/25 dark:bg-red-500/15 dark:text-red-400 dark:ring-red-500/30"
   }
   if (status >= 400) {
-    return "bg-orange-500/12 text-orange-700 ring-orange-500/20 dark:text-orange-300"
+    return "bg-orange-500/10 text-orange-600 ring-orange-500/25 dark:bg-orange-500/15 dark:text-orange-400 dark:ring-orange-500/30"
   }
   if (status >= 300) {
-    return "bg-amber-500/12 text-amber-700 ring-amber-500/20 dark:text-amber-300"
+    return "bg-amber-500/10 text-amber-600 ring-amber-500/25 dark:bg-amber-500/15 dark:text-amber-400 dark:ring-amber-500/30"
   }
   if (status >= 200) {
-    return "bg-emerald-500/12 text-emerald-700 ring-emerald-500/20 dark:text-emerald-300"
+    return "bg-emerald-500/10 text-emerald-600 ring-emerald-500/25 dark:bg-emerald-500/15 dark:text-emerald-400 dark:ring-emerald-500/30"
   }
-  return "bg-slate-500/12 text-slate-700 ring-slate-500/20 dark:text-slate-300"
+  return "bg-zinc-500/10 text-zinc-600 ring-zinc-500/25 dark:bg-zinc-500/15 dark:text-zinc-400 dark:ring-zinc-500/30"
 }
 
 export function websocketDirectionTone(direction: string) {
   return direction === "client"
-    ? "bg-sky-500/12 text-sky-700 ring-sky-500/20 dark:text-sky-300"
-    : "bg-teal-500/12 text-teal-700 ring-teal-500/20 dark:text-teal-300"
+    ? "bg-blue-500/10 text-blue-600 ring-blue-500/25 dark:bg-blue-500/15 dark:text-blue-400 dark:ring-blue-500/30"
+    : "bg-teal-500/10 text-teal-600 ring-teal-500/25 dark:bg-teal-500/15 dark:text-teal-400 dark:ring-teal-500/30"
 }
 
 export function websocketOpcodeTone(opcode: number) {
   if (opcode === 1) {
-    return "bg-emerald-500/12 text-emerald-700 ring-emerald-500/20 dark:text-emerald-300"
+    return "bg-emerald-500/10 text-emerald-600 ring-emerald-500/25 dark:bg-emerald-500/15 dark:text-emerald-400 dark:ring-emerald-500/30"
   }
   if (opcode === 2) {
-    return "bg-violet-500/12 text-violet-700 ring-violet-500/20 dark:text-violet-300"
+    return "bg-violet-500/10 text-violet-600 ring-violet-500/25 dark:bg-violet-500/15 dark:text-violet-400 dark:ring-violet-500/30"
   }
   if (opcode === 8) {
-    return "bg-rose-500/12 text-rose-700 ring-rose-500/20 dark:text-rose-300"
+    return "bg-red-500/10 text-red-600 ring-red-500/25 dark:bg-red-500/15 dark:text-red-400 dark:ring-red-500/30"
   }
   if (opcode === 9 || opcode === 10) {
-    return "bg-amber-500/12 text-amber-700 ring-amber-500/20 dark:text-amber-300"
+    return "bg-amber-500/10 text-amber-600 ring-amber-500/25 dark:bg-amber-500/15 dark:text-amber-400 dark:ring-amber-500/30"
   }
-  return "bg-slate-500/12 text-slate-700 ring-slate-500/20 dark:text-slate-300"
+  return "bg-zinc-500/10 text-zinc-600 ring-zinc-500/25 dark:bg-zinc-500/15 dark:text-zinc-400 dark:ring-zinc-500/30"
 }
 
 export function getHeaderValue(headers: HeaderMap | undefined, name: string) {
