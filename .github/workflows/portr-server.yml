@@ -37,17 +37,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup client
-        uses: pnpm/action-setup@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          version: 10.13.1
-          run_install: false
+          bun-version: 1.3.11
 
       - name: Install client dependencies
-        run: pnpm --dir internal/client/dashboard/ui install
+        run: bun --cwd internal/client/dashboard/ui-v2 install --frozen-lockfile
 
       - name: Build client
-        run: pnpm --dir internal/client/dashboard/ui build
+        run: bun --cwd internal/client/dashboard/ui-v2 run build
 
       - name: Set up Go
         uses: actions/setup-go@v5
