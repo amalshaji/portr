@@ -165,24 +165,27 @@ export function HomePage() {
     <div className="min-h-svh bg-background">
       <div className="mx-auto flex w-full max-w-none flex-col gap-4 px-3 py-4 sm:px-4 lg:px-5">
         <header className="overflow-hidden border border-border bg-card shadow-none">
-          <div className="grid gap-6 px-6 pt-6 pb-4 lg:grid-cols-[1.2fr_0.8fr] lg:px-8 lg:pt-8 lg:pb-5">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 border border-border bg-muted px-2.5 py-0.5 font-mono text-[11px] text-muted-foreground">
-                <Activity className="size-3.5" />
-                Local inspector at `localhost:7777`
+          <div className="px-6 pt-6 pb-4 lg:px-8 lg:pt-8 lg:pb-5">
+            <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+              <div className="space-y-4 xl:max-w-3xl">
+                <div className="inline-flex items-center gap-2 border border-border bg-muted px-2.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+                  <Activity className="size-3.5" />
+                  Local inspector at `localhost:7777`
+                </div>
+                <div className="space-y-2">
+                  <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                    Portr inspector dashboard
+                  </h1>
+                  <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+                    Watch recent tunnel traffic, jump straight into request
+                    traces, and keep an eye on upgraded WebSocket sessions from
+                    one place.
+                  </p>
+                </div>
               </div>
-              <div className="space-y-2">
-                <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                  Portr inspector dashboard
-                </h1>
-                <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-                  Watch recent tunnel traffic, jump straight into request
-                  traces, and keep an eye on upgraded WebSocket sessions from
-                  one place.
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="relative min-w-0 flex-1 sm:max-w-md">
+
+              <div className="flex flex-wrap items-center gap-3 xl:max-w-xl xl:shrink-0 xl:justify-end">
+                <div className="relative min-w-0 flex-1 sm:min-w-72 xl:min-w-80">
                   <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     className="h-7 border-border bg-background pl-9 text-sm"
@@ -214,13 +217,15 @@ export function HomePage() {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
               <Card className="border-border bg-card shadow-none">
                 <CardContent className="space-y-1.5 p-4">
                   <p className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
                     Tunnels
                   </p>
-                  <div className="font-mono text-2xl font-medium">{tunnels.length}</div>
+                  <div className="font-mono text-2xl font-medium">
+                    {tunnels.length}
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     Distinct ports with recorded traffic
                   </p>
@@ -231,7 +236,9 @@ export function HomePage() {
                   <p className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
                     HTTP logs
                   </p>
-                  <div className="font-mono text-2xl font-medium">{stats.http}</div>
+                  <div className="font-mono text-2xl font-medium">
+                    {stats.http}
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     Stored requests across all tunnels
                   </p>
