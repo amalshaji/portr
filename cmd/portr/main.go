@@ -34,6 +34,7 @@ func main() {
 			httpCmd(),
 			tcpCmd(),
 			logsCmd(),
+			replayCmd(),
 			authCmd(),
 		},
 	}
@@ -80,22 +81,33 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		fmt.Fprintln(os.Stderr, color.Red(err.Error()))
+		if err.Error() != "" {
+			fmt.Fprintln(os.Stderr, color.Red(err.Error()))
+		}
 		os.Exit(1)
 	}
 }
 
 func shouldSuppressUpdateNotice(args []string) bool {
-	commandArgs, ok := commandArgs(args, "logs")
+	logsArgs, ok := commandArgs(args, "logs")
 	if !ok {
-		return false
+		replayArgs, ok := commandArgs(args, "replay")
+		if !ok {
+			return false
+		}
+
+		if replayWantsHelp(replayArgs) {
+			return true
+		}
+
+		return replayWantsJSON(replayArgs)
 	}
 
-	if requestlogs.WantsHelp(commandArgs) {
+	if requestlogs.WantsHelp(logsArgs) {
 		return true
 	}
 
-	return requestlogs.WantsJSON(commandArgs)
+	return requestlogs.WantsJSON(logsArgs)
 }
 
 func commandArgs(args []string, command string) ([]string, bool) {

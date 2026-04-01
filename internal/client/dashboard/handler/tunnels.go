@@ -3,13 +3,13 @@ package handler
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 	"unicode/utf8"
 
 	"github.com/amalshaji/portr/internal/client/db"
-	"github.com/go-resty/resty/v2"
+	clientreplay "github.com/amalshaji/portr/internal/client/replay"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/datatypes"
 )
@@ -46,17 +46,6 @@ func decodeWebSocketPayloadText(event db.WebSocketEvent) (string, bool) {
 	}
 }
 
-var allowedReplayMethods = map[string]struct{}{
-	"DELETE":  {},
-	"GET":     {},
-	"HEAD":    {},
-	"OPTIONS": {},
-	"PATCH":   {},
-	"POST":    {},
-	"PUT":     {},
-	"TRACE":   {},
-}
-
 func decodeHeaderValues(raw datatypes.JSON) (map[string][]string, error) {
 	headers := make(map[string][]string)
 	if len(raw) == 0 {
@@ -68,67 +57,6 @@ func decodeHeaderValues(raw datatypes.JSON) (map[string][]string, error) {
 	}
 
 	return headers, nil
-}
-
-func flattenHeaders(headers map[string][]string) map[string]string {
-	flat := make(map[string]string, len(headers))
-	for key, values := range headers {
-		if len(values) == 0 {
-			continue
-		}
-		flat[key] = values[0]
-	}
-	return flat
-}
-
-func decodeReplayBody(body string, encoding string) ([]byte, error) {
-	if strings.EqualFold(encoding, "base64") {
-		return base64.StdEncoding.DecodeString(body)
-	}
-
-	return []byte(body), nil
-}
-
-func normalizeReplayMethod(method string) string {
-	method = strings.TrimSpace(strings.ToUpper(method))
-	if method == "" {
-		return ""
-	}
-	return method
-}
-
-func executeReplay(method string, targetURL string, headers map[string]string, body []byte) (*resty.Response, error) {
-	client := resty.New().R()
-	for key, value := range headers {
-		if value == "" {
-			continue
-		}
-		if strings.EqualFold(key, "Content-Length") {
-			continue
-		}
-		client.SetHeader(key, value)
-	}
-
-	client.SetBody(body)
-	return client.Execute(method, targetURL)
-}
-
-func replayErrorMessage(response *resty.Response) (int, string, bool) {
-	xPortrErrorReason := response.Header().Get("X-Portr-Error-Reason")
-	if xPortrErrorReason == "" {
-		return 0, "", false
-	}
-
-	switch xPortrErrorReason {
-	case "unregistered-subdomain":
-		return fiber.StatusInternalServerError, "The tunnel is not active. Please start the tunnel and try again", true
-	case "local-server-not-online":
-		return fiber.StatusInternalServerError, "The local server is not online. Please start the local server and try again", true
-	case "connection-lost":
-		return fiber.StatusServiceUnavailable, "The tunnel connection was lost. Please try again in a bit.", true
-	default:
-		return fiber.StatusBadGateway, "Failed to replay request", true
-	}
 }
 
 func serializeWebSocketEvent(event db.WebSocketEvent) websocketEventPayload {
@@ -254,22 +182,8 @@ func (h *Handler) ReplayRequest(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to get requests"})
 	}
 
-	headersMap, err := decodeHeaderValues(request.Headers)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to parse request headers"})
-	}
-
-	headers := flattenHeaders(headersMap)
-	headers["X-Portr-Replayed-Request-Id"] = requestID
-
-	requestURL := fmt.Sprintf("https://%s%s", request.Host, request.Url)
-	response, err := executeReplay(request.Method, requestURL, headers, request.Body)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to replay request"})
-	}
-
-	if status, message, ok := replayErrorMessage(response); ok {
-		return c.Status(status).JSON(fiber.Map{"message": message})
+	if _, err := clientreplay.Execute(request, clientreplay.EditOptions{}); err != nil {
+		return replayHTTPError(c, err)
 	}
 
 	return c.JSON(fiber.Map{"message": "replayed request"})
@@ -287,55 +201,40 @@ func (h *Handler) ReplayRequestWithEdits(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "invalid replay payload"})
 	}
 
-	method := normalizeReplayMethod(input.Method)
-	if method == "" {
-		method = request.Method
-	}
-	if _, ok := allowedReplayMethods[method]; !ok {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "unsupported replay method"})
-	}
-
-	path := strings.TrimSpace(input.Path)
-	if path == "" {
-		path = request.Url
-	}
-	if !strings.HasPrefix(path, "/") {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "path must start with /"})
+	edit := clientreplay.EditOptions{
+		Method:         input.Method,
+		Path:           input.Path,
+		Headers:        input.Headers,
+		ReplaceHeaders: input.Headers != nil,
+		Body: clientreplay.BodyOverride{
+			Set:      input.Body != "" || input.BodyEncoding != "",
+			Value:    input.Body,
+			Encoding: input.BodyEncoding,
+		},
 	}
 
-	headersMap, err := decodeHeaderValues(request.Headers)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to parse request headers"})
-	}
-
-	headers := flattenHeaders(headersMap)
-	if input.Headers != nil {
-		headers = make(map[string]string, len(input.Headers))
-		for key, value := range input.Headers {
-			headers[key] = value
-		}
-	}
-	headers["X-Portr-Replayed-Request-Id"] = requestID
-
-	body := request.Body
-	if input.Body != "" || input.BodyEncoding != "" {
-		body, err = decodeReplayBody(input.Body, input.BodyEncoding)
-		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "invalid request body encoding"})
-		}
-	}
-
-	requestURL := fmt.Sprintf("https://%s%s", request.Host, path)
-	response, err := executeReplay(method, requestURL, headers, body)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to replay request"})
-	}
-
-	if status, message, ok := replayErrorMessage(response); ok {
-		return c.Status(status).JSON(fiber.Map{"message": message})
+	if _, err := clientreplay.Execute(request, edit); err != nil {
+		return replayHTTPError(c, err)
 	}
 
 	return c.JSON(fiber.Map{"message": "replayed request"})
+}
+
+func replayHTTPError(c *fiber.Ctx, err error) error {
+	switch {
+	case errors.Is(err, clientreplay.ErrUnsupportedMethod):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "unsupported replay method"})
+	case errors.Is(err, clientreplay.ErrInvalidPath):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "path must start with /"})
+	case errors.Is(err, clientreplay.ErrInvalidBodyEncoding):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "invalid request body encoding"})
+	default:
+		var failure *clientreplay.Failure
+		if errors.As(err, &failure) {
+			return c.Status(failure.StatusCode).JSON(fiber.Map{"message": failure.Message})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to replay request"})
+	}
 }
 
 func (h *Handler) DeleteRequests(c *fiber.Ctx) error {

@@ -23,6 +23,8 @@ import (
 const DefaultCount = 20
 const JSONFlagUsage = "Emit full stored request records as JSON; body bytes stay base64-encoded and text payloads also include BodyText/ResponseBodyText"
 
+var ErrRequestNotFound = errors.New("request not found")
+
 type QueryOptions struct {
 	Count  int
 	Since  *time.Time
@@ -159,6 +161,43 @@ func (s *Store) List(subdomain string, opts QueryOptions) ([]clientdb.Request, e
 	}
 
 	return requests, nil
+}
+
+func (s *Store) GetByID(id string) (*clientdb.Request, error) {
+	if s == nil || s.conn == nil {
+		return nil, errors.New("request log store is not initialized")
+	}
+
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("request id is required")
+	}
+
+	var request clientdb.Request
+	if err := s.conn.Where("id = ?", id).First(&request).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrRequestNotFound
+		}
+		return nil, fmt.Errorf("failed to query request logs: %w", err)
+	}
+
+	return &request, nil
+}
+
+func (s *Store) Latest(subdomain string, opts QueryOptions) (*clientdb.Request, error) {
+	opts.Count = 1
+
+	requests, err := s.List(subdomain, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(requests) == 0 {
+		return nil, ErrRequestNotFound
+	}
+
+	request := requests[0]
+	return &request, nil
 }
 
 func ParseSince(value string) (*time.Time, error) {
