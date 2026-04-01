@@ -17,9 +17,6 @@ Portr is a tunnel solution that allows you to expose local http, tcp or websocke
 
 Portr is primarily designed for small teams looking to expose development servers on a public URL. It is not recommended for use alongside production servers.
 
-> [!WARNING]
-> Portr is currently in beta. Expect bugs and anticipate breaking changes.
-
 ## Features
 
 - 🎉 Expose local HTTP, TCP, and WebSocket services on public URLs.
