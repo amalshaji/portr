@@ -439,10 +439,6 @@ func (s *SshClient) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 	}
 
 	proxy.ModifyResponse = func(response *http.Response) error {
-		if !s.config.EnableRequestLogging {
-			return nil
-		}
-
 		if response.StatusCode == http.StatusSwitchingProtocols {
 			return nil
 		}
@@ -489,8 +485,25 @@ func (s *SshClient) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 			return
 		}
 
-		if !s.config.EnableRequestLogging {
-			proxy.ServeHTTP(writer, request)
+		if isWebSocketUpgrade(request) {
+			hijacker, ok := writer.(http.Hijacker)
+			if !ok {
+				http.Error(writer, "websocket proxy unsupported", http.StatusInternalServerError)
+				return
+			}
+
+			conn, rw, err := hijacker.Hijack()
+			if err != nil {
+				if s.config.Debug {
+					s.logDebug("Failed to hijack websocket connection", err)
+				}
+				return
+			}
+			defer conn.Close()
+
+			if err := s.handleWebSocketRequest(conn, rw.Reader, rw.Writer, request, localEndpoint); err != nil && s.config.Debug {
+				s.logDebug("Failed to proxy websocket request", err)
+			}
 			return
 		}
 
@@ -571,6 +584,13 @@ func (s *SshClient) httpTunnelLegacy(src net.Conn, localEndpoint string) {
 			return
 		}
 		srcWriter.Flush()
+		return
+	}
+
+	if isWebSocketUpgrade(request) {
+		if err := s.handleWebSocketRequest(src, srcReader, srcWriter, request, localEndpoint); err != nil && s.config.Debug {
+			s.logDebug("Failed to proxy websocket request", err)
+		}
 		return
 	}
 
@@ -811,6 +831,10 @@ func (s *SshClient) logHttpRequest(
 	tunnelName := s.config.Tunnel.Name
 	if tunnelName == "" {
 		tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
+	}
+
+	if !s.config.EnableRequestLogging {
+		return
 	}
 
 	if s.tui != nil {

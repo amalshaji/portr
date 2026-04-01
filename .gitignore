@@ -15,3 +15,5 @@ data/*
 dist
 !internal/client/dashboard/ui/dist/
 !internal/client/dashboard/ui/dist/**
+!internal/client/dashboard/ui-v2/dist/
+!internal/client/dashboard/ui-v2/dist/**

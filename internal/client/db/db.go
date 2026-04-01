@@ -57,7 +57,7 @@ func New(config *config.Config) *Db {
 		}
 	}
 
-	db.AutoMigrate(&Request{})
+	db.AutoMigrate(&Request{}, &WebSocketSession{}, &WebSocketEvent{})
 
 	return &Db{
 		Conn: db,
@@ -81,7 +81,82 @@ type Request struct {
 	ParentID           string
 }
 
+type WebSocketSession struct {
+	ID                 string `gorm:"primaryKey"`
+	HandshakeRequestID string `gorm:"index"`
+	Subdomain          string `gorm:"index:idx_websocket_sessions_tunnel,priority:1"`
+	Localport          int    `gorm:"index:idx_websocket_sessions_tunnel,priority:2"`
+	Host               string
+	URL                string
+	Method             string
+	RequestHeaders     datatypes.JSON
+	ResponseStatusCode int
+	ResponseHeaders    datatypes.JSON
+	StartedAt          time.Time `gorm:"index"`
+	LastEventAt        *time.Time
+	ClosedAt           *time.Time
+	CloseCode          *int
+	CloseReason        string
+	EventCount         int64
+	ClientEventCount   int64
+	ServerEventCount   int64
+}
+
+type WebSocketEvent struct {
+	ID            string `gorm:"primaryKey"`
+	SessionID     string `gorm:"index"`
+	Direction     string
+	Opcode        int
+	OpcodeName    string
+	IsFinal       bool
+	Payload       []byte
+	PayloadLength int
+	LoggedAt      time.Time `gorm:"index"`
+}
+
 func (d *Db) DeleteRequestsOlderThan(cutoff time.Time) (int64, error) {
-	result := d.Conn.Where("logged_at < ?", cutoff).Delete(&Request{})
-	return result.RowsAffected, result.Error
+	tx := d.Conn.Begin()
+	if tx.Error != nil {
+		return 0, tx.Error
+	}
+
+	var deletedTotal int64
+	var sessionIDs []string
+	if err := tx.Model(&WebSocketSession{}).
+		Where("closed_at IS NOT NULL AND COALESCE(last_event_at, started_at) < ?", cutoff).
+		Pluck("id", &sessionIDs).Error; err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	if len(sessionIDs) > 0 {
+		result := tx.Where("session_id IN ?", sessionIDs).Delete(&WebSocketEvent{})
+		if result.Error != nil {
+			tx.Rollback()
+			return 0, result.Error
+		}
+		deletedTotal += result.RowsAffected
+	}
+
+	sessionResult := tx.
+		Where("closed_at IS NOT NULL AND COALESCE(last_event_at, started_at) < ?", cutoff).
+		Delete(&WebSocketSession{})
+	if sessionResult.Error != nil {
+		tx.Rollback()
+		return 0, sessionResult.Error
+	}
+	deletedTotal += sessionResult.RowsAffected
+
+	requestResult := tx.Where("logged_at < ?", cutoff).Delete(&Request{})
+	if requestResult.Error != nil {
+		tx.Rollback()
+		return 0, requestResult.Error
+	}
+	deletedTotal += requestResult.RowsAffected
+
+	if err := tx.Commit().Error; err != nil {
+		return 0, err
+	}
+
+	return deletedTotal, nil
 }

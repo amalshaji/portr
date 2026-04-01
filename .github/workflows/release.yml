@@ -27,17 +27,16 @@ jobs:
           go-version: "1.25"
           cache: true
 
-      - name: Setup client
-        uses: pnpm/action-setup@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          version: 10.13.1
-          run_install: false
+          bun-version: 1.3.11
 
       - name: Install client dependencies
-        run: pnpm --dir internal/client/dashboard/ui install
+        run: bun install --cwd internal/client/dashboard/ui-v2 --frozen-lockfile
 
       - name: Build client
-        run: pnpm --dir internal/client/dashboard/ui build
+        run: bun run --cwd internal/client/dashboard/ui-v2 build
 
       - name: Publish packages
         uses: goreleaser/goreleaser-action@v6
