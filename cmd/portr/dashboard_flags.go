@@ -47,6 +47,11 @@ func applyDashboardOptions(cfg *config.Config, opts dashboardOptions) error {
 
 	if opts.DisabledSet {
 		cfg.DisableDashboard = opts.Disabled
+		if opts.Disabled {
+			cfg.DashboardDisableSource = config.DashboardDisableSourceCLI
+		} else {
+			cfg.DashboardDisableSource = ""
+		}
 	}
 
 	if opts.PortSet {

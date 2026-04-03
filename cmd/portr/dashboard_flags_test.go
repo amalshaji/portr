@@ -44,6 +44,9 @@ func TestApplyDashboardOptionsCanDisableDashboard(t *testing.T) {
 	if !cfg.DisableDashboard {
 		t.Fatal("expected dashboard to be disabled")
 	}
+	if cfg.DashboardDisableSource != config.DashboardDisableSourceCLI {
+		t.Fatalf("expected disable source %q, got %q", config.DashboardDisableSourceCLI, cfg.DashboardDisableSource)
+	}
 }
 
 func TestApplyDashboardOptionsRejectsConflictingFlags(t *testing.T) {

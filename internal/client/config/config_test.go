@@ -12,6 +12,18 @@ func TestSetDefaultsAppliesDashboardPort(t *testing.T) {
 	}
 }
 
+func TestSetDefaultsMarksDashboardDisabledByConfig(t *testing.T) {
+	cfg := Config{
+		DisableDashboard: true,
+	}
+
+	cfg.SetDefaults()
+
+	if cfg.DashboardDisableSource != DashboardDisableSourceConfig {
+		t.Fatalf("expected disable source %q, got %q", DashboardDisableSourceConfig, cfg.DashboardDisableSource)
+	}
+}
+
 func TestValidateRejectsInvalidDashboardPortWhenEnabled(t *testing.T) {
 	cfg := Config{
 		DashboardPort: 70000,

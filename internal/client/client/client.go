@@ -41,7 +41,7 @@ func NewClient(config *config.Config, db *db.Db) *Client {
 	}
 
 	if !config.DisableTUI {
-		p = tui.New(config.Debug, config.GetDashboardAddress())
+		p = tui.New(config.Debug, config.GetDashboardAddress(), config.GetDashboardDisableLabel())
 		c.tui = p
 		c.tuiStart = make(chan struct{})
 		c.tuiDone = make(chan struct{})
