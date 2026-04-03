@@ -20,21 +20,26 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 		return err
 	}
 
+	if err := applyDashboardOptions(&cfg, dashboardOptionsFromCLI(c)); err != nil {
+		return err
+	}
+
 	if tunnelFromCli != nil {
 		tunnelFromCli.SetDefaults()
 		if err := tunnelFromCli.Validate(); err != nil {
 			return err
 		}
 		cfg.Tunnels = []config.Tunnel{*tunnelFromCli}
-	} else {
-		if err := cfg.Validate(); err != nil {
-			return err
-		}
+	}
+
+	if err := cfg.Validate(); err != nil {
+		return err
 	}
 
 	db := db.New(&cfg)
 	_c := client.NewClient(&cfg, db)
 	var dash *dashboard.Dashboard
+	var dashErrCh <-chan error
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -57,24 +62,27 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 		return err
 	}
 
-	dash = dashboard.New(db, _c.GetConfig())
-	dashErrCh := make(chan error, 1)
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
+	if !cfg.DisableDashboard {
+		dash = dashboard.New(db, _c.GetConfig())
+		startErrCh := make(chan error, 1)
+		dashErrCh = startErrCh
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					select {
+					case startErrCh <- fmt.Errorf("dashboard panic: %v", r):
+					default:
+					}
+				}
+			}()
+			if err := dash.Start(); err != nil {
 				select {
-				case dashErrCh <- fmt.Errorf("dashboard panic: %v", r):
+				case startErrCh <- fmt.Errorf("failed to start dashboard server: %w", err):
 				default:
 				}
 			}
 		}()
-		if err := dash.Start(); err != nil {
-			select {
-			case dashErrCh <- fmt.Errorf("failed to start dashboard server: %w", err):
-			default:
-			}
-		}
-	}()
+	}
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
@@ -88,8 +96,10 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 	}
 
 	_c.Shutdown(c.Context)
-	if err := dash.Shutdown(); err != nil && runErr == nil {
-		runErr = err
+	if dash != nil {
+		if err := dash.Shutdown(); err != nil && runErr == nil {
+			runErr = err
+		}
 	}
 
 	return runErr
@@ -99,6 +109,7 @@ func startCmd() *cli.Command {
 	return &cli.Command{
 		Name:  "start",
 		Usage: "Start the tunnels from the config file",
+		Flags: dashboardFlags(),
 		Action: func(c *cli.Context) error {
 			return startTunnels(c, nil)
 		},

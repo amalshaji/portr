@@ -68,6 +68,8 @@ type Config struct {
 	UseLocalHost                    bool     `yaml:"use_localhost"`
 	Debug                           bool     `yaml:"debug"`
 	UseVite                         bool     `yaml:"use_vite"`
+	DashboardPort                   int      `yaml:"dashboard_port"`
+	DisableDashboard                bool     `yaml:"disable_dashboard"`
 	EnableRequestLogging            bool     `yaml:"enable_request_logging"`
 	ConnectionLogRetentionDays      int      `yaml:"connection_log_retention_days"`
 	HealthCheckInterval             int      `yaml:"health_check_interval"`
@@ -89,6 +91,10 @@ func (c *Config) SetDefaults() {
 
 	if c.TunnelUrl == "" {
 		c.TunnelUrl = c.ServerUrl
+	}
+
+	if c.DashboardPort == 0 {
+		c.DashboardPort = DefaultDashboardPort
 	}
 
 	if c.HealthCheckInterval == 0 {
@@ -114,6 +120,10 @@ func (c Config) Validate() error {
 		return fmt.Errorf("connection_log_retention_days must be greater than or equal to 0")
 	}
 
+	if !c.DisableDashboard && (c.DashboardPort < 1 || c.DashboardPort > 65535) {
+		return fmt.Errorf("dashboard_port must be between 1 and 65535")
+	}
+
 	for _, tunnel := range c.Tunnels {
 		if err := tunnel.Validate(); err != nil {
 			return err
@@ -132,6 +142,14 @@ func (c Config) GetAdminAddress() string {
 	return protocol + "://" + c.ServerUrl
 }
 
+func (c Config) GetDashboardAddress() string {
+	if c.DisableDashboard {
+		return ""
+	}
+
+	return fmt.Sprintf("http://localhost:%d", c.DashboardPort)
+}
+
 type ClientConfig struct {
 	ServerUrl                       string
 	SshUrl                          string
@@ -148,6 +166,8 @@ type ClientConfig struct {
 	EnableHttpReverseProxy          bool
 	InsecureSkipHostKeyVerification bool
 }
+
+const DefaultDashboardPort = 7777
 
 func (c *ClientConfig) GetHttpTunnelAddr() string {
 	protocol := "http"

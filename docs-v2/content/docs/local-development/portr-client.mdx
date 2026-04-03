@@ -144,7 +144,7 @@ tunnels:
 
 #### Inspector Configuration
 
-The inspector runs on `http://localhost:7777` by default and automatically connects to active HTTP tunnels.
+The inspector runs on `http://localhost:7777` by default and automatically connects to active HTTP tunnels. You can change that with `dashboard_port` in `client.dev.yaml` or use `disable_dashboard: true` to skip starting it.
 
 ## Testing Your Changes
 
@@ -197,7 +197,7 @@ internal/client/dashboard/ui-v2/
 
 <Callout type="info">
   The inspector automatically starts when you create an HTTP tunnel and is
-  accessible at `http://localhost:7777`.
+  accessible at `http://localhost:7777` by default.
 </Callout>
 
 ## Troubleshooting
@@ -214,4 +214,4 @@ internal/client/dashboard/ui-v2/
 
 **Authentication failures**: Verify your secret key is correct and the admin server is running.
 
-**Inspector not loading**: Check that port 7777 is available and the frontend build completed successfully.
+**Inspector not loading**: Check that your configured dashboard port is available and the frontend build completed successfully. If you do not want the inspector at all, set `disable_dashboard: true`.

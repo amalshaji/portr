@@ -11,6 +11,18 @@ const timeFormatter = new Intl.DateTimeFormat(undefined, {
   timeStyle: "medium",
 })
 
+export function currentDashboardHost(
+  locationValue:
+    | Pick<Location, "host" | "hostname">
+    | null = typeof window === "undefined" ? null : window.location
+) {
+  if (!locationValue) {
+    return "localhost"
+  }
+
+  return locationValue.host || locationValue.hostname || "localhost"
+}
+
 export function parseTunnelId(id: string) {
   const separatorIndex = id.lastIndexOf("-")
   if (separatorIndex < 0) {

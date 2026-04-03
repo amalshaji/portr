@@ -85,7 +85,7 @@ func New(db *db.Db, config *config.Config) *Dashboard {
 		app:    app,
 		config: config,
 		db:     db,
-		port:   7777,
+		port:   config.DashboardPort,
 	}
 }
 
