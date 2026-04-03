@@ -21,6 +21,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { PayloadViewer } from "@/components/payload-viewer"
 import { ReplayDialog } from "@/components/replay-dialog"
+import { ServerUnavailableBanner } from "@/components/server-unavailable-banner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ThemeToggle } from "@/components/theme-toggle"
 import {
@@ -81,11 +82,13 @@ function bodyMetric(headers: Record<string, string[]>, body: string) {
 
 function DetailMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border border-border bg-muted/10 px-3 py-2.5">
-      <p className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
+    <div className="border border-border bg-muted/5 px-2.5 py-1.5 sm:px-3 sm:py-2">
+      <p className="font-mono text-[9px] tracking-[0.14em] text-muted-foreground uppercase">
         {label}
       </p>
-      <p className="mt-1 font-mono text-xs break-all">{value}</p>
+      <p className="mt-1 font-mono text-[11px] leading-5 break-all sm:text-xs">
+        {value}
+      </p>
     </div>
   )
 }
@@ -102,15 +105,15 @@ function HeaderTable({ headers }: { headers: Record<string, string> }) {
   }
 
   return (
-    <div className="overflow-hidden border border-border bg-background">
-      <div className="grid grid-cols-[minmax(12rem,18rem)_minmax(0,1fr)] border-b border-border bg-muted/20 px-4 py-1.5 font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
+    <div className="flex min-h-0 flex-col overflow-hidden border border-border bg-background">
+      <div className="grid grid-cols-[minmax(11rem,16rem)_minmax(0,1fr)] border-b border-border bg-muted/20 px-3 py-1.5 font-mono text-[9px] tracking-[0.14em] text-muted-foreground uppercase sm:px-4">
         <span>Header</span>
         <span>Value</span>
       </div>
-      <div className="max-h-[24rem] divide-y divide-border overflow-auto">
+      <div className="min-h-0 flex-1 divide-y divide-border overflow-auto">
         {entries.map(([key, value]) => (
           <div
-            className="grid grid-cols-1 gap-2 px-4 py-2.5 md:grid-cols-[minmax(12rem,18rem)_minmax(0,1fr)] md:gap-4"
+            className="grid grid-cols-1 gap-1.5 px-3 py-2 md:grid-cols-[minmax(11rem,16rem)_minmax(0,1fr)] md:gap-3 md:px-4"
             key={key}
           >
             <div className="font-mono text-xs text-muted-foreground">
@@ -191,9 +194,9 @@ function RequestDetail({
   return (
     <>
       <Card className="border-border bg-card shadow-none xl:h-full xl:min-h-0">
-        <CardContent className="space-y-6 p-4 sm:p-5 xl:flex xl:h-full xl:min-h-0 xl:flex-col">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-3">
+        <CardContent className="space-y-4 p-4 xl:flex xl:h-full xl:min-h-0 xl:flex-col">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge
                   className={`ring-1 ${methodTone(request.Method)}`}
@@ -213,7 +216,7 @@ function RequestDetail({
                 ) : null}
               </div>
               <div className="space-y-1">
-                <h2 className="font-mono text-base font-medium tracking-tight break-all">
+                <h2 className="font-mono text-sm font-medium tracking-tight break-all sm:text-base">
                   {request.Url}
                 </h2>
                 <p className="font-mono text-xs text-muted-foreground">
@@ -222,7 +225,7 @@ function RequestDetail({
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               {request.ParentID ? (
                 <Button onClick={onSelectParent} size="sm" variant="outline">
                   <ArrowUpRight className="size-4" />
@@ -274,10 +277,10 @@ function RequestDetail({
               <TabsTrigger value="response">Response</TabsTrigger>
             </TabsList>
             <TabsContent
-              className="mt-5 space-y-5 xl:mt-4 xl:min-h-0 xl:overflow-y-auto xl:pr-1"
+              className="mt-3 data-[state=active]:flex data-[state=active]:min-h-0 data-[state=active]:flex-1 data-[state=active]:flex-col data-[state=active]:gap-4 xl:overflow-hidden"
               value="request"
             >
-              <div className="grid gap-3 lg:grid-cols-3">
+              <div className="grid gap-2 md:grid-cols-3">
                 <DetailMetric label="Content type" value={requestContentType} />
                 <DetailMetric
                   label="Body size"
@@ -288,30 +291,34 @@ function RequestDetail({
                   value={`${Object.keys(requestHeaders).length} captured`}
                 />
               </div>
-              <section className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-medium">Body</h3>
-                  <span className="text-xs text-muted-foreground">
-                    Primary payload view
-                  </span>
-                </div>
-                <PayloadViewer request={request} type="request" />
-              </section>
-              <section className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-medium">Headers</h3>
-                  <span className="text-xs text-muted-foreground">
-                    Structured key-value view
-                  </span>
-                </div>
-                <HeaderTable headers={requestHeaders} />
-              </section>
+              <div className="grid gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.95fr)]">
+                <section className="flex min-h-[18rem] min-w-0 flex-col gap-2.5 xl:min-h-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-medium">Body</h3>
+                    <span className="text-xs text-muted-foreground">
+                      Primary payload view
+                    </span>
+                  </div>
+                  <div className="min-h-0 flex-1">
+                    <PayloadViewer request={request} type="request" />
+                  </div>
+                </section>
+                <section className="flex min-h-[18rem] min-w-0 flex-col gap-2.5 xl:min-h-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-medium">Headers</h3>
+                    <span className="text-xs text-muted-foreground">
+                      Structured key-value view
+                    </span>
+                  </div>
+                  <HeaderTable headers={requestHeaders} />
+                </section>
+              </div>
             </TabsContent>
             <TabsContent
-              className="mt-5 space-y-5 xl:mt-4 xl:min-h-0 xl:overflow-y-auto xl:pr-1"
+              className="mt-3 data-[state=active]:flex data-[state=active]:min-h-0 data-[state=active]:flex-1 data-[state=active]:flex-col data-[state=active]:gap-4 xl:overflow-hidden"
               value="response"
             >
-              <div className="grid gap-3 lg:grid-cols-3">
+              <div className="grid gap-2 md:grid-cols-3">
                 <DetailMetric
                   label="Content type"
                   value={responseContentType}
@@ -330,24 +337,28 @@ function RequestDetail({
                   )}`}
                 />
               </div>
-              <section className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-medium">Body</h3>
-                  <span className="text-xs text-muted-foreground">
-                    Full-width response preview
-                  </span>
-                </div>
-                <PayloadViewer request={request} type="response" />
-              </section>
-              <section className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-medium">Headers</h3>
-                  <span className="text-xs text-muted-foreground">
-                    Structured key-value view
-                  </span>
-                </div>
-                <HeaderTable headers={responseHeaders} />
-              </section>
+              <div className="grid gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.95fr)]">
+                <section className="flex min-h-[18rem] min-w-0 flex-col gap-2.5 xl:min-h-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-medium">Body</h3>
+                    <span className="text-xs text-muted-foreground">
+                      Full-width response preview
+                    </span>
+                  </div>
+                  <div className="min-h-0 flex-1">
+                    <PayloadViewer request={request} type="response" />
+                  </div>
+                </section>
+                <section className="flex min-h-[18rem] min-w-0 flex-col gap-2.5 xl:min-h-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-medium">Headers</h3>
+                    <span className="text-xs text-muted-foreground">
+                      Structured key-value view
+                    </span>
+                  </div>
+                  <HeaderTable headers={responseHeaders} />
+                </section>
+              </div>
             </TabsContent>
           </Tabs>
         </CardContent>
@@ -602,6 +613,8 @@ export function TunnelPage() {
   const [loading, setLoading] = React.useState(true)
   const [refreshing, setRefreshing] = React.useState(false)
   const [search, setSearch] = React.useState("")
+  const [summaryError, setSummaryError] = React.useState<string | null>(null)
+  const [sessionError, setSessionError] = React.useState<string | null>(null)
   const activeTab =
     searchParams.get("tab") === "websocket" ? "websocket" : "http"
   const selectedRequestId = searchParams.get("request")
@@ -640,10 +653,9 @@ export function TunnelPage() {
       ])
       setRequests(requestsData.requests)
       setSessions(sessionsData.sessions)
+      setSummaryError(null)
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to load tunnel data"
-      )
+      setSummaryError(error instanceof Error ? error.message : null)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -656,12 +668,9 @@ export function TunnelPage() {
         const data = await getWebSocketSession(sessionId)
         setSelectedSession(data.session)
         setSelectedSessionEvents(data.events)
+        setSessionError(null)
       } catch (error) {
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "Failed to load WebSocket session"
-        )
+        setSessionError(error instanceof Error ? error.message : null)
       }
     }
   )
@@ -705,6 +714,7 @@ export function TunnelPage() {
     if (!sessions.length) {
       setSelectedSession(null)
       setSelectedSessionEvents([])
+      setSessionError(null)
       return
     }
 
@@ -737,6 +747,7 @@ export function TunnelPage() {
       session.CloseReason.toLowerCase().includes(query)
     )
   })
+  const pollingError = summaryError || sessionError
 
   if (!tunnel) {
     return (
@@ -760,6 +771,8 @@ export function TunnelPage() {
   return (
     <div className="min-h-svh bg-background xl:h-svh xl:overflow-hidden">
       <div className="mx-auto flex w-full max-w-none flex-col gap-4 px-3 py-4 sm:px-4 lg:px-5 xl:h-full xl:min-h-0">
+        {pollingError ? <ServerUnavailableBanner /> : null}
+
         <header className="overflow-hidden border border-border bg-card p-4 shadow-none sm:p-5">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-3">
@@ -813,33 +826,27 @@ export function TunnelPage() {
           </div>
         </header>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card className="border-border bg-card shadow-none">
-            <CardContent className="p-4">
-              <p className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
-                HTTP requests
-              </p>
-              <p className="mt-1.5 font-mono text-2xl font-medium">{requests.length}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-border bg-card shadow-none">
-            <CardContent className="p-4">
-              <p className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
-                WS sessions
-              </p>
-              <p className="mt-1.5 font-mono text-2xl font-medium">{sessions.length}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-border bg-card shadow-none">
-            <CardContent className="p-4">
-              <p className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
-                Active upgrades
-              </p>
-              <p className="mt-1.5 font-mono text-2xl font-medium">
-                {sessions.filter((session) => !session.ClosedAt).length}
-              </p>
-            </CardContent>
-          </Card>
+        <div className="grid gap-1.5 sm:grid-cols-3">
+          <div className="flex items-center justify-between gap-3 border border-border bg-card px-3 py-2">
+            <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+              HTTP requests
+            </p>
+            <p className="font-mono text-base font-medium">{requests.length}</p>
+          </div>
+          <div className="flex items-center justify-between gap-3 border border-border bg-card px-3 py-2">
+            <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+              WS sessions
+            </p>
+            <p className="font-mono text-base font-medium">{sessions.length}</p>
+          </div>
+          <div className="flex items-center justify-between gap-3 border border-border bg-card px-3 py-2">
+            <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+              Active upgrades
+            </p>
+            <p className="font-mono text-base font-medium">
+              {sessions.filter((session) => !session.ClosedAt).length}
+            </p>
+          </div>
         </div>
 
         <Tabs

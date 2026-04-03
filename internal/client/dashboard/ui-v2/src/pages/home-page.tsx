@@ -35,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { ServerUnavailableBanner } from "@/components/server-unavailable-banner"
 import { deleteTunnelLogs, getTunnels } from "@/lib/api"
 import {
   formatDateTime,
@@ -71,8 +72,9 @@ export function HomePage() {
   >(new Set())
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [deleting, setDeleting] = React.useState(false)
+  const [pollingError, setPollingError] = React.useState<string | null>(null)
 
-  async function loadTunnels(refresh = false) {
+  const loadTunnels = React.useEffectEvent(async (refresh = false) => {
     if (refresh) {
       setRefreshing(true)
     } else {
@@ -82,6 +84,7 @@ export function HomePage() {
     try {
       const data = await getTunnels()
       setTunnels(data.tunnels)
+      setPollingError(null)
       setSelectedTunnelKeys((current) => {
         const validKeys = new Set(
           data.tunnels.map((tunnel) => tunnelKey(tunnel))
@@ -89,17 +92,22 @@ export function HomePage() {
         return new Set(Array.from(current).filter((key) => validKeys.has(key)))
       })
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to load tunnels"
-      )
+      setPollingError(error instanceof Error ? error.message : null)
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }
+  })
 
   React.useEffect(() => {
     loadTunnels()
+    const interval = window.setInterval(() => {
+      loadTunnels(true)
+    }, 2000)
+
+    return () => {
+      window.clearInterval(interval)
+    }
   }, [])
 
   const filteredTunnels = tunnels.filter((tunnel) => {
@@ -164,6 +172,8 @@ export function HomePage() {
   return (
     <div className="min-h-svh bg-background">
       <div className="mx-auto flex w-full max-w-none flex-col gap-4 px-3 py-4 sm:px-4 lg:px-5">
+        {pollingError ? <ServerUnavailableBanner /> : null}
+
         <header className="overflow-hidden border border-border bg-card shadow-none">
           <div className="px-6 pt-6 pb-4 lg:px-8 lg:pt-8 lg:pb-5">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">

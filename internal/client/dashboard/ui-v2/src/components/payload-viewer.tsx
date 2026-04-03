@@ -164,7 +164,7 @@ export function PayloadViewer({ request, type }: PayloadViewerProps) {
 
   if (length === 0) {
     return (
-      <div className="min-h-48 border border-dashed border-border/80 bg-muted/20 p-6 text-sm text-muted-foreground">
+      <div className="flex min-h-40 h-full items-center border border-dashed border-border/80 bg-muted/20 p-5 text-sm text-muted-foreground">
         No content
       </div>
     )
@@ -172,10 +172,10 @@ export function PayloadViewer({ request, type }: PayloadViewerProps) {
 
   if (isMediaContentType(contentType, "image/")) {
     return (
-      <div className="overflow-hidden border bg-background p-3">
+      <div className="flex min-h-[16rem] h-full items-center justify-center overflow-hidden border bg-background p-3">
         <img
           alt={readOnlyLabel(type)}
-          className="max-h-[32rem] w-full rounded-sm object-contain"
+          className="max-h-full w-full rounded-sm object-contain"
           src={renderUrl}
         />
       </div>
@@ -184,8 +184,8 @@ export function PayloadViewer({ request, type }: PayloadViewerProps) {
 
   if (isMediaContentType(contentType, "video/")) {
     return (
-      <div className="overflow-hidden border bg-background p-3">
-        <video className="max-h-[32rem] w-full rounded-sm" controls>
+      <div className="flex min-h-[16rem] h-full items-center overflow-hidden border bg-background p-3">
+        <video className="max-h-full w-full rounded-sm" controls>
           <source src={renderUrl} type={contentType} />
         </video>
       </div>
@@ -194,7 +194,7 @@ export function PayloadViewer({ request, type }: PayloadViewerProps) {
 
   if (isMediaContentType(contentType, "audio/")) {
     return (
-      <div className="border bg-background p-4">
+      <div className="flex min-h-[16rem] h-full items-center border bg-background p-4">
         <audio className="w-full" controls>
           <source src={renderUrl} type={contentType} />
         </audio>
@@ -204,9 +204,10 @@ export function PayloadViewer({ request, type }: PayloadViewerProps) {
 
   if (isHtmlContentType(contentType)) {
     return (
-      <div className="overflow-hidden border bg-background">
+      <div className="min-h-0 h-full overflow-hidden border bg-background">
         <iframe
-          className="h-[34rem] w-full bg-white"
+          className="block h-[26rem] min-h-[18rem] w-full bg-white xl:h-full"
+          scrolling="yes"
           src={renderUrl}
           title={readOnlyLabel(type)}
         />
@@ -216,7 +217,7 @@ export function PayloadViewer({ request, type }: PayloadViewerProps) {
 
   if (state.kind === "loading" || state.kind === "idle") {
     return (
-      <div className="flex min-h-64 items-center justify-center border bg-background">
+      <div className="flex min-h-40 h-full items-center justify-center border bg-background">
         <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
       </div>
     )
@@ -224,13 +225,14 @@ export function PayloadViewer({ request, type }: PayloadViewerProps) {
 
   if (state.kind === "json" || state.kind === "text") {
     return (
-      <div className="border bg-background">
+      <div className="min-h-0 h-full overflow-auto border bg-background">
         <SyntaxHighlighter
           customStyle={{
             background: "transparent",
             fontSize: "0.8rem",
+            height: "100%",
             margin: 0,
-            minHeight: "20rem",
+            minHeight: "14rem",
             overflowWrap: "anywhere",
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
@@ -247,7 +249,7 @@ export function PayloadViewer({ request, type }: PayloadViewerProps) {
 
   if (state.kind === "form") {
     return (
-      <div className="space-y-3 border bg-background p-4">
+      <div className="min-h-0 h-full space-y-3 overflow-auto border bg-background p-4">
         {state.entries.map(([key, value]) => (
           <div className="grid gap-2" key={key}>
             <Label>{decodeURIComponent(key)}</Label>
@@ -260,7 +262,7 @@ export function PayloadViewer({ request, type }: PayloadViewerProps) {
 
   if (state.kind === "multipart") {
     return (
-      <div className="space-y-4 border bg-background p-4">
+      <div className="min-h-0 h-full space-y-4 overflow-auto border bg-background p-4">
         {state.entries.map((entry) => (
           <div
             className="grid gap-2"
@@ -291,7 +293,7 @@ export function PayloadViewer({ request, type }: PayloadViewerProps) {
 
   if (state.kind === "binary") {
     return (
-      <div className="flex min-h-64 flex-col items-center justify-center gap-4 border bg-background p-6 text-center">
+      <div className="flex min-h-40 h-full flex-col items-center justify-center gap-4 border bg-background p-6 text-center">
         <div className="rounded-md bg-muted p-4">
           <FileCode2 className="size-6 text-muted-foreground" />
         </div>
@@ -313,7 +315,7 @@ export function PayloadViewer({ request, type }: PayloadViewerProps) {
   }
 
   return (
-    <div className="flex min-h-64 items-center justify-center border bg-background">
+    <div className="flex min-h-40 h-full items-center justify-center border bg-background">
       <ImageIcon className="size-5 text-muted-foreground" />
     </div>
   )
