@@ -16,6 +16,12 @@ The Portr client is a command-line tool that allows you to create secure tunnels
   <Card title="HTTP Tunnels" href="/docs/client/http-tunnel">
     Create HTTP tunnels with built-in request inspection.
   </Card>
+  <Card title="Request Logs" href="/docs/client/request-logs">
+    Read locally stored HTTP request logs from the CLI.
+  </Card>
+  <Card title="Request Replay" href="/docs/client/request-replay">
+    Replay stored HTTP requests as-is or with edits.
+  </Card>
   <Card title="TCP Tunnels" href="/docs/client/tcp-tunnel">
     Tunnel raw TCP connections for databases and other services.
   </Card>
@@ -57,6 +63,12 @@ portr logs my-app --count 20
 
 # Emit full stored request records as JSON; body bytes stay base64-encoded and text payloads also include BodyText/ResponseBodyText
 portr logs my-app --json
+
+# Replay a stored request by ID
+portr replay 01KNAAZ6QTV77WBH91A5Z63BZZ
+
+# Replay the latest matching request with a JSON body override
+portr replay --latest --subdomain my-app --filter /api/orders --method POST --header 'Content-Type: application/json' --body '{"message":"hello"}'
 
 # Get help
 portr --help

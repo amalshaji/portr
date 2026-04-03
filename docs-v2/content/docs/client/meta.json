@@ -4,6 +4,8 @@
     "index",
     "installation",
     "http-tunnel",
+    "request-logs",
+    "request-replay",
     "tcp-tunnel",
     "websocket-tunnel",
     "templates"

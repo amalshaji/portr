@@ -1,0 +1,127 @@
+---
+title: Request Logs
+description: Inspect locally stored HTTP request logs from the Portr CLI
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+`portr logs` reads the local HTTP request log database written by the Portr client.
+Use it when you want to inspect recent traffic for a tunnel subdomain without opening
+the local inspector UI.
+
+## What It Reads
+
+Portr stores HTTP request logs in `~/.portr/db.sqlite`. The `logs` command only
+queries data that has already been captured on the current machine.
+
+<Callout type="info">
+  `portr logs` works with stored HTTP tunnel requests. It does not stream live TCP
+  traffic and it does not require the dashboard UI to be open.
+</Callout>
+
+## Command Shape
+
+```bash
+portr logs <subdomain> [filter]
+```
+
+- `<subdomain>` is required.
+- `[filter]` is an optional case-insensitive URL substring filter.
+- Results are returned newest first.
+- The default result window is `20`.
+
+## Options
+
+| Option | What it does |
+| --- | --- |
+| `--count <n>` | Return up to `<n>` matching requests. |
+| `-n <n>` | Short form for `--count`. |
+| `--since <value>` | Only include requests on or after the given timestamp or date. |
+| `--json` | Emit full stored request records as JSON. |
+
+## Filters and Dates
+
+The optional positional `filter` matches against the stored request URL using a
+case-insensitive substring search.
+
+The `--since` flag accepts either:
+
+- An RFC3339 timestamp such as `2026-04-04T10:30:00Z`
+- A date such as `2026-04-04`
+
+## Examples
+
+Show the latest requests for a subdomain:
+
+```bash
+portr logs my-app
+```
+
+Filter to matching URLs:
+
+```bash
+portr logs my-app /api/orders
+```
+
+Increase the result window:
+
+```bash
+portr logs my-app --count 100
+```
+
+Limit results to a date or timestamp:
+
+```bash
+portr logs my-app --since 2026-04-04
+portr logs my-app --since 2026-04-04T10:30:00Z
+```
+
+Emit full stored records as JSON:
+
+```bash
+portr logs my-app --json
+```
+
+Combine the filters:
+
+```bash
+portr logs my-app /webhooks --count 50 --since 2026-04-01
+```
+
+## Text Output
+
+The default text output prints one line per request:
+
+```text
+2026-04-04T12:00:00Z 3000 POST 200 /api/orders
+2026-04-04T12:01:00Z 3000 POST 202 /api/orders [replayed]
+```
+
+Each line includes:
+
+- Logged timestamp in UTC
+- Local forwarded port
+- HTTP method
+- Response status code
+- Stored request URL
+- `[replayed]` when the request was created by `portr replay`
+
+## JSON Output
+
+`--json` returns the full stored request record, including headers, timestamps,
+response metadata, and replay linkage.
+
+Two fields are important when working with payloads:
+
+- `Body` and `ResponseBody` remain base64-encoded
+- `BodyText` and `ResponseBodyText` are also included when the stored payload is
+  valid UTF-8 text
+
+This makes the JSON safe for binary payloads while still being easy to inspect
+for normal JSON, HTML, and text responses.
+
+## Related Commands
+
+- Use [`portr replay`](/docs/client/request-replay) to resend a stored request.
+- Use [`portr http`](/docs/client/http-tunnel) to start an HTTP tunnel and capture
+  requests in the first place.
