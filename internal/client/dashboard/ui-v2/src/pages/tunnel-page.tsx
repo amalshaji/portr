@@ -107,7 +107,7 @@ function HeaderTable({ headers }: { headers: Record<string, string> }) {
         <span>Header</span>
         <span>Value</span>
       </div>
-      <div className="max-h-[24rem] divide-y divide-border overflow-auto">
+      <div className="divide-y divide-border md:max-h-[24rem] md:overflow-auto">
         {entries.map(([key, value]) => (
           <div
             className="grid grid-cols-1 gap-2 px-4 py-2.5 md:grid-cols-[minmax(12rem,18rem)_minmax(0,1fr)] md:gap-4"
