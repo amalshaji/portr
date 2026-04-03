@@ -3,6 +3,7 @@ package logs
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -201,6 +202,70 @@ func TestStoreListReturnsEmptySliceWhenNoMatches(t *testing.T) {
 
 	if len(requests) != 0 {
 		t.Fatalf("expected 0 requests, got %d", len(requests))
+	}
+}
+
+func TestStoreGetByID(t *testing.T) {
+	store := openTestStore(t, []clientdb.Request{
+		{
+			ID:        "req-1",
+			Subdomain: "demo",
+			Localport: 3000,
+			Url:       "/alpha",
+			Method:    "GET",
+			LoggedAt:  testTime(2026, 3, 14, 10, 0, 0),
+		},
+	})
+	defer store.Close()
+
+	request, err := store.GetByID("req-1")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if request.ID != "req-1" {
+		t.Fatalf("expected req-1, got %q", request.ID)
+	}
+
+	_, err = store.GetByID("missing")
+	if !errors.Is(err, ErrRequestNotFound) {
+		t.Fatalf("expected ErrRequestNotFound, got %v", err)
+	}
+}
+
+func TestStoreLatest(t *testing.T) {
+	store := openTestStore(t, []clientdb.Request{
+		{
+			ID:        "req-1",
+			Subdomain: "demo",
+			Localport: 3000,
+			Url:       "/alpha",
+			Method:    "GET",
+			LoggedAt:  testTime(2026, 3, 14, 10, 0, 0),
+		},
+		{
+			ID:        "req-2",
+			Subdomain: "demo",
+			Localport: 3001,
+			Url:       "/beta",
+			Method:    "POST",
+			LoggedAt:  testTime(2026, 3, 14, 11, 0, 0),
+		},
+	})
+	defer store.Close()
+
+	request, err := store.Latest("demo", QueryOptions{Filter: "/b"})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if request.ID != "req-2" {
+		t.Fatalf("expected req-2, got %q", request.ID)
+	}
+
+	_, err = store.Latest("demo", QueryOptions{Filter: "/missing"})
+	if !errors.Is(err, ErrRequestNotFound) {
+		t.Fatalf("expected ErrRequestNotFound, got %v", err)
 	}
 }
 
