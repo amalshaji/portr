@@ -1,0 +1,201 @@
+---
+title: Request Replay
+description: Replay stored HTTP requests from the Portr CLI
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+`portr replay` resends a stored HTTP request through the original tunnel host.
+You can replay the request as-is, or override the method, path, headers, and body
+before sending it again.
+
+## How Replay Works
+
+1. Portr looks up a stored request in `~/.portr/db.sqlite`
+2. It rebuilds an outbound HTTP request from the stored method, URL, headers, and body
+3. Any CLI overrides are applied
+4. The request is sent to `https://<original-host><effective-path>`
+5. The replayed request is logged as a new request and linked back to the original
+
+<Callout type="info">
+  Replay depends on the original tunnel host still being routable. If the tunnel is
+  down or the local server is offline, the replay will fail even if the stored
+  request was found successfully.
+</Callout>
+
+## Choose the Request to Replay
+
+Replay a specific stored request by ID:
+
+```bash
+portr replay <request-id>
+```
+
+Replay the newest matching request from a subdomain:
+
+```bash
+portr replay --latest --subdomain <subdomain> [--filter <url-substring>] [--since <value>]
+```
+
+Notes:
+
+- `--latest` selects exactly one request: the newest match in local request logs
+- `--subdomain` is required when using `--latest`
+- `--filter` and `--since` only apply when using `--latest`
+
+## Options
+
+| Option | What it does |
+| --- | --- |
+| `--latest` | Replay the newest matching stored request instead of passing a request ID. |
+| `--subdomain <name>` | Subdomain to search when using `--latest`. |
+| `--filter <value>` | Case-insensitive URL substring filter for `--latest`. |
+| `--since <value>` | Only consider requests on or after the given RFC3339 timestamp or `YYYY-MM-DD` date when using `--latest`. |
+| `--method <value>` | Override the HTTP method before replaying. |
+| `--path <value>` | Override the request path and query. The value must start with `/`. |
+| `--header 'Key: Value'` | Add or override a header. Can be repeated. |
+| `--drop-header <name>` | Remove an inherited header. Can be repeated. |
+| `--body <value>` | Override the request body with an inline value. |
+| `--body-file <path>` | Override the request body with the contents of a file. |
+| `--stdin` | Override the request body with bytes read from standard input. |
+| `--body-encoding <encoding>` | Decode the supplied override body as `utf8` text or `base64`. |
+| `--json` | Emit replay details and the replay response as JSON. |
+
+## Body Sources
+
+You can override the body in exactly one of these ways:
+
+- `--body`
+- `--body-file`
+- `--stdin`
+
+If you provide a body override, `--body-encoding` controls how it is decoded:
+
+- `utf8` for normal text, JSON, HTML, or form data
+- `base64` for binary payloads or exact byte preservation
+
+## Important Caveat About Methods
+
+Changing the body does not change the HTTP method.
+
+If the stored request was a `GET`, this command still sends a `GET` unless you also
+set `--method`. In practice, if you want to replay a request with a JSON payload,
+you usually need both:
+
+```bash
+portr replay <request-id> \
+  --method POST \
+  --header 'Content-Type: application/json' \
+  --body '{"message":"hello"}'
+```
+
+<Callout type="warn">
+  A `GET` replay with `--body` can succeed at the CLI level while the upstream
+  server ignores the payload. Use `--method POST`, `PUT`, or `PATCH` when the body
+  is meant to be meaningful.
+</Callout>
+
+## Examples
+
+Replay a stored request exactly as captured:
+
+```bash
+portr replay 01KNAAZ6QTV77WBH91A5Z63BZZ
+```
+
+Replay the newest matching request from a subdomain:
+
+```bash
+portr replay --latest --subdomain my-app --filter /api/orders
+```
+
+Replay the newest request after a specific time:
+
+```bash
+portr replay --latest --subdomain my-app --since 2026-04-04T10:30:00Z
+```
+
+Override method, path, and headers:
+
+```bash
+portr replay 01KNAAZ6QTV77WBH91A5Z63BZZ \
+  --method PUT \
+  --path '/api/orders/42?dry_run=true' \
+  --header 'Content-Type: application/json' \
+  --header 'X-Debug-Replay: true' \
+  --drop-header 'If-None-Match'
+```
+
+Replay with an inline JSON body:
+
+```bash
+portr replay 01KNAAZ6QTV77WBH91A5Z63BZZ \
+  --method POST \
+  --header 'Content-Type: application/json' \
+  --body '{"message":"hello"}'
+```
+
+Replay with a body loaded from a file:
+
+```bash
+portr replay 01KNAAZ6QTV77WBH91A5Z63BZZ \
+  --method POST \
+  --header 'Content-Type: application/json' \
+  --body-file ./payload.json
+```
+
+Replay with a body from standard input:
+
+```bash
+cat payload.json | portr replay 01KNAAZ6QTV77WBH91A5Z63BZZ \
+  --method POST \
+  --header 'Content-Type: application/json' \
+  --stdin
+```
+
+Replay binary data supplied as base64:
+
+```bash
+portr replay 01KNAAZ6QTV77WBH91A5Z63BZZ \
+  --method POST \
+  --header 'Content-Type: application/octet-stream' \
+  --body 'AAEC' \
+  --body-encoding base64
+```
+
+Emit replay details as JSON:
+
+```bash
+portr replay 01KNAAZ6QTV77WBH91A5Z63BZZ --json
+```
+
+## JSON Output
+
+`--json` is useful for automation and for verifying what was actually sent. The
+JSON output includes:
+
+- The original request ID that was selected
+- Whether it was selected directly or via `--latest`
+- Original and effective method/path values
+- The effective URL, headers, and body
+- The replay response status, headers, and body
+- A structured error object when the replay fails
+
+Like `portr logs`, replay response bodies remain base64-encoded in JSON output, and
+text payloads also include a decoded `*_text` field when possible.
+
+## What Gets Logged
+
+Every successful replay creates a new stored request entry. The new request is:
+
+- Marked as replayed in the dashboard and in `portr logs`
+- Linked back to the original request internally
+- Visible in the request history like any other captured request
+
+This means you can replay a request, inspect the new result, and replay that new
+request again if needed.
+
+## Related Commands
+
+- Use [`portr logs`](/docs/client/request-logs) to find request IDs before replaying.
+- Use [`portr http`](/docs/client/http-tunnel) to capture the original HTTP traffic.
