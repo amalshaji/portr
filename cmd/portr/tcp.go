@@ -13,7 +13,6 @@ func tcpCmd() *cli.Command {
 	return &cli.Command{
 		Name:  "tcp",
 		Usage: "Expose tcp port",
-		Flags: dashboardFlags(),
 		Action: func(c *cli.Context) error {
 			portStr := c.Args().First()
 

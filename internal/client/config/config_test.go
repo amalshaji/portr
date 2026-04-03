@@ -12,15 +12,13 @@ func TestSetDefaultsAppliesDashboardPort(t *testing.T) {
 	}
 }
 
-func TestSetDefaultsMarksDashboardDisabledByConfig(t *testing.T) {
+func TestGetDashboardDisableLabel(t *testing.T) {
 	cfg := Config{
 		DisableDashboard: true,
 	}
 
-	cfg.SetDefaults()
-
-	if cfg.DashboardDisableSource != DashboardDisableSourceConfig {
-		t.Fatalf("expected disable source %q, got %q", DashboardDisableSourceConfig, cfg.DashboardDisableSource)
+	if got := cfg.GetDashboardDisableLabel(); got != "disabled via config" {
+		t.Fatalf("expected disabled via config, got %q", got)
 	}
 }
 

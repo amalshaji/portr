@@ -10,19 +10,16 @@ import (
 )
 
 func httpCmd() *cli.Command {
-	flags := []cli.Flag{
-		&cli.StringFlag{
-			Name:    "subdomain",
-			Aliases: []string{"s"},
-			Usage:   "Subdomain to tunnel to",
-		},
-	}
-	flags = append(flags, dashboardFlags()...)
-
 	return &cli.Command{
 		Name:  "http",
 		Usage: "Expose http/ws port",
-		Flags: flags,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "subdomain",
+				Aliases: []string{"s"},
+				Usage:   "Subdomain to tunnel to",
+			},
+		},
 		Action: func(c *cli.Context) error {
 			portStr := c.Args().First()
 

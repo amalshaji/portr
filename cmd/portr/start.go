@@ -20,10 +20,6 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 		return err
 	}
 
-	if err := applyDashboardOptions(&cfg, dashboardOptionsFromCLI(c)); err != nil {
-		return err
-	}
-
 	if tunnelFromCli != nil {
 		tunnelFromCli.SetDefaults()
 		if err := tunnelFromCli.Validate(); err != nil {
@@ -109,7 +105,6 @@ func startCmd() *cli.Command {
 	return &cli.Command{
 		Name:  "start",
 		Usage: "Start the tunnels from the config file",
-		Flags: dashboardFlags(),
 		Action: func(c *cli.Context) error {
 			return startTunnels(c, nil)
 		},

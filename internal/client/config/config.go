@@ -78,7 +78,6 @@ type Config struct {
 	EnableHttpReverseProxy          bool     `yaml:"enable_http_reverse_proxy"`
 	DisableUpdateCheck              bool     `yaml:"disable_update_check"`
 	InsecureSkipHostKeyVerification *bool    `yaml:"insecure_skip_host_key_verification"`
-	DashboardDisableSource          string   `yaml:"-"`
 }
 
 func (c *Config) SetDefaults() {
@@ -96,10 +95,6 @@ func (c *Config) SetDefaults() {
 
 	if c.DashboardPort == 0 {
 		c.DashboardPort = DefaultDashboardPort
-	}
-
-	if c.DisableDashboard && c.DashboardDisableSource == "" {
-		c.DashboardDisableSource = DashboardDisableSourceConfig
 	}
 
 	if c.HealthCheckInterval == 0 {
@@ -160,14 +155,7 @@ func (c Config) GetDashboardDisableLabel() string {
 		return ""
 	}
 
-	switch c.DashboardDisableSource {
-	case DashboardDisableSourceCLI:
-		return "disabled via CLI"
-	case DashboardDisableSourceConfig:
-		return "disabled via config"
-	default:
-		return "disabled"
-	}
+	return "disabled via config"
 }
 
 type ClientConfig struct {
@@ -187,11 +175,7 @@ type ClientConfig struct {
 	InsecureSkipHostKeyVerification bool
 }
 
-const (
-	DefaultDashboardPort         = 7777
-	DashboardDisableSourceCLI    = "CLI"
-	DashboardDisableSourceConfig = "config"
-)
+const DefaultDashboardPort = 7777
 
 func (c *ClientConfig) GetHttpTunnelAddr() string {
 	protocol := "http"
