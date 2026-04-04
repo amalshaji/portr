@@ -1,0 +1,43 @@
+name: Close stale issues and PRs
+
+on:
+  schedule:
+    - cron: "30 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: stale
+  cancel-in-progress: true
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v10
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          stale-issue-label: stale
+          stale-pr-label: stale
+          stale-issue-message: >
+            This issue has been marked stale because it has been inactive for
+            60 days. Comment or update it to keep it open.
+          stale-pr-message: >
+            This PR has been marked stale because it has been inactive for
+            30 days. Comment or push changes to keep it open.
+          close-issue-message: >
+            This issue was closed because it has been stale for 14 days with no
+            activity. Reopen it if this still needs attention.
+          close-pr-message: >
+            This PR was closed because it has been stale for 14 days with no
+            activity. Reopen it if this is still active.
+          days-before-issue-stale: 60
+          days-before-pr-stale: 30
+          days-before-issue-close: 14
+          days-before-pr-close: 14
+          exempt-issue-labels: help wanted,good first issue,👋 good first issue
+          exempt-pr-labels: help wanted,good first issue,👋 good first issue
