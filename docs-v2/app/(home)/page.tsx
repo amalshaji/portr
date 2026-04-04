@@ -85,7 +85,7 @@ export default function HomePage() {
                     Inspector:{" "}
                   </span>
                   <span className="text-yellow-600 dark:text-yellow-300 break-all">
-                    http://localhost:7777
+                    http://localhost:7777 (default)
                   </span>
                 </AnimatedSpan>
               </Terminal>

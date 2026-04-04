@@ -95,18 +95,20 @@ type tunnelStatus struct {
 
 // Add debug table to model
 type model struct {
-	tunnels    map[string]*tunnelStatus
-	table      table.Model
-	debugTable table.Model // New debug table
-	debug      bool        // Whether debug mode is enabled
-	quitting   bool
-	err        error
-	lastUpdate time.Time
-	selected   string
-	width      int
+	tunnels                map[string]*tunnelStatus
+	table                  table.Model
+	debugTable             table.Model // New debug table
+	debug                  bool        // Whether debug mode is enabled
+	quitting               bool
+	err                    error
+	lastUpdate             time.Time
+	selected               string
+	width                  int
+	dashboardURL           string
+	dashboardDisabledLabel string
 }
 
-func New(debug bool) *tea.Program {
+func New(debug bool, dashboardURL string, dashboardDisabledLabel string) *tea.Program {
 	// Initial default widths
 	const (
 		timeWidth   = 12
@@ -158,11 +160,13 @@ func New(debug bool) *tea.Program {
 
 	return tea.NewProgram(
 		model{
-			tunnels:    make(map[string]*tunnelStatus),
-			table:      t,
-			debugTable: dt,
-			debug:      debug,
-			width:      80,
+			tunnels:                make(map[string]*tunnelStatus),
+			table:                  t,
+			debugTable:             dt,
+			debug:                  debug,
+			width:                  80,
+			dashboardURL:           dashboardURL,
+			dashboardDisabledLabel: dashboardDisabledLabel,
 		},
 		tea.WithAltScreen(),
 	)
@@ -341,7 +345,15 @@ func (m model) View() string {
 
 	s += titleStyle.Render("🌍 Portr Tunnel Dashboard") + "\n"
 	s += subtitleStyle.Render(fmt.Sprintf("Active Tunnels: %d", len(m.tunnels))) + "\n"
-	s += subtitleStyle.Render("Local Dashboard: http://localhost:7777") + "\n\n"
+	if m.dashboardURL == "" {
+		label := "disabled"
+		if m.dashboardDisabledLabel != "" {
+			label = m.dashboardDisabledLabel
+		}
+		s += subtitleStyle.Render("Local Dashboard: "+label) + "\n\n"
+	} else {
+		s += subtitleStyle.Render("Local Dashboard: "+m.dashboardURL) + "\n\n"
+	}
 
 	if len(m.tunnels) == 0 {
 		s += subtitleStyle.Render("Waiting for tunnels to connect...") + "\n"

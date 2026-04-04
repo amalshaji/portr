@@ -61,6 +61,37 @@ When TUI is disabled, the client will:
 - Show tunnel status updates and health check results
 - Exit gracefully on errors
 
+### Configure or Disable the Local Dashboard
+
+You can change the inspector port or disable it permanently in the client config:
+
+```yaml
+server_url: example.com
+ssh_url: example.com:2222
+secret_key: { your-secret-key }
+dashboard_port: 8888
+disable_dashboard: false
+tunnels:
+  - name: portr
+    subdomain: portr
+    port: 4321
+```
+
+Or disable the dashboard entirely:
+
+```yaml
+server_url: example.com
+ssh_url: example.com:2222
+secret_key: { your-secret-key }
+disable_dashboard: true
+tunnels:
+  - name: portr
+    subdomain: portr
+    port: 4321
+```
+
+`disable_dashboard` takes precedence over `dashboard_port`, so a disabled dashboard stays disabled until you change the config itself.
+
 ### Disable Update Checks
 
 You can disable automatic update checks and notifications by adding `disable_update_check: true`:
@@ -161,6 +192,8 @@ These options apply to the entire client configuration:
 - **ssh_url**: The SSH server URL for tunnel connections
 - **secret_key**: Your authentication secret key
 - **disable_tui**: Disable the interactive terminal interface (default: false)
+- **dashboard_port**: Local port for the inspector dashboard (default: 7777)
+- **disable_dashboard**: Disable the local inspector dashboard completely (default: false)
 - **disable_update_check**: Disable automatic update checks and notifications (default: false)
 - **enable_request_logging**: Enable detailed HTTP request logging (default: false)
 - **connection_log_retention_days**: Auto-delete connection logs older than N days (default: 0, disabled)

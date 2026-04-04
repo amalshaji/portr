@@ -38,6 +38,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { ServerUnavailableBanner } from "@/components/server-unavailable-banner"
 import { deleteTunnelLogs, getTunnels } from "@/lib/api"
 import {
+  currentDashboardHost,
   formatDateTime,
   methodTone,
   reasonPhrase,
@@ -123,6 +124,7 @@ export function HomePage() {
   })
 
   const stats = statsFromTunnels(tunnels)
+  const inspectorHost = currentDashboardHost()
 
   async function handleDeleteSelected() {
     const selected = tunnels.filter((tunnel) =>
@@ -180,7 +182,7 @@ export function HomePage() {
               <div className="space-y-4 xl:max-w-3xl">
                 <div className="inline-flex items-center gap-2 border border-border bg-muted px-2.5 py-0.5 font-mono text-[11px] text-muted-foreground">
                   <Activity className="size-3.5" />
-                  Local inspector at `localhost:7777`
+                  {`Local inspector at \`${inspectorHost}\``}
                 </div>
                 <div className="space-y-2">
                   <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
