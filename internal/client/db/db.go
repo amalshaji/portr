@@ -79,6 +79,10 @@ type Request struct {
 	LoggedAt           time.Time
 	IsReplayed         bool
 	ParentID           string
+	DurationMs         int64
+	BytesIn            int64
+	BytesOut           int64
+	Protocol           string
 }
 
 type WebSocketSession struct {

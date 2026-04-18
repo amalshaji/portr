@@ -40,9 +40,10 @@ var (
 type requestLogContextKey struct{}
 
 type requestLogData struct {
-	id      string
-	request *http.Request
-	body    []byte
+	id        string
+	request   *http.Request
+	body      []byte
+	startTime time.Time
 }
 
 type singleConnListener struct {
@@ -462,7 +463,8 @@ func (s *SshClient) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 		response.Body.Close()
 		response.Body = io.NopCloser(bytes.NewBuffer(responseBody))
 
-		s.logHttpRequest(logData.id, logData.request, logData.body, response, responseBody)
+		durationMs := time.Since(logData.startTime).Milliseconds()
+		s.logHttpRequest(logData.id, logData.request, logData.body, response, responseBody, durationMs)
 		return nil
 	}
 
@@ -527,9 +529,10 @@ func (s *SshClient) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 		}
 
 		logCtx := context.WithValue(request.Context(), requestLogContextKey{}, &requestLogData{
-			id:      ulid.Make().String(),
-			request: requestForLog,
-			body:    requestBody,
+			id:        ulid.Make().String(),
+			request:   requestForLog,
+			body:      requestBody,
+			startTime: time.Now(),
 		})
 
 		proxy.ServeHTTP(writer, request.WithContext(logCtx))
@@ -754,7 +757,7 @@ func (s *SshClient) httpTunnelLegacy(src net.Conn, localEndpoint string) {
 	}
 	srcWriter.Flush()
 
-	s.logHttpRequest(ulid.Make().String(), request, requestBody, response, responseBody)
+	s.logHttpRequest(ulid.Make().String(), request, requestBody, response, responseBody, 0)
 }
 
 func (s *SshClient) logHttpRequest(
@@ -763,6 +766,7 @@ func (s *SshClient) logHttpRequest(
 	requestBody []byte,
 	response *http.Response,
 	responseBody []byte,
+	durationMs int64,
 ) {
 	requestHeaders := make(map[string][]string)
 	for key, values := range request.Header {
@@ -819,6 +823,10 @@ func (s *SshClient) logHttpRequest(
 		LoggedAt:           time.Now().UTC(),
 		IsReplayed:         isReplayedRequest,
 		ParentID:           replayedRequestId,
+		DurationMs:         durationMs,
+		BytesIn:            int64(len(requestBody)),
+		BytesOut:           int64(len(responseBody)),
+		Protocol:           request.Proto,
 	}
 	result := s.db.Conn.Create(&req)
 	if result.Error != nil {

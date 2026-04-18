@@ -1,29 +1,22 @@
 import * as React from "react"
-import { Link, useParams, useSearchParams } from "react-router-dom"
+import { useNavigate, useParams, useSearchParams } from "react-router-dom"
 import {
   ArrowLeft,
-  ArrowUpRight,
   Copy,
   Download,
   LoaderCircle,
+  Pause,
   Play,
   RadioTower,
-  RefreshCw,
   Search,
-  Sparkles,
   Waves,
 } from "lucide-react"
 import { toast } from "sonner"
 
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { ServerUnavailableBanner } from "@/components/server-unavailable-banner"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { PayloadViewer } from "@/components/payload-viewer"
 import { ReplayDialog } from "@/components/replay-dialog"
-import { ServerUnavailableBanner } from "@/components/server-unavailable-banner"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ThemeToggle } from "@/components/theme-toggle"
 import {
   getRequests,
   getWebSocketSession,
@@ -32,499 +25,835 @@ import {
 } from "@/lib/api"
 import {
   buildCurlCommand,
-  contentLength,
   decodeBase64ToBytes,
+  decodeBase64ToText,
   flattenHeaders,
-  formatDateTime,
   formatTime,
   getHeaderValue,
-  methodTone,
+  parseCookiesHeader,
+  parseQueryParams,
   parseTunnelId,
   payloadPreview,
   reasonPhrase,
-  statusTone,
   websocketPayloadLabel,
-  websocketDirectionTone,
-  websocketOpcodeTone,
 } from "@/lib/dashboard"
 import type { RequestRecord, WebSocketEvent, WebSocketSession } from "@/types"
 
-function copyText(value: string, successMessage: string) {
-  return navigator.clipboard
-    .writeText(value)
-    .then(() => toast.success(successMessage))
-    .catch(() => toast.error("Unable to copy to clipboard"))
-}
+/* ── Shared visual primitives ─────────────────────────────── */
 
-function formatBytes(value: number) {
-  if (value <= 0) {
-    return "0 B"
-  }
-  if (value < 1024) {
-    return `${value} B`
-  }
-  if (value < 1024 * 1024) {
-    return `${(value / 1024).toFixed(1)} KB`
-  }
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`
-}
-
-function bodyMetric(headers: Record<string, string[]>, body: string) {
-  const bytes = contentLength(headers)
-  if (bytes > 0) {
-    return formatBytes(bytes)
-  }
-  if (body) {
-    return "Captured"
-  }
-  return "No body"
-}
-
-function DetailMetric({ label, value }: { label: string; value: string }) {
+function LogoMark() {
   return (
-    <div className="border border-border bg-muted/5 px-2.5 py-1.5 sm:px-3 sm:py-2">
-      <p className="font-mono text-[9px] tracking-[0.14em] text-muted-foreground uppercase">
-        {label}
-      </p>
-      <p className="mt-1 font-mono text-[11px] leading-5 break-all sm:text-xs">
-        {value}
-      </p>
+    <div
+      className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-[3px]"
+      style={{ border: "1.5px solid var(--foreground)" }}
+    >
+      <div className="h-1.5 w-1.5 rounded-[1px]" style={{ background: "var(--tm-green)" }} />
     </div>
   )
 }
 
-function HeaderTable({ headers }: { headers: Record<string, string> }) {
-  const entries = Object.entries(headers)
+function MethodTag({ method }: { method: string }) {
+  const map: Record<string, React.CSSProperties> = {
+    GET:     { color: "var(--tm-get-ink)",    background: "var(--tm-get-bg)",    borderColor: "var(--tm-get-border)" },
+    POST:    { color: "var(--tm-post-ink)",   background: "var(--tm-post-bg)",   borderColor: "var(--tm-post-border)" },
+    PUT:     { color: "var(--tm-put-ink)",    background: "var(--tm-put-bg)",    borderColor: "var(--tm-put-border)" },
+    PATCH:   { color: "var(--tm-put-ink)",    background: "var(--tm-put-bg)",    borderColor: "var(--tm-put-border)" },
+    DELETE:  { color: "var(--tm-delete-ink)", background: "var(--tm-delete-bg)", borderColor: "var(--tm-delete-border)" },
+    WS:      { color: "var(--tm-ws-ink)",     background: "var(--tm-ws-bg)",     borderColor: "var(--tm-ws-border)" },
+  }
+  const style = map[method.toUpperCase()] || {
+    color: "var(--muted-foreground)",
+    background: "var(--muted)",
+    borderColor: "var(--tm-line-2)",
+  }
+  return (
+    <span
+      className="inline-block min-w-[50px] rounded-[3px] border px-1 text-center font-mono text-[10px] font-semibold leading-5"
+      style={style}
+    >
+      {method}
+    </span>
+  )
+}
 
-  if (entries.length === 0) {
+function StatusPill({ code }: { code: number }) {
+  let style: React.CSSProperties
+  if (code >= 500)      style = { color: "var(--tm-5xx-ink)", background: "var(--tm-5xx-bg)" }
+  else if (code >= 400) style = { color: "var(--tm-4xx-ink)", background: "var(--tm-4xx-bg)" }
+  else if (code >= 300) style = { color: "var(--tm-3xx-ink)", background: "var(--tm-3xx-bg)" }
+  else if (code >= 200) style = { color: "var(--tm-green-ink)", background: "var(--tm-green-bg)" }
+  else                  style = { color: "var(--tm-1xx-ink)", background: "var(--tm-1xx-bg)" }
+  return (
+    <span className="inline-flex items-center rounded-[3px] px-1.5 font-mono text-[11px] leading-5" style={style}>
+      {code}
+    </span>
+  )
+}
+
+function Chip({
+  active,
+  onClick,
+  children,
+}: {
+  active?: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center gap-1 rounded-[3px] border px-1.5 font-mono text-[10px] leading-5 transition-colors"
+      style={
+        active
+          ? { background: "var(--foreground)", color: "var(--background)", borderColor: "var(--foreground)" }
+          : { background: "var(--background)", color: "var(--muted-foreground)", borderColor: "var(--tm-line-2)" }
+      }
+    >
+      {children}
+    </button>
+  )
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="mb-2 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.1em]"
+      style={{ color: "var(--muted-foreground)" }}
+    >
+      {children}
+      <div className="h-px flex-1" style={{ background: "var(--border)" }} />
+    </div>
+  )
+}
+
+function KVTable({ rows }: { rows: [string, string][] }) {
+  if (!rows.length) {
     return (
-      <div className="border border-dashed border-border/80 bg-muted/20 px-5 py-6 text-sm text-muted-foreground">
-        No headers captured.
-      </div>
+      <p className="font-mono text-xs" style={{ color: "var(--muted-foreground)" }}>
+        none
+      </p>
     )
   }
+  return (
+    <table className="w-full border-collapse">
+      <tbody>
+        {rows.map(([k, v], i) => (
+          <tr key={i} style={{ borderBottom: "1px dashed var(--border)" }}>
+            <td
+              className="w-[180px] whitespace-nowrap py-1.5 pr-4 font-mono text-xs"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              {k}
+            </td>
+            <td
+              className="break-all py-1.5 font-mono text-xs"
+              style={{ color: "var(--foreground)" }}
+            >
+              {v}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+/* ── TopBar ──────────────────────────────────────────────── */
+
+function TopBar({
+  subdomain,
+  localport,
+  onBack,
+}: {
+  subdomain: string
+  localport: string
+  onBack: () => void
+}) {
+  return (
+    <header
+      className="sticky top-0 z-10 flex h-11 items-center gap-3 border-b border-border bg-background px-4"
+      style={{ boxShadow: "0 1px 0 color-mix(in srgb, var(--foreground) 4%, transparent)" }}
+    >
+      <div className="flex items-center gap-2">
+        <LogoMark />
+        <span className="font-mono text-xs font-semibold tracking-[-0.01em]">portr</span>
+      </div>
+      <div className="flex items-center gap-1.5 font-mono text-xs" style={{ color: "var(--muted-foreground)" }}>
+        <span style={{ color: "var(--tm-line-2)" }}>/</span>
+        <button onClick={onBack} className="hover:underline" style={{ color: "var(--muted-foreground)" }}>
+          connections
+        </button>
+        <span style={{ color: "var(--tm-line-2)" }}>/</span>
+        <span style={{ color: "var(--foreground)" }}>
+          {subdomain}:{localport}
+        </span>
+      </div>
+      <div className="flex-1" />
+      <ThemeToggle />
+    </header>
+  )
+}
+
+/* ── Request sidebar ─────────────────────────────────────── */
+
+const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "WS"]
+const STATUS_FILTERS = ["all", "2xx", "3xx", "4xx", "5xx"] as const
+type StatusFilter = (typeof STATUS_FILTERS)[number]
+
+function RequestSidebar({
+  requests,
+  selectedId,
+  onSelect,
+}: {
+  requests: RequestRecord[]
+  selectedId: string | null
+  onSelect: (id: string) => void
+}) {
+  const [query, setQuery] = React.useState("")
+  const [methodFilter, setMethodFilter] = React.useState<Set<string>>(new Set())
+  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all")
+  const [paused, setPaused] = React.useState(false)
+  const searchRef = React.useRef<HTMLInputElement>(null)
+
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault()
+        searchRef.current?.focus()
+        searchRef.current?.select()
+      }
+    }
+    window.addEventListener("keydown", handler)
+    return () => window.removeEventListener("keydown", handler)
+  }, [])
+
+  const toggleMethod = (m: string) =>
+    setMethodFilter((cur) => {
+      const next = new Set(cur)
+      next.has(m) ? next.delete(m) : next.add(m)
+      return next
+    })
+
+  const filtered = React.useMemo(() => {
+    return requests.filter((r) => {
+      if (query && !r.Url.toLowerCase().includes(query.toLowerCase())) return false
+      if (methodFilter.size > 0 && !methodFilter.has(r.Method.toUpperCase())) return false
+      if (statusFilter !== "all") {
+        const bucket = `${Math.floor(r.ResponseStatusCode / 100)}xx` as StatusFilter
+        if (bucket !== statusFilter) return false
+      }
+      return true
+    })
+  }, [requests, query, methodFilter, statusFilter])
 
   return (
-    <div className="flex min-h-0 flex-col overflow-hidden border border-border bg-background">
-      <div className="grid grid-cols-[minmax(11rem,16rem)_minmax(0,1fr)] border-b border-border bg-muted/20 px-3 py-1.5 font-mono text-[9px] tracking-[0.14em] text-muted-foreground uppercase sm:px-4">
-        <span>Header</span>
-        <span>Value</span>
+    <div className="portr-sidebar">
+      {/* Toolbar */}
+      <div
+        className="flex flex-col gap-2 p-2"
+        style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}
+      >
+        <div className="relative flex items-center">
+          <Search
+            className="pointer-events-none absolute left-2 size-3"
+            style={{ color: "var(--tm-muted-2)" }}
+          />
+          <input
+            ref={searchRef}
+            placeholder="filter path..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="h-7 w-full rounded-[4px] border border-border bg-background pl-6 font-mono text-xs outline-none focus:border-foreground/40"
+            style={{ color: "var(--foreground)" }}
+          />
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {HTTP_METHODS.map((m) => (
+            <Chip key={m} active={methodFilter.has(m)} onClick={() => toggleMethod(m)}>
+              {m}
+            </Chip>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-1">
+          {STATUS_FILTERS.map((s) => (
+            <Chip key={s} active={statusFilter === s} onClick={() => setStatusFilter(s)}>
+              {s}
+            </Chip>
+          ))}
+          <div className="flex-1" />
+          <Chip active={paused} onClick={() => setPaused((p) => !p)}>
+            {paused ? <Play className="size-2.5" /> : <Pause className="size-2.5" />}
+            {paused ? "paused" : "capturing"}
+          </Chip>
+        </div>
       </div>
-      <div className="min-h-0 flex-1 divide-y divide-border overflow-auto">
-        {entries.map(([key, value]) => (
+
+      {/* List */}
+      <div className="portr-sidebar-list">
+        {filtered.length === 0 ? (
           <div
-            className="grid grid-cols-1 gap-1.5 px-3 py-2 md:grid-cols-[minmax(11rem,16rem)_minmax(0,1fr)] md:gap-3 md:px-4"
-            key={key}
+            className="flex min-h-40 flex-col items-center justify-center gap-2 p-4 text-center font-mono text-[11px]"
+            style={{ color: "var(--muted-foreground)" }}
           >
-            <div className="font-mono text-xs text-muted-foreground">
-              {key}
-            </div>
-            <div className="font-mono text-xs leading-5 break-all whitespace-pre-wrap text-foreground">
-              {value}
-            </div>
+            <RadioTower className="size-4" style={{ color: "var(--tm-muted-2)" }} />
+            no requests match filter
           </div>
-        ))}
+        ) : (
+          filtered.map((r) => (
+            <button
+              key={r.ID}
+              className="portr-req-row relative w-full text-left transition-colors hover:bg-muted/50"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "50px 1fr 40px",
+                gap: "8px",
+                alignItems: "center",
+                padding: "8px 10px",
+                borderBottom: "1px solid var(--border)",
+                ...(r.ID === selectedId
+                  ? { background: "var(--muted)" }
+                  : {}),
+              }}
+              onClick={() => onSelect(r.ID)}
+            >
+              {r.ID === selectedId && (
+                <div
+                  className="absolute inset-y-0 left-0 w-0.5"
+                  style={{ background: "var(--foreground)" }}
+                />
+              )}
+              <MethodTag method={r.Method} />
+              <div className="min-w-0">
+                <p
+                  className="truncate font-mono text-xs"
+                  style={{ color: "var(--foreground)" }}
+                >
+                  {r.Url}
+                </p>
+                <p className="mt-0.5 font-mono text-[10px]" style={{ color: "var(--muted-foreground)" }}>
+                  {formatTime(r.LoggedAt)}
+                </p>
+              </div>
+              <div className="text-right">
+                <StatusPill code={r.ResponseStatusCode} />
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+
+      {/* Footer */}
+      <div
+        className="flex items-center justify-between px-3 py-1.5 font-mono text-[10px]"
+        style={{
+          borderTop: "1px solid var(--border)",
+          background: "var(--muted)",
+          color: "var(--muted-foreground)",
+        }}
+      >
+        <span>
+          {filtered.length} / {requests.length} requests
+        </span>
+        <span style={{ color: "var(--tm-muted-2)" }}>⌘K to search</span>
       </div>
     </div>
   )
 }
 
-function RequestDetail({
+/* ── Request detail pane ─────────────────────────────────── */
+
+type DetailTab = "headers" | "query" | "reqbody" | "resbody" | "cookies" | "raw"
+
+function RawView({ request }: { request: RequestRecord }) {
+  const path = request.Url
+  const reqHeaders = flattenHeaders(request.Headers)
+  const resHeaders = flattenHeaders(request.ResponseHeaders)
+  const reqBody = decodeBase64ToText(request.Body)
+  const resBody = decodeBase64ToText(request.ResponseBody)
+
+  const raw = [
+    `${request.Method} ${path} HTTP/1.1`,
+    ...Object.entries(reqHeaders).map(([k, v]) => `${k}: ${v}`),
+    "",
+    reqBody || "",
+    "",
+    "─".repeat(48),
+    "",
+    `HTTP/1.1 ${request.ResponseStatusCode} ${reasonPhrase(request.ResponseStatusCode)}`,
+    ...Object.entries(resHeaders).map(([k, v]) => `${k}: ${v}`),
+    "",
+    resBody || "",
+  ].join("\n")
+
+  return (
+    <pre className="portr-raw-view">{raw}</pre>
+  )
+}
+
+function RequestDetailPane({
   request,
   onRefresh,
-  onSelectParent,
+  onEditReplay,
 }: {
   request: RequestRecord | null
   onRefresh: () => Promise<void>
-  onSelectParent: () => void
+  onEditReplay: () => void
 }) {
-  const [detailTab, setDetailTab] = React.useState("request")
+  const [tab, setTab] = React.useState<DetailTab>("headers")
   const [replaying, setReplaying] = React.useState(false)
-  const [replayDialogOpen, setReplayDialogOpen] = React.useState(false)
 
   React.useEffect(() => {
-    setDetailTab("request")
+    setTab("headers")
   }, [request?.ID])
 
   if (!request) {
     return (
-      <Card className="border-border bg-card shadow-none">
-        <CardContent className="flex min-h-[32rem] flex-col items-center justify-center gap-3 p-8 text-center">
-          <div className="rounded-md border border-dashed border-border/80 bg-muted/30 p-4">
-            <ArrowLeft className="size-6 text-muted-foreground" />
-          </div>
-          <div className="space-y-1">
-            <h2 className="font-medium">Select a request trace</h2>
-            <p className="text-sm text-muted-foreground">
-              Pick a request from the left rail to inspect its headers, body,
-              and replay controls.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <div
+        className="flex flex-col items-center justify-center gap-3 p-8 text-center"
+        style={{ background: "var(--background)" }}
+      >
+        <div
+          className="grid h-12 w-12 place-items-center rounded-md"
+          style={{ border: "1.5px dashed var(--tm-line-2)" }}
+        >
+          <ArrowLeft className="size-5" style={{ color: "var(--tm-muted-2)" }} />
+        </div>
+        <p className="font-mono text-xs" style={{ color: "var(--muted-foreground)" }}>
+          select a request to inspect
+        </p>
+      </div>
     )
   }
 
   async function handleReplay() {
-    if (!request) {
-      return
-    }
-
+    if (!request) return
     setReplaying(true)
     try {
       await replayRequest(request.ID)
       toast.success("Replay dispatched")
       await onRefresh()
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to replay request"
-      )
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to replay")
     } finally {
       setReplaying(false)
     }
   }
 
-  const requestHeaders = flattenHeaders(request.Headers)
-  const responseHeaders = flattenHeaders(request.ResponseHeaders)
-  const requestContentType =
-    getHeaderValue(request.Headers, "Content-Type") || "No content type"
-  const responseContentType =
-    getHeaderValue(request.ResponseHeaders, "Content-Type") || "No content type"
+  function handleCopyCurl() {
+    navigator.clipboard
+      ?.writeText(buildCurlCommand(request!))
+      .then(() => toast.success("cURL copied to clipboard"))
+      .catch(() => toast.error("Unable to copy to clipboard"))
+  }
+
+  const reqHeaders = Object.entries(flattenHeaders(request.Headers)) as [string, string][]
+  const resHeaders = Object.entries(flattenHeaders(request.ResponseHeaders)) as [string, string][]
+  const queryParams = parseQueryParams(request.Url)
+  const cookieHeader = getHeaderValue(request.Headers, "Cookie")
+  const cookies = parseCookiesHeader(cookieHeader)
+
+  const tabDefs: { id: DetailTab; label: string; count?: number }[] = [
+    { id: "headers",  label: "Headers",       count: reqHeaders.length + resHeaders.length },
+    { id: "query",    label: "Query",          count: queryParams.length },
+    { id: "reqbody",  label: "Request body" },
+    { id: "resbody",  label: "Response body" },
+    { id: "cookies",  label: "Cookies",        count: cookies.length },
+    { id: "raw",      label: "Raw" },
+  ]
 
   return (
-    <>
-      <Card className="border-border bg-card shadow-none xl:h-full xl:min-h-0">
-        <CardContent className="space-y-4 p-4 xl:flex xl:h-full xl:min-h-0 xl:flex-col">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge
-                  className={`ring-1 ${methodTone(request.Method)}`}
-                  variant="outline"
-                >
-                  {request.Method}
-                </Badge>
-                <Badge
-                  className={`ring-1 ${statusTone(request.ResponseStatusCode)}`}
-                  variant="outline"
-                >
-                  {request.ResponseStatusCode}{" "}
-                  {reasonPhrase(request.ResponseStatusCode)}
-                </Badge>
-                {request.IsReplayed ? (
-                  <Badge variant="outline">Replayed</Badge>
-                ) : null}
-              </div>
-              <div className="space-y-1">
-                <h2 className="font-mono text-sm font-medium tracking-tight break-all sm:text-base">
-                  {request.Url}
-                </h2>
-                <p className="font-mono text-xs text-muted-foreground">
-                  {formatDateTime(request.LoggedAt)}
-                </p>
-              </div>
-            </div>
+    <div className="portr-detail-pane">
+      {/* Pane header */}
+      <div
+        className="flex items-center justify-between gap-3 px-4 py-2.5"
+        style={{ borderBottom: "1px solid var(--border)", background: "var(--background)" }}
+      >
+        <div className="flex min-w-0 items-center gap-2">
+          <MethodTag method={request.Method} />
+          <StatusPill code={request.ResponseStatusCode} />
+          <span
+            className="truncate font-mono text-[13px]"
+            style={{ color: "var(--foreground)" }}
+            title={request.Url}
+          >
+            {request.Url}
+          </span>
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            onClick={handleCopyCurl}
+            className="flex items-center gap-1 rounded-[6px] border border-border bg-background px-2 py-1 font-mono text-[11px] transition-colors hover:bg-muted"
+            style={{ color: "var(--foreground)" }}
+          >
+            <Copy className="size-3" />
+            copy as cURL
+          </button>
+          <button
+            onClick={onEditReplay}
+            className="flex items-center gap-1 rounded-[6px] border border-border bg-background px-2 py-1 font-mono text-[11px] transition-colors hover:bg-muted"
+            style={{ color: "var(--foreground)" }}
+          >
+            edit &amp; replay
+          </button>
+          <button
+            disabled={replaying}
+            onClick={handleReplay}
+            className="flex items-center gap-1 rounded-[6px] border px-2 py-1 font-mono text-[11px] font-medium transition-colors hover:opacity-80 disabled:opacity-50"
+            style={{
+              background: "var(--foreground)",
+              color: "var(--background)",
+              borderColor: "var(--foreground)",
+            }}
+          >
+            {replaying ? <LoaderCircle className="size-3 animate-spin" /> : null}
+            replay
+          </button>
+        </div>
+      </div>
 
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              {request.ParentID ? (
-                <Button onClick={onSelectParent} size="sm" variant="outline">
-                  <ArrowUpRight className="size-4" />
-                  View parent
-                </Button>
-              ) : null}
-              <Button
-                disabled={replaying}
-                onClick={handleReplay}
-                size="sm"
-                variant="outline"
+      {/* Meta strip */}
+      <div
+        className="flex flex-wrap gap-3 px-4 py-2"
+        style={{
+          borderBottom: "1px solid var(--border)",
+          background: "var(--muted)",
+          fontSize: "11px",
+          fontFamily: "var(--font-mono)",
+          color: "var(--muted-foreground)",
+        }}
+      >
+        <span>
+          <span style={{ color: "var(--tm-muted-2)" }}>time </span>
+          <span style={{ color: "var(--tm-ink-2)" }}>{formatTime(request.LoggedAt)}</span>
+        </span>
+        <span>
+          <span style={{ color: "var(--tm-muted-2)" }}>method </span>
+          <span style={{ color: "var(--tm-ink-2)" }}>{request.Method}</span>
+        </span>
+        <span>
+          <span style={{ color: "var(--tm-muted-2)" }}>status </span>
+          <span style={{ color: "var(--tm-ink-2)" }}>
+            {request.ResponseStatusCode} {reasonPhrase(request.ResponseStatusCode)}
+          </span>
+        </span>
+        <span>
+          <span style={{ color: "var(--tm-muted-2)" }}>host </span>
+          <span style={{ color: "var(--tm-ink-2)" }}>{request.Host}</span>
+        </span>
+        {request.IsReplayed ? (
+          <span
+            className="rounded-[3px] px-1.5"
+            style={{ background: "var(--tm-green-bg)", color: "var(--tm-green-ink)" }}
+          >
+            replayed
+          </span>
+        ) : null}
+      </div>
+
+      {/* Tabs */}
+      <div
+        className="flex overflow-x-auto"
+        style={{ borderBottom: "1px solid var(--border)", background: "var(--background)" }}
+      >
+        {tabDefs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className="flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 font-mono text-xs transition-colors hover:text-foreground"
+            style={
+              tab === t.id
+                ? { color: "var(--foreground)", borderColor: "var(--foreground)" }
+                : { color: "var(--muted-foreground)", borderColor: "transparent" }
+            }
+          >
+            {t.label}
+            {t.count != null && (
+              <span
+                className="rounded-full border px-1.5 font-mono text-[10px] leading-[1.4]"
+                style={{
+                  borderColor: "var(--tm-line-2)",
+                  color: tab === t.id ? "var(--foreground)" : "var(--tm-muted-2)",
+                }}
               >
-                {replaying ? (
-                  <>
-                    <LoaderCircle className="size-4 animate-spin" />
-                    Replaying...
-                  </>
-                ) : (
-                  <>
-                    <Play className="size-4" />
-                    Replay original
-                  </>
-                )}
-              </Button>
-              <Button onClick={() => setReplayDialogOpen(true)} size="sm">
-                <Sparkles className="size-4" />
-                Edit & send
-              </Button>
-              <Button
-                onClick={() =>
-                  copyText(buildCurlCommand(request), "cURL command copied")
-                }
-                size="sm"
-                variant="outline"
-              >
-                <Copy className="size-4" />
-                Copy cURL
-              </Button>
+                {t.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab body */}
+      <div className="portr-tab-body">
+        {tab === "headers" && (
+          <div>
+            <SectionLabel>Request headers</SectionLabel>
+            <KVTable rows={reqHeaders} />
+            <div className="mt-5">
+              <SectionLabel>Response headers</SectionLabel>
+              <KVTable rows={resHeaders} />
             </div>
           </div>
+        )}
 
-          <Tabs
-            className="xl:flex xl:min-h-0 xl:flex-1 xl:flex-col"
-            onValueChange={setDetailTab}
-            value={detailTab}
-          >
-            <TabsList variant="line">
-              <TabsTrigger value="request">Request</TabsTrigger>
-              <TabsTrigger value="response">Response</TabsTrigger>
-            </TabsList>
-            <TabsContent
-              className="mt-3 data-[state=active]:flex data-[state=active]:min-h-0 data-[state=active]:flex-1 data-[state=active]:flex-col data-[state=active]:gap-4 xl:overflow-hidden"
-              value="request"
-            >
-              <div className="grid gap-2 md:grid-cols-3">
-                <DetailMetric label="Content type" value={requestContentType} />
-                <DetailMetric
-                  label="Body size"
-                  value={bodyMetric(request.Headers, request.Body)}
-                />
-                <DetailMetric
-                  label="Headers"
-                  value={`${Object.keys(requestHeaders).length} captured`}
-                />
-              </div>
-              <div className="grid gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.95fr)]">
-                <section className="flex min-h-[18rem] min-w-0 flex-col gap-2.5 xl:min-h-0">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-medium">Body</h3>
-                    <span className="text-xs text-muted-foreground">
-                      Primary payload view
-                    </span>
-                  </div>
-                  <div className="min-h-0 flex-1">
-                    <PayloadViewer request={request} type="request" />
-                  </div>
-                </section>
-                <section className="flex min-h-[18rem] min-w-0 flex-col gap-2.5 xl:min-h-0">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-medium">Headers</h3>
-                    <span className="text-xs text-muted-foreground">
-                      Structured key-value view
-                    </span>
-                  </div>
-                  <HeaderTable headers={requestHeaders} />
-                </section>
-              </div>
-            </TabsContent>
-            <TabsContent
-              className="mt-3 data-[state=active]:flex data-[state=active]:min-h-0 data-[state=active]:flex-1 data-[state=active]:flex-col data-[state=active]:gap-4 xl:overflow-hidden"
-              value="response"
-            >
-              <div className="grid gap-2 md:grid-cols-3">
-                <DetailMetric
-                  label="Content type"
-                  value={responseContentType}
-                />
-                <DetailMetric
-                  label="Body size"
-                  value={bodyMetric(
-                    request.ResponseHeaders,
-                    request.ResponseBody
-                  )}
-                />
-                <DetailMetric
-                  label="Status"
-                  value={`${request.ResponseStatusCode} ${reasonPhrase(
-                    request.ResponseStatusCode
-                  )}`}
-                />
-              </div>
-              <div className="grid gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.95fr)]">
-                <section className="flex min-h-[18rem] min-w-0 flex-col gap-2.5 xl:min-h-0">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-medium">Body</h3>
-                    <span className="text-xs text-muted-foreground">
-                      Full-width response preview
-                    </span>
-                  </div>
-                  <div className="min-h-0 flex-1">
-                    <PayloadViewer request={request} type="response" />
-                  </div>
-                </section>
-                <section className="flex min-h-[18rem] min-w-0 flex-col gap-2.5 xl:min-h-0">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-medium">Headers</h3>
-                    <span className="text-xs text-muted-foreground">
-                      Structured key-value view
-                    </span>
-                  </div>
-                  <HeaderTable headers={responseHeaders} />
-                </section>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+        {tab === "query" && (
+          queryParams.length > 0
+            ? <KVTable rows={queryParams} />
+            : (
+              <p className="font-mono text-xs" style={{ color: "var(--muted-foreground)" }}>
+                no query parameters
+              </p>
+            )
+        )}
 
-      <ReplayDialog
-        onOpenChange={setReplayDialogOpen}
-        onReplayed={onRefresh}
-        open={replayDialogOpen}
-        request={request}
-      />
-    </>
+        {tab === "reqbody" && (
+          <div className="h-full min-h-[200px]">
+            <PayloadViewer request={request} type="request" />
+          </div>
+        )}
+
+        {tab === "resbody" && (
+          <div className="h-full min-h-[200px]">
+            <PayloadViewer request={request} type="response" />
+          </div>
+        )}
+
+        {tab === "cookies" && (
+          cookies.length > 0 ? (
+            <div className="space-y-2">
+              {cookies.map((c, i) => (
+                <div
+                  key={i}
+                  className="rounded-[4px] border p-3 font-mono text-xs"
+                  style={{ borderColor: "var(--border)", background: "var(--background)" }}
+                >
+                  <div className="mb-1 font-semibold" style={{ color: "var(--foreground)" }}>
+                    {c.name}
+                  </div>
+                  <div
+                    className="mb-2 break-all text-[11px]"
+                    style={{ color: "var(--tm-green-ink)" }}
+                  >
+                    {c.value || <span style={{ color: "var(--tm-muted-2)" }}>(empty)</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="font-mono text-xs" style={{ color: "var(--muted-foreground)" }}>
+              no cookies in request
+            </p>
+          )
+        )}
+
+        {tab === "raw" && <RawView request={request} />}
+      </div>
+    </div>
   )
 }
 
-function WebSocketDetail({
+/* ── WebSocket detail ───────────────────────────────────── */
+
+function WebSocketDetailPane({
   session,
   events,
 }: {
   session: WebSocketSession | null
   events: WebSocketEvent[]
 }) {
-  const [selectedEventID, setSelectedEventID] = React.useState<string | null>(null)
+  const [selectedEventId, setSelectedEventId] = React.useState<string | null>(null)
 
   React.useEffect(() => {
-    setSelectedEventID(events[0]?.id || null)
+    setSelectedEventId(events[0]?.id || null)
   }, [session?.ID])
 
   if (!session) {
     return (
-      <Card className="border-border bg-card shadow-none">
-        <CardContent className="flex min-h-[32rem] flex-col items-center justify-center gap-3 p-8 text-center">
-          <div className="rounded-md border border-dashed border-border/80 bg-muted/30 p-4">
-            <Waves className="size-6 text-muted-foreground" />
-          </div>
-          <div className="space-y-1">
-            <h2 className="font-medium">Select a WebSocket session</h2>
-            <p className="text-sm text-muted-foreground">
-              Inspect the handshake metadata and message timeline for upgraded
-              connections.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col items-center justify-center gap-3 p-8 text-center">
+        <div
+          className="grid h-12 w-12 place-items-center rounded-md"
+          style={{ border: "1.5px dashed var(--tm-line-2)" }}
+        >
+          <Waves className="size-5" style={{ color: "var(--tm-muted-2)" }} />
+        </div>
+        <p className="font-mono text-xs" style={{ color: "var(--muted-foreground)" }}>
+          select a WebSocket session
+        </p>
+      </div>
     )
   }
 
-  const selectedEvent =
-    events.find((event) => event.id === selectedEventID) || events[0] || null
+  const selectedEvent = events.find((e) => e.id === selectedEventId) || events[0] || null
+
+  const reqHeaders = Object.entries(flattenHeaders(session.RequestHeaders)) as [string, string][]
+  const resHeaders = Object.entries(flattenHeaders(session.ResponseHeaders)) as [string, string][]
+
+  const [wsTab, setWsTab] = React.useState<"timeline" | "request" | "response">("timeline")
 
   return (
-    <Card className="border-border bg-card shadow-none xl:h-full xl:min-h-0">
-      <CardContent className="space-y-6 p-4 sm:p-5 xl:flex xl:h-full xl:min-h-0 xl:flex-col">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge
-                className={`ring-1 ${methodTone(session.Method)}`}
-                variant="outline"
-              >
-                {session.Method}
-              </Badge>
-              <Badge className="font-mono" variant="outline">{session.EventCount} frames</Badge>
-              <Badge className="font-mono" variant="outline">
-                {session.ClosedAt
-                  ? `Closed ${formatTime(session.ClosedAt)}`
-                  : "Open"}
-              </Badge>
-            </div>
-            <div className="space-y-1">
-              <h2 className="font-mono text-base font-medium tracking-tight break-all">
-                {session.URL}
-              </h2>
-              <p className="font-mono text-xs text-muted-foreground">
-                Started {formatDateTime(session.StartedAt)}
-              </p>
-            </div>
-          </div>
-          <div className="grid gap-2 text-right text-sm text-muted-foreground">
-            <div>{session.ClientEventCount} client frames</div>
-            <div>{session.ServerEventCount} server frames</div>
-            {session.CloseCode ? (
-              <div>
-                Close code {session.CloseCode}
-                {session.CloseReason ? ` · ${session.CloseReason}` : ""}
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        <Tabs
-          className="xl:flex xl:min-h-0 xl:flex-1 xl:flex-col"
-          defaultValue="timeline"
-        >
-          <TabsList variant="line">
-            <TabsTrigger value="timeline">Timeline</TabsTrigger>
-            <TabsTrigger value="request">Request headers</TabsTrigger>
-            <TabsTrigger value="response">Response headers</TabsTrigger>
-          </TabsList>
-          <TabsContent
-            className="xl:min-h-0 xl:overflow-y-auto xl:pr-1"
-            value="timeline"
+    <div className="portr-detail-pane">
+      {/* Pane header */}
+      <div
+        className="px-4 py-2.5"
+        style={{ borderBottom: "1px solid var(--border)" }}
+      >
+        <div className="flex items-center gap-2">
+          <MethodTag method={session.Method} />
+          <span
+            className="truncate font-mono text-[13px]"
+            style={{ color: "var(--foreground)" }}
           >
+            {session.URL}
+          </span>
+        </div>
+      </div>
+
+      {/* Meta strip */}
+      <div
+        className="flex flex-wrap gap-3 px-4 py-2 font-mono text-[11px]"
+        style={{
+          borderBottom: "1px solid var(--border)",
+          background: "var(--muted)",
+          color: "var(--muted-foreground)",
+        }}
+      >
+        <span>
+          <span style={{ color: "var(--tm-muted-2)" }}>frames </span>
+          <span style={{ color: "var(--tm-ink-2)" }}>{session.EventCount}</span>
+        </span>
+        <span>
+          <span style={{ color: "var(--tm-muted-2)" }}>client </span>
+          <span style={{ color: "var(--tm-ink-2)" }}>{session.ClientEventCount}</span>
+        </span>
+        <span>
+          <span style={{ color: "var(--tm-muted-2)" }}>server </span>
+          <span style={{ color: "var(--tm-ink-2)" }}>{session.ServerEventCount}</span>
+        </span>
+        <span>
+          <span style={{ color: "var(--tm-muted-2)" }}>status </span>
+          <span
+            style={{
+              color: session.ClosedAt ? "var(--tm-muted-2)" : "var(--tm-green-ink)",
+            }}
+          >
+            {session.ClosedAt ? "closed" : "open"}
+          </span>
+        </span>
+        {session.CloseCode ? (
+          <span>
+            <span style={{ color: "var(--tm-muted-2)" }}>close </span>
+            <span style={{ color: "var(--tm-ink-2)" }}>
+              {session.CloseCode}
+              {session.CloseReason ? ` · ${session.CloseReason}` : ""}
+            </span>
+          </span>
+        ) : null}
+      </div>
+
+      {/* Tabs */}
+      <div
+        className="flex"
+        style={{ borderBottom: "1px solid var(--border)" }}
+      >
+        {(["timeline", "request", "response"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setWsTab(t)}
+            className="border-b-2 px-3 py-2 font-mono text-xs capitalize transition-colors hover:text-foreground"
+            style={
+              wsTab === t
+                ? { color: "var(--foreground)", borderColor: "var(--foreground)" }
+                : { color: "var(--muted-foreground)", borderColor: "transparent" }
+            }
+          >
+            {t === "timeline" ? "Timeline" : t === "request" ? "Request headers" : "Response headers"}
+          </button>
+        ))}
+      </div>
+
+      <div className="portr-tab-body">
+        {wsTab === "timeline" && (
+          <div>
             {events.length === 0 ? (
-              <div className="border border-dashed border-border/80 bg-muted/30 p-6 text-sm text-muted-foreground">
-                No frames captured yet.
-              </div>
+              <p className="font-mono text-xs" style={{ color: "var(--muted-foreground)" }}>
+                no frames captured yet
+              </p>
             ) : (
-              <div className="overflow-hidden border border-border">
-                <div className="grid grid-cols-[auto_auto_auto_1fr_auto] gap-3 border-b border-border bg-muted/20 px-4 py-2 font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
+              <div
+                className="overflow-hidden rounded-[4px]"
+                style={{ border: "1px solid var(--border)" }}
+              >
+                <div
+                  className="grid grid-cols-[auto_auto_auto_1fr_auto] gap-3 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.12em]"
+                  style={{
+                    borderBottom: "1px solid var(--border)",
+                    background: "var(--muted)",
+                    color: "var(--muted-foreground)",
+                  }}
+                >
                   <span>Dir</span>
                   <span>Type</span>
                   <span>At</span>
                   <span>Preview</span>
                   <span className="text-right">Size</span>
                 </div>
-                <div className="divide-y divide-border">
+                <div style={{ borderTop: "none" }}>
                   {events.map((event) => (
                     <div
-                      className={`grid cursor-pointer grid-cols-[auto_auto_auto_1fr_auto] items-center gap-3 px-4 py-2.5 font-mono text-xs transition hover:bg-muted/20 ${
-                        event.id === selectedEvent?.id ? "bg-muted/30 shadow-[inset_2px_0_0_0_hsl(var(--primary))]" : ""
-                      }`}
                       key={event.id}
-                      onClick={() => setSelectedEventID(event.id)}
+                      className="grid cursor-pointer grid-cols-[auto_auto_auto_1fr_auto] items-center gap-3 px-3 py-2 transition-colors hover:bg-muted/40"
+                      style={{
+                        borderBottom: "1px solid var(--border)",
+                        ...(event.id === selectedEvent?.id
+                          ? { background: "var(--muted)", boxShadow: "inset 2px 0 0 var(--foreground)" }
+                          : {}),
+                      }}
+                      onClick={() => setSelectedEventId(event.id)}
                     >
-                      <Badge
-                        className={`ring-1 ${websocketDirectionTone(event.direction)}`}
-                        variant="outline"
+                      <span
+                        className="rounded-[3px] border px-1.5 font-mono text-[10px] leading-5"
+                        style={
+                          event.direction === "client"
+                            ? { color: "var(--tm-get-ink)", background: "var(--tm-get-bg)", borderColor: "var(--tm-get-border)" }
+                            : { color: "var(--tm-post-ink)", background: "var(--tm-post-bg)", borderColor: "var(--tm-post-border)" }
+                        }
                       >
                         {event.direction}
-                      </Badge>
-                      <Badge
-                        className={`ring-1 ${websocketOpcodeTone(event.opcode)}`}
-                        variant="outline"
+                      </span>
+                      <span
+                        className="rounded-[3px] border px-1.5 font-mono text-[10px] leading-5"
+                        style={{ color: "var(--muted-foreground)", borderColor: "var(--tm-line-2)" }}
                       >
                         {event.opcode_name}
-                      </Badge>
-                      <span className="font-mono text-[10px] text-muted-foreground">
+                      </span>
+                      <span className="font-mono text-[10px]" style={{ color: "var(--muted-foreground)" }}>
                         {formatTime(event.logged_at)}
                       </span>
                       <div className="min-w-0">
-                        <p className="truncate font-mono text-xs">
+                        <p className="truncate font-mono text-xs" style={{ color: "var(--foreground)" }}>
                           {payloadPreview(event)}
                         </p>
                         {event.payload && !event.payload_text ? (
-                          <Button
-                            className="h-auto px-0 py-0 text-xs text-muted-foreground"
-                            onClick={() => {
+                          <button
+                            className="font-mono text-[10px] hover:underline"
+                            style={{ color: "var(--muted-foreground)" }}
+                            onClick={(e) => {
+                              e.stopPropagation()
                               const url = URL.createObjectURL(
                                 new Blob([decodeBase64ToBytes(event.payload)])
                               )
-                              const anchor = document.createElement("a")
-                              anchor.href = url
-                              anchor.download = `${event.id}.bin`
-                              anchor.click()
+                              const a = document.createElement("a")
+                              a.href = url
+                              a.download = `${event.id}.bin`
+                              a.click()
                               setTimeout(() => URL.revokeObjectURL(url), 1000)
                             }}
-                            size="sm"
-                            variant="link"
                           >
-                            <Download className="size-3.5" />
-                            Download payload
-                          </Button>
+                            <Download className="mr-0.5 inline size-3" />
+                            download
+                          </button>
                         ) : null}
                       </div>
-                      <span className="text-right text-xs text-muted-foreground">
+                      <span className="text-right font-mono text-xs" style={{ color: "var(--muted-foreground)" }}>
                         {event.payload_length} B
                       </span>
                     </div>
@@ -534,101 +863,153 @@ function WebSocketDetail({
             )}
 
             {selectedEvent ? (
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-sm font-medium">Selected frame</h3>
-                    <p className="text-xs text-muted-foreground">
-                      {websocketPayloadLabel(selectedEvent)} ·{" "}
-                      {selectedEvent.payload_length} B
-                    </p>
-                  </div>
-                  {!selectedEvent.payload_text && selectedEvent.payload ? (
-                    <Button
-                      onClick={() => {
-                        const url = URL.createObjectURL(
-                          new Blob([decodeBase64ToBytes(selectedEvent.payload)])
-                        )
-                        const anchor = document.createElement("a")
-                        anchor.href = url
-                        anchor.download = `${selectedEvent.id}.bin`
-                        anchor.click()
-                        setTimeout(() => URL.revokeObjectURL(url), 1000)
-                      }}
-                      size="sm"
-                      variant="outline"
-                    >
-                      <Download className="size-4" />
-                      Download payload
-                    </Button>
-                  ) : null}
-                </div>
-
+              <div className="mt-4">
+                <SectionLabel>
+                  {websocketPayloadLabel(selectedEvent)} · {selectedEvent.payload_length} B
+                </SectionLabel>
                 {selectedEvent.payload_text ? (
-                  <div className="border bg-background">
-                    <pre className="min-h-32 whitespace-pre-wrap break-all p-4 font-mono text-xs leading-6">
-                      {selectedEvent.payload_text}
-                    </pre>
-                  </div>
+                  <pre
+                    className="min-h-20 whitespace-pre-wrap break-all rounded-[4px] border p-3 font-mono text-xs leading-relaxed"
+                    style={{
+                      background: "var(--muted)",
+                      borderColor: "var(--border)",
+                      color: "var(--foreground)",
+                    }}
+                  >
+                    {selectedEvent.payload_text}
+                  </pre>
                 ) : (
-                  <div className="border border-dashed border-border/80 bg-muted/20 p-4 text-sm text-muted-foreground">
-                    This frame is stored as raw bytes. Download the payload to inspect it outside the dashboard.
-                  </div>
+                  <p
+                    className="font-mono text-xs"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    Binary payload. Download to inspect.
+                  </p>
                 )}
               </div>
             ) : null}
-          </TabsContent>
-          <TabsContent
-            className="xl:min-h-0 xl:overflow-y-auto xl:pr-1"
-            value="request"
-          >
-            <HeaderTable headers={flattenHeaders(session.RequestHeaders)} />
-          </TabsContent>
-          <TabsContent
-            className="xl:min-h-0 xl:overflow-y-auto xl:pr-1"
-            value="response"
-          >
-            <HeaderTable headers={flattenHeaders(session.ResponseHeaders)} />
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+          </div>
+        )}
+
+        {wsTab === "request" && <KVTable rows={reqHeaders} />}
+        {wsTab === "response" && <KVTable rows={resHeaders} />}
+      </div>
+    </div>
   )
 }
 
+/* ── WebSocket session sidebar ───────────────────────────── */
+
+function WebSocketSidebar({
+  sessions,
+  selectedId,
+  onSelect,
+}: {
+  sessions: WebSocketSession[]
+  selectedId: string | null
+  onSelect: (id: string) => void
+}) {
+  return (
+    <div className="portr-sidebar">
+      <div
+        className="px-3 py-2.5"
+        style={{
+          borderBottom: "1px solid var(--border)",
+          background: "var(--muted)",
+          fontFamily: "var(--font-mono)",
+          fontSize: "11px",
+          color: "var(--muted-foreground)",
+          textTransform: "uppercase",
+          letterSpacing: "0.1em",
+        }}
+      >
+        Sessions
+      </div>
+      <div className="portr-sidebar-list">
+        {sessions.length === 0 ? (
+          <div
+            className="flex min-h-40 flex-col items-center justify-center gap-2 p-4 text-center font-mono text-[11px]"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            <Waves className="size-4" style={{ color: "var(--tm-muted-2)" }} />
+            no WebSocket sessions
+          </div>
+        ) : (
+          sessions.map((s) => (
+            <button
+              key={s.ID}
+              className="relative w-full text-left transition-colors hover:bg-muted/50"
+              style={{
+                padding: "10px",
+                borderBottom: "1px solid var(--border)",
+                ...(s.ID === selectedId ? { background: "var(--muted)" } : {}),
+              }}
+              onClick={() => onSelect(s.ID)}
+            >
+              {s.ID === selectedId && (
+                <div
+                  className="absolute inset-y-0 left-0 w-0.5"
+                  style={{ background: "var(--foreground)" }}
+                />
+              )}
+              <div className="flex items-center justify-between gap-2">
+                <MethodTag method={s.Method} />
+                <span className="font-mono text-[10px]" style={{ color: "var(--muted-foreground)" }}>
+                  {s.ClosedAt ? formatTime(s.ClosedAt) : "open"}
+                </span>
+              </div>
+              <p
+                className="mt-1.5 truncate font-mono text-xs"
+                style={{ color: "var(--foreground)" }}
+              >
+                {s.URL}
+              </p>
+              <div className="mt-1 flex gap-2 font-mono text-[10px]" style={{ color: "var(--muted-foreground)" }}>
+                <span>{s.EventCount} frames</span>
+                <span
+                  style={{ color: s.ClosedAt ? "var(--tm-muted-2)" : "var(--tm-green-ink)" }}
+                >
+                  {s.ClosedAt ? "closed" : "open"}
+                </span>
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ── Main page ───────────────────────────────────────────── */
+
 export function TunnelPage() {
   const params = useParams()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+
   const tunnel = React.useMemo(
     () => parseTunnelId(params.id || ""),
     [params.id]
   )
+
   const [requests, setRequests] = React.useState<RequestRecord[]>([])
   const [sessions, setSessions] = React.useState<WebSocketSession[]>([])
-  const [selectedSession, setSelectedSession] =
-    React.useState<WebSocketSession | null>(null)
-  const [selectedSessionEvents, setSelectedSessionEvents] = React.useState<
-    WebSocketEvent[]
-  >([])
+  const [selectedSession, setSelectedSession] = React.useState<WebSocketSession | null>(null)
+  const [selectedSessionEvents, setSelectedSessionEvents] = React.useState<WebSocketEvent[]>([])
   const [loading, setLoading] = React.useState(true)
-  const [refreshing, setRefreshing] = React.useState(false)
-  const [search, setSearch] = React.useState("")
-  const [summaryError, setSummaryError] = React.useState<string | null>(null)
-  const [sessionError, setSessionError] = React.useState<string | null>(null)
-  const activeTab =
-    searchParams.get("tab") === "websocket" ? "websocket" : "http"
+  const [pollingError, setPollingError] = React.useState<string | null>(null)
+  const [replayOpen, setReplayOpen] = React.useState(false)
+
+  const activeTab = searchParams.get("tab") === "websocket" ? "websocket" : "http"
   const selectedRequestId = searchParams.get("request")
   const selectedSessionId = searchParams.get("session")
 
-  const updateSearchParams = React.useCallback(
+  const updateSearch = React.useCallback(
     (values: Record<string, string | null>) => {
       const next = new URLSearchParams(searchParams)
-      Object.entries(values).forEach(([key, value]) => {
-        if (!value) {
-          next.delete(key)
-          return
-        }
-        next.set(key, value)
+      Object.entries(values).forEach(([k, v]) => {
+        if (!v) next.delete(k)
+        else next.set(k, v)
       })
       setSearchParams(next, { replace: true })
     },
@@ -636,427 +1017,207 @@ export function TunnelPage() {
   )
 
   const loadSummary = React.useEffectEvent(async (refresh = false) => {
-    if (!tunnel) {
-      return
-    }
-
-    if (refresh) {
-      setRefreshing(true)
-    } else {
-      setLoading(true)
-    }
-
+    if (!tunnel) return
+    if (!refresh) setLoading(true)
     try {
-      const [requestsData, sessionsData] = await Promise.all([
+      const [reqData, sessData] = await Promise.all([
         getRequests(tunnel.subdomain, tunnel.localport),
         getWebSocketSessions(tunnel.subdomain, tunnel.localport),
       ])
-      setRequests(requestsData.requests)
-      setSessions(sessionsData.sessions)
-      setSummaryError(null)
-    } catch (error) {
-      setSummaryError(error instanceof Error ? error.message : null)
+      setRequests(reqData.requests)
+      setSessions(sessData.sessions)
+      setPollingError(null)
+    } catch (err) {
+      setPollingError(err instanceof Error ? err.message : null)
     } finally {
       setLoading(false)
-      setRefreshing(false)
     }
   })
 
-  const loadSelectedSession = React.useEffectEvent(
-    async (sessionId: string) => {
-      try {
-        const data = await getWebSocketSession(sessionId)
-        setSelectedSession(data.session)
-        setSelectedSessionEvents(data.events)
-        setSessionError(null)
-      } catch (error) {
-        setSessionError(error instanceof Error ? error.message : null)
-      }
-    }
-  )
+  const loadSession = React.useEffectEvent(async (sessionId: string) => {
+    try {
+      const data = await getWebSocketSession(sessionId)
+      setSelectedSession(data.session)
+      setSelectedSessionEvents(data.events)
+    } catch {}
+  })
 
   const pollTick = React.useEffectEvent(() => {
     loadSummary(true)
-    if (selectedSessionId) {
-      loadSelectedSession(selectedSessionId)
-    }
+    if (selectedSessionId) loadSession(selectedSessionId)
   })
 
   React.useEffect(() => {
-    if (!tunnel) {
-      return
-    }
-
+    if (!tunnel) return
     loadSummary()
     const interval = window.setInterval(pollTick, 2000)
-
-    return () => {
-      window.clearInterval(interval)
-    }
+    return () => window.clearInterval(interval)
   }, [tunnel])
 
   React.useEffect(() => {
-    if (!requests.length) {
-      return
-    }
-
+    if (!requests.length) return
     const exists = selectedRequestId
-      ? requests.some((request) => request.ID === selectedRequestId)
+      ? requests.some((r) => r.ID === selectedRequestId)
       : false
-    if (exists) {
-      return
-    }
-
-    updateSearchParams({ request: requests[0].ID })
-  }, [requests, selectedRequestId, updateSearchParams])
+    if (!exists) updateSearch({ request: requests[0].ID })
+  }, [requests, selectedRequestId])
 
   React.useEffect(() => {
     if (!sessions.length) {
       setSelectedSession(null)
       setSelectedSessionEvents([])
-      setSessionError(null)
       return
     }
-
     const exists = selectedSessionId
-      ? sessions.some((session) => session.ID === selectedSessionId)
+      ? sessions.some((s) => s.ID === selectedSessionId)
       : false
     if (!selectedSessionId || !exists) {
-      updateSearchParams({ session: sessions[0].ID })
+      updateSearch({ session: sessions[0].ID })
       return
     }
-
-    loadSelectedSession(selectedSessionId)
-  }, [selectedSessionId, sessions, updateSearchParams])
+    loadSession(selectedSessionId)
+  }, [selectedSessionId, sessions])
 
   const selectedRequest =
-    requests.find((request) => request.ID === selectedRequestId) || null
-
-  const filteredRequests = requests.filter((request) =>
-    request.Url.toLowerCase().includes(search.trim().toLowerCase())
-  )
-  const filteredSessions = sessions.filter((session) => {
-    const query = search.trim().toLowerCase()
-    if (!query) {
-      return true
-    }
-
-    return (
-      session.URL.toLowerCase().includes(query) ||
-      session.Host.toLowerCase().includes(query) ||
-      session.CloseReason.toLowerCase().includes(query)
-    )
-  })
-  const pollingError = summaryError || sessionError
+    requests.find((r) => r.ID === selectedRequestId) || null
 
   if (!tunnel) {
     return (
       <div className="flex min-h-svh items-center justify-center p-6">
-        <Card className="max-w-lg">
-          <CardContent className="space-y-3 p-8 text-center">
-            <h1 className="text-xl font-semibold">Tunnel not found</h1>
-            <p className="text-sm text-muted-foreground">
-              The inspector route is invalid. Go back to the dashboard and
-              select a tunnel again.
-            </p>
-            <Button asChild>
-              <Link to="/">Back to dashboard</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <div
+          className="max-w-sm space-y-3 rounded-md border p-8 text-center"
+          style={{ borderColor: "var(--border)" }}
+        >
+          <h1 className="font-mono text-lg font-semibold">Tunnel not found</h1>
+          <p className="font-mono text-xs" style={{ color: "var(--muted-foreground)" }}>
+            Invalid route. Go back and select a tunnel.
+          </p>
+          <button
+            onClick={() => navigate("/")}
+            className="mt-2 rounded-[6px] border px-4 py-1.5 font-mono text-xs hover:bg-muted"
+            style={{ borderColor: "var(--border)" }}
+          >
+            Back to dashboard
+          </button>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-svh bg-background xl:h-svh xl:overflow-hidden">
-      <div className="mx-auto flex w-full max-w-none flex-col gap-4 px-3 py-4 sm:px-4 lg:px-5 xl:h-full xl:min-h-0">
-        {pollingError ? <ServerUnavailableBanner /> : null}
+    <div className="min-h-svh bg-background">
+      <TopBar
+        subdomain={tunnel.subdomain}
+        localport={tunnel.localport}
+        onBack={() => navigate("/")}
+      />
 
-        <header className="overflow-hidden border border-border bg-card p-4 shadow-none sm:p-5">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="space-y-3">
-              <Link
-                className="inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground"
-                to="/"
+      <div className="relative z-10 w-full px-6 pb-6 pt-5">
+        {pollingError ? <ServerUnavailableBanner className="mb-4" /> : null}
+
+        {/* Detail header */}
+        <div
+          className="mb-4 pb-4"
+          style={{ borderBottom: "1px solid var(--border)" }}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1
+                className="mb-1.5 flex flex-wrap items-center gap-2 font-mono text-lg font-semibold leading-none tracking-[-0.02em]"
+                style={{ color: "var(--foreground)" }}
               >
-                <ArrowLeft className="size-4" />
-                Back to dashboard
-              </Link>
-              <div className="space-y-1">
-                <h1 className="font-mono text-2xl font-semibold tracking-tight">
+                <span className="font-mono" style={{ color: "var(--tm-green-ink)" }}>
                   {tunnel.subdomain}
-                  <span className="ml-2 font-mono text-sm font-normal text-muted-foreground">
-                    :{tunnel.localport}
-                  </span>
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  Live HTTP traces, replay tools, and captured WebSocket frames
-                  for this tunnel.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative min-w-0 flex-1 sm:min-w-72">
-                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  className="h-7 border-border bg-background pl-9 text-sm"
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder={
-                    activeTab === "http"
-                      ? "Filter requests by URL"
-                      : "Filter sessions by URL or host"
-                  }
-                  value={search}
-                />
-              </div>
-              <Button
-                onClick={() => loadSummary(true)}
-                size="sm"
-                variant="outline"
+                </span>
+                <span style={{ color: "var(--tm-muted-2)" }}>→</span>
+                <span style={{ color: "var(--muted-foreground)" }}>
+                  localhost:{tunnel.localport}
+                </span>
+              </h1>
+              <div
+                className="flex flex-wrap gap-3 font-mono text-[11px]"
+                style={{ color: "var(--muted-foreground)" }}
               >
-                <RefreshCw
-                  className={refreshing ? "size-4 animate-spin" : "size-4"}
-                />
-                Refresh
-              </Button>
-              <ThemeToggle />
+                <span>
+                  <span style={{ color: "var(--tm-muted-2)" }}>http requests </span>
+                  {requests.length}
+                </span>
+                <span>
+                  <span style={{ color: "var(--tm-muted-2)" }}>ws sessions </span>
+                  {sessions.length}
+                </span>
+              </div>
             </div>
-          </div>
-        </header>
-
-        <div className="grid gap-1.5 sm:grid-cols-3">
-          <div className="flex items-center justify-between gap-3 border border-border bg-card px-3 py-2">
-            <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-              HTTP requests
-            </p>
-            <p className="font-mono text-base font-medium">{requests.length}</p>
-          </div>
-          <div className="flex items-center justify-between gap-3 border border-border bg-card px-3 py-2">
-            <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-              WS sessions
-            </p>
-            <p className="font-mono text-base font-medium">{sessions.length}</p>
-          </div>
-          <div className="flex items-center justify-between gap-3 border border-border bg-card px-3 py-2">
-            <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
-              Active upgrades
-            </p>
-            <p className="font-mono text-base font-medium">
-              {sessions.filter((session) => !session.ClosedAt).length}
-            </p>
           </div>
         </div>
 
-        <Tabs
-          className="xl:flex xl:min-h-0 xl:flex-1 xl:flex-col"
-          onValueChange={(value) =>
-            updateSearchParams({
-              tab: value,
-              request:
-                value === "http"
-                  ? selectedRequestId || requests[0]?.ID || null
-                  : null,
-              session:
-                value === "websocket"
-                  ? selectedSessionId || sessions[0]?.ID || null
-                  : null,
-            })
-          }
-          value={activeTab}
+        {/* HTTP / WebSocket tab switcher */}
+        <div
+          className="mb-4 flex gap-0"
+          style={{ borderBottom: "1px solid var(--border)" }}
         >
-          <TabsList variant="line">
-            <TabsTrigger value="http">HTTP inspector</TabsTrigger>
-            <TabsTrigger value="websocket">WebSocket inspector</TabsTrigger>
-          </TabsList>
+          {(["http", "websocket"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() =>
+                updateSearch({
+                  tab: t,
+                  request: t === "http" ? selectedRequestId || requests[0]?.ID || null : null,
+                  session: t === "websocket" ? selectedSessionId || sessions[0]?.ID || null : null,
+                })
+              }
+              className="border-b-2 px-4 py-2 font-mono text-xs transition-colors hover:text-foreground"
+              style={
+                activeTab === t
+                  ? { color: "var(--foreground)", borderColor: "var(--foreground)" }
+                  : { color: "var(--muted-foreground)", borderColor: "transparent" }
+              }
+            >
+              {t === "http" ? "HTTP inspector" : "WebSocket inspector"}
+            </button>
+          ))}
+        </div>
 
-          <TabsContent className="xl:min-h-0" value="http">
-            <div className="grid gap-4 xl:h-full xl:min-h-0 xl:grid-cols-[18rem_minmax(0,1fr)] 2xl:grid-cols-[19rem_minmax(0,1fr)]">
-              <Card className="border-border bg-card shadow-none xl:min-h-0">
-                <CardContent className="flex h-full min-h-0 flex-col p-0">
-                  {loading ? (
-                    <div className="grid flex-1 gap-3 p-4">
-                      {Array.from({ length: 8 }).map((_, index) => (
-                        <div
-                          className="h-20 animate-pulse rounded-md bg-muted"
-                          key={index}
-                        />
-                      ))}
-                    </div>
-                  ) : filteredRequests.length === 0 ? (
-                    <div className="flex min-h-80 flex-1 flex-col items-center justify-center gap-3 px-6 py-10 text-center">
-                      <div className="rounded-md border border-dashed border-border/80 bg-muted/30 p-4">
-                        <RadioTower className="size-6 text-muted-foreground" />
-                      </div>
-                      <div className="space-y-1">
-                        <h2 className="font-medium">No request traces</h2>
-                        <p className="text-sm text-muted-foreground">
-                          {search
-                            ? "Try a different filter."
-                            : "Waiting for traffic to arrive on this tunnel."}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="min-h-0 flex-1 divide-y overflow-y-auto">
-                      {filteredRequests.map((request) => (
-                        <button
-                          className={`w-full px-3 py-3 text-left transition hover:bg-muted/20 ${
-                            request.ID === selectedRequest?.ID
-                              ? "border-l-2 border-primary bg-muted/30"
-                              : "border-l-2 border-transparent"
-                          }`}
-                          key={request.ID}
-                          onClick={() =>
-                            updateSearchParams({
-                              tab: "http",
-                              request: request.ID,
-                            })
-                          }
-                          type="button"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0 space-y-2">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Badge
-                                  className={`ring-1 ${methodTone(request.Method)}`}
-                                  variant="outline"
-                                >
-                                  {request.Method}
-                                </Badge>
-                                <Badge
-                                  className={`ring-1 ${statusTone(
-                                    request.ResponseStatusCode
-                                  )}`}
-                                  variant="outline"
-                                >
-                                  {request.ResponseStatusCode}
-                                </Badge>
-                                {request.IsReplayed ? (
-                                  <Badge variant="outline">Replay</Badge>
-                                ) : null}
-                              </div>
-                              <p className="truncate font-mono text-xs">
-                                {request.Url}
-                              </p>
-                            </div>
-                            <p className="shrink-0 font-mono text-[10px] text-muted-foreground">
-                              {formatTime(request.LoggedAt)}
-                            </p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <div className="min-w-0 xl:min-h-0">
-                <RequestDetail
-                  onRefresh={() => loadSummary(true)}
-                  onSelectParent={() =>
-                    selectedRequest?.ParentID
-                      ? updateSearchParams({
-                          tab: "http",
-                          request: selectedRequest.ParentID,
-                        })
-                      : undefined
-                  }
-                  request={selectedRequest}
-                />
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent className="xl:min-h-0" value="websocket">
-            <div className="grid gap-4 xl:h-full xl:min-h-0 xl:grid-cols-[18rem_minmax(0,1fr)] 2xl:grid-cols-[19rem_minmax(0,1fr)]">
-              <Card className="border-border bg-card shadow-none xl:min-h-0">
-                <CardContent className="flex h-full min-h-0 flex-col p-0">
-                  {loading ? (
-                    <div className="grid flex-1 gap-3 p-4">
-                      {Array.from({ length: 6 }).map((_, index) => (
-                        <div
-                          className="h-24 animate-pulse rounded-md bg-muted"
-                          key={index}
-                        />
-                      ))}
-                    </div>
-                  ) : filteredSessions.length === 0 ? (
-                    <div className="flex min-h-80 flex-1 flex-col items-center justify-center gap-3 px-6 py-10 text-center">
-                      <div className="rounded-md border border-dashed border-border/80 bg-muted/30 p-4">
-                        <Waves className="size-6 text-muted-foreground" />
-                      </div>
-                      <div className="space-y-1">
-                        <h2 className="font-medium">No WebSocket sessions</h2>
-                        <p className="text-sm text-muted-foreground">
-                          {search
-                            ? "Try a different filter."
-                            : "Upgraded connections will appear here as soon as they open."}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="min-h-0 flex-1 divide-y overflow-y-auto">
-                      {filteredSessions.map((session) => (
-                        <button
-                          className={`w-full px-3 py-3 text-left transition hover:bg-muted/20 ${
-                            session.ID === selectedSessionId
-                              ? "border-l-2 border-primary bg-muted/30"
-                              : "border-l-2 border-transparent"
-                          }`}
-                          key={session.ID}
-                          onClick={() =>
-                            updateSearchParams({
-                              tab: "websocket",
-                              session: session.ID,
-                            })
-                          }
-                          type="button"
-                        >
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between gap-3">
-                              <Badge
-                                className={`ring-1 ${methodTone(session.Method)}`}
-                                variant="outline"
-                              >
-                                {session.Method}
-                              </Badge>
-                              <span className="font-mono text-[10px] text-muted-foreground">
-                                {session.ClosedAt
-                                  ? formatTime(session.ClosedAt)
-                                  : "Open"}
-                              </span>
-                            </div>
-                            <p className="truncate font-mono text-xs">
-                              {session.URL}
-                            </p>
-                            <div className="flex flex-wrap gap-1.5 text-xs text-muted-foreground">
-                              <Badge className="font-mono" variant="outline">
-                                {session.EventCount} frames
-                              </Badge>
-                              <Badge className="font-mono" variant="outline">
-                                {session.ClosedAt ? "Closed" : "Open"}
-                              </Badge>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <div className="min-w-0 xl:min-h-0">
-                <WebSocketDetail
-                  events={selectedSessionEvents}
-                  session={selectedSession}
-                />
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
+        {/* Content */}
+        {loading ? (
+          <div className="portr-detail-layout animate-pulse">
+            <div style={{ background: "var(--muted)" }} />
+            <div style={{ background: "var(--background)" }} />
+          </div>
+        ) : activeTab === "http" ? (
+          <div className="portr-detail-layout">
+            <RequestSidebar
+              requests={requests}
+              selectedId={selectedRequestId}
+              onSelect={(id) => updateSearch({ tab: "http", request: id })}
+            />
+            <RequestDetailPane
+              request={selectedRequest}
+              onRefresh={() => loadSummary(true)}
+              onEditReplay={() => setReplayOpen(true)}
+            />
+          </div>
+        ) : (
+          <div className="portr-detail-layout">
+            <WebSocketSidebar
+              sessions={sessions}
+              selectedId={selectedSessionId}
+              onSelect={(id) => updateSearch({ tab: "websocket", session: id })}
+            />
+            <WebSocketDetailPane
+              session={selectedSession}
+              events={selectedSessionEvents}
+            />
+          </div>
+        )}
       </div>
+
+      <ReplayDialog
+        open={replayOpen}
+        onOpenChange={setReplayOpen}
+        request={selectedRequest}
+        onReplayed={() => loadSummary(true)}
+      />
     </div>
   )
 }
