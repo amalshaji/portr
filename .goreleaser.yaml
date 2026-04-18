@@ -1,3 +1,9 @@
+version: 2
+
+git:
+  dirty_ignore:
+    - "internal/client/dashboard/ui-v2/dist/**"
+
 builds:
   - id: "portr"
     main: ./cmd/portr
