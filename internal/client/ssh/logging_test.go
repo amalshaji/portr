@@ -71,6 +71,7 @@ func TestLogHttpRequestPersistsWhenRequestLoggingDisabled(t *testing.T) {
 		[]byte(`{"ok":true}`),
 		response,
 		[]byte(`{"saved":true}`),
+		42,
 	)
 
 	var count int64

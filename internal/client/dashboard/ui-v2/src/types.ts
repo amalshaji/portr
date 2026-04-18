@@ -29,6 +29,10 @@ export type RequestRecord = {
   IsReplayed: boolean
   ParentID: string
   LoggedAt: string
+  DurationMs?: number
+  BytesIn?: number
+  BytesOut?: number
+  Protocol?: string
 }
 
 export type WebSocketSession = {

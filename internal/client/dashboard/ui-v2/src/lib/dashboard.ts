@@ -1,6 +1,6 @@
 import { getReasonPhrase } from "http-status-codes"
 
-import type { HeaderMap, RequestRecord, WebSocketEvent } from "@/types"
+import type { HeaderMap, RequestRecord, TunnelSummary, WebSocketEvent } from "@/types"
 
 const textDecoder = new TextDecoder()
 const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
@@ -301,4 +301,59 @@ export function makeBlobUrl(
   type = "application/octet-stream"
 ) {
   return URL.createObjectURL(new Blob([content], { type }))
+}
+
+export function relativeTime(iso: string | null | undefined): string {
+  if (!iso) return "—"
+  const diff = Date.now() - new Date(iso).getTime()
+  const s = Math.floor(diff / 1000)
+  if (s < 5) return "now"
+  if (s < 60) return `${s}s ago`
+  const m = Math.floor(s / 60)
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  const d = Math.floor(h / 24)
+  return `${d}d ago`
+}
+
+export function deriveStatus(tunnel: TunnelSummary): "live" | "idle" | "closed" {
+  if (tunnel.active_websocket_count > 0) return "live"
+  if (!tunnel.last_activity_at) return "closed"
+  const diffMs = Date.now() - new Date(tunnel.last_activity_at).getTime()
+  const minutes = diffMs / 1000 / 60
+  if (minutes < 2) return "live"
+  if (minutes < 30) return "idle"
+  return "closed"
+}
+
+export function parseCookiesHeader(
+  cookieHeader: string
+): { name: string; value: string }[] {
+  if (!cookieHeader) return []
+  return cookieHeader
+    .split(";")
+    .map((part) => {
+      const eq = part.indexOf("=")
+      if (eq < 0) return { name: part.trim(), value: "" }
+      return { name: part.slice(0, eq).trim(), value: part.slice(eq + 1).trim() }
+    })
+    .filter((c) => c.name)
+}
+
+export function parseQueryParams(url: string): [string, string][] {
+  try {
+    const u = new URL(url, "http://localhost")
+    return Array.from(u.searchParams.entries())
+  } catch {
+    return []
+  }
+}
+
+export function fmtBytes(n: number | undefined | null): string {
+  if (n == null) return "—"
+  if (n <= 0) return "0 B"
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+  return `${(n / (1024 * 1024)).toFixed(2)} MB`
 }

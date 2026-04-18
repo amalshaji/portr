@@ -388,7 +388,7 @@ func (s *SshClient) handleWebSocketRequest(
 			return err
 		}
 
-		s.logHttpRequest(ulid.Make().String(), request, requestBody, response, responseBody)
+		s.logHttpRequest(ulid.Make().String(), request, requestBody, response, responseBody, 0)
 		return nil
 	}
 
@@ -400,7 +400,7 @@ func (s *SshClient) handleWebSocketRequest(
 	}
 
 	handshakeRequestID := ulid.Make().String()
-	s.logHttpRequest(handshakeRequestID, request, requestBody, response, nil)
+	s.logHttpRequest(handshakeRequestID, request, requestBody, response, nil, 0)
 	sessionID := s.logWebSocketSession(handshakeRequestID, request, response)
 
 	clientBuffered := drainBufferedBytes(srcReader)

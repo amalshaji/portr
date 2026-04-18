@@ -5,7 +5,7 @@ import {
   atomOneDark,
   atomOneLight,
 } from "react-syntax-highlighter/dist/esm/styles/hljs"
-import { Download, FileCode2, ImageIcon, LoaderCircle } from "lucide-react"
+import { Download, FileCode2, FileX2, ImageIcon, LoaderCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -164,8 +164,11 @@ export function PayloadViewer({ request, type }: PayloadViewerProps) {
 
   if (length === 0) {
     return (
-      <div className="flex min-h-40 h-full items-center border border-dashed border-border/80 bg-muted/20 p-5 text-sm text-muted-foreground">
-        No content
+      <div className="flex h-full min-h-40 flex-col items-center justify-center gap-2 border border-dashed border-border/60 bg-muted/10 font-mono">
+        <FileX2 className="size-5" style={{ color: "var(--tm-muted-2)" }} />
+        <p className="text-xs" style={{ color: "var(--tm-muted-2)" }}>
+          {type === "request" ? "no request body" : "no response body"}
+        </p>
       </div>
     )
   }
