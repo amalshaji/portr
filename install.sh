@@ -217,6 +217,18 @@ install_portr() {
     VERSION=$(asset_version "$TAG_VERSION")
     print_info "Latest version: $TAG_VERSION"
 
+    if command -v portr >/dev/null 2>&1; then
+        INSTALLED_VERSION=$(portr --version 2>/dev/null | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        if [ -n "$INSTALLED_VERSION" ]; then
+            INSTALLED_VERSION_CLEAN=$(asset_version "$INSTALLED_VERSION")
+            if [ "$INSTALLED_VERSION_CLEAN" = "$VERSION" ]; then
+                print_info "Portr $TAG_VERSION is already installed and up to date. Skipping installation."
+                exit 0
+            fi
+            print_info "Upgrading portr $INSTALLED_VERSION → $TAG_VERSION"
+        fi
+    fi
+
     ARCHIVE_NAME=$(build_archive_name "$TAG_VERSION" "$OS" "$ARCH")
     DOWNLOAD_URL=$(build_download_url "$TAG_VERSION" "$OS" "$ARCH")
 
