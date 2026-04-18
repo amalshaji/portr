@@ -1113,7 +1113,7 @@ export function TunnelPage() {
       />
 
       <div className="relative z-10 w-full px-6 pb-6 pt-5">
-        {pollingError ? <ServerUnavailableBanner /> : null}
+        {pollingError ? <ServerUnavailableBanner className="mb-4" /> : null}
 
         {/* Detail header */}
         <div
