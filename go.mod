@@ -1,6 +1,6 @@
 module github.com/amalshaji/portr
 
-go 1.25
+go 1.25.0
 
 require (
 	github.com/Masterminds/semver v1.5.0
@@ -23,7 +23,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/pressly/goose/v3 v3.24.3
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli/v2 v2.27.1
 	github.com/valyala/fasttemplate v1.2.2
 	golang.org/x/crypto v0.45.0
@@ -60,7 +60,7 @@ require (
 	github.com/gookit/goutil v0.6.15 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/jackc/pgx/v5 v5.7.5 // indirect
+	github.com/jackc/pgx/v5 v5.9.2 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
