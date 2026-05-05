@@ -134,7 +134,7 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			Tunnel:                          tunnel,
 			UseLocalHost:                    c.config.UseLocalHost,
 			Debug:                           c.config.Debug,
-			EnableRequestLogging:            c.config.EnableRequestLogging,
+			EnableRequestLogging:            *c.config.EnableRequestLogging,
 			HealthCheckInterval:             c.config.HealthCheckInterval,
 			HealthCheckMaxRetries:           c.config.HealthCheckMaxRetries,
 			DisableTUI:                      c.config.DisableTUI,

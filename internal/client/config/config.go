@@ -70,7 +70,7 @@ type Config struct {
 	UseVite                         bool     `yaml:"use_vite"`
 	DashboardPort                   int      `yaml:"dashboard_port"`
 	DisableDashboard                bool     `yaml:"disable_dashboard"`
-	EnableRequestLogging            bool     `yaml:"enable_request_logging"`
+	EnableRequestLogging            *bool    `yaml:"enable_request_logging"`
 	ConnectionLogRetentionDays      int      `yaml:"connection_log_retention_days"`
 	HealthCheckInterval             int      `yaml:"health_check_interval"`
 	HealthCheckMaxRetries           int      `yaml:"health_check_max_retries"`
@@ -103,6 +103,11 @@ func (c *Config) SetDefaults() {
 
 	if c.HealthCheckMaxRetries == 0 {
 		c.HealthCheckMaxRetries = 10
+	}
+
+	if c.EnableRequestLogging == nil {
+		defaultValue := true
+		c.EnableRequestLogging = &defaultValue
 	}
 
 	if c.InsecureSkipHostKeyVerification == nil {
