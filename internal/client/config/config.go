@@ -60,24 +60,23 @@ func (t *Tunnel) GetLocalAddr() string {
 }
 
 type Config struct {
-	ServerUrl                       string   `yaml:"server_url"`
-	SshUrl                          string   `yaml:"ssh_url"`
-	TunnelUrl                       string   `yaml:"tunnel_url"`
-	SecretKey                       string   `yaml:"secret_key"`
-	Tunnels                         []Tunnel `yaml:"tunnels"`
-	UseLocalHost                    bool     `yaml:"use_localhost"`
-	Debug                           bool     `yaml:"debug"`
-	UseVite                         bool     `yaml:"use_vite"`
-	DashboardPort                   int      `yaml:"dashboard_port"`
-	DisableDashboard                bool     `yaml:"disable_dashboard"`
-	EnableRequestLogging            *bool    `yaml:"enable_request_logging"`
-	ConnectionLogRetentionDays      int      `yaml:"connection_log_retention_days"`
-	HealthCheckInterval             int      `yaml:"health_check_interval"`
-	HealthCheckMaxRetries           int      `yaml:"health_check_max_retries"`
-	DisableTUI                      bool     `yaml:"disable_tui"`
-	EnableHttpReverseProxy          bool     `yaml:"enable_http_reverse_proxy"`
-	DisableUpdateCheck              bool     `yaml:"disable_update_check"`
-	InsecureSkipHostKeyVerification *bool    `yaml:"insecure_skip_host_key_verification"`
+	ServerUrl                  string   `yaml:"server_url"`
+	WsUrl                      string   `yaml:"ws_url"`
+	TunnelUrl                  string   `yaml:"tunnel_url"`
+	SecretKey                  string   `yaml:"secret_key"`
+	Tunnels                    []Tunnel `yaml:"tunnels"`
+	UseLocalHost               bool     `yaml:"use_localhost"`
+	Debug                      bool     `yaml:"debug"`
+	UseVite                    bool     `yaml:"use_vite"`
+	DashboardPort              int      `yaml:"dashboard_port"`
+	DisableDashboard           bool     `yaml:"disable_dashboard"`
+	EnableRequestLogging       *bool    `yaml:"enable_request_logging"`
+	ConnectionLogRetentionDays int      `yaml:"connection_log_retention_days"`
+	HealthCheckInterval        int      `yaml:"health_check_interval"`
+	HealthCheckMaxRetries      int      `yaml:"health_check_max_retries"`
+	DisableTUI                 bool     `yaml:"disable_tui"`
+	EnableHttpReverseProxy     bool     `yaml:"enable_http_reverse_proxy"`
+	DisableUpdateCheck         bool     `yaml:"disable_update_check"`
 }
 
 func (c *Config) SetDefaults() {
@@ -85,12 +84,12 @@ func (c *Config) SetDefaults() {
 		c.ServerUrl = "localhost:8000"
 	}
 
-	if c.SshUrl == "" {
-		c.SshUrl = c.ServerUrl
-	}
-
 	if c.TunnelUrl == "" {
 		c.TunnelUrl = c.ServerUrl
+	}
+
+	if c.WsUrl == "" {
+		c.WsUrl = c.TunnelUrl
 	}
 
 	if c.DashboardPort == 0 {
@@ -108,11 +107,6 @@ func (c *Config) SetDefaults() {
 	if c.EnableRequestLogging == nil {
 		defaultValue := true
 		c.EnableRequestLogging = &defaultValue
-	}
-
-	if c.InsecureSkipHostKeyVerification == nil {
-		defaultValue := true
-		c.InsecureSkipHostKeyVerification = &defaultValue
 	}
 
 	for i := range c.Tunnels {
@@ -164,20 +158,19 @@ func (c Config) GetDashboardDisableLabel() string {
 }
 
 type ClientConfig struct {
-	ServerUrl                       string
-	SshUrl                          string
-	TunnelUrl                       string
-	SecretKey                       string
-	ConnectionID                    string
-	Tunnel                          Tunnel
-	UseLocalHost                    bool
-	Debug                           bool
-	EnableRequestLogging            bool
-	HealthCheckInterval             int
-	HealthCheckMaxRetries           int
-	DisableTUI                      bool
-	EnableHttpReverseProxy          bool
-	InsecureSkipHostKeyVerification bool
+	ServerUrl              string
+	WsUrl                  string
+	TunnelUrl              string
+	SecretKey              string
+	ConnectionID           string
+	Tunnel                 Tunnel
+	UseLocalHost           bool
+	Debug                  bool
+	EnableRequestLogging   bool
+	HealthCheckInterval    int
+	HealthCheckMaxRetries  int
+	DisableTUI             bool
+	EnableHttpReverseProxy bool
 }
 
 const DefaultDashboardPort = 7777

@@ -105,7 +105,7 @@ The client consists of:
 
 - **CLI interface**: Command-line tool for creating tunnels
 - **Inspector frontend**: React + shadcn web interface for HTTP and WebSocket inspection
-- **Tunnel manager**: Handles SSH connections and port forwarding
+- **Tunnel manager**: Handles WebSocket connections and port forwarding
 
 ### Available Commands
 
@@ -134,7 +134,7 @@ Development configuration for the CLI:
 
 ```yaml
 server_url: localhost:8001
-ssh_url: localhost:2222
+ws_url: localhost:8001
 secret_key: your_secret_key_here
 tunnels:
   - name: test

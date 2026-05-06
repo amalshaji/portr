@@ -1,4 +1,4 @@
-package ssh
+package tunnel
 
 import (
 	"context"
@@ -22,7 +22,7 @@ func (a testAddr) String() string  { return string(a) }
 
 func TestGoSafeReportsPanic(t *testing.T) {
 	errCh := make(chan error, 1)
-	client := &SshClient{
+	client := &Client{
 		fatal: func(err error) {
 			errCh <- err
 		},
@@ -47,7 +47,7 @@ func TestGoSafeReportsPanic(t *testing.T) {
 
 func TestHandleAcceptErrorReportsUnexpectedFailure(t *testing.T) {
 	listener := &testListener{}
-	client := &SshClient{
+	client := &Client{
 		listener: listener,
 	}
 
@@ -62,7 +62,7 @@ func TestHandleAcceptErrorReportsUnexpectedFailure(t *testing.T) {
 
 func TestHandleAcceptErrorIgnoresReplacedListener(t *testing.T) {
 	oldListener := &testListener{}
-	client := &SshClient{
+	client := &Client{
 		listener: &testListener{},
 	}
 
@@ -75,7 +75,7 @@ func TestHandleAcceptErrorIgnoresReplacedListener(t *testing.T) {
 func TestForwardListenerErrorsReportsFatal(t *testing.T) {
 	errCh := make(chan error, 1)
 	fatalCh := make(chan error, 1)
-	client := &SshClient{
+	client := &Client{
 		fatal: func(err error) {
 			fatalCh <- err
 		},
@@ -101,7 +101,7 @@ func TestForwardListenerErrorsReportsFatal(t *testing.T) {
 func TestForwardListenerErrorsIgnoresShutdownError(t *testing.T) {
 	errCh := make(chan error, 1)
 	fatalCh := make(chan error, 1)
-	client := &SshClient{
+	client := &Client{
 		fatal: func(err error) {
 			fatalCh <- err
 		},

@@ -1,4 +1,4 @@
-package ssh
+package tunnel
 
 import (
 	"bufio"
@@ -20,6 +20,7 @@ import (
 	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/amalshaji/portr/internal/constants"
+	"github.com/amalshaji/portr/internal/tunnel/wsproto"
 	"github.com/amalshaji/portr/internal/utils"
 	"github.com/charmbracelet/log"
 	"github.com/go-resty/resty/v2"
@@ -28,7 +29,7 @@ import (
 	"github.com/amalshaji/portr/internal/client/tui"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/oklog/ulid/v2"
-	"golang.org/x/crypto/ssh"
+	"golang.org/x/net/websocket"
 )
 
 var (
@@ -77,11 +78,14 @@ func (l *singleConnListener) Addr() net.Addr {
 	return l.conn.LocalAddr()
 }
 
-type SshClient struct {
+type Client struct {
 	config       config.ClientConfig
 	listener     net.Listener
 	db           *db.Db
-	client       *ssh.Client
+	conn         *websocket.Conn
+	writer       *wsproto.Writer
+	streams      map[string]chan wsproto.Frame
+	streamsMu    sync.Mutex
 	tui          *tea.Program
 	fatal        func(error)
 	mu           sync.RWMutex
@@ -89,18 +93,18 @@ type SshClient struct {
 	shutdown     int32 // atomic flag for shutdown state
 }
 
-func New(config config.ClientConfig, db *db.Db, tui *tea.Program, fatal func(error)) *SshClient {
-	return &SshClient{
+func New(config config.ClientConfig, db *db.Db, tui *tea.Program, fatal func(error)) *Client {
+	return &Client{
 		config:   config,
 		listener: nil,
 		db:       db,
-		client:   nil,
+		streams:  make(map[string]chan wsproto.Frame),
 		tui:      tui,
 		fatal:    fatal,
 	}
 }
 
-func (s *SshClient) reportFatal(err error) {
+func (s *Client) reportFatal(err error) {
 	if err == nil {
 		return
 	}
@@ -113,27 +117,28 @@ func (s *SshClient) reportFatal(err error) {
 	log.Error("Tunnel worker failed", "error", err, "address", s.config.GetTunnelAddr())
 }
 
-func (s *SshClient) recoverPanic(scope string) {
+func (s *Client) recoverPanic(scope string) {
 	if r := recover(); r != nil {
 		s.reportFatal(fmt.Errorf("%s panic: %v", scope, r))
 	}
 }
 
-func (s *SshClient) goSafe(scope string, fn func()) {
+func (s *Client) goSafe(scope string, fn func()) {
 	go func() {
 		defer s.recoverPanic(scope)
 		fn()
 	}()
 }
 
-func (s *SshClient) shouldIgnoreListenerError(ctx context.Context, err error) bool {
+func (s *Client) shouldIgnoreListenerError(ctx context.Context, err error) bool {
 	return err == nil ||
 		ctx.Err() != nil ||
 		atomic.LoadInt32(&s.shutdown) == 1 ||
+		atomic.LoadInt32(&s.reconnecting) == 1 ||
 		errors.Is(err, errClientShuttingDown)
 }
 
-func (s *SshClient) forwardListenerErrors(ctx context.Context, errChan <-chan error) {
+func (s *Client) forwardListenerErrors(ctx context.Context, errChan <-chan error) {
 	go func() {
 		select {
 		case err := <-errChan:
@@ -146,7 +151,7 @@ func (s *SshClient) forwardListenerErrors(ctx context.Context, errChan <-chan er
 	}()
 }
 
-func (s *SshClient) handleAcceptError(listener net.Listener, err error) error {
+func (s *Client) handleAcceptError(listener net.Listener, err error) error {
 	if err == nil {
 		return nil
 	}
@@ -197,107 +202,62 @@ func CreateNewConnection(cfg config.ClientConfig) (string, error) {
 	return response.ConnectionId, nil
 }
 
-func (s *SshClient) createNewConnection() (string, error) {
+func (s *Client) createNewConnection() (string, error) {
 	if s.config.ConnectionID != "" {
 		return s.config.ConnectionID, nil
 	}
 	return CreateNewConnection(s.config)
 }
 
-func (s *SshClient) startListenerForClient() error {
+func (s *Client) startListenerForClient() error {
 	if atomic.LoadInt32(&s.shutdown) == 1 {
 		return errClientShuttingDown
 	}
 
-	var err error
-	var connectionId string
-
-	if connectionId, err = s.createNewConnection(); err != nil {
+	connectionId, err := s.createNewConnection()
+	if err != nil {
 		return err
 	}
 
-	sshConfig := &ssh.ClientConfig{
-		User: fmt.Sprintf("%s:%s", connectionId, s.config.SecretKey),
-		Auth: []ssh.AuthMethod{
-			ssh.Password(""),
-		},
-		HostKeyCallback: getHostKeyCallback(s.config.InsecureSkipHostKeyVerification),
+	wsURL, err := s.tunnelWebSocketURL(connectionId)
+	if err != nil {
+		return err
 	}
 
-	dialer := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 15 * time.Second}
-	rawConn, err := dialer.Dial("tcp", s.config.SshUrl)
+	conn, err := websocket.Dial(wsURL, "", s.config.GetServerAddr())
 	if err != nil {
 		if s.config.Debug {
-			s.logDebug("Failed to dial ssh tcp", err)
+			s.logDebug("Failed to establish websocket tunnel", err)
 		}
 		return err
 	}
-	if tcp, ok := rawConn.(*net.TCPConn); ok {
-		_ = tcp.SetKeepAlive(true)
-		_ = tcp.SetKeepAlivePeriod(15 * time.Second)
-		_ = tcp.SetNoDelay(true)
-	}
 
-	cc, chans, reqs, err := ssh.NewClientConn(rawConn, s.config.SshUrl, sshConfig)
-	if err != nil {
-		_ = rawConn.Close()
-		if s.config.Debug {
-			s.logDebug("Failed to establish ssh client conn", err)
-		}
-		return err
-	}
+	readyCh := make(chan wsproto.Frame, 1)
+	errCh := make(chan error, 1)
 
 	s.mu.Lock()
-	s.client = ssh.NewClient(cc, chans, reqs)
-	clientRef := s.client
+	s.conn = conn
+	s.writer = wsproto.NewWriter(conn)
+	s.streams = make(map[string]chan wsproto.Frame)
 	s.mu.Unlock()
 
-	s.goSafe("ssh keepalive", func() {
-		s.startSSHKeepAlive(clientRef)
+	s.goSafe("websocket tunnel reader", func() {
+		s.readTunnelFrames(conn, readyCh, errCh)
 	})
 
-	localEndpoint := s.config.Tunnel.GetLocalAddr()
-
-	tunnelType := s.config.Tunnel.Type
-
-	var randomPorts []int
-	if tunnelType == constants.Http {
-		randomPorts = utils.GenerateRandomHttpPorts()
-	} else {
-		randomPorts = utils.GenerateRandomTcpPorts()
-	}
-
-	var remotePort int
-	var ln net.Listener
-
-	for _, port := range randomPorts {
-		l, lerr := s.client.Listen("tcp", "0.0.0.0:"+fmt.Sprint(port))
-		if lerr == nil {
-			ln = l
-			remotePort = port
-			break
-		} else {
-			err = lerr
+	select {
+	case ready := <-readyCh:
+		if ready.Port > 0 {
+			s.mu.Lock()
+			s.config.Tunnel.RemotePort = ready.Port
+			s.mu.Unlock()
 		}
+	case err := <-errCh:
+		return err
+	case <-time.After(10 * time.Second):
+		_ = conn.Close()
+		return fmt.Errorf("timed out waiting for websocket tunnel registration")
 	}
-
-	if ln == nil {
-		return fmt.Errorf("failed to listen on remote endpoint: %v", err)
-	}
-
-	s.mu.Lock()
-	s.listener = ln
-	s.config.Tunnel.RemotePort = remotePort
-	s.mu.Unlock()
-
-	defer func() {
-		s.mu.Lock()
-		if s.listener != nil {
-			s.listener.Close()
-			s.listener = nil
-		}
-		s.mu.Unlock()
-	}()
 
 	if s.tui != nil {
 		s.tui.Send(tui.AddTunnelMsg{
@@ -314,95 +274,207 @@ func (s *SshClient) startListenerForClient() error {
 		s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: 1})
 	}
 
+	err = <-errCh
+	if s.shouldIgnoreListenerError(context.Background(), err) {
+		return nil
+	}
+	return err
+}
+
+func (s *Client) tunnelWebSocketURL(connectionID string) (string, error) {
+	raw := strings.TrimRight(s.config.WsUrl, "/")
+	if raw == "" {
+		raw = strings.TrimRight(s.config.TunnelUrl, "/")
+	}
+	if raw == "" {
+		raw = strings.TrimRight(s.config.ServerUrl, "/")
+	}
+
+	if !strings.Contains(raw, "://") {
+		scheme := "wss"
+		if s.config.UseLocalHost || strings.HasPrefix(raw, "localhost:") || strings.HasPrefix(raw, "127.0.0.1:") {
+			scheme = "ws"
+		}
+		raw = scheme + "://" + raw
+	}
+
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "", err
+	}
+	switch u.Scheme {
+	case "http":
+		u.Scheme = "ws"
+	case "https":
+		u.Scheme = "wss"
+	case "ws", "wss":
+	default:
+		return "", fmt.Errorf("unsupported websocket tunnel scheme: %s", u.Scheme)
+	}
+	u.Path = "/_portr/tunnel/connect"
+	q := u.Query()
+	q.Set("connection_id", connectionID)
+	q.Set("secret_key", s.config.SecretKey)
+	u.RawQuery = q.Encode()
+	return u.String(), nil
+}
+
+func (s *Client) readTunnelFrames(conn *websocket.Conn, readyCh chan<- wsproto.Frame, errCh chan<- error) {
 	for {
-		if atomic.LoadInt32(&s.shutdown) == 1 {
-			return errClientShuttingDown
-		}
-
-		s.mu.RLock()
-		listener := s.listener
-		s.mu.RUnlock()
-
-		if listener == nil {
-			return fmt.Errorf("listener is nil, cannot accept connections")
-		}
-
-		remoteConn, err := listener.Accept()
+		frame, err := wsproto.Receive(conn)
 		if err != nil {
-			if s.config.Debug {
-				log.Error("Failed to accept connection", "error", err)
-			}
-			if s.tui != nil {
-				s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: -1})
-			}
-			return s.handleAcceptError(listener, err)
+			errCh <- err
+			return
 		}
 
-		if tunnelType == constants.Http {
-			s.goSafe("http tunnel", func() {
-				s.httpTunnel(remoteConn, localEndpoint)
-			})
-		} else {
-			// Connect to the local endpoint for TCP passthrough.
-			localConn, err := net.Dial("tcp", localEndpoint)
-			if err != nil {
-				remoteConn.Close()
+		switch frame.Type {
+		case wsproto.TypeReady:
+			select {
+			case readyCh <- frame:
+			default:
+			}
+		case wsproto.TypeOpen:
+			if frame.StreamID == "" {
 				continue
 			}
-			s.goSafe("tcp tunnel", func() {
-				s.tcpTunnel(remoteConn, localConn)
+			frames := s.addTunnelStream(frame.StreamID)
+			s.goSafe("websocket stream", func() {
+				defer s.removeTunnelStream(frame.StreamID)
+				s.handleTunnelStream(frame, frames)
 			})
+		case wsproto.TypeData, wsproto.TypeClose, wsproto.TypeError:
+			s.deliverTunnelFrame(frame)
 		}
 	}
 }
 
-func (s *SshClient) startSSHKeepAlive(clientRef *ssh.Client) {
-	ticker := time.NewTicker(15 * time.Second)
-	defer ticker.Stop()
+func (s *Client) handleTunnelStream(openFrame wsproto.Frame, frames <-chan wsproto.Frame) {
+	if s.config.Tunnel.Type == constants.Http {
+		s.handleHTTPTunnelStream(openFrame, frames)
+		return
+	}
 
-	for {
-		if atomic.LoadInt32(&s.shutdown) == 1 {
+	s.handleTCPTunnelStream(openFrame, frames)
+}
+
+func (s *Client) handleHTTPTunnelStream(openFrame wsproto.Frame, frames <-chan wsproto.Frame) {
+	conn := newTunnelStreamConn(openFrame.StreamID, openFrame.Data, frames, s.sendTunnelFrame)
+	s.httpTunnel(conn, s.config.Tunnel.GetLocalAddr())
+}
+
+func (s *Client) handleTCPTunnelStream(openFrame wsproto.Frame, frames <-chan wsproto.Frame) {
+	streamID := openFrame.StreamID
+	localEndpoint := s.config.Tunnel.GetLocalAddr()
+	localConn, err := net.Dial("tcp", localEndpoint)
+	if err != nil {
+		s.sendTunnelFrame(wsproto.Frame{Type: wsproto.TypeClose, StreamID: streamID})
+		return
+	}
+	defer localConn.Close()
+
+	if len(openFrame.Data) > 0 {
+		if _, err := localConn.Write(openFrame.Data); err != nil {
 			return
 		}
+	}
 
-		s.mu.RLock()
-		sameClient := s.client == clientRef
-		s.mu.RUnlock()
-		if !sameClient {
-			return
-		}
-
-		select {
-		case <-ticker.C:
-			errCh := make(chan error, 1)
-			s.goSafe("ssh keepalive request", func() {
-				_, _, err := clientRef.SendRequest("keepalive@openssh.com", false, nil)
-				errCh <- err
-			})
-
-			select {
-			case err := <-errCh:
-				if err != nil {
-					if s.config.Debug {
-						s.logDebug("SSH keepalive failed, reconnecting", err)
-					}
-					_ = s.Reconnect()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		buf := make([]byte, 32*1024)
+		for {
+			n, err := localConn.Read(buf)
+			if n > 0 {
+				if sendErr := s.sendTunnelFrame(wsproto.Frame{
+					Type:     wsproto.TypeData,
+					StreamID: streamID,
+					Data:     append([]byte(nil), buf[:n]...),
+				}); sendErr != nil {
 					return
 				}
-			case <-time.After(5 * time.Second):
-				if s.config.Debug {
-					s.logDebug("SSH keepalive timed out, reconnecting", nil)
-				}
-				_ = s.Reconnect()
+			}
+			if err != nil {
 				return
 			}
-		default:
-			time.Sleep(100 * time.Millisecond)
+		}
+	}()
+
+	for {
+		select {
+		case frame, ok := <-frames:
+			if !ok {
+				_ = s.sendTunnelFrame(wsproto.Frame{Type: wsproto.TypeClose, StreamID: streamID})
+				return
+			}
+			switch frame.Type {
+			case wsproto.TypeData:
+				if _, err := localConn.Write(frame.Data); err != nil {
+					return
+				}
+			case wsproto.TypeClose, wsproto.TypeError:
+				return
+			}
+		case <-done:
+			_ = s.sendTunnelFrame(wsproto.Frame{Type: wsproto.TypeClose, StreamID: streamID})
+			return
 		}
 	}
 }
 
-func (s *SshClient) httpTunnel(src net.Conn, localEndpoint string) {
+func (s *Client) sendTunnelFrame(frame wsproto.Frame) error {
+	s.mu.RLock()
+	writer := s.writer
+	s.mu.RUnlock()
+	if writer == nil {
+		return errClientShuttingDown
+	}
+	return writer.Send(frame)
+}
+
+func (s *Client) sendLocalServerUnavailable(streamID, localEndpoint string) {
+	htmlContent := []byte(utils.LocalServerNotOnline(localEndpoint))
+	var response bytes.Buffer
+	fmt.Fprintf(&response, "HTTP/1.1 503 Service Unavailable\r\n")
+	fmt.Fprintf(&response, "Content-Length: %d\r\n", len(htmlContent))
+	fmt.Fprintf(&response, "Content-Type: text/html\r\n")
+	fmt.Fprintf(&response, "X-Portr-Error: true\r\n")
+	fmt.Fprintf(&response, "X-Portr-Error-Reason: local-server-not-online\r\n\r\n")
+	response.Write(htmlContent)
+	_ = s.sendTunnelFrame(wsproto.Frame{Type: wsproto.TypeData, StreamID: streamID, Data: response.Bytes()})
+}
+
+func (s *Client) addTunnelStream(streamID string) chan wsproto.Frame {
+	ch := make(chan wsproto.Frame, 32)
+	s.streamsMu.Lock()
+	s.streams[streamID] = ch
+	s.streamsMu.Unlock()
+	return ch
+}
+
+func (s *Client) removeTunnelStream(streamID string) {
+	s.streamsMu.Lock()
+	ch := s.streams[streamID]
+	delete(s.streams, streamID)
+	s.streamsMu.Unlock()
+	if ch != nil {
+		close(ch)
+	}
+}
+
+func (s *Client) deliverTunnelFrame(frame wsproto.Frame) {
+	if frame.StreamID == "" {
+		return
+	}
+	s.streamsMu.Lock()
+	ch := s.streams[frame.StreamID]
+	s.streamsMu.Unlock()
+	if ch == nil {
+		return
+	}
+	ch <- frame
+}
+
+func (s *Client) httpTunnel(src net.Conn, localEndpoint string) {
 	if s.config.EnableHttpReverseProxy {
 		s.httpTunnelReverseProxy(src, localEndpoint)
 		return
@@ -411,7 +483,7 @@ func (s *SshClient) httpTunnel(src net.Conn, localEndpoint string) {
 	s.httpTunnelLegacy(src, localEndpoint)
 }
 
-func (s *SshClient) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
+func (s *Client) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 	defer src.Close()
 
 	target := &url.URL{
@@ -552,7 +624,7 @@ func (s *SshClient) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 	}
 }
 
-func (s *SshClient) httpTunnelLegacy(src net.Conn, localEndpoint string) {
+func (s *Client) httpTunnelLegacy(src net.Conn, localEndpoint string) {
 	var dst net.Conn
 
 	defer src.Close()
@@ -760,7 +832,7 @@ func (s *SshClient) httpTunnelLegacy(src net.Conn, localEndpoint string) {
 	s.logHttpRequest(ulid.Make().String(), request, requestBody, response, responseBody, 0)
 }
 
-func (s *SshClient) logHttpRequest(
+func (s *Client) logHttpRequest(
 	id string,
 	request *http.Request,
 	requestBody []byte,
@@ -862,7 +934,7 @@ func (s *SshClient) logHttpRequest(
 	}
 }
 
-func (s *SshClient) tcpTunnel(src, dst net.Conn) {
+func (s *Client) tcpTunnel(src, dst net.Conn) {
 	defer src.Close()
 	defer dst.Close()
 
@@ -872,7 +944,7 @@ func (s *SshClient) tcpTunnel(src, dst net.Conn) {
 	_, _ = io.Copy(src, dst)
 }
 
-func (s *SshClient) Shutdown(ctx context.Context) error {
+func (s *Client) Shutdown(ctx context.Context) error {
 	atomic.StoreInt32(&s.shutdown, 1)
 
 	s.mu.Lock()
@@ -884,11 +956,16 @@ func (s *SshClient) Shutdown(ctx context.Context) error {
 		s.listener = nil
 	}
 
-	if s.client != nil {
-		if clientErr := s.client.Close(); clientErr != nil && err == nil {
+	if s.conn != nil {
+		if clientErr := s.conn.Close(); clientErr != nil && err == nil {
 			err = clientErr
 		}
-		s.client = nil
+		s.conn = nil
+	}
+	s.writer = nil
+	for streamID, ch := range s.streams {
+		close(ch)
+		delete(s.streams, streamID)
 	}
 
 	if s.tui != nil {
@@ -898,7 +975,7 @@ func (s *SshClient) Shutdown(ctx context.Context) error {
 	return err
 }
 
-func (s *SshClient) StartHealthCheck(ctx context.Context) error {
+func (s *Client) StartHealthCheck(ctx context.Context) error {
 	ticker := time.NewTicker(time.Duration(s.config.HealthCheckInterval) * time.Second)
 	defer ticker.Stop()
 	retryAttempts := 0
@@ -935,7 +1012,7 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) error {
 		reconnectErr := s.Reconnect()
 		if reconnectErr != nil {
 			if s.config.Debug {
-				s.logDebug(fmt.Sprintf("Failed to reconnect to ssh tunnel (attempt %d)", retryAttempts), reconnectErr)
+				s.logDebug(fmt.Sprintf("Failed to reconnect websocket tunnel (attempt %d)", retryAttempts), reconnectErr)
 			}
 			if retryAttempts > s.config.HealthCheckMaxRetries {
 				tunnelName := s.config.Tunnel.Name
@@ -950,7 +1027,7 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) error {
 	}
 }
 
-func (s *SshClient) Start(ctx context.Context) error {
+func (s *Client) Start(ctx context.Context) error {
 	errChan := make(chan error, 1)
 
 	go func() {
@@ -989,7 +1066,7 @@ func (s *SshClient) Start(ctx context.Context) error {
 	}
 }
 
-func (s *SshClient) Reconnect() error {
+func (s *Client) Reconnect() error {
 	// Prevent concurrent reconnects using atomic CAS
 	if !atomic.CompareAndSwapInt32(&s.reconnecting, 0, 1) {
 		return fmt.Errorf("reconnect already in progress")
@@ -1003,14 +1080,15 @@ func (s *SshClient) Reconnect() error {
 
 	// Close existing connections with mutex protection
 	s.mu.Lock()
-	if s.client != nil {
-		if err := s.client.Close(); err != nil {
+	if s.conn != nil {
+		if err := s.conn.Close(); err != nil {
 			if s.config.Debug {
-				s.logDebug("Failed to close client", err)
+				s.logDebug("Failed to close websocket client", err)
 			}
 		}
-		s.client = nil
+		s.conn = nil
 	}
+	s.writer = nil
 
 	if s.listener != nil {
 		if err := s.listener.Close(); err != nil {
@@ -1019,6 +1097,10 @@ func (s *SshClient) Reconnect() error {
 			}
 		}
 		s.listener = nil
+	}
+	for streamID, ch := range s.streams {
+		close(ch)
+		delete(s.streams, streamID)
 	}
 	s.mu.Unlock()
 
@@ -1085,7 +1167,7 @@ func (s *SshClient) Reconnect() error {
 	}
 }
 
-func (s *SshClient) HealthCheck() error {
+func (s *Client) HealthCheck() error {
 	client := resty.New().
 		SetTimeout(5 * time.Second)
 
@@ -1117,7 +1199,7 @@ func (s *SshClient) HealthCheck() error {
 	return nil
 }
 
-func (s *SshClient) logDebug(message string, err error) {
+func (s *Client) logDebug(message string, err error) {
 	if !s.config.Debug {
 		return
 	}

@@ -182,7 +182,7 @@ func (h *Handler) ReplayRequest(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to get requests"})
 	}
 
-	if _, err := clientreplay.Execute(request, clientreplay.EditOptions{}); err != nil {
+	if _, err := clientreplay.Execute(request, clientreplay.EditOptions{Scheme: h.replayScheme()}); err != nil {
 		return replayHTTPError(c, err)
 	}
 
@@ -204,6 +204,7 @@ func (h *Handler) ReplayRequestWithEdits(c *fiber.Ctx) error {
 	edit := clientreplay.EditOptions{
 		Method:         input.Method,
 		Path:           input.Path,
+		Scheme:         h.replayScheme(),
 		Headers:        input.Headers,
 		ReplaceHeaders: input.Headers != nil,
 		Body: clientreplay.BodyOverride{
@@ -218,6 +219,13 @@ func (h *Handler) ReplayRequestWithEdits(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"message": "replayed request"})
+}
+
+func (h *Handler) replayScheme() string {
+	if h.config.UseLocalHost {
+		return "http"
+	}
+	return "https"
 }
 
 func replayHTTPError(c *fiber.Ctx, err error) error {

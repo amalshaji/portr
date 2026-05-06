@@ -77,7 +77,7 @@ func NewTestServer(t *testing.T, db *gorm.DB) *serverAdmin.Server {
 		GithubClientID: "",
 		GithubSecret:   "",
 		ServerURL:      "http://localhost:8001",
-		SshURL:         "localhost:2222",
+		WsURL:          "localhost:8001",
 		Version:        "1.0.0",
 	}
 

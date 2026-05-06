@@ -10,8 +10,8 @@ import (
 
 	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
-	sshclient "github.com/amalshaji/portr/internal/client/ssh"
 	"github.com/amalshaji/portr/internal/client/tui"
+	tunnelclient "github.com/amalshaji/portr/internal/client/tunnel"
 	"github.com/amalshaji/portr/internal/constants"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
@@ -19,7 +19,7 @@ import (
 
 type Client struct {
 	config          *config.Config
-	sshcs           []*sshclient.SshClient
+	tunnelClients   []*tunnelclient.Client
 	db              *db.Db
 	tui             *tea.Program
 	retentionCancel context.CancelFunc
@@ -34,10 +34,10 @@ type Client struct {
 func NewClient(config *config.Config, db *db.Db) *Client {
 	var p *tea.Program
 	c := &Client{
-		config: config,
-		sshcs:  make([]*sshclient.SshClient, 0),
-		db:     db,
-		exitCh: make(chan error, 1),
+		config:        config,
+		tunnelClients: make([]*tunnelclient.Client, 0),
+		db:            db,
+		exitCh:        make(chan error, 1),
 	}
 
 	if !config.DisableTUI {
@@ -127,32 +127,23 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			continue
 		}
 		clientConfigs = append(clientConfigs, config.ClientConfig{
-			ServerUrl:                       c.config.ServerUrl,
-			SshUrl:                          c.config.SshUrl,
-			TunnelUrl:                       c.config.TunnelUrl,
-			SecretKey:                       c.config.SecretKey,
-			Tunnel:                          tunnel,
-			UseLocalHost:                    c.config.UseLocalHost,
-			Debug:                           c.config.Debug,
-			EnableRequestLogging:            *c.config.EnableRequestLogging,
-			HealthCheckInterval:             c.config.HealthCheckInterval,
-			HealthCheckMaxRetries:           c.config.HealthCheckMaxRetries,
-			DisableTUI:                      c.config.DisableTUI,
-			EnableHttpReverseProxy:          c.config.EnableHttpReverseProxy,
-			InsecureSkipHostKeyVerification: *c.config.InsecureSkipHostKeyVerification,
+			ServerUrl:              c.config.ServerUrl,
+			WsUrl:                  c.config.WsUrl,
+			TunnelUrl:              c.config.TunnelUrl,
+			SecretKey:              c.config.SecretKey,
+			Tunnel:                 tunnel,
+			UseLocalHost:           c.config.UseLocalHost,
+			Debug:                  c.config.Debug,
+			EnableRequestLogging:   *c.config.EnableRequestLogging,
+			HealthCheckInterval:    c.config.HealthCheckInterval,
+			HealthCheckMaxRetries:  c.config.HealthCheckMaxRetries,
+			DisableTUI:             c.config.DisableTUI,
+			EnableHttpReverseProxy: c.config.EnableHttpReverseProxy,
 		})
 	}
 
 	if len(clientConfigs) == 0 {
 		return fmt.Errorf("please enter a valid service name")
-	}
-
-	poolingSupported := true
-	for _, clientConfig := range clientConfigs {
-		if desiredWorkers(clientConfig, true) > 1 {
-			poolingSupported = supportsHTTPPooling(c.config.ServerUrl, c.config.UseLocalHost)
-			break
-		}
 	}
 
 	for _, clientConfig := range clientConfigs {
@@ -165,10 +156,10 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			fmt.Printf("🚀 Starting tunnel: %s (%s:%d)\n", tunnelName, clientConfig.Tunnel.Host, clientConfig.Tunnel.Port)
 		}
 
-		workers := desiredWorkers(clientConfig, poolingSupported)
+		workers := desiredWorkers(clientConfig)
 
 		if clientConfig.Tunnel.Type == constants.Http && workers > 1 && clientConfig.ConnectionID == "" {
-			connID, err := sshclient.CreateNewConnection(clientConfig)
+			connID, err := tunnelclient.CreateNewConnection(clientConfig)
 			if err != nil {
 				return fmt.Errorf("failed to create shared connection for pool: %w", err)
 			}
@@ -177,10 +168,10 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 
 		for i := 0; i < workers; i++ {
 			cfg := clientConfig
-			sshc := sshclient.New(cfg, c.db, c.tui, c.reportFatal)
-			c.Add(sshc)
+			tunnelClient := tunnelclient.New(cfg, c.db, c.tui, c.reportFatal)
+			c.Add(tunnelClient)
 			c.runFatalWorker("tunnel worker", func() error {
-				return sshc.Start(ctx)
+				return tunnelClient.Start(ctx)
 			})
 		}
 	}
@@ -190,8 +181,8 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 	return nil
 }
 
-func (c *Client) Add(sshc *sshclient.SshClient) {
-	c.sshcs = append(c.sshcs, sshc)
+func (c *Client) Add(tunnelClient *tunnelclient.Client) {
+	c.tunnelClients = append(c.tunnelClients, tunnelClient)
 }
 
 func (c *Client) Shutdown(ctx context.Context) {
@@ -210,8 +201,8 @@ func (c *Client) Shutdown(ctx context.Context) {
 		fmt.Printf("🛑 Shutting down tunnels...\n")
 	}
 
-	for _, sshc := range c.sshcs {
-		sshc.Shutdown(ctx)
+	for _, tunnelClient := range c.tunnelClients {
+		tunnelClient.Shutdown(ctx)
 	}
 }
 

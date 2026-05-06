@@ -1,4 +1,4 @@
-package ssh
+package tunnel
 
 import (
 	"net/http"
@@ -40,7 +40,7 @@ func newTestRequestStore(t *testing.T) *clientdb.Db {
 
 func TestLogHttpRequestPersistsWhenRequestLoggingDisabled(t *testing.T) {
 	store := newTestRequestStore(t)
-	client := &SshClient{
+	client := &Client{
 		config: clientcfg.ClientConfig{
 			EnableRequestLogging: false,
 			Tunnel: clientcfg.Tunnel{
@@ -85,7 +85,7 @@ func TestLogHttpRequestPersistsWhenRequestLoggingDisabled(t *testing.T) {
 
 func TestLogWebSocketSessionPersistsWhenRequestLoggingDisabled(t *testing.T) {
 	store := newTestRequestStore(t)
-	client := &SshClient{
+	client := &Client{
 		config: clientcfg.ClientConfig{
 			EnableRequestLogging: false,
 			Tunnel: clientcfg.Tunnel{

@@ -12,7 +12,7 @@ portr tcp 9000
 ```
 
 <Callout type="info">
-  TCP tunnels are useful for exposing services like databases, SSH servers, or any service that uses raw TCP connections.
+  TCP tunnels are useful for exposing services like databases, WebSocket tunnel endpoints, or any service that uses raw TCP connections.
 </Callout>
 
 ## How it works
@@ -26,7 +26,7 @@ TCP tunnels work differently from HTTP tunnels:
 ## Common Use Cases
 
 - **Database access**: Connect to local databases from remote applications
-- **SSH tunneling**: Access local SSH servers from remote locations  
+- **TCP tunneling**: Access local WebSocket tunnel endpoints from remote locations  
 - **Custom protocols**: Tunnel any service that uses TCP connections
 - **Legacy applications**: Connect to services that don't use HTTP
 
