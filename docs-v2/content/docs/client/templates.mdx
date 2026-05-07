@@ -189,7 +189,7 @@ portr start
 These options apply to the entire client configuration:
 
 - **server_url**: The Portr server URL
-- **ws_url**: The WebSocket tunnel endpoint URL for tunnel connections
+- **ws_url**: The WebSocket tunnel endpoint URL for client tunnel connections. Defaults to `server_url` if omitted.
 - **secret_key**: Your authentication secret key
 - **disable_tui**: Disable the interactive terminal interface (default: false)
 - **dashboard_port**: Local port for the inspector dashboard (default: 7777)
@@ -209,6 +209,12 @@ Each tunnel template supports the following options:
 - **type**: The tunnel type (`http` or `tcp`)
 - **host**: The local host to bind to (default: localhost)
 - **pool_size**: HTTP only. Number of WebSocket workers to run per HTTP tunnel (default: 2). Increases resilience and throughput.
+
+<Callout type="info">
+  `server_url` and `ws_url` are often the same host. Set them separately when your
+  admin/API traffic and tunnel WebSocket traffic are routed through different
+  hosts or ports.
+</Callout>
 
 ## Example Configurations
 

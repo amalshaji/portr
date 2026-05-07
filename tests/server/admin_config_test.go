@@ -46,7 +46,7 @@ func TestDownloadConfig_ValidSecretKeyReturnsConfig(t *testing.T) {
 		t.Fatalf("expected 'message' string in response, got: %v", body)
 	}
 
-	// Basic containment checks: should include server_url, ws_url and the secret key
+	// Basic containment checks: should include WebSocket-era defaults and the secret key
 	if !strings.Contains(message, "server_url:") || !strings.Contains(message, "ws_url:") {
 		t.Fatalf("expected config content to include server_url and ws_url, got: %s", message)
 	}
@@ -55,6 +55,16 @@ func TestDownloadConfig_ValidSecretKeyReturnsConfig(t *testing.T) {
 	}
 	if !strings.Contains(message, teamUser.SecretKey) {
 		t.Fatalf("expected config content to include secret key, got: %s", message)
+	}
+	for _, expected := range []string{
+		"enable_request_logging: true",
+		"dashboard_port: 7777",
+		"type: http",
+		"pool_size: 2",
+	} {
+		if !strings.Contains(message, expected) {
+			t.Fatalf("expected downloaded config to include %q, got: %s", expected, message)
+		}
 	}
 }
 

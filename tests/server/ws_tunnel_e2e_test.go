@@ -195,10 +195,18 @@ func TestWebSocketTunnelProxiesHTTPToLocalService(t *testing.T) {
 		if err := clientDB.Conn.Model(&clientdb.WebSocketSession{}).
 			Where("subdomain = ? AND url = ?", subdomain, "/socket").
 			Count(&sessions).Error; err != nil {
+			if strings.Contains(err.Error(), "locked") && time.Now().Before(deadline) {
+				time.Sleep(25 * time.Millisecond)
+				continue
+			}
 			t.Fatalf("count websocket sessions: %v", err)
 		}
 		var events int64
 		if err := clientDB.Conn.Model(&clientdb.WebSocketEvent{}).Count(&events).Error; err != nil {
+			if strings.Contains(err.Error(), "locked") && time.Now().Before(deadline) {
+				time.Sleep(25 * time.Millisecond)
+				continue
+			}
 			t.Fatalf("count websocket events: %v", err)
 		}
 		if sessions == 1 && events >= 2 {
@@ -398,6 +406,16 @@ func newClientTestDB(t *testing.T) *clientdb.Db {
 	})
 	if err != nil {
 		t.Fatalf("open client db: %v", err)
+	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("get client db connection: %v", err)
+	}
+	for _, pragma := range clientdb.SQLITE_PRAGMAS {
+		if _, err := sqlDB.Exec(pragma); err != nil {
+			t.Fatalf("set client db pragma %q: %v", pragma, err)
+		}
 	}
 
 	if err := db.AutoMigrate(&clientdb.Request{}, &clientdb.WebSocketSession{}, &clientdb.WebSocketEvent{}); err != nil {

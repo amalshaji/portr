@@ -9,15 +9,22 @@ import {
 } from "@/components/ui/card";
 import {
   ChartContainer,
+  type ChartConfig,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import type { ChartData } from "@/types";
+import type { ChartData, ChartDataPoint } from "@/types";
 
 interface MetricsChartProps {
   chartData: ChartData;
   isLoading: boolean;
 }
+
+type ProcessedMetricPoint = {
+  timestamp: number;
+  timestampLabel: string;
+  value: number;
+};
 
 // Humanize number formatting for Y-axis labels
 const humanizeNumber = (
@@ -54,9 +61,9 @@ function MetricChart({
 }: {
   title: string;
   description: string;
-  data: any[];
+  data: ProcessedMetricPoint[];
   dataKey: string;
-  config: any;
+  config: ChartConfig;
   isLoading: boolean;
   isPercentage?: boolean;
 }) {
@@ -205,7 +212,9 @@ function MetricChart({
 
 export function MetricsChart({ chartData, isLoading }: MetricsChartProps) {
   // Transform data for individual charts
-  const processMetricData = (metricData: any[]) => {
+  const processMetricData = (
+    metricData: ChartDataPoint[]
+  ): ProcessedMetricPoint[] => {
     if (!metricData) return [];
 
     // Ensure we're showing the most recent data by sorting chronologically

@@ -144,6 +144,7 @@ function TopBar({
       </div>
       <div className="flex-1" />
       <button
+        aria-label="Refresh"
         onClick={onRefresh}
         className="flex items-center gap-1.5 rounded px-2 py-1 font-mono text-[11px] transition-colors hover:bg-muted"
         style={{ color: "var(--muted-foreground)" }}

@@ -8,6 +8,7 @@ import {
   Pause,
   Play,
   RadioTower,
+  RefreshCw,
   Search,
   Waves,
 } from "lucide-react"
@@ -164,10 +165,12 @@ function TopBar({
   subdomain,
   localport,
   onBack,
+  onRefresh,
 }: {
   subdomain: string
   localport: string
   onBack: () => void
+  onRefresh: () => void
 }) {
   return (
     <header
@@ -189,6 +192,15 @@ function TopBar({
         </span>
       </div>
       <div className="flex-1" />
+      <button
+        aria-label="Refresh"
+        onClick={onRefresh}
+        className="flex items-center gap-1.5 rounded px-2 py-1 font-mono text-[11px] transition-colors hover:bg-muted"
+        style={{ color: "var(--muted-foreground)" }}
+      >
+        <RefreshCw className="size-3" />
+        Refresh
+      </button>
       <ThemeToggle />
     </header>
   )
@@ -296,7 +308,7 @@ function RequestSidebar({
             style={{ color: "var(--muted-foreground)" }}
           >
             <RadioTower className="size-4" style={{ color: "var(--tm-muted-2)" }} />
-            no requests match filter
+            {requests.length === 0 ? "No request traces" : "no requests match filter"}
           </div>
         ) : (
           filtered.map((r) => (
@@ -1110,6 +1122,9 @@ export function TunnelPage() {
         subdomain={tunnel.subdomain}
         localport={tunnel.localport}
         onBack={() => navigate("/")}
+        onRefresh={() => {
+          void loadSummary(true)
+        }}
       />
 
       <div className="relative z-10 w-full px-6 pb-6 pt-5">

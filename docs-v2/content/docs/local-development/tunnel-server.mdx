@@ -34,8 +34,12 @@ time=2024-03-29T19:16:35.023+05:30 level=INFO msg="Starting 1 cron jobs"
 
 This starts:
 
-- **WebSocket tunnel endpoint** on port `:8001` for tunnel connections
-- **Proxy server** on port `:8001` for routing traffic
+- **WebSocket tunnel endpoint** on port `:8001` at `/_portr/tunnel/connect`
+- **Proxy server** on port `:8001` for wildcard HTTP, TCP, and upgraded WebSocket traffic
+
+When running the combined server with `go run ./cmd/portrd start all`, the admin
+server listens on `:8000` by default and the tunnel/proxy listener remains on
+`:8001`.
 
 ## Server Architecture
 
@@ -105,10 +109,10 @@ Key configuration options include:
 
 ### Connection Flow
 
-1. Client connects to WebSocket tunnel endpoint on port 8001
+1. Client connects to the WebSocket tunnel endpoint on port 8001
 2. WebSocket tunnel endpoint validates the client token with the admin server
-3. Remote port forwarding is established
-4. Proxy server routes incoming requests to the client
+3. HTTP tunnels register one or more WebSocket workers; TCP tunnels register one remote TCP listener
+4. Proxy server routes incoming requests or TCP bytes to the client
 
 ## Troubleshooting
 

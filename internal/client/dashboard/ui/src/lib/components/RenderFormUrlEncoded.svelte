@@ -4,12 +4,11 @@
 
   export let data: string;
 
-  let dataMap = {};
+  let dataMap: Record<string, string> = {};
 
   data.split("&").forEach((pair) => {
     const [key, value] = pair.split("=");
-    // @ts-ignore
-    dataMap[key] = value;
+    dataMap[key] = value ?? "";
   });
 </script>
 

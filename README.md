@@ -37,6 +37,8 @@ portr http 9000
 To pin the tunnel to a subdomain:
 
 ```bash
+portr http 9000 -s amal-test
+# or
 portr http 9000 --subdomain amal-test
 ```
 
@@ -46,12 +48,17 @@ Starting an HTTP tunnel does three useful things immediately:
 - Starts the Portr inspector locally at [http://localhost:7777](http://localhost:7777).
 - Persists HTTP request logs locally so they can be queried from the CLI.
 
+HTTP tunnels also support WebSocket upgrades, so a local WebSocket endpoint behind
+the tunneled HTTP service can be reached with `wss://<subdomain>.<server-domain>`.
+The client starts two WebSocket tunnel workers for HTTP tunnels by default; set
+`pool_size` in the client config when you need a different worker count.
+
 ## Inspector And Logs
 
 The local inspector lets you:
 
 - inspect incoming HTTP requests and responses
-- replay stored requests
+- replay stored requests as-is or edit method, path, headers, and body before replaying
 - inspect headers and payloads
 - monitor upgraded WebSocket sessions and captured frames
 

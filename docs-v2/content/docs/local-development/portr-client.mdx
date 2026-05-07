@@ -39,8 +39,8 @@ make buildcli
 ```
 
 This creates the `portr` binary in the current directory. The examples below
-assume the binary is available on your `PATH`. From `tunnel/`, you can do that
-during local development with `export PATH="$PWD:$PATH"`.
+assume the binary is available on your `PATH`. From the repository root, you can
+do that during local development with `export PATH="$PWD:$PATH"`.
 
 ### Configure authentication
 
@@ -133,7 +133,7 @@ go test ./...
 Development configuration for the CLI:
 
 ```yaml
-server_url: localhost:8001
+server_url: localhost:8000
 ws_url: localhost:8001
 secret_key: your_secret_key_here
 tunnels:
@@ -141,6 +141,10 @@ tunnels:
     subdomain: test
     port: 3000
 ```
+
+`server_url` points at the admin/API server. `ws_url` points at the WebSocket
+tunnel listener. In local development with `portrd start all`, those are usually
+`localhost:8000` and `localhost:8001`.
 
 #### Inspector Configuration
 
@@ -171,7 +175,7 @@ go test ./...
 python -m http.server 8080
 
 # In another terminal, create a tunnel
-portr -c client.dev.yaml http 8080
+portr -c client.dev.yaml http 8080 -s test
 
 # Test the tunnel URL in your browser
 ```
