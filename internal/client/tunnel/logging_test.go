@@ -1,6 +1,7 @@
 package tunnel
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -126,5 +127,23 @@ func TestLogWebSocketSessionPersistsWhenRequestLoggingDisabled(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("expected 1 stored websocket session, got %d", count)
+	}
+}
+
+func TestRetryTransientSQLiteWriteRetriesLockedErrors(t *testing.T) {
+	attempts := 0
+	err := retryTransientSQLiteWrite(func() error {
+		attempts++
+		if attempts < 3 {
+			return errors.New("database table is locked")
+		}
+		return nil
+	})
+
+	if err != nil {
+		t.Fatalf("expected retry to recover from transient sqlite lock: %v", err)
+	}
+	if attempts != 3 {
+		t.Fatalf("expected 3 attempts, got %d", attempts)
 	}
 }

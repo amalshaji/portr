@@ -142,6 +142,29 @@ func isIgnorableWebSocketError(err error) bool {
 	return strings.Contains(strings.ToLower(err.Error()), "use of closed network connection")
 }
 
+func isTransientSQLiteWriteError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "database is locked") ||
+		strings.Contains(message, "database table is locked") ||
+		strings.Contains(message, "database is busy")
+}
+
+func retryTransientSQLiteWrite(write func() error) error {
+	var err error
+	for attempt := 0; attempt < 5; attempt++ {
+		err = write()
+		if !isTransientSQLiteWriteError(err) {
+			return err
+		}
+		time.Sleep(time.Duration(attempt+1) * 25 * time.Millisecond)
+	}
+	return err
+}
+
 func (s *Client) logWebSocketSession(handshakeRequestID string, request *http.Request, response *http.Response) string {
 	requestHeadersBytes, err := json.Marshal(request.Header)
 	if err != nil {
@@ -202,7 +225,9 @@ func (s *Client) recordWebSocketEvent(sessionID string, direction string, frame 
 		LoggedAt:      now,
 	}
 
-	if err := s.db.Conn.Create(&event).Error; err != nil {
+	if err := retryTransientSQLiteWrite(func() error {
+		return s.db.Conn.Create(&event).Error
+	}); err != nil {
 		if s.config.Debug {
 			s.logDebug("Failed to persist websocket event", err)
 		}
@@ -230,9 +255,11 @@ func (s *Client) recordWebSocketEvent(sessionID string, direction string, frame 
 		}
 	}
 
-	if err := s.db.Conn.Model(&db.WebSocketSession{}).
-		Where("id = ?", sessionID).
-		Updates(updates).Error; err != nil && s.config.Debug {
+	if err := retryTransientSQLiteWrite(func() error {
+		return s.db.Conn.Model(&db.WebSocketSession{}).
+			Where("id = ?", sessionID).
+			Updates(updates).Error
+	}); err != nil && s.config.Debug {
 		s.logDebug("Failed to update websocket session", err)
 	}
 }
