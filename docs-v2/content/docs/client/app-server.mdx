@@ -446,6 +446,105 @@ curl -sS "$APP_SERVER/api/v1/tunnels/$TUNNEL_ID"
 curl -sS -X DELETE "$APP_SERVER/api/v1/tunnels/$TUNNEL_ID"
 ```
 
+## Python example
+
+This example uses only Python's standard library. It creates an HTTP tunnel,
+prints the public URL, waits for input, then shuts the tunnel down.
+
+```python
+import json
+import os
+import urllib.request
+
+APP_SERVER = os.getenv("PORTR_APP_SERVER", "http://127.0.0.1:7778")
+TOKEN = os.getenv("PORTR_APP_SERVER_TOKEN")
+
+
+def api(method, path, payload=None):
+    data = json.dumps(payload).encode("utf-8") if payload else None
+    headers = {"Content-Type": "application/json"}
+    if TOKEN:
+        headers["Authorization"] = f"Bearer {TOKEN}"
+
+    request = urllib.request.Request(
+        f"{APP_SERVER}{path}",
+        data=data,
+        headers=headers,
+        method=method,
+    )
+
+    with urllib.request.urlopen(request) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+tunnel = api(
+    "POST",
+    "/api/v1/tunnels",
+    {
+        "name": "python-preview",
+        "type": "http",
+        "host": "localhost",
+        "port": 3000,
+    },
+)
+
+print("Tunnel URL:", tunnel.get("tunnel_url"))
+input("Press Enter to stop the tunnel...")
+
+api("DELETE", f"/api/v1/tunnels/{tunnel['id']}")
+```
+
+## Node.js example
+
+Node.js 18 and newer include `fetch`, so no extra HTTP client is required.
+
+```js
+const APP_SERVER = process.env.PORTR_APP_SERVER ?? "http://127.0.0.1:7778";
+const TOKEN = process.env.PORTR_APP_SERVER_TOKEN;
+
+async function api(method, path, payload) {
+  const headers = { "Content-Type": "application/json" };
+  if (TOKEN) {
+    headers.Authorization = `Bearer ${TOKEN}`;
+  }
+
+  const response = await fetch(`${APP_SERVER}${path}`, {
+    method,
+    headers,
+    body: payload ? JSON.stringify(payload) : undefined,
+  });
+
+  const body = await response.json();
+  if (!response.ok) {
+    throw new Error(body.message ?? `Request failed with ${response.status}`);
+  }
+  return body;
+}
+
+async function main() {
+  const tunnel = await api("POST", "/api/v1/tunnels", {
+    name: "node-preview",
+    type: "http",
+    host: "localhost",
+    port: 3000,
+  });
+
+  console.log("Tunnel URL:", tunnel.tunnel_url);
+  console.log("Press Ctrl+C when you are done.");
+
+  try {
+    await new Promise((resolve) => process.once("SIGINT", resolve));
+  } finally {
+    await api("DELETE", `/api/v1/tunnels/${tunnel.id}`);
+  }
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
+```
+
 ## Operational notes
 
 - Run one app-server process per local machine that owns the tunnels.
