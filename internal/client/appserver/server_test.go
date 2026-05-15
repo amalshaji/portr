@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/amalshaji/portr/internal/constants"
+	"github.com/gofiber/fiber/v2"
 )
 
 type fakeTunnelService struct {
@@ -74,14 +75,12 @@ func (f *fakeTunnelService) Events(tunnelID string) []TunnelEvent {
 
 func TestServerCreatesTunnel(t *testing.T) {
 	service := &fakeTunnelService{}
-	server := httptest.NewServer(NewServer(service, "").Handler())
-	defer server.Close()
+	app := NewServer(service, "").App()
 
 	body := bytes.NewBufferString(`{"name":"api","type":"http","host":"127.0.0.1","port":3000,"subdomain":"demo","callback_url":"http://example.test/hook"}`)
-	resp, err := http.Post(server.URL+"/api/v1/tunnels", "application/json", body)
-	if err != nil {
-		t.Fatalf("expected request to succeed: %v", err)
-	}
+	req := newRequest(t, http.MethodPost, "/api/v1/tunnels", body)
+	req.Header.Set("Content-Type", "application/json")
+	resp := doRequest(t, app, req)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
@@ -110,13 +109,9 @@ func TestServerListsAndStopsTunnels(t *testing.T) {
 			UpdatedAt: time.Now().UTC(),
 		}},
 	}
-	server := httptest.NewServer(NewServer(service, "").Handler())
-	defer server.Close()
+	app := NewServer(service, "").App()
 
-	resp, err := http.Get(server.URL + "/api/v1/tunnels")
-	if err != nil {
-		t.Fatalf("expected list request to succeed: %v", err)
-	}
+	resp := doRequest(t, app, newRequest(t, http.MethodGet, "/api/v1/tunnels", nil))
 	defer resp.Body.Close()
 
 	var listBody struct {
@@ -129,14 +124,7 @@ func TestServerListsAndStopsTunnels(t *testing.T) {
 		t.Fatalf("unexpected tunnels response: %#v", listBody)
 	}
 
-	req, err := http.NewRequest(http.MethodDelete, server.URL+"/api/v1/tunnels/tun_1", nil)
-	if err != nil {
-		t.Fatalf("failed to build delete request: %v", err)
-	}
-	stopResp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("expected stop request to succeed: %v", err)
-	}
+	stopResp := doRequest(t, app, newRequest(t, http.MethodDelete, "/api/v1/tunnels/tun_1", nil))
 	defer stopResp.Body.Close()
 
 	if stopResp.StatusCode != http.StatusOK {
@@ -146,32 +134,42 @@ func TestServerListsAndStopsTunnels(t *testing.T) {
 
 func TestServerRequiresBearerTokenWhenConfigured(t *testing.T) {
 	service := &fakeTunnelService{}
-	server := httptest.NewServer(NewServer(service, "secret").Handler())
-	defer server.Close()
+	app := NewServer(service, "secret").App()
 
-	resp, err := http.Get(server.URL + "/api/v1/health")
-	if err != nil {
-		t.Fatalf("expected request to succeed: %v", err)
-	}
+	resp := doRequest(t, app, newRequest(t, http.MethodGet, "/api/v1/health", nil))
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("expected unauthorized status, got %d", resp.StatusCode)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, server.URL+"/api/v1/health", nil)
-	if err != nil {
-		t.Fatalf("failed to build request: %v", err)
-	}
+	req := newRequest(t, http.MethodGet, "/api/v1/health", nil)
 	req.Header.Set("Authorization", "Bearer secret")
 
-	authedResp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("expected authenticated request to succeed: %v", err)
-	}
+	authedResp := doRequest(t, app, req)
 	defer authedResp.Body.Close()
 
 	if authedResp.StatusCode != http.StatusOK {
 		t.Fatalf("expected OK status, got %d", authedResp.StatusCode)
 	}
+}
+
+func newRequest(t *testing.T, method, target string, body io.Reader) *http.Request {
+	t.Helper()
+
+	req, err := http.NewRequest(method, target, body)
+	if err != nil {
+		t.Fatalf("failed to build request: %v", err)
+	}
+	return req
+}
+
+func doRequest(t *testing.T, app *fiber.App, req *http.Request) *http.Response {
+	t.Helper()
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	return resp
 }

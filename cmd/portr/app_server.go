@@ -52,16 +52,12 @@ func startAppServer(c *cli.Context) error {
 
 	manager := appserver.NewManager(cfg, db.New(&cfg))
 	api := appserver.NewServer(manager, c.String("token"))
-	server := &http.Server{
-		Addr:              fmt.Sprintf("%s:%d", c.String("host"), c.Int("port")),
-		Handler:           api.Handler(),
-		ReadHeaderTimeout: 5 * time.Second,
-	}
+	addr := fmt.Sprintf("%s:%d", c.String("host"), c.Int("port"))
 
 	errCh := make(chan error, 1)
 	go func() {
-		fmt.Printf("Portr app server listening on http://%s\n", server.Addr)
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		fmt.Printf("Portr app server listening on http://%s\n", addr)
+		if err := api.App().Listen(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}
 	}()
@@ -80,5 +76,5 @@ func startAppServer(c *cli.Context) error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	manager.Shutdown(shutdownCtx)
-	return server.Shutdown(shutdownCtx)
+	return api.App().ShutdownWithContext(shutdownCtx)
 }
