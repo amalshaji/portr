@@ -1,0 +1,459 @@
+---
+title: App Server
+description: Run the Portr client as a local HTTP API for programmatic tunnel management
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+`portr app-server` starts a local HTTP API around the Portr client. Use it when
+another process needs to create, inspect, and shut down tunnels without launching
+one CLI command per tunnel.
+
+The app server uses the same client configuration and tunnel implementation as
+the regular CLI commands. It reads your configured `server_url`, `ssh_url`,
+`tunnel_url`, `secret_key`, request logging settings, health check settings, and
+host key verification settings from the Portr client config file.
+
+<Callout type="info">
+  The app server is a local control plane. Tunnels live inside the running
+  `portr app-server` process and stop when that process exits.
+</Callout>
+
+## When to use it
+
+Use app-server when you want another local program to own tunnel lifecycle:
+
+- Test runners that need a temporary public URL for a local service
+- CI-style scripts running on a developer machine
+- Desktop apps or local automation tools that need to open and close tunnels
+- Integrations that need disconnect and reconnect notifications
+
+For one-off terminal workflows, `portr http`, `portr tcp`, and `portr start`
+remain simpler. For inspecting HTTP traffic already captured on disk, use
+[`portr logs`](/docs/client/request-logs) or the local inspector dashboard.
+
+## Runtime model
+
+The app server has two responsibilities:
+
+1. It exposes a local HTTP API on the machine where Portr is running.
+2. It starts and supervises tunnel workers in that same process.
+
+It does not persist desired tunnel state. If the app-server process exits, the
+tunnels it owns are closed. If you restart app-server, recreate the tunnels with
+the API.
+
+Each successful `POST /api/v1/tunnels` call returns an app-server tunnel ID. That
+ID is local to the running process and is different from any server-side
+connection ID used internally by Portr.
+
+## Start the app server
+
+Start the API server on the default loopback address:
+
+```bash
+portr app-server
+```
+
+By default it listens on:
+
+```text
+http://127.0.0.1:7778
+```
+
+Bind a different host or port:
+
+```bash
+portr app-server --host 127.0.0.1 --port 7780
+```
+
+Use a specific client config:
+
+```bash
+portr --config ~/.portr/config.yaml app-server
+```
+
+Command flags:
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--host` | `127.0.0.1` | Address the local API server binds to. |
+| `--port` | `7778` | Port the local API server listens on. |
+| `--token` | none | Bearer token required for API requests. Can also be supplied with `PORTR_APP_SERVER_TOKEN`. |
+
+## Authentication
+
+The app-server API is unauthenticated unless you pass a token. For local-only
+development that may be enough, but any shared or non-loopback binding should
+use a token.
+
+```bash
+PORTR_APP_SERVER_TOKEN="change-me" portr app-server
+```
+
+Or:
+
+```bash
+portr app-server --token "change-me"
+```
+
+When a token is configured, every API request must include:
+
+```http
+Authorization: Bearer change-me
+```
+
+Example:
+
+```bash
+curl -H "Authorization: Bearer change-me" \
+  http://127.0.0.1:7778/api/v1/tunnels
+```
+
+## API conventions
+
+All request and response bodies are JSON unless the endpoint is a simple health
+check. Request bodies should use `Content-Type: application/json`.
+
+Successful responses use:
+
+- `200 OK` for reads and tunnel shutdown
+- `201 Created` when a tunnel is accepted and started or is still starting
+
+Error responses have a stable shape:
+
+```json
+{
+  "message": "port must be between 1 and 65535"
+}
+```
+
+Common error statuses:
+
+| Status | Meaning |
+| --- | --- |
+| `400 Bad Request` | The request body is invalid, required fields are missing, or a tunnel cannot be started from the supplied parameters. |
+| `401 Unauthorized` | A token is configured and the request did not include the expected bearer token. |
+| `404 Not Found` | The requested tunnel ID is not known to this app-server process. |
+| `405 Method Not Allowed` | The path exists, but the HTTP method is not supported for that path. |
+| `500 Internal Server Error` | The app server failed while handling a known tunnel operation. |
+
+## Start an HTTP tunnel
+
+Create a tunnel with a generated subdomain:
+
+```bash
+curl -X POST http://127.0.0.1:7778/api/v1/tunnels \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "web",
+    "type": "http",
+    "host": "localhost",
+    "port": 3000
+  }'
+```
+
+Create a tunnel with a fixed subdomain:
+
+```bash
+curl -X POST http://127.0.0.1:7778/api/v1/tunnels \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "web",
+    "type": "http",
+    "host": "localhost",
+    "port": 3000,
+    "subdomain": "my-app"
+  }'
+```
+
+Successful responses include the app-server tunnel ID and current status:
+
+```json
+{
+  "id": "01HZYR9VK2C0G6KTX4TK9Z5T6S",
+  "name": "web",
+  "status": "running",
+  "type": "http",
+  "host": "localhost",
+  "port": 3000,
+  "subdomain": "my-app",
+  "tunnel_url": "https://my-app.example.com",
+  "callback_urls": [],
+  "started_at": "2026-05-15T10:00:00Z",
+  "updated_at": "2026-05-15T10:00:05Z"
+}
+```
+
+Save the returned `id`; you use it for status checks, shutdown, and event
+filtering.
+
+## Start a TCP tunnel
+
+TCP tunnels use the same endpoint with `type: "tcp"`:
+
+```bash
+curl -X POST http://127.0.0.1:7778/api/v1/tunnels \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "postgres",
+    "type": "tcp",
+    "host": "localhost",
+    "port": 5432
+  }'
+```
+
+TCP responses include `remote_port` once the remote listener is allocated:
+
+```json
+{
+  "id": "01HZYRA72P4R8PQVG0YSQXJK64",
+  "name": "postgres",
+  "status": "running",
+  "type": "tcp",
+  "host": "localhost",
+  "port": 5432,
+  "remote_port": 49160,
+  "tunnel_url": "example.com:49160",
+  "started_at": "2026-05-15T10:05:00Z",
+  "updated_at": "2026-05-15T10:05:04Z"
+}
+```
+
+## Request fields
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | string | No | Human-readable label returned in status and event payloads. |
+| `type` | string | No | `http` or `tcp`. Defaults to `http` when omitted. |
+| `host` | string | No | Local host to forward to. Defaults to `localhost`. |
+| `port` | number | Yes | Local port to forward to. Must be between `1` and `65535`. |
+| `subdomain` | string | HTTP only | Fixed HTTP subdomain. If omitted for HTTP, Portr generates one. |
+| `pool_size` | number | HTTP only | Number of HTTP tunnel workers. Defaults to the client tunnel default. Falls back to one worker when the Portr server does not support pooled HTTP tunnels. |
+| `callback_url` | string | No | Single webhook URL for lifecycle events. |
+| `callback_urls` | string[] | No | Additional webhook URLs for lifecycle events. Duplicate URLs are ignored. |
+
+## Response fields
+
+Tunnel status responses use this shape:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | string | App-server tunnel ID used by the local API. |
+| `name` | string | Optional name supplied when the tunnel was created. |
+| `status` | string | Current lifecycle status. |
+| `type` | string | `http` or `tcp`. |
+| `host` | string | Local host forwarded by the tunnel. |
+| `port` | number | Local port forwarded by the tunnel. |
+| `subdomain` | string | HTTP subdomain, when the tunnel is HTTP. |
+| `remote_port` | number | Remote TCP port, when the tunnel is TCP and the server has allocated one. |
+| `tunnel_url` | string | Public HTTP URL or TCP host/port once available. |
+| `callback_urls` | string[] | Callback URLs registered for this tunnel. |
+| `started_at` | string | RFC3339 timestamp for tunnel creation inside app-server. |
+| `updated_at` | string | RFC3339 timestamp for the last status change. |
+| `stopped_at` | string | RFC3339 timestamp set after shutdown. |
+| `last_error` | string | Last known startup, worker, or health error. |
+
+## Check status
+
+List all tunnels managed by the running app server:
+
+```bash
+curl http://127.0.0.1:7778/api/v1/tunnels
+```
+
+Response:
+
+```json
+{
+  "tunnels": [
+    {
+      "id": "01HZYR9VK2C0G6KTX4TK9Z5T6S",
+      "name": "web",
+      "status": "running",
+      "type": "http",
+      "host": "localhost",
+      "port": 3000,
+      "subdomain": "my-app",
+      "tunnel_url": "https://my-app.example.com",
+      "started_at": "2026-05-15T10:00:00Z",
+      "updated_at": "2026-05-15T10:00:05Z"
+    }
+  ]
+}
+```
+
+Inspect one tunnel:
+
+```bash
+curl http://127.0.0.1:7778/api/v1/tunnels/01HZYR9VK2C0G6KTX4TK9Z5T6S
+```
+
+Possible status values:
+
+| Status | Meaning |
+| --- | --- |
+| `starting` | The app server accepted the request and is starting the tunnel. |
+| `running` | The tunnel started and has a public tunnel address. |
+| `unhealthy` | A health check detected a disconnected or unregistered HTTP tunnel and Portr is attempting to reconnect. |
+| `failed` | Tunnel startup or a worker failed. Check `last_error`. |
+| `stopped` | The tunnel was shut down through the API or app-server shutdown. |
+
+## Shut down a tunnel
+
+Stop a tunnel with `DELETE`:
+
+```bash
+curl -X DELETE \
+  http://127.0.0.1:7778/api/v1/tunnels/01HZYR9VK2C0G6KTX4TK9Z5T6S
+```
+
+You can also use the explicit shutdown endpoint:
+
+```bash
+curl -X POST \
+  http://127.0.0.1:7778/api/v1/tunnels/01HZYR9VK2C0G6KTX4TK9Z5T6S/shutdown
+```
+
+The tunnel remains visible in `GET /api/v1/tunnels` with `status: "stopped"` so
+callers can reconcile their own state after a shutdown.
+
+## Events
+
+The app server records recent lifecycle events in memory.
+
+List all recent events:
+
+```bash
+curl http://127.0.0.1:7778/api/v1/events
+```
+
+Filter to one tunnel:
+
+```bash
+curl "http://127.0.0.1:7778/api/v1/events?tunnel_id=01HZYR9VK2C0G6KTX4TK9Z5T6S"
+```
+
+Response:
+
+```json
+{
+  "events": [
+    {
+      "id": "01HZYRBYT1DD8W7GK8RJ0QYTS4",
+      "tunnel_id": "01HZYR9VK2C0G6KTX4TK9Z5T6S",
+      "type": "started",
+      "name": "web",
+      "connection_type": "http",
+      "host": "localhost",
+      "port": 3000,
+      "subdomain": "my-app",
+      "tunnel_url": "https://my-app.example.com",
+      "at": "2026-05-15T10:00:05Z"
+    }
+  ]
+}
+```
+
+Event types:
+
+| Event | When it is emitted |
+| --- | --- |
+| `started` | A tunnel worker starts and receives its tunnel address. |
+| `unhealthy` | An HTTP tunnel health check detects a disconnect or missing server registration. |
+| `reconnected` | A tunnel reconnect attempt succeeds. |
+| `failed` | Startup or a tunnel worker fails. |
+| `stopped` | A tunnel is shut down. |
+
+<Callout type="info">
+  Disconnect-style lifecycle changes are reported as `unhealthy`, `failed`, or
+  `stopped` depending on what happened. Successful reconnects are reported as
+  `reconnected`.
+</Callout>
+
+## Callback webhooks
+
+Pass `callback_url` or `callback_urls` when creating a tunnel to receive the same
+event payloads over HTTP.
+
+```bash
+curl -X POST http://127.0.0.1:7778/api/v1/tunnels \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "web",
+    "type": "http",
+    "host": "localhost",
+    "port": 3000,
+    "subdomain": "my-app",
+    "callback_url": "http://127.0.0.1:9000/portr-events",
+    "callback_urls": [
+      "https://automation.example.com/webhooks/portr"
+    ]
+  }'
+```
+
+Each callback receives a `POST` request with `Content-Type: application/json`:
+
+```json
+{
+  "id": "01HZYRBYT1DD8W7GK8RJ0QYTS4",
+  "tunnel_id": "01HZYR9VK2C0G6KTX4TK9Z5T6S",
+  "type": "reconnected",
+  "name": "web",
+  "connection_type": "http",
+  "host": "localhost",
+  "port": 3000,
+  "subdomain": "my-app",
+  "tunnel_url": "https://my-app.example.com",
+  "at": "2026-05-15T10:10:00Z"
+}
+```
+
+Callback delivery is best-effort. If your receiver is down, the app server logs
+the delivery failure and continues managing the tunnel.
+
+## Endpoints
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/api/v1/health` | Health check for the local app-server process. |
+| `POST` | `/api/v1/tunnels` | Start a new tunnel. |
+| `GET` | `/api/v1/tunnels` | List tunnels managed by this app-server process. |
+| `GET` | `/api/v1/tunnels/{id}` | Get one tunnel's status. |
+| `DELETE` | `/api/v1/tunnels/{id}` | Shut down one tunnel. |
+| `POST` | `/api/v1/tunnels/{id}/shutdown` | Shut down one tunnel. |
+| `GET` | `/api/v1/events` | List recent lifecycle events. Add `?tunnel_id={id}` to filter. |
+
+## Automation example
+
+This shell snippet starts an app server, creates a tunnel, waits for automation,
+then shuts the tunnel down:
+
+```bash
+APP_SERVER=http://127.0.0.1:7778
+
+TUNNEL_ID=$(
+  curl -sS -X POST "$APP_SERVER/api/v1/tunnels" \
+    -H "Content-Type: application/json" \
+    -d '{"name":"preview","type":"http","host":"localhost","port":3000}' |
+    jq -r '.id'
+)
+
+curl -sS "$APP_SERVER/api/v1/tunnels/$TUNNEL_ID"
+
+# Run your automated workflow here.
+
+curl -sS -X DELETE "$APP_SERVER/api/v1/tunnels/$TUNNEL_ID"
+```
+
+## Operational notes
+
+- Run one app-server process per local machine that owns the tunnels.
+- Bind to `127.0.0.1` unless another trusted machine must call the API.
+- Use `--token` or `PORTR_APP_SERVER_TOKEN` before binding anywhere other than
+  loopback.
+- Tunnels are in-memory runtime state. Restarting the app server does not
+  restore previously running tunnels.
+- The local inspector dashboard is not started by app-server. Use the app-server
+  APIs for lifecycle control and [`portr logs`](/docs/client/request-logs) for
+  locally captured HTTP request logs.

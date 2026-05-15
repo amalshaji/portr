@@ -84,9 +84,28 @@ type SshClient struct {
 	client       *ssh.Client
 	tui          *tea.Program
 	fatal        func(error)
+	eventHandler func(Event)
 	mu           sync.RWMutex
 	reconnecting int32 // atomic flag to prevent concurrent reconnects
 	shutdown     int32 // atomic flag for shutdown state
+}
+
+type EventType string
+
+const (
+	EventStarted     EventType = "started"
+	EventStopped     EventType = "stopped"
+	EventUnhealthy   EventType = "unhealthy"
+	EventReconnected EventType = "reconnected"
+	EventFailed      EventType = "failed"
+)
+
+type Event struct {
+	Type       EventType     `json:"type"`
+	Tunnel     config.Tunnel `json:"tunnel"`
+	TunnelAddr string        `json:"tunnel_addr"`
+	Error      string        `json:"error,omitempty"`
+	At         time.Time     `json:"at"`
 }
 
 func New(config config.ClientConfig, db *db.Db, tui *tea.Program, fatal func(error)) *SshClient {
@@ -100,10 +119,46 @@ func New(config config.ClientConfig, db *db.Db, tui *tea.Program, fatal func(err
 	}
 }
 
+func (s *SshClient) SetEventHandler(handler func(Event)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.eventHandler = handler
+}
+
+func (s *SshClient) ConfigSnapshot() config.ClientConfig {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.config
+}
+
+func (s *SshClient) emitEvent(eventType EventType, err error) {
+	s.mu.RLock()
+	handler := s.eventHandler
+	cfg := s.config
+	s.mu.RUnlock()
+
+	if handler == nil {
+		return
+	}
+
+	event := Event{
+		Type:       eventType,
+		Tunnel:     cfg.Tunnel,
+		TunnelAddr: cfg.GetTunnelAddr(),
+		At:         time.Now().UTC(),
+	}
+	if err != nil {
+		event.Error = err.Error()
+	}
+	handler(event)
+}
+
 func (s *SshClient) reportFatal(err error) {
 	if err == nil {
 		return
 	}
+
+	s.emitEvent(EventFailed, err)
 
 	if s.fatal != nil {
 		s.fatal(err)
@@ -309,6 +364,8 @@ func (s *SshClient) startListenerForClient() error {
 		tunnelAddr := s.config.GetTunnelAddr()
 		fmt.Printf("✅ Tunnel started: %s → %s\n", s.config.Tunnel.GetLocalAddr(), tunnelAddr)
 	}
+
+	s.emitEvent(EventStarted, nil)
 
 	if s.tui != nil {
 		s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: 1})
@@ -894,6 +951,7 @@ func (s *SshClient) Shutdown(ctx context.Context) error {
 	if s.tui != nil {
 		s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: -1})
 	}
+	s.emitEvent(EventStopped, nil)
 	log.Info("Stopped tunnel connection", "address", s.config.GetTunnelAddr())
 	return err
 }
@@ -931,6 +989,8 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) error {
 			// Log unhealthy status when TUI is disabled
 			fmt.Printf("❌ Tunnel unhealthy: %s (attempting reconnect)\n", s.config.GetTunnelAddr())
 		}
+
+		s.emitEvent(EventUnhealthy, err)
 
 		reconnectErr := s.Reconnect()
 		if reconnectErr != nil {
@@ -974,7 +1034,9 @@ func (s *SshClient) Start(ctx context.Context) error {
 		if tunnelName == "" {
 			tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
 		}
-		return fmt.Errorf("failed to start tunnel '%s': %w", tunnelName, err)
+		startErr := fmt.Errorf("failed to start tunnel '%s': %w", tunnelName, err)
+		s.emitEvent(EventFailed, startErr)
+		return startErr
 
 	case <-time.After(5 * time.Second):
 		s.forwardListenerErrors(ctx, errChan)
@@ -1067,6 +1129,7 @@ func (s *SshClient) Reconnect() error {
 			// Log successful reconnection when TUI is disabled
 			fmt.Printf("🔄 Tunnel reconnected: %s\n", s.config.GetTunnelAddr())
 		}
+		s.emitEvent(EventReconnected, nil)
 		return nil
 	case <-time.After(5 * time.Second):
 		// Fallback timeout in case done channel doesn't signal
@@ -1079,6 +1142,7 @@ func (s *SshClient) Reconnect() error {
 			// Log successful reconnection when TUI is disabled
 			fmt.Printf("🔄 Tunnel reconnected: %s\n", s.config.GetTunnelAddr())
 		}
+		s.emitEvent(EventReconnected, nil)
 		return nil
 	case <-ctx.Done():
 		return fmt.Errorf("reconnect timeout")
