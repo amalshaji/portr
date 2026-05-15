@@ -47,25 +47,21 @@ export default function HomePage() {
     <main className="flex flex-1 flex-col">
       <Link
         href="/docs/client/app-server"
-        className="group border-b border-fd-border bg-fd-accent/30 transition-colors hover:bg-fd-accent/50"
+        className="group border-b border-fd-border/70 text-fd-muted-foreground transition-colors hover:text-fd-foreground"
       >
-        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3 sm:items-center">
-            <span
-              className="mt-2 h-2 w-2 shrink-0 rounded-full bg-fd-primary sm:mt-0"
-              aria-hidden="true"
-            />
-            <div>
-              <p className="font-semibold text-fd-foreground">
-                Introducing portr app-server: the control plane for your tunnels
-              </p>
-              <p className="text-fd-muted-foreground">
-                Start, stop, inspect, and automate tunnels from your own apps.
-              </p>
-            </div>
-          </div>
-          <span className="font-medium text-fd-foreground transition-transform group-hover:translate-x-0.5 sm:shrink-0">
-            Read the guide <span aria-hidden="true">-&gt;</span>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 py-2 text-xs sm:text-sm">
+          <span>
+            Introducing{" "}
+            <span className="font-medium text-fd-foreground">
+              portr app-server
+            </span>
+            : the control plane for your tunnels
+          </span>
+          <span
+            className="text-fd-foreground/70 transition-colors group-hover:text-fd-foreground"
+            aria-hidden="true"
+          >
+            -&gt;
           </span>
         </div>
       </Link>
