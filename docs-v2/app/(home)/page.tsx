@@ -45,6 +45,31 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <main className="flex flex-1 flex-col">
+      <Link
+        href="/docs/client/app-server"
+        className="group border-b border-fd-border bg-fd-accent/30 transition-colors hover:bg-fd-accent/50"
+      >
+        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3 sm:items-center">
+            <span
+              className="mt-2 h-2 w-2 shrink-0 rounded-full bg-fd-primary sm:mt-0"
+              aria-hidden="true"
+            />
+            <div>
+              <p className="font-semibold text-fd-foreground">
+                Introducing portr app-server: the control plane for your tunnels
+              </p>
+              <p className="text-fd-muted-foreground">
+                Start, stop, inspect, and automate tunnels from your own apps.
+              </p>
+            </div>
+          </div>
+          <span className="font-medium text-fd-foreground transition-transform group-hover:translate-x-0.5 sm:shrink-0">
+            Read the guide <span aria-hidden="true">-&gt;</span>
+          </span>
+        </div>
+      </Link>
+
       {/* Hero Section */}
       <section className="flex flex-col justify-center text-center px-4 py-16 bg-gradient-to-b from-fd-accent/20 to-transparent">
         <div className="max-w-4xl mx-auto">
