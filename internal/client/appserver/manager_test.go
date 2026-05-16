@@ -116,3 +116,45 @@ func TestRecordEventLogsTerminalEvent(t *testing.T) {
 		}
 	}
 }
+
+func TestHandleSSHEventIgnoresLateUnhealthyAfterStopped(t *testing.T) {
+	cfg := clientcfg.Config{}
+	cfg.SetDefaults()
+
+	manager := NewManager(cfg, nil)
+	stoppedAt := time.Date(2026, 5, 16, 10, 0, 0, 0, time.UTC)
+	manager.tunnels["tun_1"] = &tunnelRuntime{
+		id: "tun_1",
+		status: TunnelStatus{
+			ID:        "tun_1",
+			Name:      "web",
+			Status:    statusStopped,
+			Type:      constants.Http,
+			Host:      "localhost",
+			Port:      3000,
+			StartedAt: stoppedAt.Add(-time.Minute),
+			UpdatedAt: stoppedAt,
+			StoppedAt: &stoppedAt,
+		},
+	}
+
+	manager.handleSSHEvent("tun_1", sshclient.Event{
+		Type:  sshclient.EventUnhealthy,
+		Error: "unhealthy tunnel",
+		At:    stoppedAt.Add(time.Second),
+	})
+
+	status, err := manager.GetTunnel("tun_1")
+	if err != nil {
+		t.Fatalf("expected tunnel, got %v", err)
+	}
+	if status.Status != statusStopped {
+		t.Fatalf("expected stopped status, got %q", status.Status)
+	}
+	if status.LastError != "" {
+		t.Fatalf("expected no late error after stop, got %q", status.LastError)
+	}
+	if len(manager.Events("tun_1")) != 0 {
+		t.Fatalf("expected late unhealthy event to be ignored, got %#v", manager.Events("tun_1"))
+	}
+}

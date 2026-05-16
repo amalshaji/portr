@@ -44,6 +44,7 @@ type tunnelRuntime struct {
 	failedCh     chan error
 	startOnce    sync.Once
 	failOnce     sync.Once
+	stopping     bool
 }
 
 type Manager struct {
@@ -90,7 +91,7 @@ func (m *Manager) StartTunnel(ctx context.Context, request StartTunnelRequest) (
 	cfg := m.clientConfigForTunnel(tunnel)
 	workers := m.desiredWorkers(cfg)
 	if cfg.Tunnel.Type == constants.Http && workers > 1 && cfg.ConnectionID == "" {
-		connID, err := sshclient.CreateNewConnection(cfg)
+		connID, err := sshclient.CreateNewConnectionWithContext(ctx, cfg)
 		if err != nil {
 			return TunnelStatus{}, fmt.Errorf("failed to create shared connection for pool: %w", err)
 		}
@@ -187,6 +188,10 @@ func (m *Manager) StopTunnel(ctx context.Context, id string) (TunnelStatus, erro
 	if !ok {
 		return TunnelStatus{}, ErrTunnelNotFound
 	}
+
+	m.mu.Lock()
+	tunnel.stopping = true
+	m.mu.Unlock()
 
 	tunnel.cancel()
 	for _, client := range tunnel.clients {
@@ -287,6 +292,10 @@ func (m *Manager) handleSSHEvent(id string, event sshclient.Event) {
 
 	shouldRecord := true
 	m.mu.Lock()
+	if (tunnel.stopping || tunnel.status.Status == statusStopped) && event.Type != sshclient.EventStopped {
+		m.mu.Unlock()
+		return
+	}
 	switch event.Type {
 	case sshclient.EventStarted:
 		if tunnel.status.Status == statusRunning {

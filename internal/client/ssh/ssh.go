@@ -35,6 +35,7 @@ var (
 	ErrLocalSetupIncomplete = fmt.Errorf("local setup incomplete")
 	errClientShuttingDown   = errors.New("client is shutting down")
 	newRestyClient          = resty.New
+	tunnelStartTimeout      = 20 * time.Second
 )
 
 type requestLogContextKey struct{}
@@ -195,7 +196,7 @@ func (s *SshClient) forwardListenerErrors(ctx context.Context, errChan <-chan er
 			if s.shouldIgnoreListenerError(ctx, err) {
 				return
 			}
-			s.reportFatal(err)
+			s.reportFatal(s.startError(err))
 		case <-ctx.Done():
 		}
 	}()
@@ -218,7 +219,11 @@ func (s *SshClient) handleAcceptError(listener net.Listener, err error) error {
 }
 
 func CreateNewConnection(cfg config.ClientConfig) (string, error) {
-	client := newRestyClient()
+	return CreateNewConnectionWithContext(context.Background(), cfg)
+}
+
+func CreateNewConnectionWithContext(ctx context.Context, cfg config.ClientConfig) (string, error) {
+	client := newRestyClient().SetTimeout(10 * time.Second)
 	var reqErr struct {
 		Message string `json:"message"`
 	}
@@ -239,27 +244,33 @@ func CreateNewConnection(cfg config.ClientConfig) (string, error) {
 		payload["subdomain"] = cfg.Tunnel.Subdomain
 	}
 
-	resp, err := request.SetBody(payload).Post(cfg.GetServerAddr() + "/api/v1/connections/")
+	resp, err := request.SetContext(ctx).SetBody(payload).Post(cfg.GetServerAddr() + "/api/v1/connections/")
 
 	if err != nil {
 		return "", err
 	}
 
 	if resp.StatusCode() != 200 {
-		log.Error("Failed to create new connection", "error", reqErr)
+		if reqErr.Message == "" {
+			reqErr.Message = resp.Status()
+		}
 		return "", fmt.Errorf("server error: %s", reqErr.Message)
 	}
 	return response.ConnectionId, nil
 }
 
-func (s *SshClient) createNewConnection() (string, error) {
+func (s *SshClient) createNewConnection(ctx context.Context) (string, error) {
 	if s.config.ConnectionID != "" {
 		return s.config.ConnectionID, nil
 	}
-	return CreateNewConnection(s.config)
+	return CreateNewConnectionWithContext(ctx, s.config)
 }
 
-func (s *SshClient) startListenerForClient() error {
+func (s *SshClient) startListenerForClient(ctx context.Context) error {
+	return s.startListenerForClientWithReady(ctx, nil)
+}
+
+func (s *SshClient) startListenerForClientWithReady(ctx context.Context, ready chan<- struct{}) error {
 	if atomic.LoadInt32(&s.shutdown) == 1 {
 		return errClientShuttingDown
 	}
@@ -267,7 +278,7 @@ func (s *SshClient) startListenerForClient() error {
 	var err error
 	var connectionId string
 
-	if connectionId, err = s.createNewConnection(); err != nil {
+	if connectionId, err = s.createNewConnection(ctx); err != nil {
 		return err
 	}
 
@@ -280,7 +291,7 @@ func (s *SshClient) startListenerForClient() error {
 	}
 
 	dialer := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 15 * time.Second}
-	rawConn, err := dialer.Dial("tcp", s.config.SshUrl)
+	rawConn, err := dialer.DialContext(ctx, "tcp", s.config.SshUrl)
 	if err != nil {
 		if s.config.Debug {
 			s.logDebug("Failed to dial ssh tcp", err)
@@ -366,6 +377,9 @@ func (s *SshClient) startListenerForClient() error {
 	}
 
 	s.emitEvent(EventStarted, nil)
+	if ready != nil {
+		close(ready)
+	}
 
 	if s.tui != nil {
 		s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: 1})
@@ -971,16 +985,28 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) error {
 		case <-ticker.C:
 		}
 
+		if ctx.Err() != nil || atomic.LoadInt32(&s.shutdown) == 1 {
+			return nil
+		}
+
 		err := s.HealthCheck()
 		if err == nil {
 			retryAttempts = 0
 			continue
 		}
 
+		if ctx.Err() != nil || atomic.LoadInt32(&s.shutdown) == 1 {
+			return nil
+		}
+
 		retryAttempts++
 
 		if s.config.Debug {
 			s.logDebug("Health check failed", err)
+		}
+
+		if ctx.Err() != nil || atomic.LoadInt32(&s.shutdown) == 1 {
+			return nil
 		}
 
 		if s.tui != nil {
@@ -993,28 +1019,46 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) error {
 			fmt.Printf("❌ Tunnel unhealthy: %s (attempting reconnect)\n", s.config.GetTunnelAddr())
 		}
 
+		if ctx.Err() != nil || atomic.LoadInt32(&s.shutdown) == 1 {
+			return nil
+		}
+
 		s.emitEvent(EventUnhealthy, err)
 
 		reconnectErr := s.Reconnect()
-		if reconnectErr != nil {
-			if s.config.Debug {
-				s.logDebug(fmt.Sprintf("Failed to reconnect to ssh tunnel (attempt %d)", retryAttempts), reconnectErr)
-			}
-			if retryAttempts > s.config.HealthCheckMaxRetries {
-				tunnelName := s.config.Tunnel.Name
-				if tunnelName == "" {
-					tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
-				}
-				return fmt.Errorf("failed to reconnect tunnel '%s' after %d attempts: %w", tunnelName, retryAttempts, reconnectErr)
-			}
-		} else {
+		if reconnectErr == nil {
 			retryAttempts = 0
+			continue
+		}
+		if errors.Is(reconnectErr, errClientShuttingDown) || ctx.Err() != nil || atomic.LoadInt32(&s.shutdown) == 1 {
+			return nil
+		}
+		if s.config.Debug {
+			s.logDebug(fmt.Sprintf("Failed to reconnect to ssh tunnel (attempt %d)", retryAttempts), reconnectErr)
+		}
+		if retryAttempts > s.config.HealthCheckMaxRetries {
+			tunnelName := s.config.Tunnel.Name
+			if tunnelName == "" {
+				tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
+			}
+			return fmt.Errorf("failed to reconnect tunnel '%s' after %d attempts: %w", tunnelName, retryAttempts, reconnectErr)
 		}
 	}
 }
 
+func (s *SshClient) startError(err error) error {
+	tunnelName := s.config.Tunnel.Name
+	if tunnelName == "" {
+		tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
+	}
+	return fmt.Errorf("failed to start tunnel '%s': %w", tunnelName, err)
+}
+
 func (s *SshClient) Start(ctx context.Context) error {
 	errChan := make(chan error, 1)
+	readyChan := make(chan struct{})
+	timer := time.NewTimer(tunnelStartTimeout)
+	defer timer.Stop()
 
 	go func() {
 		defer func() {
@@ -1022,7 +1066,7 @@ func (s *SshClient) Start(ctx context.Context) error {
 				errChan <- fmt.Errorf("tunnel listener panic: %v", r)
 			}
 		}()
-		if err := s.startListenerForClient(); err != nil {
+		if err := s.startListenerForClientWithReady(ctx, readyChan); err != nil {
 			errChan <- err
 		}
 	}()
@@ -1033,21 +1077,22 @@ func (s *SshClient) Start(ctx context.Context) error {
 			return nil
 		}
 
-		tunnelName := s.config.Tunnel.Name
-		if tunnelName == "" {
-			tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
-		}
-		startErr := fmt.Errorf("failed to start tunnel '%s': %w", tunnelName, err)
+		startErr := s.startError(err)
 		s.emitEvent(EventFailed, startErr)
 		return startErr
 
-	case <-time.After(5 * time.Second):
+	case <-readyChan:
 		s.forwardListenerErrors(ctx, errChan)
 
 		if s.config.Tunnel.Type == constants.Http {
 			return s.StartHealthCheck(ctx)
 		}
 		return nil
+
+	case <-timer.C:
+		startErr := s.startError(fmt.Errorf("timed out waiting for tunnel listener after %s", tunnelStartTimeout))
+		s.emitEvent(EventFailed, startErr)
+		return startErr
 
 	case <-ctx.Done():
 		return nil
@@ -1093,7 +1138,7 @@ func (s *SshClient) Reconnect() error {
 
 	// Channel to receive errors from the goroutine
 	errChan := make(chan error, 1)
-	done := make(chan struct{})
+	readyChan := make(chan struct{})
 
 	// Start the listener in a goroutine with context
 	go func() {
@@ -1106,8 +1151,7 @@ func (s *SshClient) Reconnect() error {
 				}
 			}
 		}()
-		defer close(done)
-		if err := s.startListenerForClient(); err != nil {
+		if err := s.startListenerForClientWithReady(ctx, readyChan); err != nil {
 			select {
 			case errChan <- err:
 			case <-ctx.Done():
@@ -1119,7 +1163,7 @@ func (s *SshClient) Reconnect() error {
 	select {
 	case err := <-errChan:
 		return err
-	case <-done:
+	case <-readyChan:
 		// Connection successful, update health status
 		if s.tui != nil {
 			s.tui.Send(tui.UpdateHealthMsg{
@@ -1128,19 +1172,6 @@ func (s *SshClient) Reconnect() error {
 			})
 			// Increase active count after successful reconnect
 			s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: 1})
-		} else if !s.config.DisableTerminalLogs {
-			// Log successful reconnection when TUI is disabled
-			fmt.Printf("🔄 Tunnel reconnected: %s\n", s.config.GetTunnelAddr())
-		}
-		s.emitEvent(EventReconnected, nil)
-		return nil
-	case <-time.After(5 * time.Second):
-		// Fallback timeout in case done channel doesn't signal
-		if s.tui != nil {
-			s.tui.Send(tui.UpdateHealthMsg{
-				Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
-				Healthy: true,
-			})
 		} else if !s.config.DisableTerminalLogs {
 			// Log successful reconnection when TUI is disabled
 			fmt.Printf("🔄 Tunnel reconnected: %s\n", s.config.GetTunnelAddr())
