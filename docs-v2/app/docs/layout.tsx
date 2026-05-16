@@ -15,7 +15,12 @@ const docsOptions: DocsLayoutProps = {
     {
       type: "custom",
       children: (
-        <GithubInfo owner="amalshaji" repo="portr" className="lg:-mx-2" />
+        <GithubInfo
+          owner="amalshaji"
+          repo="portr"
+          token={process.env.GITHUB_TOKEN}
+          className="lg:-mx-2"
+        />
       ),
     },
   ],
