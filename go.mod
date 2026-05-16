@@ -11,7 +11,7 @@ require (
 	github.com/elastic/go-sysinfo v1.15.3
 	github.com/glebarez/sqlite v1.11.0
 	github.com/go-resty/resty/v2 v2.12.0
-	github.com/gofiber/fiber/v2 v2.52.12
+	github.com/gofiber/fiber/v2 v2.52.13
 	github.com/gofiber/template/django/v3 v3.1.11
 	github.com/gofiber/template/html/v2 v2.1.3
 	github.com/gookit/validate v1.5.2

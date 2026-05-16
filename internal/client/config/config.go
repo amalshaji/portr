@@ -170,6 +170,7 @@ type ClientConfig struct {
 	HealthCheckInterval    int
 	HealthCheckMaxRetries  int
 	DisableTUI             bool
+	DisableTerminalLogs    bool
 	EnableHttpReverseProxy bool
 }
 

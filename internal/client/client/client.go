@@ -146,6 +146,14 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 		return fmt.Errorf("please enter a valid service name")
 	}
 
+	poolingSupported := true
+	for _, clientConfig := range clientConfigs {
+		if desiredWorkers(clientConfig, true) > 1 {
+			poolingSupported = supportsHTTPPooling(c.config.ServerUrl, c.config.UseLocalHost)
+			break
+		}
+	}
+
 	for _, clientConfig := range clientConfigs {
 		tunnelName := clientConfig.Tunnel.Name
 		if tunnelName == "" {
@@ -156,10 +164,10 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			fmt.Printf("🚀 Starting tunnel: %s (%s:%d)\n", tunnelName, clientConfig.Tunnel.Host, clientConfig.Tunnel.Port)
 		}
 
-		workers := desiredWorkers(clientConfig)
+		workers := desiredWorkers(clientConfig, poolingSupported)
 
 		if clientConfig.Tunnel.Type == constants.Http && workers > 1 && clientConfig.ConnectionID == "" {
-			connID, err := tunnelclient.CreateNewConnection(clientConfig)
+			connID, err := tunnelclient.CreateNewConnectionWithContext(ctx, clientConfig)
 			if err != nil {
 				return fmt.Errorf("failed to create shared connection for pool: %w", err)
 			}

@@ -5,8 +5,8 @@ import {
   TypingAnimation,
   AnimatedSpan,
 } from "@/components/magicui/terminal";
-import { GithubInfo } from "fumadocs-ui/components/github-info";
 import { SparklesText } from "@/components/magicui/sparkles-text";
+import { GithubInfo } from "fumadocs-ui/components/github-info";
 import Logo from "@/components/ui/logo";
 
 export const metadata: Metadata = {
@@ -45,9 +45,40 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <main className="flex flex-1 flex-col">
+      <Link
+        href="/docs/client/app-server"
+        className="group border-b border-fd-border/70 text-fd-muted-foreground transition-colors hover:text-fd-foreground"
+      >
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2 text-xs sm:justify-center sm:text-sm">
+          <span className="min-w-0 leading-snug">
+            <span className="sm:hidden">
+              New:{" "}
+              <span className="font-medium text-fd-foreground">
+                portr app-server
+              </span>
+            </span>
+            <span className="hidden sm:inline">
+              Introducing{" "}
+              <span className="font-medium text-fd-foreground">
+                portr app-server
+              </span>
+              : the control plane for your tunnels
+            </span>
+          </span>
+          <span
+            className="shrink-0 text-fd-foreground/70 transition-colors group-hover:text-fd-foreground"
+          >
+            <span className="sm:hidden">Read guide</span>
+            <span className="hidden sm:inline" aria-hidden="true">
+              -&gt;
+            </span>
+          </span>
+        </div>
+      </Link>
+
       {/* Hero Section */}
       <section className="flex flex-col justify-center text-center px-4 py-16 bg-gradient-to-b from-fd-accent/20 to-transparent">
-        <div className="max-w-4xl mx-auto">
+        <div className="mx-auto w-full max-w-4xl">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Logo className="h-12 w-12 sm:h-16 sm:w-16" />
             <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-fd-foreground to-fd-muted-foreground bg-clip-text text-transparent">
@@ -104,6 +135,7 @@ export default function HomePage() {
             <GithubInfo
               owner="amalshaji"
               repo="portr"
+              token={process.env.GITHUB_TOKEN}
               className="w-full md:w-auto px-6 sm:px-8 py-3 sm:py-4 border border-fd-border text-fd-foreground font-semibold rounded-lg hover:bg-fd-accent transition-colors text-base sm:text-lg text-center flex flex-row items-center justify-center gap-2 min-h-[3.5rem]"
             />
             <Link

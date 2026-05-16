@@ -6,6 +6,7 @@
     "http-tunnel",
     "request-logs",
     "request-replay",
+    "app-server",
     "tcp-tunnel",
     "websocket-tunnel",
     "templates"

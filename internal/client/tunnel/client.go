@@ -36,6 +36,7 @@ var (
 	ErrLocalSetupIncomplete = fmt.Errorf("local setup incomplete")
 	errClientShuttingDown   = errors.New("client is shutting down")
 	newRestyClient          = resty.New
+	tunnelStartTimeout      = 20 * time.Second
 )
 
 type requestLogContextKey struct{}
@@ -88,9 +89,28 @@ type Client struct {
 	streamsMu    sync.Mutex
 	tui          *tea.Program
 	fatal        func(error)
+	eventHandler func(Event)
 	mu           sync.RWMutex
 	reconnecting int32 // atomic flag to prevent concurrent reconnects
 	shutdown     int32 // atomic flag for shutdown state
+}
+
+type EventType string
+
+const (
+	EventStarted     EventType = "started"
+	EventStopped     EventType = "stopped"
+	EventUnhealthy   EventType = "unhealthy"
+	EventReconnected EventType = "reconnected"
+	EventFailed      EventType = "failed"
+)
+
+type Event struct {
+	Type       EventType     `json:"type"`
+	Tunnel     config.Tunnel `json:"tunnel"`
+	TunnelAddr string        `json:"tunnel_addr"`
+	Error      string        `json:"error,omitempty"`
+	At         time.Time     `json:"at"`
 }
 
 func New(config config.ClientConfig, db *db.Db, tui *tea.Program, fatal func(error)) *Client {
@@ -104,10 +124,46 @@ func New(config config.ClientConfig, db *db.Db, tui *tea.Program, fatal func(err
 	}
 }
 
+func (s *Client) SetEventHandler(handler func(Event)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.eventHandler = handler
+}
+
+func (s *Client) ConfigSnapshot() config.ClientConfig {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.config
+}
+
+func (s *Client) emitEvent(eventType EventType, err error) {
+	s.mu.RLock()
+	handler := s.eventHandler
+	cfg := s.config
+	s.mu.RUnlock()
+
+	if handler == nil {
+		return
+	}
+
+	event := Event{
+		Type:       eventType,
+		Tunnel:     cfg.Tunnel,
+		TunnelAddr: cfg.GetTunnelAddr(),
+		At:         time.Now().UTC(),
+	}
+	if err != nil {
+		event.Error = err.Error()
+	}
+	handler(event)
+}
+
 func (s *Client) reportFatal(err error) {
 	if err == nil {
 		return
 	}
+
+	s.emitEvent(EventFailed, err)
 
 	if s.fatal != nil {
 		s.fatal(err)
@@ -145,10 +201,35 @@ func (s *Client) forwardListenerErrors(ctx context.Context, errChan <-chan error
 			if s.shouldIgnoreListenerError(ctx, err) {
 				return
 			}
-			s.reportFatal(err)
+			s.reportFatal(s.startError(err))
 		case <-ctx.Done():
 		}
 	}()
+}
+
+func (s *Client) closeTransport() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var err error
+	if s.listener != nil {
+		err = s.listener.Close()
+		s.listener = nil
+	}
+
+	if s.conn != nil {
+		if clientErr := s.conn.Close(); clientErr != nil && err == nil {
+			err = clientErr
+		}
+		s.conn = nil
+	}
+	s.writer = nil
+	for streamID, ch := range s.streams {
+		close(ch)
+		delete(s.streams, streamID)
+	}
+
+	return err
 }
 
 func (s *Client) handleAcceptError(listener net.Listener, err error) error {
@@ -168,7 +249,11 @@ func (s *Client) handleAcceptError(listener net.Listener, err error) error {
 }
 
 func CreateNewConnection(cfg config.ClientConfig) (string, error) {
-	client := newRestyClient()
+	return CreateNewConnectionWithContext(context.Background(), cfg)
+}
+
+func CreateNewConnectionWithContext(ctx context.Context, cfg config.ClientConfig) (string, error) {
+	client := newRestyClient().SetTimeout(10 * time.Second)
 	var reqErr struct {
 		Message string `json:"message"`
 	}
@@ -189,33 +274,41 @@ func CreateNewConnection(cfg config.ClientConfig) (string, error) {
 		payload["subdomain"] = cfg.Tunnel.Subdomain
 	}
 
-	resp, err := request.SetBody(payload).Post(cfg.GetServerAddr() + "/api/v1/connections/")
+	resp, err := request.SetContext(ctx).SetBody(payload).Post(cfg.GetServerAddr() + "/api/v1/connections/")
 
 	if err != nil {
 		return "", err
 	}
 
 	if resp.StatusCode() != 200 {
-		log.Error("Failed to create new connection", "error", reqErr)
+		if reqErr.Message == "" {
+			reqErr.Message = resp.Status()
+		}
 		return "", fmt.Errorf("server error: %s", reqErr.Message)
 	}
 	return response.ConnectionId, nil
 }
 
-func (s *Client) createNewConnection() (string, error) {
+func (s *Client) createNewConnection(ctx context.Context) (string, error) {
 	if s.config.ConnectionID != "" {
 		return s.config.ConnectionID, nil
 	}
-	return CreateNewConnection(s.config)
+	return CreateNewConnectionWithContext(ctx, s.config)
 }
 
-func (s *Client) startListenerForClient() error {
+func (s *Client) startListenerForClient(ctx context.Context) error {
+	return s.startListenerForClientWithReady(ctx, nil)
+}
+
+func (s *Client) startListenerForClientWithReady(ctx context.Context, ready chan<- struct{}) error {
 	if atomic.LoadInt32(&s.shutdown) == 1 {
 		return errClientShuttingDown
 	}
 
-	connectionId, err := s.createNewConnection()
-	if err != nil {
+	var err error
+	var connectionId string
+
+	if connectionId, err = s.createNewConnection(ctx); err != nil {
 		return err
 	}
 
@@ -245,11 +338,21 @@ func (s *Client) startListenerForClient() error {
 		s.readTunnelFrames(conn, readyCh, errCh)
 	})
 
+	ctxDone := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = s.closeTransport()
+		case <-ctxDone:
+		}
+	}()
+	defer close(ctxDone)
+
 	select {
-	case ready := <-readyCh:
-		if ready.Port > 0 {
+	case readyFrame := <-readyCh:
+		if readyFrame.Port > 0 {
 			s.mu.Lock()
-			s.config.Tunnel.RemotePort = ready.Port
+			s.config.Tunnel.RemotePort = readyFrame.Port
 			s.mu.Unlock()
 		}
 	case err := <-errCh:
@@ -257,6 +360,9 @@ func (s *Client) startListenerForClient() error {
 	case <-time.After(10 * time.Second):
 		_ = conn.Close()
 		return fmt.Errorf("timed out waiting for websocket tunnel registration")
+	case <-ctx.Done():
+		_ = s.closeTransport()
+		return errClientShuttingDown
 	}
 
 	if s.tui != nil {
@@ -265,9 +371,14 @@ func (s *Client) startListenerForClient() error {
 			ClientConfig: &s.config,
 			Healthy:      true,
 		})
-	} else {
+	} else if !s.config.DisableTerminalLogs {
 		tunnelAddr := s.config.GetTunnelAddr()
 		fmt.Printf("✅ Tunnel started: %s → %s\n", s.config.Tunnel.GetLocalAddr(), tunnelAddr)
+	}
+
+	s.emitEvent(EventStarted, nil)
+	if ready != nil {
+		close(ready)
 	}
 
 	if s.tui != nil {
@@ -925,7 +1036,7 @@ func (s *Client) logHttpRequest(
 			Status: req.ResponseStatusCode,
 			URL:    req.Url,
 		})
-	} else {
+	} else if !s.config.DisableTerminalLogs {
 		fmt.Printf("[%s] %s %s → %d\n",
 			req.LoggedAt.Local().Format("15:04:05"),
 			req.Method,
@@ -947,31 +1058,18 @@ func (s *Client) tcpTunnel(src, dst net.Conn) {
 func (s *Client) Shutdown(ctx context.Context) error {
 	atomic.StoreInt32(&s.shutdown, 1)
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	err := s.closeTransport()
+	s.mu.RLock()
+	tuiProgram := s.tui
+	port := fmt.Sprintf("%d", s.config.Tunnel.Port)
+	address := s.config.GetTunnelAddr()
+	s.mu.RUnlock()
 
-	var err error
-	if s.listener != nil {
-		err = s.listener.Close()
-		s.listener = nil
+	if tuiProgram != nil {
+		tuiProgram.Send(tui.UpdateConnCountMsg{Port: port, Delta: -1})
 	}
-
-	if s.conn != nil {
-		if clientErr := s.conn.Close(); clientErr != nil && err == nil {
-			err = clientErr
-		}
-		s.conn = nil
-	}
-	s.writer = nil
-	for streamID, ch := range s.streams {
-		close(ch)
-		delete(s.streams, streamID)
-	}
-
-	if s.tui != nil {
-		s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: -1})
-	}
-	log.Info("Stopped tunnel connection", "address", s.config.GetTunnelAddr())
+	s.emitEvent(EventStopped, nil)
+	log.Info("Stopped tunnel connection", "address", address)
 	return err
 }
 
@@ -987,10 +1085,18 @@ func (s *Client) StartHealthCheck(ctx context.Context) error {
 		case <-ticker.C:
 		}
 
+		if ctx.Err() != nil || atomic.LoadInt32(&s.shutdown) == 1 {
+			return nil
+		}
+
 		err := s.HealthCheck()
 		if err == nil {
 			retryAttempts = 0
 			continue
+		}
+
+		if ctx.Err() != nil || atomic.LoadInt32(&s.shutdown) == 1 {
+			return nil
 		}
 
 		retryAttempts++
@@ -999,36 +1105,61 @@ func (s *Client) StartHealthCheck(ctx context.Context) error {
 			s.logDebug("Health check failed", err)
 		}
 
+		if ctx.Err() != nil || atomic.LoadInt32(&s.shutdown) == 1 {
+			return nil
+		}
+
 		if s.tui != nil {
 			s.tui.Send(tui.UpdateHealthMsg{
 				Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
 				Healthy: false,
 			})
-		} else {
+		} else if !s.config.DisableTerminalLogs {
 			// Log unhealthy status when TUI is disabled
 			fmt.Printf("❌ Tunnel unhealthy: %s (attempting reconnect)\n", s.config.GetTunnelAddr())
 		}
 
+		if ctx.Err() != nil || atomic.LoadInt32(&s.shutdown) == 1 {
+			return nil
+		}
+
+		s.emitEvent(EventUnhealthy, err)
+
 		reconnectErr := s.Reconnect()
-		if reconnectErr != nil {
-			if s.config.Debug {
-				s.logDebug(fmt.Sprintf("Failed to reconnect websocket tunnel (attempt %d)", retryAttempts), reconnectErr)
-			}
-			if retryAttempts > s.config.HealthCheckMaxRetries {
-				tunnelName := s.config.Tunnel.Name
-				if tunnelName == "" {
-					tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
-				}
-				return fmt.Errorf("failed to reconnect tunnel '%s' after %d attempts: %w", tunnelName, retryAttempts, reconnectErr)
-			}
-		} else {
+		if reconnectErr == nil {
 			retryAttempts = 0
+			continue
+		}
+		if errors.Is(reconnectErr, errClientShuttingDown) || ctx.Err() != nil || atomic.LoadInt32(&s.shutdown) == 1 {
+			return nil
+		}
+		if s.config.Debug {
+			s.logDebug(fmt.Sprintf("Failed to reconnect websocket tunnel (attempt %d)", retryAttempts), reconnectErr)
+		}
+		if retryAttempts > s.config.HealthCheckMaxRetries {
+			tunnelName := s.config.Tunnel.Name
+			if tunnelName == "" {
+				tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
+			}
+			return fmt.Errorf("failed to reconnect tunnel '%s' after %d attempts: %w", tunnelName, retryAttempts, reconnectErr)
 		}
 	}
 }
 
+func (s *Client) startError(err error) error {
+	tunnelName := s.config.Tunnel.Name
+	if tunnelName == "" {
+		tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
+	}
+	return fmt.Errorf("failed to start tunnel '%s': %w", tunnelName, err)
+}
+
 func (s *Client) Start(ctx context.Context) error {
 	errChan := make(chan error, 1)
+	readyChan := make(chan struct{})
+	startupCtx, cancelStartup := context.WithCancel(ctx)
+	timer := time.NewTimer(tunnelStartTimeout)
+	defer timer.Stop()
 
 	go func() {
 		defer func() {
@@ -1036,7 +1167,7 @@ func (s *Client) Start(ctx context.Context) error {
 				errChan <- fmt.Errorf("tunnel listener panic: %v", r)
 			}
 		}()
-		if err := s.startListenerForClient(); err != nil {
+		if err := s.startListenerForClientWithReady(startupCtx, readyChan); err != nil {
 			errChan <- err
 		}
 	}()
@@ -1047,21 +1178,27 @@ func (s *Client) Start(ctx context.Context) error {
 			return nil
 		}
 
-		tunnelName := s.config.Tunnel.Name
-		if tunnelName == "" {
-			tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
-		}
-		return fmt.Errorf("failed to start tunnel '%s': %w", tunnelName, err)
+		startErr := s.startError(err)
+		s.emitEvent(EventFailed, startErr)
+		return startErr
 
-	case <-time.After(5 * time.Second):
-		s.forwardListenerErrors(ctx, errChan)
+	case <-readyChan:
+		s.forwardListenerErrors(startupCtx, errChan)
 
 		if s.config.Tunnel.Type == constants.Http {
-			return s.StartHealthCheck(ctx)
+			defer cancelStartup()
+			return s.StartHealthCheck(startupCtx)
 		}
 		return nil
 
+	case <-timer.C:
+		cancelStartup()
+		startErr := s.startError(fmt.Errorf("timed out waiting for tunnel listener after %s", tunnelStartTimeout))
+		s.emitEvent(EventFailed, startErr)
+		return startErr
+
 	case <-ctx.Done():
+		cancelStartup()
 		return nil
 	}
 }
@@ -1110,7 +1247,7 @@ func (s *Client) Reconnect() error {
 
 	// Channel to receive errors from the goroutine
 	errChan := make(chan error, 1)
-	done := make(chan struct{})
+	readyChan := make(chan struct{})
 
 	// Start the listener in a goroutine with context
 	go func() {
@@ -1123,8 +1260,7 @@ func (s *Client) Reconnect() error {
 				}
 			}
 		}()
-		defer close(done)
-		if err := s.startListenerForClient(); err != nil {
+		if err := s.startListenerForClientWithReady(ctx, readyChan); err != nil {
 			select {
 			case errChan <- err:
 			case <-ctx.Done():
@@ -1136,7 +1272,7 @@ func (s *Client) Reconnect() error {
 	select {
 	case err := <-errChan:
 		return err
-	case <-done:
+	case <-readyChan:
 		// Connection successful, update health status
 		if s.tui != nil {
 			s.tui.Send(tui.UpdateHealthMsg{
@@ -1145,22 +1281,11 @@ func (s *Client) Reconnect() error {
 			})
 			// Increase active count after successful reconnect
 			s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: 1})
-		} else {
+		} else if !s.config.DisableTerminalLogs {
 			// Log successful reconnection when TUI is disabled
 			fmt.Printf("🔄 Tunnel reconnected: %s\n", s.config.GetTunnelAddr())
 		}
-		return nil
-	case <-time.After(5 * time.Second):
-		// Fallback timeout in case done channel doesn't signal
-		if s.tui != nil {
-			s.tui.Send(tui.UpdateHealthMsg{
-				Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
-				Healthy: true,
-			})
-		} else {
-			// Log successful reconnection when TUI is disabled
-			fmt.Printf("🔄 Tunnel reconnected: %s\n", s.config.GetTunnelAddr())
-		}
+		s.emitEvent(EventReconnected, nil)
 		return nil
 	case <-ctx.Done():
 		return fmt.Errorf("reconnect timeout")
