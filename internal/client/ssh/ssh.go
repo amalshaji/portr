@@ -933,8 +933,6 @@ func (s *SshClient) Shutdown(ctx context.Context) error {
 	atomic.StoreInt32(&s.shutdown, 1)
 
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	var err error
 	if s.listener != nil {
 		err = s.listener.Close()
@@ -948,11 +946,16 @@ func (s *SshClient) Shutdown(ctx context.Context) error {
 		s.client = nil
 	}
 
-	if s.tui != nil {
-		s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: -1})
+	tuiProgram := s.tui
+	port := fmt.Sprintf("%d", s.config.Tunnel.Port)
+	address := s.config.GetTunnelAddr()
+	s.mu.Unlock()
+
+	if tuiProgram != nil {
+		tuiProgram.Send(tui.UpdateConnCountMsg{Port: port, Delta: -1})
 	}
 	s.emitEvent(EventStopped, nil)
-	log.Info("Stopped tunnel connection", "address", s.config.GetTunnelAddr())
+	log.Info("Stopped tunnel connection", "address", address)
 	return err
 }
 
