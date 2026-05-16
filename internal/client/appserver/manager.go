@@ -122,10 +122,6 @@ func (m *Manager) StartTunnel(ctx context.Context, request StartTunnelRequest) (
 		failedCh:  make(chan error, 1),
 	}
 
-	m.mu.Lock()
-	m.tunnels[id] = runtime
-	m.mu.Unlock()
-
 	for i := 0; i < workers; i++ {
 		workerCfg := cfg
 		sshc := sshclient.New(workerCfg, m.db, nil, nil)
@@ -133,7 +129,13 @@ func (m *Manager) StartTunnel(ctx context.Context, request StartTunnelRequest) (
 			m.handleSSHEvent(id, event)
 		})
 		runtime.clients = append(runtime.clients, sshc)
+	}
 
+	m.mu.Lock()
+	m.tunnels[id] = runtime
+	m.mu.Unlock()
+
+	for _, sshc := range runtime.clients {
 		go func(client *sshclient.SshClient) {
 			if err := client.Start(runCtx); err != nil {
 				m.handleStartFailure(id, err)

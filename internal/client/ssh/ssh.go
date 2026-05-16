@@ -202,6 +202,26 @@ func (s *SshClient) forwardListenerErrors(ctx context.Context, errChan <-chan er
 	}()
 }
 
+func (s *SshClient) closeTransport() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var err error
+	if s.listener != nil {
+		err = s.listener.Close()
+		s.listener = nil
+	}
+
+	if s.client != nil {
+		if clientErr := s.client.Close(); clientErr != nil && err == nil {
+			err = clientErr
+		}
+		s.client = nil
+	}
+
+	return err
+}
+
 func (s *SshClient) handleAcceptError(listener net.Listener, err error) error {
 	if err == nil {
 		return nil
@@ -304,7 +324,18 @@ func (s *SshClient) startListenerForClientWithReady(ctx context.Context, ready c
 		_ = tcp.SetNoDelay(true)
 	}
 
+	handshakeDone := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = rawConn.Close()
+		case <-handshakeDone:
+		}
+	}()
+	_ = rawConn.SetDeadline(time.Now().Add(10 * time.Second))
 	cc, chans, reqs, err := ssh.NewClientConn(rawConn, s.config.SshUrl, sshConfig)
+	close(handshakeDone)
+	_ = rawConn.SetDeadline(time.Time{})
 	if err != nil {
 		_ = rawConn.Close()
 		if s.config.Debug {
@@ -321,6 +352,16 @@ func (s *SshClient) startListenerForClientWithReady(ctx context.Context, ready c
 	s.goSafe("ssh keepalive", func() {
 		s.startSSHKeepAlive(clientRef)
 	})
+
+	ctxDone := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = s.closeTransport()
+		case <-ctxDone:
+		}
+	}()
+	defer close(ctxDone)
 
 	localEndpoint := s.config.Tunnel.GetLocalAddr()
 
@@ -946,24 +987,12 @@ func (s *SshClient) tcpTunnel(src, dst net.Conn) {
 func (s *SshClient) Shutdown(ctx context.Context) error {
 	atomic.StoreInt32(&s.shutdown, 1)
 
-	s.mu.Lock()
-	var err error
-	if s.listener != nil {
-		err = s.listener.Close()
-		s.listener = nil
-	}
-
-	if s.client != nil {
-		if clientErr := s.client.Close(); clientErr != nil && err == nil {
-			err = clientErr
-		}
-		s.client = nil
-	}
-
+	err := s.closeTransport()
+	s.mu.RLock()
 	tuiProgram := s.tui
 	port := fmt.Sprintf("%d", s.config.Tunnel.Port)
 	address := s.config.GetTunnelAddr()
-	s.mu.Unlock()
+	s.mu.RUnlock()
 
 	if tuiProgram != nil {
 		tuiProgram.Send(tui.UpdateConnCountMsg{Port: port, Delta: -1})
@@ -1057,6 +1086,7 @@ func (s *SshClient) startError(err error) error {
 func (s *SshClient) Start(ctx context.Context) error {
 	errChan := make(chan error, 1)
 	readyChan := make(chan struct{})
+	startupCtx, cancelStartup := context.WithCancel(ctx)
 	timer := time.NewTimer(tunnelStartTimeout)
 	defer timer.Stop()
 
@@ -1066,7 +1096,7 @@ func (s *SshClient) Start(ctx context.Context) error {
 				errChan <- fmt.Errorf("tunnel listener panic: %v", r)
 			}
 		}()
-		if err := s.startListenerForClientWithReady(ctx, readyChan); err != nil {
+		if err := s.startListenerForClientWithReady(startupCtx, readyChan); err != nil {
 			errChan <- err
 		}
 	}()
@@ -1082,19 +1112,22 @@ func (s *SshClient) Start(ctx context.Context) error {
 		return startErr
 
 	case <-readyChan:
-		s.forwardListenerErrors(ctx, errChan)
+		s.forwardListenerErrors(startupCtx, errChan)
 
 		if s.config.Tunnel.Type == constants.Http {
-			return s.StartHealthCheck(ctx)
+			defer cancelStartup()
+			return s.StartHealthCheck(startupCtx)
 		}
 		return nil
 
 	case <-timer.C:
+		cancelStartup()
 		startErr := s.startError(fmt.Errorf("timed out waiting for tunnel listener after %s", tunnelStartTimeout))
 		s.emitEvent(EventFailed, startErr)
 		return startErr
 
 	case <-ctx.Done():
+		cancelStartup()
 		return nil
 	}
 }
