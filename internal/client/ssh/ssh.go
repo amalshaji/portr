@@ -360,7 +360,7 @@ func (s *SshClient) startListenerForClient() error {
 			ClientConfig: &s.config,
 			Healthy:      true,
 		})
-	} else {
+	} else if !s.config.DisableTerminalLogs {
 		tunnelAddr := s.config.GetTunnelAddr()
 		fmt.Printf("✅ Tunnel started: %s → %s\n", s.config.Tunnel.GetLocalAddr(), tunnelAddr)
 	}
@@ -910,7 +910,7 @@ func (s *SshClient) logHttpRequest(
 			Status: req.ResponseStatusCode,
 			URL:    req.Url,
 		})
-	} else {
+	} else if !s.config.DisableTerminalLogs {
 		fmt.Printf("[%s] %s %s → %d\n",
 			req.LoggedAt.Local().Format("15:04:05"),
 			req.Method,
@@ -985,7 +985,7 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) error {
 				Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
 				Healthy: false,
 			})
-		} else {
+		} else if !s.config.DisableTerminalLogs {
 			// Log unhealthy status when TUI is disabled
 			fmt.Printf("❌ Tunnel unhealthy: %s (attempting reconnect)\n", s.config.GetTunnelAddr())
 		}
@@ -1125,7 +1125,7 @@ func (s *SshClient) Reconnect() error {
 			})
 			// Increase active count after successful reconnect
 			s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: 1})
-		} else {
+		} else if !s.config.DisableTerminalLogs {
 			// Log successful reconnection when TUI is disabled
 			fmt.Printf("🔄 Tunnel reconnected: %s\n", s.config.GetTunnelAddr())
 		}
@@ -1138,7 +1138,7 @@ func (s *SshClient) Reconnect() error {
 				Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
 				Healthy: true,
 			})
-		} else {
+		} else if !s.config.DisableTerminalLogs {
 			// Log successful reconnection when TUI is disabled
 			fmt.Printf("🔄 Tunnel reconnected: %s\n", s.config.GetTunnelAddr())
 		}

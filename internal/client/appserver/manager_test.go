@@ -1,10 +1,15 @@
 package appserver
 
 import (
+	"bytes"
+	"strings"
 	"testing"
+	"time"
 
 	clientcfg "github.com/amalshaji/portr/internal/client/config"
+	sshclient "github.com/amalshaji/portr/internal/client/ssh"
 	"github.com/amalshaji/portr/internal/constants"
+	"github.com/charmbracelet/log"
 )
 
 func TestNormalizeCallbackURLsDeduplicates(t *testing.T) {
@@ -50,5 +55,64 @@ func TestSupportsHTTPPoolingVersion(t *testing.T) {
 	}
 	if supportsHTTPPoolingVersion("not-a-version") {
 		t.Fatal("expected invalid versions to disable HTTP pooling")
+	}
+}
+
+func TestClientConfigForTunnelDisablesSSHClientTerminalLogs(t *testing.T) {
+	cfg := clientcfg.Config{}
+	cfg.SetDefaults()
+
+	manager := NewManager(cfg, nil)
+	tunnel := clientcfg.Tunnel{
+		Type: constants.Http,
+		Host: "localhost",
+		Port: 3000,
+	}
+	tunnel.SetDefaults()
+
+	clientConfig := manager.clientConfigForTunnel(tunnel)
+	if !clientConfig.DisableTerminalLogs {
+		t.Fatal("expected app-server tunnel client terminal logs to be disabled")
+	}
+}
+
+func TestRecordEventLogsTerminalEvent(t *testing.T) {
+	var output bytes.Buffer
+	manager := &Manager{
+		logger: log.NewWithOptions(&output, log.Options{}),
+		events: make([]TunnelEvent, 0),
+	}
+	tunnel := &tunnelRuntime{
+		id: "01HZYR9VK2C0G6KTX4TK9Z5T6S",
+		status: TunnelStatus{
+			Name:      "web",
+			Type:      constants.Http,
+			Host:      "localhost",
+			Port:      3000,
+			Subdomain: "my-app",
+			TunnelURL: "https://my-app.example.com",
+		},
+	}
+
+	manager.recordEvent(tunnel, sshclient.Event{
+		Type: sshclient.EventStarted,
+		At:   time.Date(2026, 5, 16, 10, 0, 0, 0, time.UTC),
+	})
+
+	logLine := output.String()
+	for _, want := range []string{
+		"App-server tunnel event",
+		"event=started",
+		"tunnel_id=01HZYR9VK2C0G6KTX4TK9Z5T6S",
+		"connection_type=http",
+		"host=localhost",
+		"port=3000",
+		"name=web",
+		"subdomain=my-app",
+		"tunnel_url=https://my-app.example.com",
+	} {
+		if !strings.Contains(logLine, want) {
+			t.Fatalf("expected terminal log to contain %q, got %q", want, logLine)
+		}
 	}
 }

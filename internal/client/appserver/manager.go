@@ -50,6 +50,7 @@ type Manager struct {
 	baseConfig clientcfg.Config
 	db         *db.Db
 	httpClient *http.Client
+	logger     *log.Logger
 
 	mu      sync.RWMutex
 	tunnels map[string]*tunnelRuntime
@@ -66,6 +67,7 @@ func NewManager(baseConfig clientcfg.Config, database *db.Db) *Manager {
 		httpClient: &http.Client{
 			Timeout: 3 * time.Second,
 		},
+		logger:  log.WithPrefix("app-server"),
 		tunnels: make(map[string]*tunnelRuntime),
 		events:  make([]TunnelEvent, 0),
 	}
@@ -241,6 +243,7 @@ func (m *Manager) clientConfigForTunnel(tunnel clientcfg.Tunnel) clientcfg.Clien
 		HealthCheckInterval:             m.baseConfig.HealthCheckInterval,
 		HealthCheckMaxRetries:           m.baseConfig.HealthCheckMaxRetries,
 		DisableTUI:                      true,
+		DisableTerminalLogs:             true,
 		EnableHttpReverseProxy:          m.baseConfig.EnableHttpReverseProxy,
 		InsecureSkipHostKeyVerification: *m.baseConfig.InsecureSkipHostKeyVerification,
 	}
@@ -363,7 +366,55 @@ func (m *Manager) recordEvent(tunnel *tunnelRuntime, event sshclient.Event) {
 	}
 	m.mu.Unlock()
 
+	m.logEvent(tunnelEvent)
 	m.dispatchCallbacks(tunnel.callbackURLs, tunnelEvent)
+}
+
+func (m *Manager) logEvent(event TunnelEvent) {
+	logger := m.appLogger()
+	fields := tunnelEventLogFields(event)
+
+	switch event.Type {
+	case string(sshclient.EventFailed):
+		logger.Error("App-server tunnel event", fields...)
+	case string(sshclient.EventUnhealthy):
+		logger.Warn("App-server tunnel event", fields...)
+	default:
+		logger.Info("App-server tunnel event", fields...)
+	}
+}
+
+func (m *Manager) appLogger() *log.Logger {
+	if m.logger != nil {
+		return m.logger
+	}
+	return log.Default()
+}
+
+func tunnelEventLogFields(event TunnelEvent) []interface{} {
+	fields := []interface{}{
+		"event", event.Type,
+		"tunnel_id", event.TunnelID,
+		"connection_type", event.Connection,
+		"host", event.Host,
+		"port", event.Port,
+	}
+	if event.Name != "" {
+		fields = append(fields, "name", event.Name)
+	}
+	if event.Subdomain != "" {
+		fields = append(fields, "subdomain", event.Subdomain)
+	}
+	if event.RemotePort != 0 {
+		fields = append(fields, "remote_port", event.RemotePort)
+	}
+	if event.TunnelURL != "" {
+		fields = append(fields, "tunnel_url", event.TunnelURL)
+	}
+	if event.Error != "" {
+		fields = append(fields, "error", event.Error)
+	}
+	return fields
 }
 
 func (m *Manager) dispatchCallbacks(callbackURLs []string, event TunnelEvent) {
@@ -386,7 +437,7 @@ func (m *Manager) dispatchCallbacks(callbackURLs []string, event TunnelEvent) {
 			req.Header.Set("Content-Type", "application/json")
 			resp, err := m.httpClient.Do(req)
 			if err != nil {
-				log.Error("Failed to dispatch app-server callback", "url", callbackURL, "error", err)
+				m.appLogger().Error("Failed to dispatch app-server callback", "url", callbackURL, "error", err)
 				return
 			}
 			_ = resp.Body.Close()
