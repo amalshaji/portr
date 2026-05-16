@@ -546,6 +546,13 @@ main().catch((error) => {
 });
 ```
 
+## FastAPI example
+
+For a runnable FastAPI app that starts a local server, creates a tunnel through
+the app-server API, prints the public URL, and deletes the tunnel during
+shutdown, see
+[`examples/app-server-fastapi`](https://github.com/amalshaji/portr/tree/main/examples/app-server-fastapi).
+
 ## Operational notes
 
 - Run one app-server process per local machine that owns the tunnels.
