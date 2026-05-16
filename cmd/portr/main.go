@@ -36,6 +36,7 @@ func main() {
 			logsCmd(),
 			replayCmd(),
 			authCmd(),
+			appServerCmd(),
 		},
 	}
 

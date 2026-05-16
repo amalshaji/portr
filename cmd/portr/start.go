@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/amalshaji/portr/internal/client/client"
 	"github.com/amalshaji/portr/internal/client/config"
@@ -36,10 +37,29 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 	_c := client.NewClient(&cfg, db)
 	var dash *dashboard.Dashboard
 	var dashErrCh <-chan error
+	runCtx, cancelRun := context.WithCancel(c.Context)
+	defer cancelRun()
+
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(signalCh)
+
+	interrupted := make(chan struct{})
+	go func() {
+		select {
+		case <-signalCh:
+			cancelRun()
+			close(interrupted)
+		case <-runCtx.Done():
+		}
+	}()
 
 	defer func() {
 		if r := recover(); r != nil {
-			_c.Shutdown(context.Background())
+			cancelRun()
+			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer shutdownCancel()
+			_c.Shutdown(shutdownCtx)
 			if dash != nil {
 				_ = dash.Shutdown()
 			}
@@ -48,13 +68,18 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 	}()
 
 	if tunnelFromCli != nil {
-		err = _c.Start(c.Context)
+		err = _c.Start(runCtx)
 	} else {
-		err = _c.Start(c.Context, c.Args().Slice()...)
+		err = _c.Start(runCtx, c.Args().Slice()...)
 	}
 
 	if err != nil {
-		_c.Shutdown(c.Context)
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer shutdownCancel()
+		_c.Shutdown(shutdownCtx)
+		if runCtx.Err() != nil {
+			return nil
+		}
 		return err
 	}
 
@@ -80,18 +105,17 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 		}()
 	}
 
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
-	defer signal.Stop(signalCh)
-
 	var runErr error
 	select {
-	case <-signalCh:
+	case <-interrupted:
 	case runErr = <-_c.Done():
 	case runErr = <-dashErrCh:
 	}
 
-	_c.Shutdown(c.Context)
+	cancelRun()
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+	_c.Shutdown(shutdownCtx)
 	if dash != nil {
 		if err := dash.Shutdown(); err != nil && runErr == nil {
 			runErr = err

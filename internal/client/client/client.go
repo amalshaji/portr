@@ -168,7 +168,7 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 		workers := desiredWorkers(clientConfig, poolingSupported)
 
 		if clientConfig.Tunnel.Type == constants.Http && workers > 1 && clientConfig.ConnectionID == "" {
-			connID, err := sshclient.CreateNewConnection(clientConfig)
+			connID, err := sshclient.CreateNewConnectionWithContext(ctx, clientConfig)
 			if err != nil {
 				return fmt.Errorf("failed to create shared connection for pool: %w", err)
 			}

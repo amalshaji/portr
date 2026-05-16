@@ -30,7 +30,7 @@ func httpCmd() *cli.Command {
 
 			return startTunnels(c, &config.Tunnel{
 				Port:      port,
-				Subdomain: c.Args().Get(2), // temp fix
+				Subdomain: c.String("subdomain"),
 				Type:      constants.Http,
 			})
 		},
