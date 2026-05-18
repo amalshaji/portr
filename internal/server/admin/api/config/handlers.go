@@ -91,42 +91,43 @@ type DownloadConfigInput struct {
 }
 
 type InstanceSettingsResponse struct {
-	SMTPEnabled         bool   `json:"smtp_enabled"`
-	SMTPHost            string `json:"smtp_host"`
-	SMTPPort            int    `json:"smtp_port"`
-	SMTPUsername        string `json:"smtp_username"`
-	SMTPPassword        string `json:"smtp_password"`
-	FromAddress         string `json:"from_address"`
-	AddUserEmailSubject string `json:"add_user_email_subject"`
-	AddUserEmailBody    string `json:"add_user_email_body"`
+	SMTPEnabled              bool   `json:"smtp_enabled"`
+	SMTPHost                 string `json:"smtp_host"`
+	SMTPPort                 int    `json:"smtp_port"`
+	SMTPUsername             string `json:"smtp_username"`
+	SMTPPassword             string `json:"smtp_password"`
+	FromAddress              string `json:"from_address"`
+	AddUserEmailSubject      string `json:"add_user_email_subject"`
+	AddUserEmailBody         string `json:"add_user_email_body"`
+	GitHubAuthEnabled        bool   `json:"github_auth_enabled"`
+	AutoSignupEnabled        bool   `json:"auto_signup_enabled"`
+	AutoSignupAllowedDomains string `json:"auto_signup_allowed_domains"`
+	AutoSignupTeamID         *uint  `json:"auto_signup_team_id"`
 }
 
 type UpdateInstanceSettingsInput struct {
-	SMTPEnabled         bool   `json:"smtp_enabled"`
-	SMTPHost            string `json:"smtp_host"`
-	SMTPPort            int    `json:"smtp_port"`
-	SMTPUsername        string `json:"smtp_username"`
-	SMTPPassword        string `json:"smtp_password"`
-	FromAddress         string `json:"from_address"`
-	AddUserEmailSubject string `json:"add_user_email_subject"`
-	AddUserEmailBody    string `json:"add_user_email_body"`
+	SMTPEnabled              bool   `json:"smtp_enabled"`
+	SMTPHost                 string `json:"smtp_host"`
+	SMTPPort                 int    `json:"smtp_port"`
+	SMTPUsername             string `json:"smtp_username"`
+	SMTPPassword             string `json:"smtp_password"`
+	FromAddress              string `json:"from_address"`
+	AddUserEmailSubject      string `json:"add_user_email_subject"`
+	AddUserEmailBody         string `json:"add_user_email_body"`
+	AutoSignupEnabled        bool   `json:"auto_signup_enabled"`
+	AutoSignupAllowedDomains string `json:"auto_signup_allowed_domains"`
+	AutoSignupTeamID         *uint  `json:"auto_signup_team_id"`
 }
 
 func (h *Handler) GetInstanceSettings(c *fiber.Ctx) error {
-	// For now, return default values since we don't have a settings table yet
-	// In a real implementation, you'd store these in the database
-	settings := InstanceSettingsResponse{
-		SMTPEnabled:         false,
-		SMTPHost:            "",
-		SMTPPort:            587,
-		SMTPUsername:        "",
-		SMTPPassword:        "",
-		FromAddress:         "",
-		AddUserEmailSubject: "Welcome to Portr!",
-		AddUserEmailBody:    "You have been added to a Portr team. Please set up your account using the temporary password provided.",
+	settings, err := models.GetOrCreateInstanceSettings(h.db)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to load instance settings",
+		})
 	}
 
-	return c.JSON(settings)
+	return c.JSON(h.instanceSettingsResponse(settings))
 }
 
 func (h *Handler) UpdateInstanceSettings(c *fiber.Ctx) error {
@@ -137,12 +138,83 @@ func (h *Handler) UpdateInstanceSettings(c *fiber.Ctx) error {
 		})
 	}
 
-	// For now, just return success since we don't have a settings table yet
-	// In a real implementation, you'd save these to the database
+	normalizedDomains := models.NormalizeAllowedDomains(input.AutoSignupAllowedDomains)
+	if input.AutoSignupEnabled {
+		if !h.githubAuthEnabled() {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "GitHub authentication must be configured before enabling auto signup",
+			})
+		}
+		if normalizedDomains == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Trusted domains are required when auto signup is enabled",
+			})
+		}
+		if input.AutoSignupTeamID == nil || *input.AutoSignupTeamID == 0 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Auto signup team is required when auto signup is enabled",
+			})
+		}
 
-	return c.JSON(fiber.Map{
-		"message": "Settings updated successfully",
-	})
+		var team models.Team
+		if err := h.db.First(&team, *input.AutoSignupTeamID).Error; err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Auto signup team does not exist",
+			})
+		}
+	}
+
+	settings, err := models.GetOrCreateInstanceSettings(h.db)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to load instance settings",
+		})
+	}
+
+	settings.SMTPEnabled = input.SMTPEnabled
+	settings.SMTPHost = input.SMTPHost
+	if input.SMTPPort == 0 {
+		settings.SMTPPort = 587
+	} else {
+		settings.SMTPPort = input.SMTPPort
+	}
+	settings.SMTPUsername = input.SMTPUsername
+	settings.SMTPPassword = input.SMTPPassword
+	settings.FromAddress = input.FromAddress
+	settings.AddUserEmailSubject = input.AddUserEmailSubject
+	settings.AddUserEmailBody = input.AddUserEmailBody
+	settings.AutoSignupEnabled = input.AutoSignupEnabled
+	settings.AutoSignupAllowedDomains = normalizedDomains
+	settings.AutoSignupTeamID = input.AutoSignupTeamID
+
+	if err := h.db.Save(settings).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update instance settings",
+		})
+	}
+
+	return c.JSON(h.instanceSettingsResponse(settings))
+}
+
+func (h *Handler) githubAuthEnabled() bool {
+	return h.config != nil && h.config.GithubClientID != "" && h.config.GithubSecret != ""
+}
+
+func (h *Handler) instanceSettingsResponse(settings *models.InstanceSettings) InstanceSettingsResponse {
+	return InstanceSettingsResponse{
+		SMTPEnabled:              settings.SMTPEnabled,
+		SMTPHost:                 settings.SMTPHost,
+		SMTPPort:                 settings.SMTPPort,
+		SMTPUsername:             settings.SMTPUsername,
+		SMTPPassword:             settings.SMTPPassword,
+		FromAddress:              settings.FromAddress,
+		AddUserEmailSubject:      settings.AddUserEmailSubject,
+		AddUserEmailBody:         settings.AddUserEmailBody,
+		GitHubAuthEnabled:        h.githubAuthEnabled(),
+		AutoSignupEnabled:        settings.AutoSignupEnabled,
+		AutoSignupAllowedDomains: settings.AutoSignupAllowedDomains,
+		AutoSignupTeamID:         settings.AutoSignupTeamID,
+	}
 }
 
 func (h *Handler) DownloadConfig(c *fiber.Ctx) error {

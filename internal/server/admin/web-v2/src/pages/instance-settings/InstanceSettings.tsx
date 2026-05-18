@@ -1,13 +1,20 @@
 import { useState, useEffect } from 'react'
-import { Save, Mail, Server } from 'lucide-react'
+import { Save, Mail, Server, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
-import type { InstanceSettings as InstanceSettingsType } from '@/types'
+import type { InstanceSettings as InstanceSettingsType, Team } from '@/types'
 
 export default function InstanceSettings() {
   const [settings, setSettings] = useState<InstanceSettingsType>({
@@ -19,7 +26,12 @@ export default function InstanceSettings() {
     from_address: '',
     add_user_email_subject: 'Welcome to {team_name}',
     add_user_email_body: 'You have been invited to join {team_name}. Click the link below to get started:\n\n{invite_link}',
+    github_auth_enabled: false,
+    auto_signup_enabled: false,
+    auto_signup_allowed_domains: '',
+    auto_signup_team_id: null,
   })
+  const [teams, setTeams] = useState<Team[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -30,10 +42,18 @@ export default function InstanceSettings() {
   const fetchSettings = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/v1/instance/settings')
-      if (response.ok) {
-        const data = await response.json()
+      const [settingsResponse, teamsResponse] = await Promise.all([
+        fetch('/api/v1/instance-settings/'),
+        fetch('/api/v1/team/'),
+      ])
+
+      if (settingsResponse.ok) {
+        const data = await settingsResponse.json()
         setSettings(data)
+      }
+      if (teamsResponse.ok) {
+        const data = await teamsResponse.json()
+        setTeams(data)
       }
     } catch (error) {
       console.error('Error fetching settings:', error)
@@ -43,15 +63,15 @@ export default function InstanceSettings() {
     }
   }
 
-  const handleSettingChange = (field: keyof InstanceSettingsType, value: string | number | boolean) => {
+  const handleSettingChange = (field: keyof InstanceSettingsType, value: string | number | boolean | null) => {
     setSettings((prev) => ({ ...prev, [field]: value }))
   }
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      const response = await fetch('/api/v1/instance/settings', {
-        method: 'PUT',
+      const response = await fetch('/api/v1/instance-settings/', {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -59,10 +79,12 @@ export default function InstanceSettings() {
       })
 
       if (response.ok) {
+        const data = await response.json()
+        setSettings(data)
         toast.success('Settings updated successfully')
       } else {
         const error = await response.json()
-        toast.error(error.message || 'Failed to update settings')
+        toast.error(error.error || 'Failed to update settings')
       }
     } catch (error) {
       console.error('Error updating settings:', error)
@@ -213,6 +235,66 @@ export default function InstanceSettings() {
               </CardContent>
             </Card>
           )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserPlus className="h-5 w-5" />
+                GitHub Auto Signup
+              </CardTitle>
+              <CardDescription>
+                Allow GitHub users from trusted domains to join a selected team
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="auto-signup-enabled"
+                  checked={settings.auto_signup_enabled}
+                  disabled={!settings.github_auth_enabled && !settings.auto_signup_enabled}
+                  onCheckedChange={(checked) => handleSettingChange('auto_signup_enabled', checked)}
+                />
+                <Label htmlFor="auto-signup-enabled">Enable auto signup</Label>
+              </div>
+
+              {!settings.github_auth_enabled && (
+                <p className="text-sm text-muted-foreground">
+                  GitHub authentication must be configured on the server before auto signup can be enabled.
+                </p>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="trusted-domains">Trusted domains</Label>
+                <Input
+                  id="trusted-domains"
+                  value={settings.auto_signup_allowed_domains}
+                  disabled={!settings.auto_signup_enabled}
+                  onChange={(e) => handleSettingChange('auto_signup_allowed_domains', e.target.value)}
+                  placeholder="example.com, acme.co"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="auto-signup-team">Team</Label>
+                <Select
+                  value={settings.auto_signup_team_id ? String(settings.auto_signup_team_id) : ''}
+                  disabled={!settings.auto_signup_enabled || teams.length === 0}
+                  onValueChange={(value) => handleSettingChange('auto_signup_team_id', Number(value))}
+                >
+                  <SelectTrigger id="auto-signup-team">
+                    <SelectValue placeholder="Select a team" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teams.map((team) => (
+                      <SelectItem key={team.id} value={String(team.id)}>
+                        {team.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

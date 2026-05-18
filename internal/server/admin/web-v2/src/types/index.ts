@@ -42,6 +42,10 @@ export interface InstanceSettings {
   from_address: string
   add_user_email_subject: string
   add_user_email_body: string
+  github_auth_enabled: boolean
+  auto_signup_enabled: boolean
+  auto_signup_allowed_domains: string
+  auto_signup_team_id: number | null
 }
 
 export interface AuthConfig {

@@ -122,6 +122,9 @@ func (s *Server) setupRoutes() {
 		Browse:     false,
 	}))
 
+	s.app.Get("/instance-settings", s.auth.RequireAuthRedirect, s.auth.RequireSuperuser, s.handleIndex)
+	s.app.Get("/instance-settings/*", s.auth.RequireAuthRedirect, s.auth.RequireSuperuser, s.handleIndex)
+
 	s.app.Get("/*", s.auth.RequireAuthRedirect, func(c *fiber.Ctx) error {
 		// Skip static paths
 		if strings.HasPrefix(c.Path(), "/static/") {
@@ -158,6 +161,7 @@ func (s *Server) setupTeamRoutes(v1 fiber.Router) {
 	teamHandler := team.NewHandler(s.db.DB, s.store)
 	teamGroup := v1.Group("/team")
 
+	teamGroup.Get("/", s.auth.RequireSuperuser, teamHandler.ListTeams)
 	teamGroup.Post("/", s.auth.RequireSuperuser, teamHandler.CreateTeam)
 	teamGroup.Get("/users", s.auth.RequireTeamUser, teamHandler.GetTeamUsers)
 	teamGroup.Post("/add", s.auth.RequireAdmin, teamHandler.AddUser)

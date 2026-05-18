@@ -25,6 +25,9 @@ export default function HomePage() {
     const codes: Record<string, string> = {
       'github-oauth-error': 'There was an error authenticating with GitHub.',
       'user-not-found': 'You are not a member of any team.',
+      'auto-signup-disabled': 'You are not a member of any team.',
+      'auto-signup-domain-denied': 'Your GitHub email is not allowed for automatic signup.',
+      'auto-signup-team-missing': 'Automatic signup is not fully configured.',
       'private-email': 'Failed to verify github email. Please try again later.',
       'invalid-state': 'Broken oauth flow, please try again later.',
     }
