@@ -222,6 +222,16 @@ func (s *SshClient) closeTransport() error {
 	return err
 }
 
+func (s *SshClient) closeListenerIfCurrent(listener net.Listener) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.listener == listener {
+		_ = s.listener.Close()
+		s.listener = nil
+	}
+}
+
 func (s *SshClient) handleAcceptError(listener net.Listener, err error) error {
 	if err == nil {
 		return nil
@@ -353,16 +363,6 @@ func (s *SshClient) startListenerForClientWithReady(ctx context.Context, ready c
 		s.startSSHKeepAlive(clientRef)
 	})
 
-	ctxDone := make(chan struct{})
-	go func() {
-		select {
-		case <-ctx.Done():
-			_ = s.closeTransport()
-		case <-ctxDone:
-		}
-	}()
-	defer close(ctxDone)
-
 	localEndpoint := s.config.Tunnel.GetLocalAddr()
 
 	tunnelType := s.config.Tunnel.Type
@@ -398,12 +398,7 @@ func (s *SshClient) startListenerForClientWithReady(ctx context.Context, ready c
 	s.mu.Unlock()
 
 	defer func() {
-		s.mu.Lock()
-		if s.listener != nil {
-			s.listener.Close()
-			s.listener = nil
-		}
-		s.mu.Unlock()
+		s.closeListenerIfCurrent(ln)
 	}()
 
 	if s.tui != nil {
@@ -1122,12 +1117,14 @@ func (s *SshClient) Start(ctx context.Context) error {
 
 	case <-timer.C:
 		cancelStartup()
+		_ = s.closeTransport()
 		startErr := s.startError(fmt.Errorf("timed out waiting for tunnel listener after %s", tunnelStartTimeout))
 		s.emitEvent(EventFailed, startErr)
 		return startErr
 
 	case <-ctx.Done():
 		cancelStartup()
+		_ = s.closeTransport()
 		return nil
 	}
 }
@@ -1203,8 +1200,6 @@ func (s *SshClient) Reconnect() error {
 				Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
 				Healthy: true,
 			})
-			// Increase active count after successful reconnect
-			s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: 1})
 		} else if !s.config.DisableTerminalLogs {
 			// Log successful reconnection when TUI is disabled
 			fmt.Printf("🔄 Tunnel reconnected: %s\n", s.config.GetTunnelAddr())

@@ -246,6 +246,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if tunnel.active < 0 {
 				tunnel.active = 0
 			}
+			tunnel.active = min(tunnel.active, max(1, tunnel.poolSize))
 		}
 
 	case tea.WindowSizeMsg:
@@ -403,10 +404,10 @@ func (m model) View() string {
 			statusText = "🔴 Unhealthy (0/" + fmt.Sprint(max(1, tunnel.poolSize)) + ")"
 		} else if tunnel.active < max(1, tunnel.poolSize) {
 			tunnelStyle = unhealthyStyle
-			statusText = "� Partial (" + fmt.Sprint(tunnel.active) + "/" + fmt.Sprint(max(1, tunnel.poolSize)) + ")"
+			statusText = "🟡 Partial (" + fmt.Sprint(tunnel.active) + "/" + fmt.Sprint(max(1, tunnel.poolSize)) + ")"
 		} else {
 			tunnelStyle = healthyStyle
-			statusText = "� Healthy (" + fmt.Sprint(tunnel.active) + "/" + fmt.Sprint(max(1, tunnel.poolSize)) + ")"
+			statusText = "🟢 Healthy (" + fmt.Sprint(tunnel.active) + "/" + fmt.Sprint(max(1, tunnel.poolSize)) + ")"
 		}
 
 		tunnelInfo := fmt.Sprintf("%s (%s:%d → %s) [%s] %s",
