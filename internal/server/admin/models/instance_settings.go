@@ -6,21 +6,9 @@ import (
 	"gorm.io/gorm"
 )
 
-const DefaultAddUserEmailSubject = "Welcome to Portr!"
-
-const DefaultAddUserEmailBody = "You have been added to a Portr team. Please set up your account using the temporary password provided."
-
 type InstanceSettings struct {
 	Model
 	Timestamps
-	SMTPEnabled              bool   `gorm:"default:false" json:"smtp_enabled"`
-	SMTPHost                 string `gorm:"default:''" json:"smtp_host"`
-	SMTPPort                 int    `gorm:"default:587" json:"smtp_port"`
-	SMTPUsername             string `gorm:"default:''" json:"smtp_username"`
-	SMTPPassword             string `gorm:"default:''" json:"smtp_password"`
-	FromAddress              string `gorm:"default:''" json:"from_address"`
-	AddUserEmailSubject      string `gorm:"default:'Welcome to Portr!'" json:"add_user_email_subject"`
-	AddUserEmailBody         string `gorm:"default:'You have been added to a Portr team. Please set up your account using the temporary password provided.'" json:"add_user_email_body"`
 	AutoSignupEnabled        bool   `gorm:"default:false" json:"auto_signup_enabled"`
 	AutoSignupAllowedDomains string `gorm:"default:''" json:"auto_signup_allowed_domains"`
 	AutoSignupTeamID         *uint  `json:"auto_signup_team_id"`
@@ -32,11 +20,7 @@ func (InstanceSettings) TableName() string {
 }
 
 func DefaultInstanceSettings() InstanceSettings {
-	return InstanceSettings{
-		SMTPPort:            587,
-		AddUserEmailSubject: DefaultAddUserEmailSubject,
-		AddUserEmailBody:    DefaultAddUserEmailBody,
-	}
+	return InstanceSettings{}
 }
 
 func GetOrCreateInstanceSettings(db *gorm.DB) (*InstanceSettings, error) {

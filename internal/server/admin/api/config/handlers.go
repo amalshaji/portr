@@ -91,14 +91,6 @@ type DownloadConfigInput struct {
 }
 
 type InstanceSettingsResponse struct {
-	SMTPEnabled              bool   `json:"smtp_enabled"`
-	SMTPHost                 string `json:"smtp_host"`
-	SMTPPort                 int    `json:"smtp_port"`
-	SMTPUsername             string `json:"smtp_username"`
-	SMTPPassword             string `json:"smtp_password"`
-	FromAddress              string `json:"from_address"`
-	AddUserEmailSubject      string `json:"add_user_email_subject"`
-	AddUserEmailBody         string `json:"add_user_email_body"`
 	GitHubAuthEnabled        bool   `json:"github_auth_enabled"`
 	AutoSignupEnabled        bool   `json:"auto_signup_enabled"`
 	AutoSignupAllowedDomains string `json:"auto_signup_allowed_domains"`
@@ -106,14 +98,6 @@ type InstanceSettingsResponse struct {
 }
 
 type UpdateInstanceSettingsInput struct {
-	SMTPEnabled              bool   `json:"smtp_enabled"`
-	SMTPHost                 string `json:"smtp_host"`
-	SMTPPort                 int    `json:"smtp_port"`
-	SMTPUsername             string `json:"smtp_username"`
-	SMTPPassword             string `json:"smtp_password"`
-	FromAddress              string `json:"from_address"`
-	AddUserEmailSubject      string `json:"add_user_email_subject"`
-	AddUserEmailBody         string `json:"add_user_email_body"`
 	AutoSignupEnabled        bool   `json:"auto_signup_enabled"`
 	AutoSignupAllowedDomains string `json:"auto_signup_allowed_domains"`
 	AutoSignupTeamID         *uint  `json:"auto_signup_team_id"`
@@ -171,18 +155,6 @@ func (h *Handler) UpdateInstanceSettings(c *fiber.Ctx) error {
 		})
 	}
 
-	settings.SMTPEnabled = input.SMTPEnabled
-	settings.SMTPHost = input.SMTPHost
-	if input.SMTPPort == 0 {
-		settings.SMTPPort = 587
-	} else {
-		settings.SMTPPort = input.SMTPPort
-	}
-	settings.SMTPUsername = input.SMTPUsername
-	settings.SMTPPassword = input.SMTPPassword
-	settings.FromAddress = input.FromAddress
-	settings.AddUserEmailSubject = input.AddUserEmailSubject
-	settings.AddUserEmailBody = input.AddUserEmailBody
 	settings.AutoSignupEnabled = input.AutoSignupEnabled
 	settings.AutoSignupAllowedDomains = normalizedDomains
 	settings.AutoSignupTeamID = input.AutoSignupTeamID
@@ -202,14 +174,6 @@ func (h *Handler) githubAuthEnabled() bool {
 
 func (h *Handler) instanceSettingsResponse(settings *models.InstanceSettings) InstanceSettingsResponse {
 	return InstanceSettingsResponse{
-		SMTPEnabled:              settings.SMTPEnabled,
-		SMTPHost:                 settings.SMTPHost,
-		SMTPPort:                 settings.SMTPPort,
-		SMTPUsername:             settings.SMTPUsername,
-		SMTPPassword:             settings.SMTPPassword,
-		FromAddress:              settings.FromAddress,
-		AddUserEmailSubject:      settings.AddUserEmailSubject,
-		AddUserEmailBody:         settings.AddUserEmailBody,
 		GitHubAuthEnabled:        h.githubAuthEnabled(),
 		AutoSignupEnabled:        settings.AutoSignupEnabled,
 		AutoSignupAllowedDomains: settings.AutoSignupAllowedDomains,

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Save, Mail, Server, UserPlus } from 'lucide-react'
+import { Save, Server, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -12,20 +12,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import type { InstanceSettings as InstanceSettingsType, Team } from '@/types'
 
 export default function InstanceSettings() {
   const [settings, setSettings] = useState<InstanceSettingsType>({
-    smtp_enabled: false,
-    smtp_host: '',
-    smtp_port: 587,
-    smtp_username: '',
-    smtp_password: '',
-    from_address: '',
-    add_user_email_subject: 'Welcome to {team_name}',
-    add_user_email_body: 'You have been invited to join {team_name}. Click the link below to get started:\n\n{invite_link}',
     github_auth_enabled: false,
     auto_signup_enabled: false,
     auto_signup_allowed_domains: '',
@@ -117,125 +108,6 @@ export default function InstanceSettings() {
         </div>
 
         <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5" />
-                Email Configuration
-              </CardTitle>
-              <CardDescription>
-                Configure SMTP settings for sending emails to team members
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="smtp-enabled"
-                  checked={settings.smtp_enabled}
-                  onCheckedChange={(checked) => handleSettingChange('smtp_enabled', checked)}
-                />
-                <Label htmlFor="smtp-enabled">Enable SMTP</Label>
-              </div>
-
-              {settings.smtp_enabled && (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="smtp-host">SMTP Host</Label>
-                      <Input
-                        id="smtp-host"
-                        value={settings.smtp_host}
-                        onChange={(e) => handleSettingChange('smtp_host', e.target.value)}
-                        placeholder="smtp.gmail.com"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="smtp-port">SMTP Port</Label>
-                      <Input
-                        id="smtp-port"
-                        type="number"
-                        value={settings.smtp_port}
-                        onChange={(e) => handleSettingChange('smtp_port', parseInt(e.target.value))}
-                        placeholder="587"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="smtp-username">SMTP Username</Label>
-                      <Input
-                        id="smtp-username"
-                        value={settings.smtp_username}
-                        onChange={(e) => handleSettingChange('smtp_username', e.target.value)}
-                        placeholder="your@email.com"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="smtp-password">SMTP Password</Label>
-                      <Input
-                        id="smtp-password"
-                        type="password"
-                        value={settings.smtp_password}
-                        onChange={(e) => handleSettingChange('smtp_password', e.target.value)}
-                        placeholder="••••••••"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="from-address">From Address</Label>
-                    <Input
-                      id="from-address"
-                      value={settings.from_address}
-                      onChange={(e) => handleSettingChange('from_address', e.target.value)}
-                      placeholder="noreply@yourcompany.com"
-                    />
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {settings.smtp_enabled && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Email Templates</CardTitle>
-                <CardDescription>
-                  customize email templates sent to users
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email-subject">User Invitation Subject</Label>
-                  <Input
-                    id="email-subject"
-                    value={settings.add_user_email_subject}
-                    onChange={(e) => handleSettingChange('add_user_email_subject', e.target.value)}
-                    placeholder="Welcome to {team_name}"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Available variables: {'{team_name}'}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email-body">User Invitation Body</Label>
-                  <Textarea
-                    id="email-body"
-                    value={settings.add_user_email_body}
-                    onChange={(e) => handleSettingChange('add_user_email_body', e.target.value)}
-                    placeholder="You have been invited to join {team_name}..."
-                    rows={6}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Available variables: {'{team_name}, {invite_link}'}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

@@ -34,14 +34,6 @@ export interface TeamUser {
 }
 
 export interface InstanceSettings {
-  smtp_enabled: boolean
-  smtp_host: string
-  smtp_port: number
-  smtp_username: string
-  smtp_password: string
-  from_address: string
-  add_user_email_subject: string
-  add_user_email_body: string
   github_auth_enabled: boolean
   auto_signup_enabled: boolean
   auto_signup_allowed_domains: string

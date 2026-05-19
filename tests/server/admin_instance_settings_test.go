@@ -71,9 +71,11 @@ func TestInstanceSettingsRequireSuperuser_SuperuserAllowed(t *testing.T) {
 		t.Fatalf("failed to decode response body: %v", err)
 	}
 
-	// Handler returns default settings including AddUserEmailSubject; check presence
-	if _, ok := body["add_user_email_subject"]; !ok {
-		t.Fatalf("expected 'add_user_email_subject' field in response, got: %v", body)
+	if _, ok := body["auto_signup_enabled"]; !ok {
+		t.Fatalf("expected 'auto_signup_enabled' field in response, got: %v", body)
+	}
+	if _, ok := body["smtp_enabled"]; ok {
+		t.Fatalf("did not expect unused SMTP settings in response, got: %v", body)
 	}
 }
 
@@ -110,14 +112,6 @@ func TestInstanceSettingsUpdatePersistsAutoSignupSettings(t *testing.T) {
 	})
 
 	payload := []byte(`{
-		"smtp_enabled": false,
-		"smtp_host": "",
-		"smtp_port": 587,
-		"smtp_username": "",
-		"smtp_password": "",
-		"from_address": "",
-		"add_user_email_subject": "Welcome to Portr!",
-		"add_user_email_body": "You have been added to a Portr team. Please set up your account using the temporary password provided.",
 		"auto_signup_enabled": true,
 		"auto_signup_allowed_domains": " Example.com, @example.com, dev.example.com. ",
 		"auto_signup_team_id": ` + jsonNumber(team.ID) + `
@@ -171,7 +165,6 @@ func TestInstanceSettingsUpdateRequiresTrustedDomainsWhenEnabled(t *testing.T) {
 	})
 
 	payload := []byte(`{
-		"smtp_port": 587,
 		"auto_signup_enabled": true,
 		"auto_signup_allowed_domains": " , ",
 		"auto_signup_team_id": ` + jsonNumber(team.ID) + `
