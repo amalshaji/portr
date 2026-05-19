@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/amalshaji/portr/internal/client/config"
+	"github.com/amalshaji/portr/internal/constants"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -106,6 +107,16 @@ type model struct {
 	width                  int
 	dashboardURL           string
 	dashboardDisabledLabel string
+}
+
+func tunnelKey(tunnelConfig *config.Tunnel) string {
+	if tunnelConfig == nil {
+		return ""
+	}
+	if tunnelConfig.Type == constants.Stub {
+		return "stub:" + tunnelConfig.Subdomain
+	}
+	return fmt.Sprintf("%d", tunnelConfig.Port)
 }
 
 func New(debug bool, dashboardURL string, dashboardDisabledLabel string) *tea.Program {
@@ -212,8 +223,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case AddTunnelMsg:
-		port := fmt.Sprintf("%d", msg.Config.Port)
-		if existing, ok := m.tunnels[port]; ok {
+		key := tunnelKey(msg.Config)
+		if existing, ok := m.tunnels[key]; ok {
 			// Update pool size if provided; do not change active here
 			if msg.ClientConfig != nil {
 				existing.poolSize = max(existing.poolSize, msg.ClientConfig.Tunnel.PoolSize)
@@ -223,7 +234,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if msg.ClientConfig != nil {
 				ps = msg.ClientConfig.Tunnel.PoolSize
 			}
-			m.tunnels[port] = &tunnelStatus{
+			m.tunnels[key] = &tunnelStatus{
 				config:       msg.Config,
 				clientConfig: msg.ClientConfig,
 				healthy:      msg.Healthy,
@@ -232,7 +243,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		if m.selected == "" {
-			m.selected = port
+			m.selected = key
 		}
 
 	case UpdateHealthMsg:
@@ -410,14 +421,37 @@ func (m model) View() string {
 			statusText = "🟢 Healthy (" + fmt.Sprint(tunnel.active) + "/" + fmt.Sprint(max(1, tunnel.poolSize)) + ")"
 		}
 
-		tunnelInfo := fmt.Sprintf("%s (%s:%d → %s) [%s] %s",
-			tunnel.config.Name,
-			tunnel.config.Host,
-			tunnel.config.Port,
-			tunnel.clientConfig.GetTunnelAddr(),
-			tunnel.config.Subdomain,
-			statusText,
-		)
+		tunnelName := tunnel.config.Name
+		if tunnelName == "" {
+			if tunnel.config.Type == constants.Stub {
+				tunnelName = tunnel.config.Subdomain
+			} else {
+				tunnelName = fmt.Sprintf("%d", tunnel.config.Port)
+			}
+		}
+		tunnelAddr := ""
+		if tunnel.clientConfig != nil {
+			tunnelAddr = tunnel.clientConfig.GetTunnelAddr()
+		}
+
+		var tunnelInfo string
+		if tunnel.config.Type == constants.Stub {
+			tunnelInfo = fmt.Sprintf("%s (stub → %s) [%s] %s",
+				tunnelName,
+				tunnelAddr,
+				tunnel.config.Subdomain,
+				statusText,
+			)
+		} else {
+			tunnelInfo = fmt.Sprintf("%s (%s:%d → %s) [%s] %s",
+				tunnelName,
+				tunnel.config.Host,
+				tunnel.config.Port,
+				tunnelAddr,
+				tunnel.config.Subdomain,
+				statusText,
+			)
+		}
 		s += tunnelStyle.MaxWidth(lineWidth).Render(tunnelInfo) + "\n"
 	}
 	s += "\n"

@@ -60,6 +60,34 @@ func TestUpdateConnCountClampsToPoolSize(t *testing.T) {
 	}
 }
 
+func TestViewRendersStubTunnelWithoutLocalPort(t *testing.T) {
+	tunnel := config.Tunnel{
+		Name:      "yaml",
+		Type:      constants.Stub,
+		Subdomain: "yaml",
+		PoolSize:  1,
+	}
+	m := model{
+		tunnels: map[string]*tunnelStatus{
+			"stub:yaml": {
+				config:       &tunnel,
+				clientConfig: testClientConfig(tunnel),
+				active:       1,
+				poolSize:     1,
+			},
+		},
+		width: 200,
+	}
+
+	view := m.View()
+	if strings.Contains(view, "localhost:0") {
+		t.Fatalf("expected stub tunnel view without local port, got %q", view)
+	}
+	if !strings.Contains(view, "yaml (stub → https://yaml.go.portr.dev)") {
+		t.Fatalf("expected stub tunnel address, got %q", view)
+	}
+}
+
 func testTunnel() config.Tunnel {
 	return config.Tunnel{
 		Name:      "audio-stream",

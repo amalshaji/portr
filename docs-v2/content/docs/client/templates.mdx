@@ -150,6 +150,11 @@ tunnels:
     subdomain: api-dev
     port: 3000
     type: http
+  - name: yaml
+    type: stub
+    subdomain: yaml
+    response_format: application/yml
+    response_tmpl_file: ./response.yml
 ```
 
 ## Using Templates
@@ -200,6 +205,17 @@ These options apply to the entire client configuration:
 - **health_check_interval**: Health check interval in seconds (default: 3)
 - **health_check_max_retries**: Maximum health check retry attempts (default: 10)
 - **insecure_skip_host_key_verification**: Skip SSH host key verification (default: true)
+
+### Stub Tunnel Options
+
+These options apply to stub tunnel entries with `type: stub`:
+
+- **subdomain**: Public subdomain that serves the stub response
+- **response_format**: Response `Content-Type`, such as `application/json` or `application/yml`
+- **response_tmpl**: Inline response template
+- **response_tmpl_file**: Path to a response template file, resolved relative to the config file
+
+Use exactly one of `response_tmpl` or `response_tmpl_file`.
 
 ### SSH Host Key Verification
 

@@ -79,6 +79,77 @@ func TestCreateNewConnection_Error(t *testing.T) {
 	}
 }
 
+func TestCreateNewConnection_StubUsesHTTPPayload(t *testing.T) {
+	newRestyClient = func() *resty.Client {
+		return resty.NewWithClient(&http.Client{
+			Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+				var payload map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+					t.Fatalf("decode request body: %v", err)
+				}
+
+				if payload["connection_type"] != "http" {
+					t.Fatalf("expected stub tunnel to register as http, got %v", payload["connection_type"])
+				}
+				if payload["subdomain"] != "yaml" {
+					t.Fatalf("expected yaml subdomain, got %v", payload["subdomain"])
+				}
+				if _, ok := payload["response_format"]; ok {
+					t.Fatalf("did not expect response_format in server payload")
+				}
+				if _, ok := payload["response_template"]; ok {
+					t.Fatalf("did not expect response_template in server payload")
+				}
+
+				body, _ := json.Marshal(map[string]string{"connection_id": "stub123"})
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body:       io.NopCloser(strings.NewReader(string(body))),
+				}, nil
+			}),
+		})
+	}
+	defer func() { newRestyClient = resty.New }()
+
+	cfg := clientcfg.ClientConfig{
+		ServerUrl:    "localhost:8001",
+		SecretKey:    "sk",
+		UseLocalHost: true,
+		Tunnel: clientcfg.Tunnel{
+			Type:             constants.Stub,
+			Subdomain:        "yaml",
+			ResponseFormat:   "application/yml",
+			ResponseTemplate: "message: {{message}}",
+		},
+	}
+
+	id, err := CreateNewConnection(cfg)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if id != "stub123" {
+		t.Fatalf("expected stub connection id, got %q", id)
+	}
+}
+
+func TestStubStartErrorUsesSubdomain(t *testing.T) {
+	client := New(clientcfg.ClientConfig{
+		Tunnel: clientcfg.Tunnel{
+			Type:      constants.Stub,
+			Subdomain: "portr-stub",
+		},
+	}, nil, nil, nil)
+
+	err := client.startError(errors.New("boom"))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "failed to start tunnel 'portr-stub'") {
+		t.Fatalf("expected stub subdomain in error, got %v", err)
+	}
+}
+
 func TestCreateNewConnectionWithContext_Canceled(t *testing.T) {
 	newRestyClient = func() *resty.Client {
 		return resty.NewWithClient(&http.Client{

@@ -83,4 +83,15 @@ func TestDesiredWorkers(t *testing.T) {
 	if got := desiredWorkers(tcpCfg, true); got != 1 {
 		t.Fatalf("expected tcp tunnels to use a single worker, got %d", got)
 	}
+
+	stubCfg := clientcfg.ClientConfig{
+		Tunnel: clientcfg.Tunnel{
+			Type:     constants.Stub,
+			PoolSize: 4,
+		},
+	}
+
+	if got := desiredWorkers(stubCfg, true); got != 1 {
+		t.Fatalf("expected stub tunnels to use a single worker, got %d", got)
+	}
 }
