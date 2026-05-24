@@ -11,11 +11,16 @@ import (
 	"github.com/amalshaji/portr/internal/tunnel/wsproto"
 )
 
-type testListener struct{}
+type testListener struct {
+	closeCount int
+}
 
-func (testListener) Accept() (net.Conn, error) { return nil, nil }
-func (testListener) Close() error              { return nil }
-func (testListener) Addr() net.Addr            { return testAddr("test") }
+func (*testListener) Accept() (net.Conn, error) { return nil, nil }
+func (l *testListener) Close() error {
+	l.closeCount++
+	return nil
+}
+func (*testListener) Addr() net.Addr { return testAddr("test") }
 
 type testAddr string
 
@@ -71,6 +76,35 @@ func TestHandleAcceptErrorIgnoresReplacedListener(t *testing.T) {
 	err := client.handleAcceptError(oldListener, net.ErrClosed)
 	if !errors.Is(err, errClientShuttingDown) {
 		t.Fatalf("expected shutdown sentinel, got %v", err)
+	}
+}
+
+func TestCloseListenerIfCurrentDoesNotCloseReplacement(t *testing.T) {
+	oldListener := &testListener{}
+	newListener := &testListener{}
+	client := &Client{
+		listener: newListener,
+	}
+
+	client.closeListenerIfCurrent(oldListener)
+
+	if oldListener.closeCount != 0 {
+		t.Fatalf("expected old listener not to be closed, got %d closes", oldListener.closeCount)
+	}
+	if newListener.closeCount != 0 {
+		t.Fatalf("expected replacement listener not to be closed, got %d closes", newListener.closeCount)
+	}
+	if client.listener != newListener {
+		t.Fatal("expected replacement listener to remain active")
+	}
+
+	client.closeListenerIfCurrent(newListener)
+
+	if newListener.closeCount != 1 {
+		t.Fatalf("expected current listener to be closed once, got %d closes", newListener.closeCount)
+	}
+	if client.listener != nil {
+		t.Fatal("expected current listener to be cleared")
 	}
 }
 

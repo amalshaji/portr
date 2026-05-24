@@ -247,6 +247,16 @@ func (s *Client) closeTransport() error {
 	return err
 }
 
+func (s *Client) closeListenerIfCurrent(listener net.Listener) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.listener == listener {
+		_ = s.listener.Close()
+		s.listener = nil
+	}
+}
+
 func (s *Client) handleAcceptError(listener net.Listener, err error) error {
 	if err == nil {
 		return nil
@@ -1230,12 +1240,14 @@ func (s *Client) Start(ctx context.Context) error {
 
 	case <-timer.C:
 		cancelStartup()
+		_ = s.closeTransport()
 		startErr := s.startError(fmt.Errorf("timed out waiting for tunnel listener after %s", tunnelStartTimeout))
 		s.emitEvent(EventFailed, startErr)
 		return startErr
 
 	case <-ctx.Done():
 		cancelStartup()
+		_ = s.closeTransport()
 		return nil
 	}
 }
