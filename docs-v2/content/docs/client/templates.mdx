@@ -150,6 +150,11 @@ tunnels:
     subdomain: api-dev
     port: 3000
     type: http
+  - name: yaml
+    type: stub
+    subdomain: yaml
+    response_format: application/yml
+    response_tmpl_file: ./response.yml
 ```
 
 ## Using Templates
@@ -199,6 +204,18 @@ These options apply to the entire client configuration:
 - **connection_log_retention_days**: Auto-delete connection logs older than N days (default: 0, disabled)
 - **health_check_interval**: Health check interval in seconds (default: 3)
 - **health_check_max_retries**: Maximum health check retry attempts (default: 10)
+
+### Stub Tunnel Options
+
+These options apply to stub tunnel entries with `type: stub`:
+
+- **subdomain**: Public subdomain that serves the stub response
+- **response_format**: Response `Content-Type`, such as `application/json` or `application/yml`
+- **response_tmpl**: Inline response template
+- **response_tmpl_file**: Path to a response template file, resolved relative to the config file
+
+Use exactly one of `response_tmpl` or `response_tmpl_file`.
+
 ### Tunnel Template Options
 
 Each tunnel template supports the following options:
@@ -206,7 +223,7 @@ Each tunnel template supports the following options:
 - **name**: A unique identifier for the tunnel
 - **subdomain**: The subdomain to use for the tunnel
 - **port**: The local port to tunnel
-- **type**: The tunnel type (`http` or `tcp`)
+- **type**: The tunnel type (`http`, `tcp`, or `stub`)
 - **host**: The local host to bind to (default: localhost)
 - **pool_size**: HTTP only. Number of WebSocket workers to run per HTTP tunnel (default: 2). Increases resilience and throughput.
 

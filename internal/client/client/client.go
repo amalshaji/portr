@@ -10,6 +10,7 @@ import (
 
 	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
+	"github.com/amalshaji/portr/internal/client/stubresponder"
 	"github.com/amalshaji/portr/internal/client/tui"
 	tunnelclient "github.com/amalshaji/portr/internal/client/tunnel"
 	"github.com/amalshaji/portr/internal/constants"
@@ -29,6 +30,7 @@ type Client struct {
 	tuiStart        chan struct{}
 	tuiDone         chan struct{}
 	tuiStopOnce     sync.Once
+	stubResponder   *stubresponder.Responder
 }
 
 func NewClient(config *config.Config, db *db.Db) *Client {
@@ -146,6 +148,12 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 		return fmt.Errorf("please enter a valid service name")
 	}
 
+	var err error
+	clientConfigs, err = c.prepareStubTunnels(clientConfigs)
+	if err != nil {
+		return err
+	}
+
 	poolingSupported := true
 	for _, clientConfig := range clientConfigs {
 		if desiredWorkers(clientConfig, true) > 1 {
@@ -157,11 +165,19 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 	for _, clientConfig := range clientConfigs {
 		tunnelName := clientConfig.Tunnel.Name
 		if tunnelName == "" {
-			tunnelName = fmt.Sprintf("%d", clientConfig.Tunnel.Port)
+			if clientConfig.Tunnel.Type == constants.Stub {
+				tunnelName = clientConfig.Tunnel.Subdomain
+			} else {
+				tunnelName = fmt.Sprintf("%d", clientConfig.Tunnel.Port)
+			}
 		}
 
 		if c.config.DisableTUI {
-			fmt.Printf("🚀 Starting tunnel: %s (%s:%d)\n", tunnelName, clientConfig.Tunnel.Host, clientConfig.Tunnel.Port)
+			if clientConfig.Tunnel.Type == constants.Stub {
+				fmt.Printf("🚀 Starting stub tunnel: %s (%s)\n", tunnelName, clientConfig.GetTunnelAddr())
+			} else {
+				fmt.Printf("🚀 Starting tunnel: %s (%s:%d)\n", tunnelName, clientConfig.Tunnel.Host, clientConfig.Tunnel.Port)
+			}
 		}
 
 		workers := desiredWorkers(clientConfig, poolingSupported)
@@ -189,6 +205,46 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 	return nil
 }
 
+func (c *Client) prepareStubTunnels(clientConfigs []config.ClientConfig) ([]config.ClientConfig, error) {
+	hasStub := false
+	for _, clientConfig := range clientConfigs {
+		if clientConfig.Tunnel.Type == constants.Stub {
+			hasStub = true
+			break
+		}
+	}
+	if !hasStub {
+		return clientConfigs, nil
+	}
+
+	if c.stubResponder == nil {
+		c.stubResponder = stubresponder.New()
+		if err := c.stubResponder.Start(); err != nil {
+			return nil, err
+		}
+	}
+
+	for i := range clientConfigs {
+		if clientConfigs[i].Tunnel.Type != constants.Stub {
+			continue
+		}
+
+		if err := c.stubResponder.Register(stubresponder.Route{
+			Subdomain:        clientConfigs[i].Tunnel.Subdomain,
+			ResponseFormat:   clientConfigs[i].Tunnel.ResponseFormat,
+			ResponseTemplate: clientConfigs[i].Tunnel.ResponseTemplate,
+		}); err != nil {
+			return nil, err
+		}
+
+		clientConfigs[i].Tunnel.Host = "127.0.0.1"
+		clientConfigs[i].Tunnel.Port = c.stubResponder.Port()
+		clientConfigs[i].Tunnel.PoolSize = 1
+	}
+
+	return clientConfigs, nil
+}
+
 func (c *Client) Add(tunnelClient *tunnelclient.Client) {
 	c.tunnelClients = append(c.tunnelClients, tunnelClient)
 }
@@ -211,6 +267,11 @@ func (c *Client) Shutdown(ctx context.Context) {
 
 	for _, tunnelClient := range c.tunnelClients {
 		tunnelClient.Shutdown(ctx)
+	}
+
+	if c.stubResponder != nil {
+		_ = c.stubResponder.Shutdown(ctx)
+		c.stubResponder = nil
 	}
 }
 

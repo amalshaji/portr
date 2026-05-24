@@ -23,6 +23,9 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 
 	if tunnelFromCli != nil {
 		tunnelFromCli.SetDefaults()
+		if err := tunnelFromCli.ResolveStubTemplate("."); err != nil {
+			return err
+		}
 		if err := tunnelFromCli.Validate(); err != nil {
 			return err
 		}

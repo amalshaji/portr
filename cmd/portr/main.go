@@ -32,6 +32,7 @@ func main() {
 			startCmd(),
 			configCmd(),
 			httpCmd(),
+			stubCmd(),
 			tcpCmd(),
 			logsCmd(),
 			replayCmd(),

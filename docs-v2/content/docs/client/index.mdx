@@ -28,6 +28,9 @@ The Portr client is a command-line tool that allows you to create secure tunnels
   <Card title="TCP Tunnels" href="/docs/client/tcp-tunnel">
     Tunnel raw TCP connections for databases and other services.
   </Card>
+  <Card title="Stub Tunnels" href="/docs/client/stub-tunnel">
+    Serve templated responses without a separate local web server.
+  </Card>
   <Card title="WebSocket Tunnels" href="/docs/client/websocket-tunnel">
     Enable real-time WebSocket connections through tunnels.
   </Card>
@@ -54,6 +57,9 @@ portr http 3000
 
 # Create a TCP tunnel
 portr tcp 5432
+
+# Create a stub response tunnel
+portr stub --subdomain yaml --response-format application/yml --response-tmpl 'message: {{message}}'
 
 # Create tunnel with custom subdomain
 portr http 3000 --subdomain my-app

@@ -2,6 +2,10 @@ package appserver
 
 import (
 	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -73,6 +77,60 @@ func TestClientConfigForTunnelDisablesTunnelClientTerminalLogs(t *testing.T) {
 	clientConfig := manager.clientConfigForTunnel(tunnel)
 	if !clientConfig.DisableTerminalLogs {
 		t.Fatal("expected app-server tunnel client terminal logs to be disabled")
+	}
+}
+
+func TestPrepareStubTunnelUsesSharedLocalResponder(t *testing.T) {
+	cfg := clientcfg.Config{}
+	cfg.SetDefaults()
+
+	manager := NewManager(cfg, nil)
+	t.Cleanup(func() {
+		manager.Shutdown(context.Background())
+	})
+
+	first := clientcfg.Tunnel{
+		Type:             constants.Stub,
+		Subdomain:        "json",
+		ResponseFormat:   "application/json",
+		ResponseTemplate: `{"name":"{{name}}"}`,
+	}
+	second := clientcfg.Tunnel{
+		Type:             constants.Stub,
+		Subdomain:        "yaml",
+		ResponseFormat:   "application/yml",
+		ResponseTemplate: "name: {{name}}\n",
+	}
+
+	if err := manager.prepareStubTunnel(&first); err != nil {
+		t.Fatalf("prepare first stub tunnel: %v", err)
+	}
+	if err := manager.prepareStubTunnel(&second); err != nil {
+		t.Fatalf("prepare second stub tunnel: %v", err)
+	}
+
+	if first.Port == 0 || second.Port == 0 || first.Port != second.Port {
+		t.Fatalf("expected stub tunnels to share one responder port, got %d and %d", first.Port, second.Port)
+	}
+
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://127.0.0.1:%d/?name=portr", first.Port), nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Host = "yaml.example.test"
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request stub responder: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read response body: %v", err)
+	}
+	if string(body) != "name: portr\n" {
+		t.Fatalf("unexpected response body: %q", string(body))
 	}
 }
 
