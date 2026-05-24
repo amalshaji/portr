@@ -17,6 +17,7 @@ import (
 	clientcfg "github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
 	sshclient "github.com/amalshaji/portr/internal/client/ssh"
+	"github.com/amalshaji/portr/internal/client/stubresponder"
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/charmbracelet/log"
 	"github.com/oklog/ulid/v2"
@@ -53,9 +54,11 @@ type Manager struct {
 	httpClient *http.Client
 	logger     *log.Logger
 
-	mu      sync.RWMutex
-	tunnels map[string]*tunnelRuntime
-	events  []TunnelEvent
+	mu            sync.RWMutex
+	stubMu        sync.Mutex
+	stubResponder *stubresponder.Responder
+	tunnels       map[string]*tunnelRuntime
+	events        []TunnelEvent
 }
 
 func NewManager(baseConfig clientcfg.Config, database *db.Db) *Manager {
@@ -76,15 +79,26 @@ func NewManager(baseConfig clientcfg.Config, database *db.Db) *Manager {
 
 func (m *Manager) StartTunnel(ctx context.Context, request StartTunnelRequest) (TunnelStatus, error) {
 	tunnel := clientcfg.Tunnel{
-		Name:      request.Name,
-		Subdomain: request.Subdomain,
-		Port:      request.Port,
-		Host:      request.Host,
-		Type:      request.Type,
-		PoolSize:  request.PoolSize,
+		Name:                 request.Name,
+		Subdomain:            request.Subdomain,
+		Port:                 request.Port,
+		Host:                 request.Host,
+		Type:                 request.Type,
+		PoolSize:             request.PoolSize,
+		ResponseFormat:       request.ResponseFormat,
+		ResponseTemplate:     request.ResponseTemplate,
+		ResponseTemplateFile: request.ResponseTemplateFile,
 	}
 	tunnel.SetDefaults()
+	if err := tunnel.ResolveStubTemplate("."); err != nil {
+		return TunnelStatus{}, err
+	}
 	if err := validateTunnelRequest(tunnel, request.CallbackURL, request.CallbackURLs); err != nil {
+		return TunnelStatus{}, err
+	}
+
+	statusTunnel := tunnel
+	if err := m.prepareStubTunnel(&tunnel); err != nil {
 		return TunnelStatus{}, err
 	}
 
@@ -107,16 +121,17 @@ func (m *Manager) StartTunnel(ctx context.Context, request StartTunnelRequest) (
 		cancel:       cancel,
 		callbackURLs: callbackURLs,
 		status: TunnelStatus{
-			ID:           id,
-			Name:         tunnel.Name,
-			Status:       statusStarting,
-			Type:         tunnel.Type,
-			Host:         tunnel.Host,
-			Port:         tunnel.Port,
-			Subdomain:    tunnel.Subdomain,
-			CallbackURLs: callbackURLs,
-			StartedAt:    now,
-			UpdatedAt:    now,
+			ID:             id,
+			Name:           tunnel.Name,
+			Status:         statusStarting,
+			Type:           tunnel.Type,
+			Host:           statusTunnel.Host,
+			Port:           statusTunnel.Port,
+			Subdomain:      tunnel.Subdomain,
+			ResponseFormat: tunnel.ResponseFormat,
+			CallbackURLs:   callbackURLs,
+			StartedAt:      now,
+			UpdatedAt:      now,
 		},
 		startedCh: make(chan struct{}),
 		failedCh:  make(chan error, 1),
@@ -148,11 +163,13 @@ func (m *Manager) StartTunnel(ctx context.Context, request StartTunnelRequest) (
 		return m.GetTunnel(id)
 	case err := <-runtime.failedCh:
 		cancel()
+		m.unregisterStubTunnel(tunnel)
 		return TunnelStatus{}, err
 	case <-time.After(7 * time.Second):
 		return m.GetTunnel(id)
 	case <-ctx.Done():
 		cancel()
+		m.unregisterStubTunnel(tunnel)
 		return TunnelStatus{}, ctx.Err()
 	}
 }
@@ -199,6 +216,10 @@ func (m *Manager) StopTunnel(ctx context.Context, id string) (TunnelStatus, erro
 	for _, client := range tunnel.clients {
 		_ = client.Shutdown(ctx)
 	}
+	m.unregisterStubTunnel(clientcfg.Tunnel{
+		Type:      tunnel.status.Type,
+		Subdomain: tunnel.status.Subdomain,
+	})
 
 	now := time.Now().UTC()
 	m.mu.Lock()
@@ -209,6 +230,49 @@ func (m *Manager) StopTunnel(ctx context.Context, id string) (TunnelStatus, erro
 	m.mu.Unlock()
 
 	return status, nil
+}
+
+func (m *Manager) prepareStubTunnel(tunnel *clientcfg.Tunnel) error {
+	if tunnel.Type != constants.Stub {
+		return nil
+	}
+
+	m.stubMu.Lock()
+	defer m.stubMu.Unlock()
+
+	if m.stubResponder == nil {
+		responder := stubresponder.New()
+		if err := responder.Start(); err != nil {
+			return err
+		}
+		m.stubResponder = responder
+	}
+
+	if err := m.stubResponder.Register(stubresponder.Route{
+		Subdomain:        tunnel.Subdomain,
+		ResponseFormat:   tunnel.ResponseFormat,
+		ResponseTemplate: tunnel.ResponseTemplate,
+	}); err != nil {
+		return err
+	}
+
+	tunnel.Host = "127.0.0.1"
+	tunnel.Port = m.stubResponder.Port()
+	tunnel.PoolSize = 1
+	return nil
+}
+
+func (m *Manager) unregisterStubTunnel(tunnel clientcfg.Tunnel) {
+	if tunnel.Type != constants.Stub {
+		return
+	}
+
+	m.stubMu.Lock()
+	defer m.stubMu.Unlock()
+
+	if m.stubResponder != nil {
+		m.stubResponder.Unregister(tunnel.Subdomain)
+	}
 }
 
 func (m *Manager) Events(tunnelID string) []TunnelEvent {
@@ -235,6 +299,13 @@ func (m *Manager) Shutdown(ctx context.Context) {
 	for _, id := range ids {
 		_, _ = m.StopTunnel(ctx, id)
 	}
+
+	m.stubMu.Lock()
+	if m.stubResponder != nil {
+		_ = m.stubResponder.Shutdown(ctx)
+		m.stubResponder = nil
+	}
+	m.stubMu.Unlock()
 }
 
 func (m *Manager) clientConfigForTunnel(tunnel clientcfg.Tunnel) clientcfg.ClientConfig {
@@ -263,6 +334,11 @@ func (m *Manager) handleStartFailure(id string, err error) {
 	if !ok {
 		return
 	}
+
+	m.unregisterStubTunnel(clientcfg.Tunnel{
+		Type:      tunnel.status.Type,
+		Subdomain: tunnel.status.Subdomain,
+	})
 
 	tunnel.failOnce.Do(func() {
 		select {
@@ -457,11 +533,11 @@ func (m *Manager) dispatchCallbacks(callbackURLs []string, event TunnelEvent) {
 }
 
 func validateTunnelRequest(tunnel clientcfg.Tunnel, callbackURL string, callbackURLs []string) error {
-	if tunnel.Port <= 0 || tunnel.Port > 65535 {
+	if tunnel.Type != constants.Stub && (tunnel.Port <= 0 || tunnel.Port > 65535) {
 		return fmt.Errorf("port must be between 1 and 65535")
 	}
-	if tunnel.Type != constants.Http && tunnel.Type != constants.Tcp {
-		return fmt.Errorf("type must be either http or tcp")
+	if tunnel.Type != constants.Http && tunnel.Type != constants.Tcp && tunnel.Type != constants.Stub {
+		return fmt.Errorf("type must be http, tcp, or stub")
 	}
 	if err := tunnel.Validate(); err != nil {
 		return err

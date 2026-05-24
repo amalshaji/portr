@@ -17,6 +17,8 @@ func (c *ConnectionType) UnmarshalYAML(unmarshal func(interface{}) error) error 
 		*c = Http
 	case "tcp":
 		*c = Tcp
+	case "stub":
+		*c = Stub
 	default:
 		*c = Http
 	}
@@ -27,6 +29,7 @@ func (c *ConnectionType) UnmarshalYAML(unmarshal func(interface{}) error) error 
 const (
 	Http ConnectionType = "http"
 	Tcp  ConnectionType = "tcp"
+	Stub ConnectionType = "stub"
 )
 
 const ClientUiViteDistDir = "./internal/client/dashboard/ui-v2/dist/static/.vite/manifest.json"

@@ -8,6 +8,7 @@
     "request-replay",
     "app-server",
     "tcp-tunnel",
+    "stub-tunnel",
     "websocket-tunnel",
     "templates"
   ]
