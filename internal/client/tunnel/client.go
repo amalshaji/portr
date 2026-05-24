@@ -85,7 +85,7 @@ type Client struct {
 	db           *db.Db
 	conn         *websocket.Conn
 	writer       *wsproto.Writer
-	streams      map[string]chan wsproto.Frame
+	streams      map[string]*tunnelStream
 	streamsMu    sync.Mutex
 	tui          *tea.Program
 	fatal        func(error)
@@ -93,6 +93,25 @@ type Client struct {
 	mu           sync.RWMutex
 	reconnecting int32 // atomic flag to prevent concurrent reconnects
 	shutdown     int32 // atomic flag for shutdown state
+}
+
+type tunnelStream struct {
+	frames    chan wsproto.Frame
+	done      chan struct{}
+	closeOnce sync.Once
+}
+
+func newTunnelStream() *tunnelStream {
+	return &tunnelStream{
+		frames: make(chan wsproto.Frame, 32),
+		done:   make(chan struct{}),
+	}
+}
+
+func (s *tunnelStream) close() {
+	s.closeOnce.Do(func() {
+		close(s.done)
+	})
 }
 
 type EventType string
@@ -118,7 +137,7 @@ func New(config config.ClientConfig, db *db.Db, tui *tea.Program, fatal func(err
 		config:   config,
 		listener: nil,
 		db:       db,
-		streams:  make(map[string]chan wsproto.Frame),
+		streams:  make(map[string]*tunnelStream),
 		tui:      tui,
 		fatal:    fatal,
 	}
@@ -209,8 +228,6 @@ func (s *Client) forwardListenerErrors(ctx context.Context, errChan <-chan error
 
 func (s *Client) closeTransport() error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	var err error
 	if s.listener != nil {
 		err = s.listener.Close()
@@ -224,11 +241,9 @@ func (s *Client) closeTransport() error {
 		s.conn = nil
 	}
 	s.writer = nil
-	for streamID, ch := range s.streams {
-		close(ch)
-		delete(s.streams, streamID)
-	}
+	s.mu.Unlock()
 
+	s.closeTunnelStreams()
 	return err
 }
 
@@ -331,7 +346,7 @@ func (s *Client) startListenerForClientWithReady(ctx context.Context, ready chan
 	s.mu.Lock()
 	s.conn = conn
 	s.writer = wsproto.NewWriter(conn)
-	s.streams = make(map[string]chan wsproto.Frame)
+	s.streams = make(map[string]*tunnelStream)
 	s.mu.Unlock()
 
 	s.goSafe("websocket tunnel reader", func() {
@@ -448,10 +463,10 @@ func (s *Client) readTunnelFrames(conn *websocket.Conn, readyCh chan<- wsproto.F
 			if frame.StreamID == "" {
 				continue
 			}
-			frames := s.addTunnelStream(frame.StreamID)
+			stream := s.addTunnelStream(frame.StreamID)
 			s.goSafe("websocket stream", func() {
 				defer s.removeTunnelStream(frame.StreamID)
-				s.handleTunnelStream(frame, frames)
+				s.handleTunnelStream(frame, stream)
 			})
 		case wsproto.TypeData, wsproto.TypeClose, wsproto.TypeError:
 			s.deliverTunnelFrame(frame)
@@ -459,21 +474,21 @@ func (s *Client) readTunnelFrames(conn *websocket.Conn, readyCh chan<- wsproto.F
 	}
 }
 
-func (s *Client) handleTunnelStream(openFrame wsproto.Frame, frames <-chan wsproto.Frame) {
+func (s *Client) handleTunnelStream(openFrame wsproto.Frame, stream *tunnelStream) {
 	if s.config.Tunnel.Type == constants.Http {
-		s.handleHTTPTunnelStream(openFrame, frames)
+		s.handleHTTPTunnelStream(openFrame, stream)
 		return
 	}
 
-	s.handleTCPTunnelStream(openFrame, frames)
+	s.handleTCPTunnelStream(openFrame, stream)
 }
 
-func (s *Client) handleHTTPTunnelStream(openFrame wsproto.Frame, frames <-chan wsproto.Frame) {
-	conn := newTunnelStreamConn(openFrame.StreamID, openFrame.Data, frames, s.sendTunnelFrame)
+func (s *Client) handleHTTPTunnelStream(openFrame wsproto.Frame, stream *tunnelStream) {
+	conn := newTunnelStreamConn(openFrame.StreamID, openFrame.Data, stream.frames, stream.done, s.sendTunnelFrame)
 	s.httpTunnel(conn, s.config.Tunnel.GetLocalAddr())
 }
 
-func (s *Client) handleTCPTunnelStream(openFrame wsproto.Frame, frames <-chan wsproto.Frame) {
+func (s *Client) handleTCPTunnelStream(openFrame wsproto.Frame, stream *tunnelStream) {
 	streamID := openFrame.StreamID
 	localEndpoint := s.config.Tunnel.GetLocalAddr()
 	localConn, err := net.Dial("tcp", localEndpoint)
@@ -512,7 +527,7 @@ func (s *Client) handleTCPTunnelStream(openFrame wsproto.Frame, frames <-chan ws
 
 	for {
 		select {
-		case frame, ok := <-frames:
+		case frame, ok := <-stream.frames:
 			if !ok {
 				_ = s.sendTunnelFrame(wsproto.Frame{Type: wsproto.TypeClose, StreamID: streamID})
 				return
@@ -527,6 +542,8 @@ func (s *Client) handleTCPTunnelStream(openFrame wsproto.Frame, frames <-chan ws
 			}
 		case <-done:
 			_ = s.sendTunnelFrame(wsproto.Frame{Type: wsproto.TypeClose, StreamID: streamID})
+			return
+		case <-stream.done:
 			return
 		}
 	}
@@ -554,21 +571,24 @@ func (s *Client) sendLocalServerUnavailable(streamID, localEndpoint string) {
 	_ = s.sendTunnelFrame(wsproto.Frame{Type: wsproto.TypeData, StreamID: streamID, Data: response.Bytes()})
 }
 
-func (s *Client) addTunnelStream(streamID string) chan wsproto.Frame {
-	ch := make(chan wsproto.Frame, 32)
+func (s *Client) addTunnelStream(streamID string) *tunnelStream {
+	stream := newTunnelStream()
 	s.streamsMu.Lock()
-	s.streams[streamID] = ch
+	if s.streams == nil {
+		s.streams = make(map[string]*tunnelStream)
+	}
+	s.streams[streamID] = stream
 	s.streamsMu.Unlock()
-	return ch
+	return stream
 }
 
 func (s *Client) removeTunnelStream(streamID string) {
 	s.streamsMu.Lock()
-	ch := s.streams[streamID]
+	stream := s.streams[streamID]
 	delete(s.streams, streamID)
 	s.streamsMu.Unlock()
-	if ch != nil {
-		close(ch)
+	if stream != nil {
+		stream.close()
 	}
 }
 
@@ -577,12 +597,29 @@ func (s *Client) deliverTunnelFrame(frame wsproto.Frame) {
 		return
 	}
 	s.streamsMu.Lock()
-	ch := s.streams[frame.StreamID]
+	stream := s.streams[frame.StreamID]
 	s.streamsMu.Unlock()
-	if ch == nil {
+	if stream == nil {
 		return
 	}
-	ch <- frame
+	select {
+	case <-stream.done:
+		return
+	default:
+	}
+	select {
+	case stream.frames <- frame:
+	case <-stream.done:
+	}
+}
+
+func (s *Client) closeTunnelStreams() {
+	s.streamsMu.Lock()
+	defer s.streamsMu.Unlock()
+	for streamID, stream := range s.streams {
+		stream.close()
+		delete(s.streams, streamID)
+	}
 }
 
 func (s *Client) httpTunnel(src net.Conn, localEndpoint string) {
@@ -1235,11 +1272,8 @@ func (s *Client) Reconnect() error {
 		}
 		s.listener = nil
 	}
-	for streamID, ch := range s.streams {
-		close(ch)
-		delete(s.streams, streamID)
-	}
 	s.mu.Unlock()
+	s.closeTunnelStreams()
 
 	// Create context with timeout for the reconnection attempt
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -1279,8 +1313,6 @@ func (s *Client) Reconnect() error {
 				Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
 				Healthy: true,
 			})
-			// Increase active count after successful reconnect
-			s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: 1})
 		} else if !s.config.DisableTerminalLogs {
 			// Log successful reconnection when TUI is disabled
 			fmt.Printf("🔄 Tunnel reconnected: %s\n", s.config.GetTunnelAddr())

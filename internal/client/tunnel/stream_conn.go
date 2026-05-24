@@ -19,6 +19,7 @@ func (a tunnelAddr) String() string  { return string(a) }
 type tunnelStreamConn struct {
 	streamID string
 	frames   <-chan wsproto.Frame
+	done     <-chan struct{}
 	send     func(wsproto.Frame) error
 
 	mu      sync.Mutex
@@ -31,11 +32,13 @@ func newTunnelStreamConn(
 	streamID string,
 	initial []byte,
 	frames <-chan wsproto.Frame,
+	done <-chan struct{},
 	send func(wsproto.Frame) error,
 ) *tunnelStreamConn {
 	conn := &tunnelStreamConn{
 		streamID: streamID,
 		frames:   frames,
+		done:     done,
 		send:     send,
 		closed:   make(chan struct{}),
 	}
@@ -57,6 +60,8 @@ func (c *tunnelStreamConn) Read(p []byte) (int, error) {
 
 		select {
 		case <-c.closed:
+			return 0, net.ErrClosed
+		case <-c.done:
 			return 0, net.ErrClosed
 		case frame, ok := <-c.frames:
 			if !ok {

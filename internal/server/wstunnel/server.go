@@ -318,12 +318,8 @@ func (s *session) addStream(streamID string) chan wsproto.Frame {
 
 func (s *session) removeStream(streamID string) {
 	s.streamMu.Lock()
-	ch := s.streams[streamID]
 	delete(s.streams, streamID)
 	s.streamMu.Unlock()
-	if ch != nil {
-		close(ch)
-	}
 }
 
 func (s *session) deliver(frame wsproto.Frame) {
