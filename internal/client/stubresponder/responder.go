@@ -18,6 +18,7 @@ import (
 
 var (
 	placeholderPattern           = regexp.MustCompile(`\{\{\s*([^{}|\s]+)\s*(?:\|\s*(int|bool|float)\s*)?\}\}`)
+	quotedPlaceholderPattern     = regexp.MustCompile(`"\{\{\s*([^{}|\s]+)\s*\}\}"`)
 	quotedCastPlaceholderPattern = regexp.MustCompile(`"\{\{\s*([^{}|\s]+)\s*\|\s*(int|bool|float)\s*\}\}"`)
 )
 
@@ -286,6 +287,22 @@ func renderTemplate(template string, query url.Values, body map[string]string, j
 		return string(encoded)
 	})
 
+	if jsonResponse {
+		rendered = quotedPlaceholderPattern.ReplaceAllStringFunc(rendered, func(match string) string {
+			parts := quotedPlaceholderPattern.FindStringSubmatch(match)
+			if len(parts) != 2 {
+				return `""`
+			}
+
+			value := requestValue(parts[1], query, body)
+			encoded, err := json.Marshal(value)
+			if err != nil {
+				return strconv.Quote(value)
+			}
+			return string(encoded)
+		})
+	}
+
 	return placeholderPattern.ReplaceAllStringFunc(rendered, func(match string) string {
 		parts := placeholderPattern.FindStringSubmatch(match)
 		if len(parts) != 3 {
@@ -304,6 +321,13 @@ func renderTemplate(template string, query url.Values, body map[string]string, j
 				}
 				return string(encoded)
 			}
+		}
+		if jsonResponse {
+			encoded, err := json.Marshal(value)
+			if err != nil {
+				return strconv.Quote(value)
+			}
+			return string(encoded)
 		}
 		return value
 	})

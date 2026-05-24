@@ -1,6 +1,7 @@
 package stubresponder
 
 import (
+	"encoding/json"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -73,6 +74,39 @@ func TestResponderRendersTypedJSONValues(t *testing.T) {
 	}
 	if got := rec.Body.String(); got != `{"status":200,"active":true,"score":12.5,"message":"ok"}` {
 		t.Fatalf("unexpected body: %q", got)
+	}
+}
+
+func TestResponderEscapesNormalJSONValues(t *testing.T) {
+	responder := testResponder(t, Route{
+		Subdomain:        "json",
+		ResponseFormat:   "application/json",
+		ResponseTemplate: `{"message":"{{message}}","raw":{{raw}}}`,
+	})
+
+	message := `hello "portr" \ ok`
+	raw := `x"y`
+	req := httptest.NewRequest(http.MethodGet, "http://json.example.test/?message="+url.QueryEscape(message)+"&raw="+url.QueryEscape(raw), nil)
+	req.Host = "json.example.test"
+	rec := httptest.NewRecorder()
+
+	responder.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rec.Code)
+	}
+	if !json.Valid(rec.Body.Bytes()) {
+		t.Fatalf("expected valid JSON, got %q", rec.Body.String())
+	}
+	var got map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if got["message"] != message {
+		t.Fatalf("expected escaped message %q, got %q", message, got["message"])
+	}
+	if got["raw"] != raw {
+		t.Fatalf("expected escaped raw value %q, got %q", raw, got["raw"])
 	}
 }
 
