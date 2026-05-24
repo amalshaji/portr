@@ -59,9 +59,10 @@ func TestGitHubCallbackAutoSignupCreatesUserAndTeamMembership(t *testing.T) {
 
 	fakeService := &fakeGitHubService{
 		user: &services.GitHubUser{
-			ID:        12345,
-			Email:     "new-user@example.com",
-			AvatarURL: "https://avatars.example.com/new-user",
+			ID:            12345,
+			Email:         "new-user@example.com",
+			EmailVerified: true,
+			AvatarURL:     "https://avatars.example.com/new-user",
 		},
 	}
 	app := newAuthTestApp(db, fakeService)
@@ -115,9 +116,10 @@ func TestGitHubCallbackAutoSignupRejectsUntrustedDomain(t *testing.T) {
 
 	fakeService := &fakeGitHubService{
 		user: &services.GitHubUser{
-			ID:        12345,
-			Email:     "new-user@other.example",
-			AvatarURL: "https://avatars.example.com/new-user",
+			ID:            12345,
+			Email:         "new-user@other.example",
+			EmailVerified: true,
+			AvatarURL:     "https://avatars.example.com/new-user",
 		},
 	}
 	app := newAuthTestApp(db, fakeService)
@@ -130,6 +132,52 @@ func TestGitHubCallbackAutoSignupRejectsUntrustedDomain(t *testing.T) {
 	}
 	if location := resp.Header.Get("Location"); location != "/?code=auto-signup-domain-denied" {
 		t.Fatalf("expected domain denied redirect, got %q", location)
+	}
+
+	var count int64
+	if err := db.Model(&models.User{}).Count(&count).Error; err != nil {
+		t.Fatalf("failed to count users: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected no user to be created, got %d", count)
+	}
+}
+
+func TestGitHubCallbackAutoSignupRejectsUnverifiedEmail(t *testing.T) {
+	db, cleanup := newAuthTestDB(t)
+	defer cleanup()
+
+	team := &models.Team{Name: "Engineering"}
+	if err := db.Create(team).Error; err != nil {
+		t.Fatalf("failed to create team: %v", err)
+	}
+
+	teamID := team.ID
+	settings := models.DefaultInstanceSettings()
+	settings.AutoSignupEnabled = true
+	settings.AutoSignupAllowedDomains = "example.com"
+	settings.AutoSignupTeamID = &teamID
+	if err := db.Create(&settings).Error; err != nil {
+		t.Fatalf("failed to create instance settings: %v", err)
+	}
+
+	fakeService := &fakeGitHubService{
+		user: &services.GitHubUser{
+			ID:        12345,
+			Email:     "new-user@example.com",
+			AvatarURL: "https://avatars.example.com/new-user",
+		},
+	}
+	app := newAuthTestApp(db, fakeService)
+
+	resp := performGitHubCallback(t, app, fakeService)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusFound {
+		t.Fatalf("expected status 302 Found, got %d", resp.StatusCode)
+	}
+	if location := resp.Header.Get("Location"); location != "/?code=private-email" {
+		t.Fatalf("expected private email redirect, got %q", location)
 	}
 
 	var count int64

@@ -336,6 +336,11 @@ func (h *Handler) resolveGitHubLogin(githubUser *services.GitHubUser, accessToke
 		return nil, "", err
 	}
 
+	if !githubUser.EmailVerified {
+		log.Warn("GitHub user attempted login with an unverified email", "email", githubUser.Email)
+		return nil, "private-email", nil
+	}
+
 	err = h.db.Where("email = ?", githubUser.Email).First(&user).Error
 	if err == nil {
 		githubUserRecord = models.GithubUser{
