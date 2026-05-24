@@ -261,8 +261,13 @@ func CreateNewConnectionWithContext(ctx context.Context, cfg config.ClientConfig
 		ConnectionId string `json:"connection_id"`
 	}
 
+	connectionType := cfg.Tunnel.Type
+	if connectionType == constants.Stub {
+		connectionType = constants.Http
+	}
+
 	payload := map[string]any{
-		"connection_type": string(cfg.Tunnel.Type),
+		"connection_type": string(connectionType),
 		"secret_key":      cfg.SecretKey,
 		"subdomain":       nil,
 	}
@@ -270,7 +275,7 @@ func CreateNewConnectionWithContext(ctx context.Context, cfg config.ClientConfig
 		SetError(&reqErr).
 		SetResult(&response)
 
-	if cfg.Tunnel.Type == constants.Http {
+	if cfg.Tunnel.Type == constants.Http || cfg.Tunnel.Type == constants.Stub {
 		payload["subdomain"] = cfg.Tunnel.Subdomain
 	}
 
@@ -294,6 +299,13 @@ func (s *SshClient) createNewConnection(ctx context.Context) (string, error) {
 		return s.config.ConnectionID, nil
 	}
 	return CreateNewConnectionWithContext(ctx, s.config)
+}
+
+func tunnelStatusKey(tunnel config.Tunnel) string {
+	if tunnel.Type == constants.Stub {
+		return "stub:" + tunnel.Subdomain
+	}
+	return fmt.Sprintf("%d", tunnel.Port)
 }
 
 func (s *SshClient) startListenerForClient(ctx context.Context) error {
@@ -366,6 +378,9 @@ func (s *SshClient) startListenerForClientWithReady(ctx context.Context, ready c
 	localEndpoint := s.config.Tunnel.GetLocalAddr()
 
 	tunnelType := s.config.Tunnel.Type
+	if tunnelType == constants.Stub {
+		tunnelType = constants.Http
+	}
 
 	var randomPorts []int
 	if tunnelType == constants.Http {
@@ -418,7 +433,7 @@ func (s *SshClient) startListenerForClientWithReady(ctx context.Context, ready c
 	}
 
 	if s.tui != nil {
-		s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: 1})
+		s.tui.Send(tui.UpdateConnCountMsg{Port: tunnelStatusKey(s.config.Tunnel), Delta: 1})
 	}
 
 	for {
@@ -440,7 +455,7 @@ func (s *SshClient) startListenerForClientWithReady(ctx context.Context, ready c
 				log.Error("Failed to accept connection", "error", err)
 			}
 			if s.tui != nil {
-				s.tui.Send(tui.UpdateConnCountMsg{Port: fmt.Sprintf("%d", s.config.Tunnel.Port), Delta: -1})
+				s.tui.Send(tui.UpdateConnCountMsg{Port: tunnelStatusKey(s.config.Tunnel), Delta: -1})
 			}
 			return s.handleAcceptError(listener, err)
 		}
@@ -945,7 +960,11 @@ func (s *SshClient) logHttpRequest(
 
 	tunnelName := s.config.Tunnel.Name
 	if tunnelName == "" {
-		tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
+		if s.config.Tunnel.Type == constants.Stub && s.config.Tunnel.Subdomain != "" {
+			tunnelName = s.config.Tunnel.Subdomain
+		} else {
+			tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
+		}
 	}
 
 	if !s.config.EnableRequestLogging {
@@ -985,8 +1004,9 @@ func (s *SshClient) Shutdown(ctx context.Context) error {
 	err := s.closeTransport()
 	s.mu.RLock()
 	tuiProgram := s.tui
-	port := fmt.Sprintf("%d", s.config.Tunnel.Port)
-	address := s.config.GetTunnelAddr()
+	cfg := s.config
+	port := tunnelStatusKey(cfg.Tunnel)
+	address := cfg.GetTunnelAddr()
 	s.mu.RUnlock()
 
 	if tuiProgram != nil {
@@ -1035,7 +1055,7 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) error {
 
 		if s.tui != nil {
 			s.tui.Send(tui.UpdateHealthMsg{
-				Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
+				Port:    tunnelStatusKey(s.config.Tunnel),
 				Healthy: false,
 			})
 		} else if !s.config.DisableTerminalLogs {
@@ -1061,21 +1081,23 @@ func (s *SshClient) StartHealthCheck(ctx context.Context) error {
 			s.logDebug(fmt.Sprintf("Failed to reconnect to ssh tunnel (attempt %d)", retryAttempts), reconnectErr)
 		}
 		if retryAttempts > s.config.HealthCheckMaxRetries {
-			tunnelName := s.config.Tunnel.Name
-			if tunnelName == "" {
-				tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
-			}
-			return fmt.Errorf("failed to reconnect tunnel '%s' after %d attempts: %w", tunnelName, retryAttempts, reconnectErr)
+			return fmt.Errorf("failed to reconnect tunnel '%s' after %d attempts: %w", tunnelDisplayName(s.config.Tunnel), retryAttempts, reconnectErr)
 		}
 	}
 }
 
 func (s *SshClient) startError(err error) error {
-	tunnelName := s.config.Tunnel.Name
-	if tunnelName == "" {
-		tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
+	return fmt.Errorf("failed to start tunnel '%s': %w", tunnelDisplayName(s.config.Tunnel), err)
+}
+
+func tunnelDisplayName(tunnel config.Tunnel) string {
+	if tunnel.Name != "" {
+		return tunnel.Name
 	}
-	return fmt.Errorf("failed to start tunnel '%s': %w", tunnelName, err)
+	if tunnel.Type == constants.Stub && tunnel.Subdomain != "" {
+		return tunnel.Subdomain
+	}
+	return fmt.Sprintf("%d", tunnel.Port)
 }
 
 func (s *SshClient) Start(ctx context.Context) error {
@@ -1109,7 +1131,7 @@ func (s *SshClient) Start(ctx context.Context) error {
 	case <-readyChan:
 		s.forwardListenerErrors(startupCtx, errChan)
 
-		if s.config.Tunnel.Type == constants.Http {
+		if s.config.Tunnel.Type == constants.Http || s.config.Tunnel.Type == constants.Stub {
 			defer cancelStartup()
 			return s.StartHealthCheck(startupCtx)
 		}
@@ -1197,7 +1219,7 @@ func (s *SshClient) Reconnect() error {
 		// Connection successful, update health status
 		if s.tui != nil {
 			s.tui.Send(tui.UpdateHealthMsg{
-				Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
+				Port:    tunnelStatusKey(s.config.Tunnel),
 				Healthy: true,
 			})
 		} else if !s.config.DisableTerminalLogs {
@@ -1235,7 +1257,7 @@ func (s *SshClient) HealthCheck() error {
 
 	if s.tui != nil {
 		s.tui.Send(tui.UpdateHealthMsg{
-			Port:    fmt.Sprintf("%d", s.config.Tunnel.Port),
+			Port:    tunnelStatusKey(s.config.Tunnel),
 			Healthy: true,
 		})
 	}

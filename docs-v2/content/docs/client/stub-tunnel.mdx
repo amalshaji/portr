@@ -1,0 +1,122 @@
+---
+title: Stub Tunnel
+description: Serve templated responses through a local Portr responder
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+Stub tunnels let the Portr client return a templated response without you
+running a separate local web server. The client starts one local stub responder
+inside the Portr process and exposes each stub subdomain through the existing
+HTTP tunnel path.
+
+```bash
+portr stub \
+  --subdomain yaml \
+  --response-format application/yml \
+  --response-tmpl 'message: {{message}}'
+```
+
+You can also read the response template from a file:
+
+```bash
+portr stub \
+  --subdomain json \
+  --response-format application/json \
+  --response-tmpl-file ./response.json
+```
+
+`--response-tmpl` and `--response-tmpl-file` are mutually exclusive, and one of them is required.
+
+<Callout type="info">
+  Stub tunnels use the existing HTTP tunnel protocol, so they work with
+  existing Portr servers and do not require a server migration or stub-specific
+  heartbeat endpoint.
+</Callout>
+
+## Template Values
+
+Use `{{name}}` placeholders in the response template. When a request hits the stub tunnel, Portr fills placeholders from request values in this order:
+
+1. Query parameters
+2. JSON body fields or form fields
+3. Empty string when no value exists
+
+For example:
+
+```bash
+curl 'https://yaml.example.com?message=hello'
+```
+
+With this template:
+
+```yaml
+message: {{message}}
+missing: {{missing}}
+```
+
+Portr returns:
+
+```yaml
+message: hello
+missing:
+```
+
+The request body can be a JSON object, `application/x-www-form-urlencoded`, or
+`multipart/form-data`. Invalid JSON or form bodies return `400 Bad Request`.
+
+## Value Casting
+
+Use `{{key|int}}`, `{{key|bool}}`, or `{{key|float}}` when a placeholder should
+render as a typed value. If the value cannot be parsed as that type, Portr keeps
+the original string value.
+
+For JSON templates, wrap typed placeholders in quotes so failed casts still
+produce valid JSON strings:
+
+```json
+{
+  "id": "{{id}}",
+  "status": "{{status|int}}",
+  "enabled": "{{enabled|bool}}",
+  "score": "{{score|float}}",
+  "message": "{{message}}",
+  "source": "portr-stub"
+}
+```
+
+With `?status=200&enabled=true&score=12.5`, Portr renders:
+
+```json
+{
+  "id": "",
+  "status": 200,
+  "enabled": true,
+  "score": 12.5,
+  "message": "",
+  "source": "portr-stub"
+}
+```
+
+## Config Template
+
+Stub tunnels can be defined in your Portr config with `type: stub` and started with `portr start`:
+
+```yaml
+tunnels:
+  - name: yaml
+    type: stub
+    subdomain: yaml
+    response_format: application/yml
+    response_tmpl_file: ./response.yml
+```
+
+Template file paths in config are resolved relative to the config file.
+
+## Examples
+
+Example templates are available in:
+
+- `examples/stub-response.json`
+- `examples/stub-response.yaml`
+- `examples/stub-response.xml`

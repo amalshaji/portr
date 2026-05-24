@@ -28,8 +28,8 @@ Use app-server when you want another local program to own tunnel lifecycle:
 - Desktop apps or local automation tools that need to open and close tunnels
 - Integrations that need disconnect and reconnect notifications
 
-For one-off terminal workflows, `portr http`, `portr tcp`, and `portr start`
-remain simpler. For inspecting HTTP traffic already captured on disk, use
+For one-off terminal workflows, `portr http`, `portr tcp`, `portr stub`, and
+`portr start` remain simpler. For inspecting HTTP traffic already captured on disk, use
 [`portr logs`](/docs/client/request-logs) or the local inspector dashboard.
 
 ## Runtime model
@@ -220,16 +220,37 @@ TCP responses include `remote_port` once the remote listener is allocated:
 }
 ```
 
+## Start a stub tunnel
+
+Stub tunnels use the same endpoint with `type: "stub"`. They do not require
+`host` or `port`; the app-server process starts a shared local stub responder
+and exposes it through the existing HTTP tunnel path.
+
+```bash
+curl -X POST http://127.0.0.1:7778/api/v1/tunnels \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "yaml",
+    "type": "stub",
+    "subdomain": "yaml",
+    "response_format": "application/yml",
+    "response_tmpl": "message: {{message}}\n"
+  }'
+```
+
 ## Request fields
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | string | No | Human-readable label returned in status and event payloads. |
-| `type` | string | No | `http` or `tcp`. Defaults to `http` when omitted. |
-| `host` | string | No | Local host to forward to. Defaults to `localhost`. |
-| `port` | number | Yes | Local port to forward to. Must be between `1` and `65535`. |
-| `subdomain` | string | HTTP only | Fixed HTTP subdomain. If omitted for HTTP, Portr generates one. |
+| `type` | string | No | `http`, `tcp`, or `stub`. Defaults to `http` when omitted. |
+| `host` | string | HTTP/TCP | Local host to forward to. Defaults to `localhost`. |
+| `port` | number | HTTP/TCP | Local port to forward to. Must be between `1` and `65535`. |
+| `subdomain` | string | HTTP/stub | Fixed HTTP subdomain. If omitted for HTTP, Portr generates one. Stub tunnels require it. |
 | `pool_size` | number | HTTP only | Number of HTTP tunnel workers. Defaults to the client tunnel default. Falls back to one worker when the Portr server does not support pooled HTTP tunnels. |
+| `response_format` | string | Stub only | Response `Content-Type`, such as `application/json` or `application/yml`. |
+| `response_tmpl` | string | Stub only | Inline stub response template. Use exactly one of `response_tmpl` or `response_tmpl_file`. |
+| `response_tmpl_file` | string | Stub only | Stub response template file path, resolved from the app-server process working directory. |
 | `callback_url` | string | No | Single webhook URL for lifecycle events. |
 | `callback_urls` | string[] | No | Additional webhook URLs for lifecycle events. Duplicate URLs are ignored. |
 
@@ -242,12 +263,13 @@ Tunnel status responses use this shape:
 | `id` | string | App-server tunnel ID used by the local API. |
 | `name` | string | Optional name supplied when the tunnel was created. |
 | `status` | string | Current lifecycle status. |
-| `type` | string | `http` or `tcp`. |
+| `type` | string | `http`, `tcp`, or `stub`. |
 | `host` | string | Local host forwarded by the tunnel. |
 | `port` | number | Local port forwarded by the tunnel. |
-| `subdomain` | string | HTTP subdomain, when the tunnel is HTTP. |
+| `subdomain` | string | HTTP subdomain, when the tunnel is HTTP or stub. |
 | `remote_port` | number | Remote TCP port, when the tunnel is TCP and the server has allocated one. |
 | `tunnel_url` | string | Public HTTP URL or TCP host/port once available. |
+| `response_format` | string | Stub response `Content-Type`, when the tunnel is stub. |
 | `callback_urls` | string[] | Callback URLs registered for this tunnel. |
 | `started_at` | string | RFC3339 timestamp for tunnel creation inside app-server. |
 | `updated_at` | string | RFC3339 timestamp for the last status change. |

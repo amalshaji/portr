@@ -1,0 +1,6 @@
+{
+  "id": "{{id}}",
+  "status": "{{status|int}}",
+  "message": "{{message}}",
+  "source": "portr-stub"
+}

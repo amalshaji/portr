@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -18,13 +19,16 @@ import (
 var UNABLE_TO_OPEN_EDITOR = color.Yellow("Unable to open editor. Please edit the config file manually at " + DefaultConfigPath)
 
 type Tunnel struct {
-	Name       string                   `yaml:"name"`
-	Subdomain  string                   `yaml:"subdomain"`
-	Port       int                      `yaml:"port"`
-	Host       string                   `yaml:"host"`
-	Type       constants.ConnectionType `yaml:"type"`
-	RemotePort int
-	PoolSize   int `yaml:"pool_size"`
+	Name                 string                   `yaml:"name"`
+	Subdomain            string                   `yaml:"subdomain"`
+	Port                 int                      `yaml:"port"`
+	Host                 string                   `yaml:"host"`
+	Type                 constants.ConnectionType `yaml:"type"`
+	ResponseFormat       string                   `yaml:"response_format"`
+	ResponseTemplate     string                   `yaml:"response_tmpl"`
+	ResponseTemplateFile string                   `yaml:"response_tmpl_file"`
+	RemotePort           int
+	PoolSize             int `yaml:"pool_size"`
 }
 
 func (t *Tunnel) SetDefaults() {
@@ -36,19 +40,34 @@ func (t *Tunnel) SetDefaults() {
 		t.Subdomain = utils.GenerateTunnelSubdomain()
 	}
 
-	if t.Host == "" {
+	if t.Host == "" && t.Type != constants.Stub {
 		t.Host = "localhost"
 	}
 
-	if t.PoolSize <= 0 {
+	if t.Type == constants.Stub {
+		t.PoolSize = 1
+	} else if t.PoolSize <= 0 {
 		t.PoolSize = 2
 	}
 }
 
 func (t *Tunnel) Validate() error {
-	if t.Type == constants.Http {
+	if t.Type == constants.Stub && strings.TrimSpace(t.Subdomain) == "" {
+		return fmt.Errorf("subdomain is required for stub tunnels")
+	}
+
+	if t.Type == constants.Http || t.Type == constants.Stub {
 		if err := utils.ValidateSubdomain(t.Subdomain); err != nil {
 			return err
+		}
+	}
+
+	if t.Type == constants.Stub {
+		if strings.TrimSpace(t.ResponseFormat) == "" {
+			return fmt.Errorf("response_format is required for stub tunnels")
+		}
+		if strings.TrimSpace(t.ResponseTemplate) == "" {
+			return fmt.Errorf("response_tmpl or response_tmpl_file is required for stub tunnels")
 		}
 	}
 
@@ -57,6 +76,58 @@ func (t *Tunnel) Validate() error {
 
 func (t *Tunnel) GetLocalAddr() string {
 	return t.Host + ":" + fmt.Sprint(t.Port)
+}
+
+func (t *Tunnel) ValidateStubTemplateSource() error {
+	if t.Type != constants.Stub {
+		return nil
+	}
+
+	hasInline := strings.TrimSpace(t.ResponseTemplate) != ""
+	hasFile := strings.TrimSpace(t.ResponseTemplateFile) != ""
+
+	switch {
+	case hasInline && hasFile:
+		return fmt.Errorf("only one of response_tmpl or response_tmpl_file can be provided for stub tunnels")
+	case !hasInline && !hasFile:
+		return fmt.Errorf("response_tmpl or response_tmpl_file is required for stub tunnels")
+	default:
+		return nil
+	}
+}
+
+func (t *Tunnel) ResolveStubTemplate(baseDir string) error {
+	if t.Type != constants.Stub {
+		return nil
+	}
+
+	if err := t.ValidateStubTemplateSource(); err != nil {
+		return err
+	}
+
+	if strings.TrimSpace(t.ResponseTemplateFile) == "" {
+		return nil
+	}
+
+	templatePath := t.ResponseTemplateFile
+	if !filepath.IsAbs(templatePath) {
+		if baseDir == "" {
+			baseDir = "."
+		}
+		templatePath = filepath.Join(baseDir, templatePath)
+	}
+
+	templateBytes, err := os.ReadFile(templatePath)
+	if err != nil {
+		return fmt.Errorf("failed to read response_tmpl_file %q: %w", t.ResponseTemplateFile, err)
+	}
+
+	t.ResponseTemplate = string(templateBytes)
+	if strings.TrimSpace(t.ResponseTemplate) == "" {
+		return fmt.Errorf("response_tmpl_file %q is empty", t.ResponseTemplateFile)
+	}
+
+	return nil
 }
 
 type Config struct {
@@ -192,13 +263,17 @@ func (c *ClientConfig) GetHttpTunnelAddr() string {
 	return protocol + "://" + c.Tunnel.Subdomain + "." + c.TunnelUrl
 }
 
+func (c *ClientConfig) GetStubTunnelAddr() string {
+	return c.GetHttpTunnelAddr()
+}
+
 func (c *ClientConfig) GetTcpTunnelAddr() string {
 	split := strings.Split(c.TunnelUrl, ":")
 	return split[0] + ":" + fmt.Sprint(c.Tunnel.RemotePort)
 }
 
 func (c *ClientConfig) GetTunnelAddr() string {
-	if c.Tunnel.Type == constants.Http {
+	if c.Tunnel.Type == constants.Http || c.Tunnel.Type == constants.Stub {
 		return c.GetHttpTunnelAddr()
 	}
 	return c.GetTcpTunnelAddr()
@@ -227,6 +302,13 @@ func Load(configFile string) (Config, error) {
 	}
 
 	config.SetDefaults()
+
+	baseDir := filepath.Dir(configFile)
+	for i := range config.Tunnels {
+		if err := config.Tunnels[i].ResolveStubTemplate(baseDir); err != nil {
+			return Config{}, err
+		}
+	}
 
 	return config, nil
 }
