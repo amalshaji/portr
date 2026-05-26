@@ -85,6 +85,41 @@ func TestInstanceSettingsRequireSuperuser_SuperuserAllowed(t *testing.T) {
 	}
 }
 
+func TestInstanceSettingsNoTrailingSlashRoutes(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	admin := CreateTestUser(t, db, "admin-instance-no-slash@example.com", true)
+	adminSess := CreateSessionForUser(t, db, admin)
+
+	getReq := httptest.NewRequest("GET", "/api/v1/instance-settings", nil)
+	getReq.Header.Set("Cookie", SessionCookieValue(adminSess))
+
+	getResp := DoRequest(t, srv, getReq)
+	defer getResp.Body.Close()
+
+	if getResp.StatusCode != http.StatusOK {
+		t.Fatalf("expected GET status 200 OK, got %d", getResp.StatusCode)
+	}
+
+	payload := []byte(`{
+		"auto_signup_enabled": false,
+		"auto_signup_domains": []
+	}`)
+	patchReq := httptest.NewRequest("PATCH", "/api/v1/instance-settings", bytes.NewReader(payload))
+	patchReq.Header.Set("Content-Type", "application/json")
+	patchReq.Header.Set("Cookie", SessionCookieValue(adminSess))
+
+	patchResp := DoRequest(t, srv, patchReq)
+	defer patchResp.Body.Close()
+
+	if patchResp.StatusCode != http.StatusOK {
+		t.Fatalf("expected PATCH status 200 OK, got %d", patchResp.StatusCode)
+	}
+}
+
 func TestInstanceSettingsPageRequireSuperuser(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()

@@ -55,7 +55,7 @@ export default function NewTeamDialog({ isOpen, setIsOpen }: NewTeamDialogProps)
     setSubmitting(true)
 
     try {
-      const response = await fetch('/api/v1/team', {
+      const response = await fetch('/api/v1/team/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

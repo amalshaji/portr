@@ -161,7 +161,9 @@ func (s *Server) setupTeamRoutes(v1 fiber.Router) {
 	teamHandler := team.NewHandler(s.db.DB, s.store)
 	teamGroup := v1.Group("/team")
 
+	teamGroup.Get("", s.auth.RequireSuperuser, teamHandler.ListTeams)
 	teamGroup.Get("/", s.auth.RequireSuperuser, teamHandler.ListTeams)
+	teamGroup.Post("", s.auth.RequireSuperuser, teamHandler.CreateTeam)
 	teamGroup.Post("/", s.auth.RequireSuperuser, teamHandler.CreateTeam)
 	teamGroup.Get("/users", s.auth.RequireTeamUser, teamHandler.GetTeamUsers)
 	teamGroup.Post("/add", s.auth.RequireAdmin, teamHandler.AddUser)
@@ -173,7 +175,9 @@ func (s *Server) setupConnectionRoutes(v1 fiber.Router) {
 	connHandler := connection.NewHandler(s.db.DB, s.store)
 	connGroup := v1.Group("/connections")
 
+	connGroup.Get("", s.auth.RequireTeamUser, connHandler.GetConnections)
 	connGroup.Get("/", s.auth.RequireTeamUser, connHandler.GetConnections)
+	connGroup.Post("", connHandler.CreateConnection)
 	connGroup.Post("/", connHandler.CreateConnection)
 }
 
@@ -190,7 +194,9 @@ func (s *Server) setupInstanceSettingsRoutes(v1 fiber.Router) {
 	configHandler := config.NewHandler(s.db.DB, s.store, s.config, s.statsCollector)
 	instanceGroup := v1.Group("/instance-settings")
 
+	instanceGroup.Get("", s.auth.RequireSuperuser, configHandler.GetInstanceSettings)
 	instanceGroup.Get("/", s.auth.RequireSuperuser, configHandler.GetInstanceSettings)
+	instanceGroup.Patch("", s.auth.RequireSuperuser, configHandler.UpdateInstanceSettings)
 	instanceGroup.Patch("/", s.auth.RequireSuperuser, configHandler.UpdateInstanceSettings)
 }
 

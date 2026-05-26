@@ -74,6 +74,69 @@ func TestCreateTeam_SuperuserSucceeds(t *testing.T) {
 	}
 }
 
+func TestCreateTeam_NoTrailingSlashSucceeds(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	admin := CreateTestUser(t, db, "admin-team-no-slash@example.com", true)
+	adminSess := CreateSessionForUser(t, db, admin)
+
+	payload := `{"name":"No Slash Team"}`
+	req := httptest.NewRequest("POST", "/api/v1/team", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Cookie", SessionCookieValue(adminSess))
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK, got %d", resp.StatusCode)
+	}
+
+	var tr teamResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tr); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if tr.Name != "No Slash Team" {
+		t.Fatalf("expected team name 'No Slash Team', got %q", tr.Name)
+	}
+	if tr.Slug != "no-slash-team" {
+		t.Fatalf("expected slug 'no-slash-team', got %q", tr.Slug)
+	}
+}
+
+func TestListTeams_NoTrailingSlashSucceeds(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	admin := CreateTestUser(t, db, "admin-list-team-no-slash@example.com", true)
+	team, _ := CreateTeamAndTeamUser(t, db, "No Slash List Team", admin, models.RoleAdmin)
+	adminSess := CreateSessionForUser(t, db, admin)
+
+	req := httptest.NewRequest("GET", "/api/v1/team", nil)
+	req.Header.Set("Cookie", SessionCookieValue(adminSess))
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK, got %d", resp.StatusCode)
+	}
+
+	var teams []teamResponse
+	if err := json.NewDecoder(resp.Body).Decode(&teams); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if len(teams) != 1 || teams[0].Slug != team.Slug {
+		t.Fatalf("expected team list to include %q, got %v", team.Slug, teams)
+	}
+}
+
 func TestCreateTeam_NonSuperuserBlocked(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()
