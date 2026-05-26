@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"os"
@@ -378,7 +379,68 @@ func SetConfig(config string) error {
 	return os.WriteFile(DefaultConfigPath, []byte(config), 0644)
 }
 
+func writeConfigNode(configNode *yaml.Node) error {
+	var buf bytes.Buffer
+	encoder := yaml.NewEncoder(&buf)
+	encoder.SetIndent(2)
+	if err := encoder.Encode(configNode); err != nil {
+		_ = encoder.Close()
+		return err
+	}
+	if err := encoder.Close(); err != nil {
+		return err
+	}
+
+	return os.WriteFile(DefaultConfigPath, buf.Bytes(), 0644)
+}
+
+func SetConfigToken(token string) error {
+	configBytes, err := os.ReadFile(DefaultConfigPath)
+	if err != nil {
+		return err
+	}
+
+	if len(bytes.TrimSpace(configBytes)) == 0 {
+		return os.WriteFile(DefaultConfigPath, []byte(fmt.Sprintf("secret_key: %s\n", token)), 0644)
+	}
+
+	var configNode yaml.Node
+	if err := yaml.Unmarshal(configBytes, &configNode); err != nil {
+		return err
+	}
+
+	if configNode.Kind == 0 || len(configNode.Content) == 0 {
+		configNode.Kind = yaml.DocumentNode
+		configNode.Content = []*yaml.Node{{Kind: yaml.MappingNode, Tag: "!!map"}}
+	}
+
+	if configNode.Kind != yaml.DocumentNode || len(configNode.Content) == 0 || configNode.Content[0].Kind != yaml.MappingNode {
+		return fmt.Errorf("config file must contain a YAML mapping")
+	}
+
+	mappingNode := configNode.Content[0]
+	for i := 0; i < len(mappingNode.Content)-1; i += 2 {
+		if mappingNode.Content[i].Value == "secret_key" {
+			mappingNode.Content[i+1] = &yaml.Node{
+				Kind:  yaml.ScalarNode,
+				Tag:   "!!str",
+				Value: token,
+			}
+
+			return writeConfigNode(&configNode)
+		}
+	}
+
+	mappingNode.Content = append(mappingNode.Content,
+		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "secret_key"},
+		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: token},
+	)
+
+	return writeConfigNode(&configNode)
+}
+
 func GetConfig(token string, remote string) error {
+	configFileExists := checkDefaultConfigFileExists()
 	payloadMap := map[string]string{
 		"secret_key": token,
 	}
@@ -404,6 +466,10 @@ func GetConfig(token string, remote string) error {
 
 	if resp.StatusCode() != http.StatusOK {
 		return fmt.Errorf("%s", response.Message)
+	}
+
+	if configFileExists {
+		return SetConfigToken(token)
 	}
 
 	return SetConfig(response.Message)
