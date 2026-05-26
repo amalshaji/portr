@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Save, Server, UserPlus } from 'lucide-react'
+import { Plus, Save, Server, Trash2, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -13,14 +13,13 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
-import type { InstanceSettings as InstanceSettingsType, Team } from '@/types'
+import type { AutoSignupDomain, InstanceSettings as InstanceSettingsType, Team } from '@/types'
 
 export default function InstanceSettings() {
   const [settings, setSettings] = useState<InstanceSettingsType>({
     github_auth_enabled: false,
     auto_signup_enabled: false,
-    auto_signup_allowed_domains: '',
-    auto_signup_team_id: null,
+    auto_signup_domains: [],
   })
   const [teams, setTeams] = useState<Team[]>([])
   const [loading, setLoading] = useState(true)
@@ -54,8 +53,31 @@ export default function InstanceSettings() {
     }
   }
 
-  const handleSettingChange = (field: keyof InstanceSettingsType, value: string | number | boolean | null) => {
-    setSettings((prev) => ({ ...prev, [field]: value }))
+  const handleAutoSignupEnabledChange = (enabled: boolean) => {
+    setSettings((prev) => ({ ...prev, auto_signup_enabled: enabled }))
+  }
+
+  const handleDomainMappingChange = (index: number, patch: Partial<AutoSignupDomain>) => {
+    setSettings((prev) => ({
+      ...prev,
+      auto_signup_domains: prev.auto_signup_domains.map((mapping, mappingIndex) =>
+        mappingIndex === index ? { ...mapping, ...patch } : mapping
+      ),
+    }))
+  }
+
+  const addDomainMapping = () => {
+    setSettings((prev) => ({
+      ...prev,
+      auto_signup_domains: [...prev.auto_signup_domains, { domain: '', team_id: null }],
+    }))
+  }
+
+  const removeDomainMapping = (index: number) => {
+    setSettings((prev) => ({
+      ...prev,
+      auto_signup_domains: prev.auto_signup_domains.filter((_, mappingIndex) => mappingIndex !== index),
+    }))
   }
 
   const handleSave = async () => {
@@ -124,7 +146,7 @@ export default function InstanceSettings() {
                   id="auto-signup-enabled"
                   checked={settings.auto_signup_enabled}
                   disabled={!settings.github_auth_enabled && !settings.auto_signup_enabled}
-                  onCheckedChange={(checked) => handleSettingChange('auto_signup_enabled', checked)}
+                  onCheckedChange={handleAutoSignupEnabledChange}
                 />
                 <Label htmlFor="auto-signup-enabled">Enable auto signup</Label>
               </div>
@@ -135,35 +157,77 @@ export default function InstanceSettings() {
                 </p>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="trusted-domains">Trusted domains</Label>
-                <Input
-                  id="trusted-domains"
-                  value={settings.auto_signup_allowed_domains}
-                  disabled={!settings.auto_signup_enabled}
-                  onChange={(e) => handleSettingChange('auto_signup_allowed_domains', e.target.value)}
-                  placeholder="example.com, acme.co"
-                />
-              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <Label>Domain mappings</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!settings.auto_signup_enabled}
+                    onClick={addDomainMapping}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add domain
+                  </Button>
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="auto-signup-team">Team</Label>
-                <Select
-                  value={settings.auto_signup_team_id ? String(settings.auto_signup_team_id) : ''}
-                  disabled={!settings.auto_signup_enabled || teams.length === 0}
-                  onValueChange={(value) => handleSettingChange('auto_signup_team_id', Number(value))}
-                >
-                  <SelectTrigger id="auto-signup-team">
-                    <SelectValue placeholder="Select a team" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {teams.map((team) => (
-                      <SelectItem key={team.id} value={String(team.id)}>
-                        {team.name}
-                      </SelectItem>
+                {settings.auto_signup_domains.length === 0 ? (
+                  <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                    No auto signup domains configured.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {settings.auto_signup_domains.map((mapping, index) => (
+                      <div
+                        key={mapping.id ?? `new-${index}`}
+                        className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(180px,240px)_auto] sm:items-end"
+                      >
+                        <div className="space-y-2">
+                          <Label htmlFor={`auto-signup-domain-${index}`}>Domain</Label>
+                          <Input
+                            id={`auto-signup-domain-${index}`}
+                            value={mapping.domain}
+                            disabled={!settings.auto_signup_enabled}
+                            onChange={(e) => handleDomainMappingChange(index, { domain: e.target.value })}
+                            placeholder="amal.sh"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`auto-signup-team-${index}`}>Team</Label>
+                          <Select
+                            value={mapping.team_id ? String(mapping.team_id) : ''}
+                            disabled={!settings.auto_signup_enabled || teams.length === 0}
+                            onValueChange={(value) => handleDomainMappingChange(index, { team_id: Number(value) })}
+                          >
+                            <SelectTrigger id={`auto-signup-team-${index}`}>
+                              <SelectValue placeholder="Select a team" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {teams.map((team) => (
+                                <SelectItem key={team.id} value={String(team.id)}>
+                                  {team.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={!settings.auto_signup_enabled}
+                          onClick={() => removeDomainMapping(index)}
+                          aria-label="Remove domain mapping"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -36,8 +36,14 @@ export interface TeamUser {
 export interface InstanceSettings {
   github_auth_enabled: boolean
   auto_signup_enabled: boolean
-  auto_signup_allowed_domains: string
-  auto_signup_team_id: number | null
+  auto_signup_domains: AutoSignupDomain[]
+}
+
+export interface AutoSignupDomain {
+  id?: number
+  domain: string
+  team_id: number | null
+  team?: Team
 }
 
 export interface AuthConfig {

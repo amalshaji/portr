@@ -74,6 +74,12 @@ func TestInstanceSettingsRequireSuperuser_SuperuserAllowed(t *testing.T) {
 	if _, ok := body["auto_signup_enabled"]; !ok {
 		t.Fatalf("expected 'auto_signup_enabled' field in response, got: %v", body)
 	}
+	if _, ok := body["auto_signup_domains"]; !ok {
+		t.Fatalf("expected 'auto_signup_domains' field in response, got: %v", body)
+	}
+	if _, ok := body["auto_signup_allowed_domains"]; ok {
+		t.Fatalf("did not expect legacy auto signup domain list in response, got: %v", body)
+	}
 	if _, ok := body["smtp_enabled"]; ok {
 		t.Fatalf("did not expect unused SMTP settings in response, got: %v", body)
 	}
@@ -113,8 +119,10 @@ func TestInstanceSettingsUpdatePersistsAutoSignupSettings(t *testing.T) {
 
 	payload := []byte(`{
 		"auto_signup_enabled": true,
-		"auto_signup_allowed_domains": " Example.com, @example.com, dev.example.com. ",
-		"auto_signup_team_id": ` + jsonNumber(team.ID) + `
+		"auto_signup_domains": [
+			{"domain": " Example.com. ", "team_id": ` + jsonNumber(team.ID) + `},
+			{"domain": " @dev.example.com. ", "team_id": ` + jsonNumber(team.ID) + `}
+		]
 	}`)
 
 	req := httptest.NewRequest("PATCH", "/api/v1/instance-settings/", bytes.NewReader(payload))
@@ -136,19 +144,52 @@ func TestInstanceSettingsUpdatePersistsAutoSignupSettings(t *testing.T) {
 	if body["auto_signup_enabled"] != true {
 		t.Fatalf("expected auto signup to be enabled, got %v", body["auto_signup_enabled"])
 	}
-	if body["auto_signup_allowed_domains"] != "example.com, dev.example.com" {
-		t.Fatalf("expected normalized trusted domains, got %v", body["auto_signup_allowed_domains"])
-	}
 	if body["github_auth_enabled"] != true {
 		t.Fatalf("expected github auth to be enabled in response, got %v", body["github_auth_enabled"])
+	}
+	domains, ok := body["auto_signup_domains"].([]interface{})
+	if !ok {
+		t.Fatalf("expected auto_signup_domains array, got %T", body["auto_signup_domains"])
+	}
+	gotDomains := make(map[string]float64, len(domains))
+	for _, item := range domains {
+		domain, ok := item.(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected domain object, got %T", item)
+		}
+		domainName, ok := domain["domain"].(string)
+		if !ok {
+			t.Fatalf("expected domain string in %v", domain)
+		}
+		teamID, ok := domain["team_id"].(float64)
+		if !ok {
+			t.Fatalf("expected team_id number in %v", domain)
+		}
+		gotDomains[domainName] = teamID
+	}
+	if gotDomains["example.com"] != float64(team.ID) || gotDomains["dev.example.com"] != float64(team.ID) {
+		t.Fatalf("expected normalized domain mappings for team %d, got %v", team.ID, gotDomains)
 	}
 
 	var settings models.InstanceSettings
 	if err := db.First(&settings, 1).Error; err != nil {
 		t.Fatalf("failed to load persisted settings: %v", err)
 	}
-	if settings.AutoSignupTeamID == nil || *settings.AutoSignupTeamID != team.ID {
-		t.Fatalf("expected auto signup team ID %d, got %v", team.ID, settings.AutoSignupTeamID)
+	if !settings.AutoSignupEnabled {
+		t.Fatalf("expected persisted auto signup enabled")
+	}
+
+	var mappings []models.AutoSignupDomain
+	if err := db.Order("domain ASC").Find(&mappings).Error; err != nil {
+		t.Fatalf("failed to load persisted auto signup domains: %v", err)
+	}
+	if len(mappings) != 2 {
+		t.Fatalf("expected 2 persisted auto signup domains, got %d", len(mappings))
+	}
+	for _, mapping := range mappings {
+		if mapping.TeamID != team.ID {
+			t.Fatalf("expected domain %q to map to team %d, got %d", mapping.Domain, team.ID, mapping.TeamID)
+		}
 	}
 }
 
@@ -157,7 +198,6 @@ func TestInstanceSettingsUpdateRequiresTrustedDomainsWhenEnabled(t *testing.T) {
 	defer cleanup()
 
 	admin := CreateTestUser(t, db, "admin@example.com", true)
-	team, _ := CreateTeamAndTeamUser(t, db, "Engineering", admin, models.RoleAdmin)
 	adminSess := CreateSessionForUser(t, db, admin)
 	srv := NewTestServerWithConfig(t, db, func(cfg *serverConfig.AdminConfig) {
 		cfg.GithubClientID = "github-client"
@@ -166,8 +206,7 @@ func TestInstanceSettingsUpdateRequiresTrustedDomainsWhenEnabled(t *testing.T) {
 
 	payload := []byte(`{
 		"auto_signup_enabled": true,
-		"auto_signup_allowed_domains": " , ",
-		"auto_signup_team_id": ` + jsonNumber(team.ID) + `
+		"auto_signup_domains": []
 	}`)
 
 	req := httptest.NewRequest("PATCH", "/api/v1/instance-settings/", bytes.NewReader(payload))
@@ -179,6 +218,95 @@ func TestInstanceSettingsUpdateRequiresTrustedDomainsWhenEnabled(t *testing.T) {
 
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected status 400 Bad Request, got %d", resp.StatusCode)
+	}
+}
+
+func TestInstanceSettingsUpdateRejectsDomainConfiguredForAnotherTeam(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	admin := CreateTestUser(t, db, "admin@example.com", true)
+	amalTeam, _ := CreateTeamAndTeamUser(t, db, "Amal", admin, models.RoleAdmin)
+	otherTeam, _ := CreateTeamAndTeamUser(t, db, "Other", admin, models.RoleAdmin)
+	adminSess := CreateSessionForUser(t, db, admin)
+	srv := NewTestServerWithConfig(t, db, func(cfg *serverConfig.AdminConfig) {
+		cfg.GithubClientID = "github-client"
+		cfg.GithubSecret = "github-secret"
+	})
+
+	settings := models.DefaultInstanceSettings()
+	if err := db.Create(&settings).Error; err != nil {
+		t.Fatalf("failed to create instance settings: %v", err)
+	}
+	if err := db.Create(&models.AutoSignupDomain{Domain: "amal.sh", TeamID: amalTeam.ID}).Error; err != nil {
+		t.Fatalf("failed to create existing auto signup domain: %v", err)
+	}
+
+	payload := []byte(`{
+		"auto_signup_enabled": true,
+		"auto_signup_domains": [
+			{"domain": "amal.sh", "team_id": ` + jsonNumber(otherTeam.ID) + `}
+		]
+	}`)
+
+	req := httptest.NewRequest("PATCH", "/api/v1/instance-settings/", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Cookie", SessionCookieValue(adminSess))
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected status 400 Bad Request, got %d", resp.StatusCode)
+	}
+
+	var body map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	if body["error"] != "Domain amal.sh is already configured for another team" {
+		t.Fatalf("expected conflicting domain error, got %v", body)
+	}
+}
+
+func TestInstanceSettingsUpdateRejectsDuplicateDomainMappings(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	admin := CreateTestUser(t, db, "admin@example.com", true)
+	amalTeam, _ := CreateTeamAndTeamUser(t, db, "Amal", admin, models.RoleAdmin)
+	otherTeam, _ := CreateTeamAndTeamUser(t, db, "Other", admin, models.RoleAdmin)
+	adminSess := CreateSessionForUser(t, db, admin)
+	srv := NewTestServerWithConfig(t, db, func(cfg *serverConfig.AdminConfig) {
+		cfg.GithubClientID = "github-client"
+		cfg.GithubSecret = "github-secret"
+	})
+
+	payload := []byte(`{
+		"auto_signup_enabled": true,
+		"auto_signup_domains": [
+			{"domain": "amal.sh", "team_id": ` + jsonNumber(amalTeam.ID) + `},
+			{"domain": "@amal.sh.", "team_id": ` + jsonNumber(otherTeam.ID) + `}
+		]
+	}`)
+
+	req := httptest.NewRequest("PATCH", "/api/v1/instance-settings/", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Cookie", SessionCookieValue(adminSess))
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected status 400 Bad Request, got %d", resp.StatusCode)
+	}
+
+	var body map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	if body["error"] != "Domain amal.sh is already configured for another team" {
+		t.Fatalf("expected duplicate domain team error, got %v", body)
 	}
 }
 

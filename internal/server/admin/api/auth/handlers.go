@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"strings"
 
 	"github.com/amalshaji/portr/internal/server/admin/models"
 	"github.com/amalshaji/portr/internal/server/admin/services"
@@ -265,7 +264,7 @@ func (h *Handler) GitHubCallback(c *fiber.Ctx) error {
 		return c.Redirect("/?code=private-email", fiber.StatusFound)
 	}
 
-	loginResult, errCode, err := h.resolveGitHubLogin(githubUser, token.AccessToken)
+	loginResult, errCode, err := newGitHubLoginResolver(h.db).resolve(githubUser, token.AccessToken)
 	if errCode != "" {
 		return c.Redirect("/?code="+errCode, fiber.StatusFound)
 	}
@@ -317,129 +316,6 @@ func (h *Handler) GitHubCallback(c *fiber.Ctx) error {
 
 	// Fallback redirect to root
 	return c.Redirect("/", fiber.StatusFound)
-}
-
-type githubLoginResult struct {
-	User             models.User
-	RedirectTeamSlug string
-}
-
-func (h *Handler) resolveGitHubLogin(githubUser *services.GitHubUser, accessToken string) (*githubLoginResult, string, error) {
-	var user models.User
-	var githubUserRecord models.GithubUser
-
-	err := h.db.Preload("User").Where("github_id = ?", githubUser.ID).First(&githubUserRecord).Error
-	if err == nil {
-		return &githubLoginResult{User: githubUserRecord.User}, "", nil
-	}
-	if err != gorm.ErrRecordNotFound {
-		return nil, "", err
-	}
-
-	if !githubUser.EmailVerified {
-		log.Warn("GitHub user attempted login with an unverified email", "email", githubUser.Email)
-		return nil, "private-email", nil
-	}
-
-	err = h.db.Where("email = ?", githubUser.Email).First(&user).Error
-	if err == nil {
-		githubUserRecord = models.GithubUser{
-			GithubID:          githubUser.ID,
-			GithubAccessToken: accessToken,
-			GithubAvatarURL:   githubUser.AvatarURL,
-			UserID:            user.ID,
-		}
-
-		if err := h.db.Create(&githubUserRecord).Error; err != nil {
-			if updateErr := h.db.Where("user_id = ?", user.ID).Updates(&githubUserRecord).Error; updateErr != nil {
-				return nil, "", updateErr
-			}
-		}
-
-		return &githubLoginResult{User: user}, "", nil
-	}
-	if err != gorm.ErrRecordNotFound {
-		return nil, "", err
-	}
-
-	return h.autoSignupGitHubUser(githubUser, accessToken)
-}
-
-func (h *Handler) autoSignupGitHubUser(githubUser *services.GitHubUser, accessToken string) (*githubLoginResult, string, error) {
-	settings, err := models.GetOrCreateInstanceSettings(h.db)
-	if err != nil {
-		return nil, "", err
-	}
-	if !settings.AutoSignupEnabled {
-		log.Warn("GitHub user attempted login but no account exists", "email", githubUser.Email)
-		return nil, "auto-signup-disabled", nil
-	}
-	if !models.EmailMatchesAllowedDomains(githubUser.Email, settings.AutoSignupAllowedDomains) {
-		log.Warn("GitHub auto signup rejected email domain", "email", githubUser.Email)
-		return nil, "auto-signup-domain-denied", nil
-	}
-	if settings.AutoSignupTeamID == nil || *settings.AutoSignupTeamID == 0 {
-		log.Error("GitHub auto signup is enabled without a target team")
-		return nil, "auto-signup-team-missing", nil
-	}
-
-	tx := h.db.Begin()
-	if tx.Error != nil {
-		return nil, "", tx.Error
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-			panic(r)
-		}
-	}()
-
-	var team models.Team
-	if err := tx.First(&team, *settings.AutoSignupTeamID).Error; err != nil {
-		tx.Rollback()
-		if err == gorm.ErrRecordNotFound {
-			return nil, "auto-signup-team-missing", nil
-		}
-		return nil, "", err
-	}
-
-	user := models.User{
-		Email: strings.TrimSpace(githubUser.Email),
-	}
-	if err := tx.Create(&user).Error; err != nil {
-		tx.Rollback()
-		return nil, "", err
-	}
-
-	githubUserRecord := models.GithubUser{
-		GithubID:          githubUser.ID,
-		GithubAccessToken: accessToken,
-		GithubAvatarURL:   githubUser.AvatarURL,
-		UserID:            user.ID,
-	}
-	if err := tx.Create(&githubUserRecord).Error; err != nil {
-		tx.Rollback()
-		return nil, "", err
-	}
-
-	teamUser := models.TeamUser{
-		UserID: user.ID,
-		TeamID: team.ID,
-		Role:   models.RoleMember,
-	}
-	if err := tx.Create(&teamUser).Error; err != nil {
-		tx.Rollback()
-		return nil, "", err
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		return nil, "", err
-	}
-
-	return &githubLoginResult{
-		User:             user,
-		RedirectTeamSlug: team.Slug,
-	}, "", nil
 }
 
 // generateRandomString generates a random string of the specified length

@@ -50,6 +50,7 @@ func NewTestDB(t *testing.T) (*gorm.DB, func()) {
 		&models.Session{},
 		&models.Connection{},
 		&models.InstanceSettings{},
+		&models.AutoSignupDomain{},
 	); err != nil {
 		t.Fatalf("failed to auto migrate admin models: %v", err)
 	}

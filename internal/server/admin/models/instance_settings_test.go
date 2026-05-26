@@ -2,26 +2,40 @@ package models
 
 import "testing"
 
-func TestNormalizeAllowedDomains(t *testing.T) {
-	got := NormalizeAllowedDomains(" Example.com, @Example.com, api.example.com. , acme.co ")
-	want := "example.com, api.example.com, acme.co"
+func TestNormalizeAutoSignupDomain(t *testing.T) {
+	got, ok := NormalizeAutoSignupDomain(" @Example.com. ")
+	if !ok {
+		t.Fatalf("expected domain to normalize")
+	}
+
+	want := "example.com"
 	if got != want {
 		t.Fatalf("expected %q, got %q", want, got)
 	}
 }
 
-func TestEmailMatchesAllowedDomainsRequiresExactDomain(t *testing.T) {
-	domains := "example.com, api.example.com"
-
-	if !EmailMatchesAllowedDomains("user@example.com", domains) {
-		t.Fatalf("expected example.com email to match")
+func TestNormalizeAutoSignupDomainRejectsInvalidDomains(t *testing.T) {
+	invalidDomains := []string{
+		"",
+		"user@example.com",
+		"example.com,acme.co",
+		"dev..example.com",
 	}
 
-	if EmailMatchesAllowedDomains("user@dev.example.com", domains) {
-		t.Fatalf("expected subdomain to require an explicit trusted domain")
+	for _, domain := range invalidDomains {
+		if got, ok := NormalizeAutoSignupDomain(domain); ok {
+			t.Fatalf("expected %q to be invalid, got %q", domain, got)
+		}
+	}
+}
+
+func TestEmailDomainRequiresExactDomain(t *testing.T) {
+	domain, ok := EmailDomain("user@api.example.com.")
+	if !ok {
+		t.Fatalf("expected email domain to parse")
 	}
 
-	if !EmailMatchesAllowedDomains("user@api.example.com", domains) {
-		t.Fatalf("expected explicitly trusted subdomain to match")
+	if domain != "api.example.com" {
+		t.Fatalf("expected explicit email domain, got %q", domain)
 	}
 }

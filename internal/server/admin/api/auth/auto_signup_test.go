@@ -48,14 +48,7 @@ func TestGitHubCallbackAutoSignupCreatesUserAndTeamMembership(t *testing.T) {
 		t.Fatalf("failed to create team: %v", err)
 	}
 
-	teamID := team.ID
-	settings := models.DefaultInstanceSettings()
-	settings.AutoSignupEnabled = true
-	settings.AutoSignupAllowedDomains = "example.com"
-	settings.AutoSignupTeamID = &teamID
-	if err := db.Create(&settings).Error; err != nil {
-		t.Fatalf("failed to create instance settings: %v", err)
-	}
+	createAutoSignupSettings(t, db, models.AutoSignupDomain{Domain: "example.com", TeamID: team.ID})
 
 	fakeService := &fakeGitHubService{
 		user: &services.GitHubUser{
@@ -96,6 +89,66 @@ func TestGitHubCallbackAutoSignupCreatesUserAndTeamMembership(t *testing.T) {
 	}
 }
 
+func TestGitHubCallbackAutoSignupUsesDomainTeamMapping(t *testing.T) {
+	db, cleanup := newAuthTestDB(t)
+	defer cleanup()
+
+	amalTeam := &models.Team{Name: "Amal"}
+	if err := db.Create(amalTeam).Error; err != nil {
+		t.Fatalf("failed to create amal team: %v", err)
+	}
+	engineeringTeam := &models.Team{Name: "Engineering"}
+	if err := db.Create(engineeringTeam).Error; err != nil {
+		t.Fatalf("failed to create engineering team: %v", err)
+	}
+
+	createAutoSignupSettings(t, db,
+		models.AutoSignupDomain{Domain: "amal.sh", TeamID: amalTeam.ID},
+		models.AutoSignupDomain{Domain: "example.com", TeamID: engineeringTeam.ID},
+	)
+
+	fakeService := &fakeGitHubService{
+		user: &services.GitHubUser{
+			ID:            67890,
+			Email:         "new-user@amal.sh",
+			EmailVerified: true,
+			AvatarURL:     "https://avatars.example.com/new-user",
+		},
+	}
+	app := newAuthTestApp(db, fakeService)
+
+	resp := performGitHubCallback(t, app, fakeService)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusFound {
+		t.Fatalf("expected status 302 Found, got %d", resp.StatusCode)
+	}
+	if location := resp.Header.Get("Location"); location != "/amal/overview" {
+		t.Fatalf("expected redirect to amal team overview, got %q", location)
+	}
+
+	var user models.User
+	if err := db.Where("email = ?", "new-user@amal.sh").First(&user).Error; err != nil {
+		t.Fatalf("expected auto signup user to be created: %v", err)
+	}
+
+	var amalMembershipCount int64
+	if err := db.Model(&models.TeamUser{}).Where("team_id = ? AND user_id = ?", amalTeam.ID, user.ID).Count(&amalMembershipCount).Error; err != nil {
+		t.Fatalf("failed to count amal team memberships: %v", err)
+	}
+	if amalMembershipCount != 1 {
+		t.Fatalf("expected user to be added to amal team, got %d memberships", amalMembershipCount)
+	}
+
+	var engineeringMembershipCount int64
+	if err := db.Model(&models.TeamUser{}).Where("team_id = ? AND user_id = ?", engineeringTeam.ID, user.ID).Count(&engineeringMembershipCount).Error; err != nil {
+		t.Fatalf("failed to count engineering team memberships: %v", err)
+	}
+	if engineeringMembershipCount != 0 {
+		t.Fatalf("expected user not to be added to engineering team, got %d memberships", engineeringMembershipCount)
+	}
+}
+
 func TestGitHubCallbackAutoSignupRejectsUntrustedDomain(t *testing.T) {
 	db, cleanup := newAuthTestDB(t)
 	defer cleanup()
@@ -105,14 +158,7 @@ func TestGitHubCallbackAutoSignupRejectsUntrustedDomain(t *testing.T) {
 		t.Fatalf("failed to create team: %v", err)
 	}
 
-	teamID := team.ID
-	settings := models.DefaultInstanceSettings()
-	settings.AutoSignupEnabled = true
-	settings.AutoSignupAllowedDomains = "example.com"
-	settings.AutoSignupTeamID = &teamID
-	if err := db.Create(&settings).Error; err != nil {
-		t.Fatalf("failed to create instance settings: %v", err)
-	}
+	createAutoSignupSettings(t, db, models.AutoSignupDomain{Domain: "example.com", TeamID: team.ID})
 
 	fakeService := &fakeGitHubService{
 		user: &services.GitHubUser{
@@ -152,14 +198,7 @@ func TestGitHubCallbackAutoSignupRejectsUnverifiedEmail(t *testing.T) {
 		t.Fatalf("failed to create team: %v", err)
 	}
 
-	teamID := team.ID
-	settings := models.DefaultInstanceSettings()
-	settings.AutoSignupEnabled = true
-	settings.AutoSignupAllowedDomains = "example.com"
-	settings.AutoSignupTeamID = &teamID
-	if err := db.Create(&settings).Error; err != nil {
-		t.Fatalf("failed to create instance settings: %v", err)
-	}
+	createAutoSignupSettings(t, db, models.AutoSignupDomain{Domain: "example.com", TeamID: team.ID})
 
 	fakeService := &fakeGitHubService{
 		user: &services.GitHubUser{
@@ -241,6 +280,21 @@ func performGitHubCallback(t *testing.T, app *fiber.App, fakeService *fakeGitHub
 	return callbackResp
 }
 
+func createAutoSignupSettings(t *testing.T, db *gorm.DB, domains ...models.AutoSignupDomain) {
+	t.Helper()
+
+	settings := models.DefaultInstanceSettings()
+	settings.AutoSignupEnabled = true
+	if err := db.Create(&settings).Error; err != nil {
+		t.Fatalf("failed to create instance settings: %v", err)
+	}
+	for _, domain := range domains {
+		if err := db.Create(&domain).Error; err != nil {
+			t.Fatalf("failed to create auto signup domain %q: %v", domain.Domain, err)
+		}
+	}
+}
+
 func newAuthTestDB(t *testing.T) (*gorm.DB, func()) {
 	t.Helper()
 
@@ -256,6 +310,7 @@ func newAuthTestDB(t *testing.T) (*gorm.DB, func()) {
 		&models.TeamUser{},
 		&models.Session{},
 		&models.InstanceSettings{},
+		&models.AutoSignupDomain{},
 	); err != nil {
 		t.Fatalf("failed to auto migrate auth test models: %v", err)
 	}
