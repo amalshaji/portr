@@ -15,6 +15,14 @@ import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import type { AutoSignupDomain, InstanceSettings as InstanceSettingsType, Team } from '@/types'
 
+interface UpdateInstanceSettingsPayload {
+  auto_signup_enabled: boolean
+  auto_signup_domains: Array<{
+    domain: string
+    team_id: number
+  }>
+}
+
 export default function InstanceSettings() {
   const [settings, setSettings] = useState<InstanceSettingsType>({
     github_auth_enabled: false,
@@ -83,12 +91,20 @@ export default function InstanceSettings() {
   const handleSave = async () => {
     setSaving(true)
     try {
+      const payload: UpdateInstanceSettingsPayload = {
+        auto_signup_enabled: settings.auto_signup_enabled,
+        auto_signup_domains: settings.auto_signup_domains.map((mapping) => ({
+          domain: mapping.domain,
+          team_id: mapping.team_id ?? 0,
+        })),
+      }
+
       const response = await fetch('/api/v1/instance-settings/', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(payload),
       })
 
       if (response.ok) {

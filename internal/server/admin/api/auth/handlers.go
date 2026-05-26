@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 
 	"github.com/amalshaji/portr/internal/server/admin/models"
 	"github.com/amalshaji/portr/internal/server/admin/services"
@@ -264,11 +265,13 @@ func (h *Handler) GitHubCallback(c *fiber.Ctx) error {
 		return c.Redirect("/?code=private-email", fiber.StatusFound)
 	}
 
-	loginResult, errCode, err := newGitHubLoginResolver(h.db).resolve(githubUser, token.AccessToken)
-	if errCode != "" {
-		return c.Redirect("/?code="+errCode, fiber.StatusFound)
-	}
+	loginResult, err := newGitHubLoginResolver(h.db).resolve(githubUser, token.AccessToken)
 	if err != nil {
+		var deniedErr githubLoginDeniedError
+		if errors.As(err, &deniedErr) {
+			return c.Redirect("/?code="+deniedErr.Code(), fiber.StatusFound)
+		}
+
 		log.Error("Database error during GitHub login", "error", err)
 		return c.Redirect("/?code=database-error", fiber.StatusFound)
 	}

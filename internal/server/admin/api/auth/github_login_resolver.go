@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/amalshaji/portr/internal/server/admin/models"
@@ -14,29 +15,55 @@ type githubLoginResult struct {
 	RedirectTeamSlug string
 }
 
+type githubLoginDeniedReason string
+
+const (
+	githubLoginDeniedPrivateEmail        githubLoginDeniedReason = "private-email"
+	githubLoginDeniedAutoSignupDisabled  githubLoginDeniedReason = "auto-signup-disabled"
+	githubLoginDeniedAutoSignupDomain    githubLoginDeniedReason = "auto-signup-domain-denied"
+	githubLoginDeniedAutoSignupTeam      githubLoginDeniedReason = "auto-signup-team-missing"
+	githubLoginDeniedAutoSignupUnhandled githubLoginDeniedReason = "auto-signup-unavailable"
+)
+
+type githubLoginDeniedError struct {
+	reason githubLoginDeniedReason
+}
+
+func (e githubLoginDeniedError) Error() string {
+	return string(e.reason)
+}
+
+func (e githubLoginDeniedError) Code() string {
+	return string(e.reason)
+}
+
 type githubLoginResolver struct {
-	db *gorm.DB
+	db                *gorm.DB
+	autoSignupService *services.AutoSignupService
 }
 
 func newGitHubLoginResolver(db *gorm.DB) *githubLoginResolver {
-	return &githubLoginResolver{db: db}
+	return &githubLoginResolver{
+		db:                db,
+		autoSignupService: services.NewAutoSignupService(db),
+	}
 }
 
-func (r *githubLoginResolver) resolve(githubUser *services.GitHubUser, accessToken string) (*githubLoginResult, string, error) {
+func (r *githubLoginResolver) resolve(githubUser *services.GitHubUser, accessToken string) (*githubLoginResult, error) {
 	var user models.User
 	var githubUserRecord models.GithubUser
 
 	err := r.db.Preload("User").Where("github_id = ?", githubUser.ID).First(&githubUserRecord).Error
 	if err == nil {
-		return &githubLoginResult{User: githubUserRecord.User}, "", nil
+		return &githubLoginResult{User: githubUserRecord.User}, nil
 	}
 	if err != gorm.ErrRecordNotFound {
-		return nil, "", err
+		return nil, err
 	}
 
 	if !githubUser.EmailVerified {
 		log.Warn("GitHub user attempted login with an unverified email", "email", githubUser.Email)
-		return nil, "private-email", nil
+		return nil, githubLoginDeniedError{reason: githubLoginDeniedPrivateEmail}
 	}
 
 	err = r.db.Where("email = ?", githubUser.Email).First(&user).Error
@@ -50,51 +77,42 @@ func (r *githubLoginResolver) resolve(githubUser *services.GitHubUser, accessTok
 
 		if err := r.db.Create(&githubUserRecord).Error; err != nil {
 			if updateErr := r.db.Where("user_id = ?", user.ID).Updates(&githubUserRecord).Error; updateErr != nil {
-				return nil, "", updateErr
+				return nil, updateErr
 			}
 		}
 
-		return &githubLoginResult{User: user}, "", nil
+		return &githubLoginResult{User: user}, nil
 	}
 	if err != gorm.ErrRecordNotFound {
-		return nil, "", err
+		return nil, err
 	}
 
-	return r.autoSignup(githubUser, accessToken)
+	return r.autoSignupUser(githubUser, accessToken)
 }
 
-func (r *githubLoginResolver) autoSignup(githubUser *services.GitHubUser, accessToken string) (*githubLoginResult, string, error) {
-	settings, err := models.GetOrCreateInstanceSettings(r.db)
+func (r *githubLoginResolver) autoSignupUser(githubUser *services.GitHubUser, accessToken string) (*githubLoginResult, error) {
+	team, err := r.autoSignupService.TeamForEmail(githubUser.Email)
 	if err != nil {
-		return nil, "", err
-	}
-	if !settings.AutoSignupEnabled {
-		log.Warn("GitHub user attempted login but no account exists", "email", githubUser.Email)
-		return nil, "auto-signup-disabled", nil
-	}
-
-	emailDomain, ok := models.EmailDomain(githubUser.Email)
-	if !ok {
-		log.Warn("GitHub auto signup rejected invalid email", "email", githubUser.Email)
-		return nil, "auto-signup-domain-denied", nil
-	}
-
-	var domainMapping models.AutoSignupDomain
-	if err := r.db.Preload("Team").Where("domain = ?", emailDomain).First(&domainMapping).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			log.Warn("GitHub auto signup rejected email domain", "email", githubUser.Email, "domain", emailDomain)
-			return nil, "auto-signup-domain-denied", nil
+		var deniedErr services.AutoSignupDeniedError
+		if errors.As(err, &deniedErr) {
+			reason := githubLoginDeniedAutoSignupReason(deniedErr.Reason)
+			switch reason {
+			case githubLoginDeniedAutoSignupDisabled:
+				log.Warn("GitHub user attempted login but no account exists", "email", githubUser.Email)
+			case githubLoginDeniedAutoSignupDomain:
+				log.Warn("GitHub auto signup rejected email domain", "email", githubUser.Email)
+			case githubLoginDeniedAutoSignupTeam:
+				log.Error("GitHub auto signup domain is configured without a target team", "email", githubUser.Email)
+			}
+			return nil, githubLoginDeniedError{reason: reason}
 		}
-		return nil, "", err
-	}
-	if domainMapping.Team.ID == 0 {
-		log.Error("GitHub auto signup domain is configured without a target team", "domain", emailDomain)
-		return nil, "auto-signup-team-missing", nil
+
+		return nil, err
 	}
 
 	tx := r.db.Begin()
 	if tx.Error != nil {
-		return nil, "", tx.Error
+		return nil, tx.Error
 	}
 	defer func() {
 		if recovered := recover(); recovered != nil {
@@ -103,13 +121,13 @@ func (r *githubLoginResolver) autoSignup(githubUser *services.GitHubUser, access
 		}
 	}()
 
-	var team models.Team
-	if err := tx.First(&team, domainMapping.TeamID).Error; err != nil {
+	var teamForUpdate models.Team
+	if err := tx.First(&teamForUpdate, team.ID).Error; err != nil {
 		tx.Rollback()
 		if err == gorm.ErrRecordNotFound {
-			return nil, "auto-signup-team-missing", nil
+			return nil, githubLoginDeniedError{reason: githubLoginDeniedAutoSignupTeam}
 		}
-		return nil, "", err
+		return nil, err
 	}
 
 	user := models.User{
@@ -117,7 +135,7 @@ func (r *githubLoginResolver) autoSignup(githubUser *services.GitHubUser, access
 	}
 	if err := tx.Create(&user).Error; err != nil {
 		tx.Rollback()
-		return nil, "", err
+		return nil, err
 	}
 
 	githubUserRecord := models.GithubUser{
@@ -128,25 +146,38 @@ func (r *githubLoginResolver) autoSignup(githubUser *services.GitHubUser, access
 	}
 	if err := tx.Create(&githubUserRecord).Error; err != nil {
 		tx.Rollback()
-		return nil, "", err
+		return nil, err
 	}
 
 	teamUser := models.TeamUser{
 		UserID: user.ID,
-		TeamID: team.ID,
+		TeamID: teamForUpdate.ID,
 		Role:   models.RoleMember,
 	}
 	if err := tx.Create(&teamUser).Error; err != nil {
 		tx.Rollback()
-		return nil, "", err
+		return nil, err
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	return &githubLoginResult{
 		User:             user,
-		RedirectTeamSlug: team.Slug,
-	}, "", nil
+		RedirectTeamSlug: teamForUpdate.Slug,
+	}, nil
+}
+
+func githubLoginDeniedAutoSignupReason(reason services.AutoSignupDenialReason) githubLoginDeniedReason {
+	switch reason {
+	case services.AutoSignupDeniedDisabled:
+		return githubLoginDeniedAutoSignupDisabled
+	case services.AutoSignupDeniedDomain:
+		return githubLoginDeniedAutoSignupDomain
+	case services.AutoSignupDeniedTeamMissing:
+		return githubLoginDeniedAutoSignupTeam
+	default:
+		return githubLoginDeniedAutoSignupUnhandled
+	}
 }
