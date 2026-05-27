@@ -1,6 +1,7 @@
 package connection
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -188,9 +189,18 @@ func (h *Handler) CreateConnection(c *fiber.Ctx) error {
 			models.ConnectionStatusReserved,
 			models.ConnectionStatusActive).First(&existingConn).Error
 
-		if err == nil {
+		switch {
+		case err == nil && existingConn.Status == models.ConnectionStatusReserved && existingConn.CreatedByID == teamUser.ID:
+			return c.JSON(fiber.Map{
+				"connection_id": existingConn.ID,
+			})
+		case err == nil:
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
 				"message": "Subdomain already in use",
+			})
+		case !errors.Is(err, gorm.ErrRecordNotFound):
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"message": "Failed to check subdomain availability",
 			})
 		}
 	}
