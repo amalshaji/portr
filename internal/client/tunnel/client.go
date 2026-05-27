@@ -1306,13 +1306,12 @@ func (s *Client) Reconnect() error {
 	s.mu.Unlock()
 	s.closeTunnelStreams()
 
-	// Create context with timeout for the reconnection attempt
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
 	// Channel to receive errors from the goroutine
 	errChan := make(chan error, 1)
 	readyChan := make(chan struct{})
+	listenerCtx, cancelListener := context.WithCancel(context.Background())
+	timer := time.NewTimer(10 * time.Second)
+	defer timer.Stop()
 
 	// Start the listener in a goroutine with context
 	go func() {
@@ -1325,10 +1324,10 @@ func (s *Client) Reconnect() error {
 				}
 			}
 		}()
-		if err := s.startListenerForClientWithReady(ctx, readyChan); err != nil {
+		if err := s.startListenerForClientWithReady(listenerCtx, readyChan); err != nil {
 			select {
 			case errChan <- err:
-			case <-ctx.Done():
+			case <-listenerCtx.Done():
 			}
 		}
 	}()
@@ -1336,6 +1335,8 @@ func (s *Client) Reconnect() error {
 	// Wait for either an error, successful connection, or timeout
 	select {
 	case err := <-errChan:
+		cancelListener()
+		_ = s.closeTransport()
 		return err
 	case <-readyChan:
 		// Connection successful, update health status
@@ -1350,7 +1351,9 @@ func (s *Client) Reconnect() error {
 		}
 		s.emitEvent(EventReconnected, nil)
 		return nil
-	case <-ctx.Done():
+	case <-timer.C:
+		cancelListener()
+		_ = s.closeTransport()
 		return fmt.Errorf("reconnect timeout")
 	}
 }

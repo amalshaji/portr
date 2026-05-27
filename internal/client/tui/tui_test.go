@@ -15,11 +15,12 @@ func TestViewRendersStatusIcons(t *testing.T) {
 			"8765": {
 				config:       &tunnel,
 				clientConfig: testClientConfig(tunnel),
+				healthy:      true,
 				active:       2,
 				poolSize:     2,
 			},
 		},
-		width: 200,
+		width: 1000,
 	}
 
 	view := m.View()
@@ -41,7 +42,7 @@ func TestUpdateConnCountClampsToPoolSize(t *testing.T) {
 				poolSize:     2,
 			},
 		},
-		width: 100,
+		width: 200,
 	}
 
 	for i := 0; i < 598; i++ {
@@ -72,6 +73,7 @@ func TestViewRendersStubTunnelWithoutLocalPort(t *testing.T) {
 			"stub:yaml": {
 				config:       &tunnel,
 				clientConfig: testClientConfig(tunnel),
+				healthy:      true,
 				active:       1,
 				poolSize:     1,
 			},
@@ -85,6 +87,36 @@ func TestViewRendersStubTunnelWithoutLocalPort(t *testing.T) {
 	}
 	if !strings.Contains(view, "yaml (stub → https://yaml.go.portr.dev)") {
 		t.Fatalf("expected stub tunnel address, got %q", view)
+	}
+}
+
+func TestUpdateHealthFalseClearsActiveCount(t *testing.T) {
+	tunnel := testTunnel()
+	m := model{
+		tunnels: map[string]*tunnelStatus{
+			"8765": {
+				config:       &tunnel,
+				clientConfig: testClientConfig(tunnel),
+				healthy:      true,
+				active:       2,
+				poolSize:     2,
+			},
+		},
+		width: 1000,
+	}
+
+	updated, _ := m.Update(UpdateHealthMsg{Port: "8765", Healthy: false})
+	m = updated.(model)
+
+	status := m.tunnels["8765"]
+	if status.healthy {
+		t.Fatal("expected tunnel to be unhealthy")
+	}
+	if status.active != 0 {
+		t.Fatalf("expected unhealthy tunnel to clear active count, got %d", status.active)
+	}
+	if !strings.Contains(m.View(), "🔴 Unhealthy (0/2)") {
+		t.Fatalf("expected unhealthy status in view, got %q", m.View())
 	}
 }
 
