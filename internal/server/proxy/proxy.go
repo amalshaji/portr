@@ -9,11 +9,9 @@ import (
 	"slices"
 
 	"io"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"strings"
 	"sync"
 	"time"
 
@@ -171,14 +169,20 @@ func connectionLostError(w http.ResponseWriter) {
 
 func (p *Proxy) reverseProxy(target *url.URL, subdomain, backend string) *httputil.ReverseProxy {
 	rp := httputil.NewSingleHostReverseProxy(target)
-	// Capture backend so we can remove only the failing one
+	// This handler is used for upgraded (WebSocket) connections, where the
+	// ErrorHandler also fires on normal stream termination (EOF) once the
+	// connection has been established. The only signal that the backend is
+	// actually bad is that it never produced a response at all (unreachable);
+	// anything after a response is a normal/abrupt stream end, not a failure.
+	// Evicting on a normal close would wipe the route while the tunnel is still
+	// healthy and break every subsequent connection on this subdomain.
+	responded := false
+	rp.ModifyResponse = func(*http.Response) error {
+		responded = true
+		return nil
+	}
 	rp.ErrorHandler = func(res http.ResponseWriter, req *http.Request, err error) {
-		// This handler is used for upgraded (WebSocket) connections. An EOF or
-		// closed-connection error is normal stream termination, not a backend
-		// failure. Evicting the backend here would wipe the route while the tunnel
-		// is still healthy, breaking every subsequent connection on this subdomain.
-		// Only evict on a real dial/transport failure.
-		if isNormalClose(err) {
+		if responded {
 			return
 		}
 		log.Error("Error from proxy", "error", err, "subdomain", subdomain, "backend", backend)
@@ -186,20 +190,6 @@ func (p *Proxy) reverseProxy(target *url.URL, subdomain, backend string) *httput
 		connectionLostError(res)
 	}
 	return rp
-}
-
-// isNormalClose reports whether err represents an expected end of a streamed
-// (WebSocket) connection rather than a backend that should be evicted.
-func isNormalClose(err error) bool {
-	if err == nil {
-		return true
-	}
-	if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) || errors.Is(err, context.Canceled) {
-		return true
-	}
-	msg := err.Error()
-	return strings.Contains(msg, "use of closed network connection") ||
-		strings.Contains(msg, "broken pipe")
 }
 
 func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {

@@ -1,11 +1,11 @@
 package proxy
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"io"
+	"bufio"
 	"net"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	serverConfig "github.com/amalshaji/portr/internal/server/config"
@@ -66,29 +66,75 @@ func TestProxy_RemoveBackend(t *testing.T) {
 	}
 }
 
-func TestIsNormalClose(t *testing.T) {
-	normal := []error{
-		nil,
-		io.EOF,
-		fmt.Errorf("read: %w", io.EOF),
-		net.ErrClosed,
-		context.Canceled,
-		errors.New("write tcp 1.2.3.4:80: use of closed network connection"),
-		errors.New("write tcp 1.2.3.4:80: broken pipe"),
+// sendUpgrade sends a minimal WebSocket-style upgrade request to addr for the
+// given host and returns once the response status line has been read.
+func sendUpgrade(t *testing.T, addr, host string) {
+	t.Helper()
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("dial proxy: %v", err)
 	}
-	for _, err := range normal {
-		if !isNormalClose(err) {
-			t.Fatalf("expected normal close for %v", err)
-		}
+	defer conn.Close()
+	req := "GET / HTTP/1.1\r\nHost: " + host + "\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n"
+	if _, err := conn.Write([]byte(req)); err != nil {
+		t.Fatalf("write upgrade: %v", err)
 	}
+	// Read whatever the proxy sends back (101, error page, or EOF) and discard.
+	_, _ = bufio.NewReader(conn).ReadString('\n')
+}
 
-	evict := []error{
-		errors.New("dial tcp 0.0.0.0:21002: connect: connection refused"),
-		errors.New("connection reset by peer"),
+func newTestProxy(sub, backend string) *Proxy {
+	cfg := &serverConfig.Config{Domain: "example.com"}
+	p := New(cfg)
+	_ = p.AddBackend(sub, backend)
+	return p
+}
+
+// A WebSocket that upgrades and then closes (EOF) is a normal termination, not a
+// backend failure — the backend must stay in the pool.
+func TestReverseProxy_KeepsBackendOnNormalClose(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen backend: %v", err)
 	}
-	for _, err := range evict {
-		if isNormalClose(err) {
-			t.Fatalf("expected eviction for %v", err)
+	defer ln.Close()
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
 		}
+		// Upgrade, then immediately close so the proxied stream ends in EOF.
+		_, _ = conn.Write([]byte("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"))
+		conn.Close()
+	}()
+
+	p := newTestProxy("sub", ln.Addr().String())
+	srv := httptest.NewServer(http.HandlerFunc(p.handleRequest))
+	defer srv.Close()
+
+	sendUpgrade(t, strings.TrimPrefix(srv.URL, "http://"), "sub.example.com")
+
+	if _, err := p.GetNextBackend("sub"); err != nil {
+		t.Fatalf("backend evicted on normal close: %v", err)
+	}
+}
+
+// An unreachable backend never responds — it should be evicted from the pool.
+func TestReverseProxy_EvictsUnreachableBackend(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	dead := ln.Addr().String()
+	ln.Close() // free the port so dials are refused
+
+	p := newTestProxy("sub", dead)
+	srv := httptest.NewServer(http.HandlerFunc(p.handleRequest))
+	defer srv.Close()
+
+	sendUpgrade(t, strings.TrimPrefix(srv.URL, "http://"), "sub.example.com")
+
+	if _, err := p.GetNextBackend("sub"); err == nil {
+		t.Fatalf("expected unreachable backend to be evicted")
 	}
 }
