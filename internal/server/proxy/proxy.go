@@ -9,9 +9,11 @@ import (
 	"slices"
 
 	"io"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -171,11 +173,33 @@ func (p *Proxy) reverseProxy(target *url.URL, subdomain, backend string) *httput
 	rp := httputil.NewSingleHostReverseProxy(target)
 	// Capture backend so we can remove only the failing one
 	rp.ErrorHandler = func(res http.ResponseWriter, req *http.Request, err error) {
+		// This handler is used for upgraded (WebSocket) connections. An EOF or
+		// closed-connection error is normal stream termination, not a backend
+		// failure. Evicting the backend here would wipe the route while the tunnel
+		// is still healthy, breaking every subsequent connection on this subdomain.
+		// Only evict on a real dial/transport failure.
+		if isNormalClose(err) {
+			return
+		}
 		log.Error("Error from proxy", "error", err, "subdomain", subdomain, "backend", backend)
 		_ = p.RemoveBackend(subdomain, backend)
 		connectionLostError(res)
 	}
 	return rp
+}
+
+// isNormalClose reports whether err represents an expected end of a streamed
+// (WebSocket) connection rather than a backend that should be evicted.
+func isNormalClose(err error) bool {
+	if err == nil {
+		return true
+	}
+	if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) || errors.Is(err, context.Canceled) {
+		return true
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "use of closed network connection") ||
+		strings.Contains(msg, "broken pipe")
 }
 
 func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {

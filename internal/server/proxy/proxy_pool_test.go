@@ -1,6 +1,11 @@
 package proxy
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"net"
 	"testing"
 
 	serverConfig "github.com/amalshaji/portr/internal/server/config"
@@ -58,5 +63,32 @@ func TestProxy_RemoveBackend(t *testing.T) {
 	}
 	if _, err := p.GetNextBackend(sub); err == nil {
 		t.Fatalf("expected error after removing all backends")
+	}
+}
+
+func TestIsNormalClose(t *testing.T) {
+	normal := []error{
+		nil,
+		io.EOF,
+		fmt.Errorf("read: %w", io.EOF),
+		net.ErrClosed,
+		context.Canceled,
+		errors.New("write tcp 1.2.3.4:80: use of closed network connection"),
+		errors.New("write tcp 1.2.3.4:80: broken pipe"),
+	}
+	for _, err := range normal {
+		if !isNormalClose(err) {
+			t.Fatalf("expected normal close for %v", err)
+		}
+	}
+
+	evict := []error{
+		errors.New("dial tcp 0.0.0.0:21002: connect: connection refused"),
+		errors.New("connection reset by peer"),
+	}
+	for _, err := range evict {
+		if isNormalClose(err) {
+			t.Fatalf("expected eviction for %v", err)
+		}
 	}
 }
