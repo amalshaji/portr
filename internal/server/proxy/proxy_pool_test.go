@@ -119,8 +119,10 @@ func TestReverseProxy_KeepsBackendOnNormalClose(t *testing.T) {
 	}
 }
 
-// An unreachable backend never responds — it should be evicted from the pool.
-func TestReverseProxy_EvictsUnreachableBackend(t *testing.T) {
+// The proxy never mutates the route pool — backend lifecycle is owned by the
+// SSH layer. Even an unreachable backend stays put so it can auto-recover once
+// its local app comes back (the tunnel itself is still up).
+func TestReverseProxy_DoesNotEvictUnreachableBackend(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
@@ -134,7 +136,7 @@ func TestReverseProxy_EvictsUnreachableBackend(t *testing.T) {
 
 	sendUpgrade(t, strings.TrimPrefix(srv.URL, "http://"), "sub.example.com")
 
-	if _, err := p.GetNextBackend("sub"); err == nil {
-		t.Fatalf("expected unreachable backend to be evicted")
+	if _, err := p.GetNextBackend("sub"); err != nil {
+		t.Fatalf("proxy evicted backend it does not own: %v", err)
 	}
 }

@@ -169,24 +169,14 @@ func connectionLostError(w http.ResponseWriter) {
 
 func (p *Proxy) reverseProxy(target *url.URL, subdomain, backend string) *httputil.ReverseProxy {
 	rp := httputil.NewSingleHostReverseProxy(target)
-	// This handler is used for upgraded (WebSocket) connections, where the
-	// ErrorHandler also fires on normal stream termination (EOF) once the
-	// connection has been established. The only signal that the backend is
-	// actually bad is that it never produced a response at all (unreachable);
-	// anything after a response is a normal/abrupt stream end, not a failure.
-	// Evicting on a normal close would wipe the route while the tunnel is still
-	// healthy and break every subsequent connection on this subdomain.
-	responded := false
-	rp.ModifyResponse = func(*http.Response) error {
-		responded = true
-		return nil
-	}
+	// Used for upgraded (WebSocket) connections. Backend lifecycle is owned
+	// solely by the SSH layer (added on tunnel connect, removed on tunnel
+	// disconnect), so the proxy never mutates the route pool here. An EOF after
+	// a successful upgrade is a normal stream close, not a failure.
 	rp.ErrorHandler = func(res http.ResponseWriter, req *http.Request, err error) {
-		if responded {
-			return
+		if !errors.Is(err, io.EOF) {
+			log.Error("Error from proxy", "error", err, "subdomain", subdomain, "backend", backend)
 		}
-		log.Error("Error from proxy", "error", err, "subdomain", subdomain, "backend", backend)
-		_ = p.RemoveBackend(subdomain, backend)
 		connectionLostError(res)
 	}
 	return rp
@@ -240,8 +230,10 @@ func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 		failed := false
 		rp := httputil.NewSingleHostReverseProxy(&url.URL{Scheme: "http", Host: target})
 		rp.ErrorHandler = func(res http.ResponseWriter, req *http.Request, err error) {
+			// Don't evict — the backend may just be transiently failing while the
+			// tunnel is healthy. Round-robin to the next backend for this request;
+			// the SSH layer removes backends when the tunnel actually drops.
 			log.Error("Error from proxy (will retry)", "error", err, "subdomain", subdomain, "backend", target)
-			_ = p.RemoveBackend(subdomain, target)
 			failed = true
 			// Do not write to client here; allow retry loop to proceed
 		}
