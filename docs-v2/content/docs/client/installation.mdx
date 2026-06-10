@@ -30,6 +30,19 @@ Once the download/install is complete, login to the portr admin dashboard and co
 portr auth set --token {your_token} --remote {your_domain}
 ```
 
+The command downloads a client config into `~/.portr/config.yaml`. A WebSocket
+tunnel server config includes both:
+
+```yaml
+server_url: example.com
+ws_url: example.com
+secret_key: portr_xxx
+```
+
+Use `server_url` for admin API calls and generated public tunnel URLs. Use
+`ws_url` for client-to-server WebSocket tunnel connections. In most deployments
+they are the same host; in two-host or two-port deployments they can differ.
+
 ### Verify installation
 
 For more details and to verify everything is working, run:

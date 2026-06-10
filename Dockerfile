@@ -46,6 +46,6 @@ COPY --from=builder /app/migrations /app/migrations
 
 RUN mkdir -p /app/data
 
-EXPOSE 2222 8000 8001
+EXPOSE 8000 8001
 
 ENTRYPOINT ["./portrd"]

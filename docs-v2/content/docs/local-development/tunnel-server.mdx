@@ -5,7 +5,7 @@ description: Learn how to setup portr tunnel server for local development
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-The tunnel server is built using Go and handles SSH remote port forwarding to tunnel HTTP/TCP connections.
+The tunnel server is built using Go and handles WebSocket tunneling to tunnel HTTP/TCP connections.
 
 ## Requirements
 
@@ -27,24 +27,28 @@ go run ./cmd/portrd start tunnel
 You should see output similar to:
 
 ```shell
-time=2024-03-29T19:16:35.023+05:30 level=INFO msg="starting SSH server" port=:2222
+time=2024-03-29T19:16:35.023+05:30 level=INFO msg="starting WebSocket tunnel endpoint" port=:8001
 time=2024-03-29T19:16:35.023+05:30 level=INFO msg="starting proxy server" port=:8001
 time=2024-03-29T19:16:35.023+05:30 level=INFO msg="Starting 1 cron jobs"
 ```
 
 This starts:
 
-- **SSH server** on port `:2222` for tunnel connections
-- **Proxy server** on port `:8001` for routing traffic
+- **WebSocket tunnel endpoint** on port `:8001` at `/_portr/tunnel/connect`
+- **Proxy server** on port `:8001` for wildcard HTTP, TCP, and upgraded WebSocket traffic
+
+When running the combined server with `go run ./cmd/portrd start all`, the admin
+server listens on `:8000` by default and the tunnel/proxy listener remains on
+`:8001`.
 
 ## Server Architecture
 
 The tunnel server consists of several components:
 
-### SSH Server
+### WebSocket Tunnel
 
 - Handles incoming tunnel connections from clients
-- Manages SSH remote port forwarding
+- Manages WebSocket tunneling
 - Authenticates clients using tokens
 
 ### Proxy Server
@@ -86,7 +90,7 @@ For all configuration variables, check out the [tunnel server config file](https
 Key configuration options include:
 
 - **Database connection**: PostgreSQL connection string
-- **SSH server settings**: Port, host keys, and authentication
+- **WebSocket tunnel endpoint settings**: Proxy URL and authentication
 - **Proxy settings**: HTTP server configuration
 - **Security settings**: Token validation and access control
 
@@ -105,20 +109,20 @@ Key configuration options include:
 
 ### Connection Flow
 
-1. Client connects to SSH server on port 2222
-2. SSH server validates the client token with the admin server
-3. Remote port forwarding is established
-4. Proxy server routes incoming requests to the client
+1. Client connects to the WebSocket tunnel endpoint on port 8001
+2. WebSocket tunnel endpoint validates the client token with the admin server
+3. HTTP tunnels register one or more WebSocket workers; TCP tunnels register one remote TCP listener
+4. Proxy server routes incoming requests or TCP bytes to the client
 
 ## Troubleshooting
 
 ### Common Issues
 
-**Port conflicts**: Ensure ports 2222 and 8001 are available.
+**Port conflicts**: Ensure port 8001 is available.
 
 **Database connection errors**: Verify your PostgreSQL instance is running and accessible.
 
-**SSH connection failures**: Check that the SSH server is properly configured and the client has valid credentials.
+**WebSocket connection failures**: Check that the WebSocket tunnel endpoint is properly configured and the client has valid credentials.
 
 ### Debugging
 

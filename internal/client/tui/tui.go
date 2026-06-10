@@ -229,6 +229,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if msg.ClientConfig != nil {
 				existing.poolSize = max(existing.poolSize, msg.ClientConfig.Tunnel.PoolSize)
 			}
+			existing.healthy = msg.Healthy
 		} else {
 			ps := 1
 			if msg.ClientConfig != nil {
@@ -249,6 +250,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case UpdateHealthMsg:
 		if tunnel, exists := m.tunnels[msg.Port]; exists {
 			tunnel.healthy = msg.Healthy
+			if !msg.Healthy {
+				tunnel.active = 0
+			}
 		}
 
 	case UpdateConnCountMsg:
@@ -258,6 +262,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				tunnel.active = 0
 			}
 			tunnel.active = min(tunnel.active, max(1, tunnel.poolSize))
+			tunnel.healthy = tunnel.active > 0
 		}
 
 	case tea.WindowSizeMsg:
@@ -410,7 +415,7 @@ func (m model) View() string {
 		// - No active connections => red (unhealthy)
 		// - Active < poolSize => yellow (partially unhealthy)
 		// - Active >= poolSize => green (healthy)
-		if tunnel.active == 0 {
+		if !tunnel.healthy || tunnel.active == 0 {
 			tunnelStyle = redStyle
 			statusText = "🔴 Unhealthy (0/" + fmt.Sprint(max(1, tunnel.poolSize)) + ")"
 		} else if tunnel.active < max(1, tunnel.poolSize) {

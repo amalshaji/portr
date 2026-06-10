@@ -31,7 +31,7 @@ This will open a file with contents similar to:
 
 ```yaml
 server_url: example.com
-ssh_url: example.com:2222
+ws_url: example.com
 secret_key: { your-secret-key }
 tunnels:
   - name: portr
@@ -45,7 +45,7 @@ You can disable the interactive terminal interface by adding `disable_tui: true`
 
 ```yaml
 server_url: example.com
-ssh_url: example.com:2222
+ws_url: example.com
 secret_key: { your-secret-key }
 disable_tui: true
 tunnels:
@@ -67,7 +67,7 @@ You can change the inspector port or disable it permanently in the client config
 
 ```yaml
 server_url: example.com
-ssh_url: example.com:2222
+ws_url: example.com
 secret_key: { your-secret-key }
 dashboard_port: 8888
 disable_dashboard: false
@@ -81,7 +81,7 @@ Or disable the dashboard entirely:
 
 ```yaml
 server_url: example.com
-ssh_url: example.com:2222
+ws_url: example.com
 secret_key: { your-secret-key }
 disable_dashboard: true
 tunnels:
@@ -98,7 +98,7 @@ You can disable automatic update checks and notifications by adding `disable_upd
 
 ```yaml
 server_url: example.com
-ssh_url: example.com:2222
+ws_url: example.com
 secret_key: { your-secret-key }
 disable_update_check: true
 tunnels:
@@ -119,7 +119,7 @@ You can automatically clear old connection logs by adding `connection_log_retent
 
 ```yaml
 server_url: example.com
-ssh_url: example.com:2222
+ws_url: example.com
 secret_key: { your-secret-key }
 connection_log_retention_days: 7
 tunnels:
@@ -194,7 +194,7 @@ portr start
 These options apply to the entire client configuration:
 
 - **server_url**: The Portr server URL
-- **ssh_url**: The SSH server URL for tunnel connections
+- **ws_url**: The WebSocket tunnel endpoint URL for client tunnel connections. Defaults to `server_url` if omitted.
 - **secret_key**: Your authentication secret key
 - **disable_tui**: Disable the interactive terminal interface (default: false)
 - **dashboard_port**: Local port for the inspector dashboard (default: 7777)
@@ -204,7 +204,6 @@ These options apply to the entire client configuration:
 - **connection_log_retention_days**: Auto-delete connection logs older than N days (default: 0, disabled)
 - **health_check_interval**: Health check interval in seconds (default: 3)
 - **health_check_max_retries**: Maximum health check retry attempts (default: 10)
-- **insecure_skip_host_key_verification**: Skip SSH host key verification (default: true)
 
 ### Stub Tunnel Options
 
@@ -217,31 +216,6 @@ These options apply to stub tunnel entries with `type: stub`:
 
 Use exactly one of `response_tmpl` or `response_tmpl_file`.
 
-### SSH Host Key Verification
-
-By default, the Portr client skips SSH host key verification for ease of use. You can enable host key verification for additional security:
-
-```yaml
-server_url: example.com
-ssh_url: example.com:2222
-secret_key: { your-secret-key }
-insecure_skip_host_key_verification: false
-tunnels:
-  - name: portr
-    subdomain: portr
-    port: 4321
-```
-
-When host key verification is enabled:
-
-- On first connection, the server's host key is automatically saved to `~/.portr/known_hosts` (Trust On First Use)
-- Subsequent connections verify the server's key matches the saved key
-- If the key changes unexpectedly, the connection fails with a warning (potential security issue)
-
-<Callout type="warn">
-  If you enable host key verification, ensure your server persists SSH host keys across restarts using the `PORTR_SSH_KEYS_DIR` environment variable. Otherwise, clients will fail to connect after each server restart.
-</Callout>
-
 ### Tunnel Template Options
 
 Each tunnel template supports the following options:
@@ -249,9 +223,15 @@ Each tunnel template supports the following options:
 - **name**: A unique identifier for the tunnel
 - **subdomain**: The subdomain to use for the tunnel
 - **port**: The local port to tunnel
-- **type**: The tunnel type (`http` or `tcp`)
+- **type**: The tunnel type (`http`, `tcp`, or `stub`)
 - **host**: The local host to bind to (default: localhost)
-- **pool_size**: HTTP only. Number of SSH workers to run per HTTP tunnel (default: 2). Increases resilience and throughput.
+- **pool_size**: HTTP only. Number of WebSocket workers to run per HTTP tunnel (default: 2). Increases resilience and throughput.
+
+<Callout type="info">
+  `server_url` and `ws_url` are often the same host. Set them separately when your
+  admin/API traffic and tunnel WebSocket traffic are routed through different
+  hosts or ports.
+</Callout>
 
 ## Example Configurations
 

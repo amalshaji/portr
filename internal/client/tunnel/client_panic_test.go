@@ -1,4 +1,4 @@
-package ssh
+package tunnel
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/amalshaji/portr/internal/tunnel/wsproto"
 )
 
 type testListener struct {
@@ -27,7 +29,7 @@ func (a testAddr) String() string  { return string(a) }
 
 func TestGoSafeReportsPanic(t *testing.T) {
 	errCh := make(chan error, 1)
-	client := &SshClient{
+	client := &Client{
 		fatal: func(err error) {
 			errCh <- err
 		},
@@ -52,7 +54,7 @@ func TestGoSafeReportsPanic(t *testing.T) {
 
 func TestHandleAcceptErrorReportsUnexpectedFailure(t *testing.T) {
 	listener := &testListener{}
-	client := &SshClient{
+	client := &Client{
 		listener: listener,
 	}
 
@@ -67,7 +69,7 @@ func TestHandleAcceptErrorReportsUnexpectedFailure(t *testing.T) {
 
 func TestHandleAcceptErrorIgnoresReplacedListener(t *testing.T) {
 	oldListener := &testListener{}
-	client := &SshClient{
+	client := &Client{
 		listener: &testListener{},
 	}
 
@@ -80,7 +82,7 @@ func TestHandleAcceptErrorIgnoresReplacedListener(t *testing.T) {
 func TestCloseListenerIfCurrentDoesNotCloseReplacement(t *testing.T) {
 	oldListener := &testListener{}
 	newListener := &testListener{}
-	client := &SshClient{
+	client := &Client{
 		listener: newListener,
 	}
 
@@ -109,7 +111,7 @@ func TestCloseListenerIfCurrentDoesNotCloseReplacement(t *testing.T) {
 func TestForwardListenerErrorsReportsFatal(t *testing.T) {
 	errCh := make(chan error, 1)
 	fatalCh := make(chan error, 1)
-	client := &SshClient{
+	client := &Client{
 		fatal: func(err error) {
 			fatalCh <- err
 		},
@@ -135,7 +137,7 @@ func TestForwardListenerErrorsReportsFatal(t *testing.T) {
 func TestForwardListenerErrorsIgnoresShutdownError(t *testing.T) {
 	errCh := make(chan error, 1)
 	fatalCh := make(chan error, 1)
-	client := &SshClient{
+	client := &Client{
 		fatal: func(err error) {
 			fatalCh <- err
 		},
@@ -151,5 +153,52 @@ func TestForwardListenerErrorsIgnoresShutdownError(t *testing.T) {
 	case err := <-fatalCh:
 		t.Fatalf("unexpected fatal error: %v", err)
 	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+func TestDeliverTunnelFrameIgnoresClosedTunnelStream(t *testing.T) {
+	client := &Client{
+		streams: make(map[string]*tunnelStream),
+	}
+	stream := client.addTunnelStream("stream-1")
+	stream.close()
+
+	client.deliverTunnelFrame(wsproto.Frame{
+		Type:     wsproto.TypeData,
+		StreamID: "stream-1",
+		Data:     []byte("late frame"),
+	})
+
+	select {
+	case frame := <-stream.frames:
+		t.Fatalf("expected closed stream to ignore late frame, got %#v", frame)
+	default:
+	}
+}
+
+func TestCloseTunnelStreamsUnblocksStreamConnRead(t *testing.T) {
+	client := &Client{
+		streams: make(map[string]*tunnelStream),
+	}
+	stream := client.addTunnelStream("stream-1")
+	conn := newTunnelStreamConn("stream-1", nil, stream.frames, stream.done, func(wsproto.Frame) error {
+		return nil
+	})
+
+	client.closeTunnelStreams()
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := conn.Read(make([]byte, 1))
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		if !errors.Is(err, net.ErrClosed) {
+			t.Fatalf("expected stream read to unblock with net.ErrClosed, got %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for stream read to unblock")
 	}
 }

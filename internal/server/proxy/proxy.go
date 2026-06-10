@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/amalshaji/portr/internal/server/config"
+	"github.com/amalshaji/portr/internal/server/wstunnel"
 	"github.com/amalshaji/portr/internal/utils"
 	"github.com/charmbracelet/log"
 )
@@ -26,6 +27,7 @@ type Proxy struct {
 	rrIdx  map[string]int      // round-robin index per subdomain
 	lock   sync.RWMutex
 	server *http.Server
+	tunnel *wstunnel.Manager
 }
 
 func (p *Proxy) GetServerAddr() string {
@@ -41,6 +43,10 @@ func New(config *config.Config) *Proxy {
 	}
 	p.server = &http.Server{Addr: p.GetServerAddr()}
 	return p
+}
+
+func (p *Proxy) SetTunnelManager(manager *wstunnel.Manager) {
+	p.tunnel = manager
 }
 
 // GetRoute is kept for backward compatibility and returns the first backend if available.
@@ -184,6 +190,27 @@ func (p *Proxy) reverseProxy(target *url.URL, subdomain, backend string) *httput
 
 func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 	subdomain := p.config.ExtractSubdomain(r.Host)
+
+	if p.tunnel != nil {
+		if r.Header.Get("X-Portr-Ping-Request") == "true" {
+			if !p.tunnel.HasHTTPBackend(subdomain) {
+				unregisteredSubdomainError(w, subdomain)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		conn, initial, err := wstunnel.HijackRequest(w, r)
+		if err != nil {
+			log.Error("Failed to hijack proxied request", "error", err, "subdomain", subdomain)
+			http.Error(w, "failed to proxy request", http.StatusBadGateway)
+			return
+		}
+		p.tunnel.OpenHTTPStream(subdomain, conn, initial)
+		return
+	}
+
 	// For upgraded connections (e.g., WebSocket), don't retry — stream directly
 	if isUpgradeRequest(r) {
 		target, err := p.GetNextBackend(subdomain)
@@ -314,7 +341,12 @@ func (p *Proxy) backendCount(src string) int {
 func (p *Proxy) Start() {
 	log.Info("Starting proxy server", "port", p.GetServerAddr())
 
-	http.HandleFunc("/", p.handleRequest)
+	mux := http.NewServeMux()
+	if p.tunnel != nil {
+		mux.Handle("/_portr/tunnel/connect", p.tunnel.Handler())
+	}
+	mux.HandleFunc("/", p.handleRequest)
+	p.server.Handler = mux
 
 	if err := p.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal("Failed to start proxy server", "error", err)

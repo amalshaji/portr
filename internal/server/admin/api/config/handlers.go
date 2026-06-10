@@ -162,18 +162,16 @@ func (h *Handler) DownloadConfig(c *fiber.Ctx) error {
 	}
 
 	configContent := fmt.Sprintf(`server_url: %s
-ssh_url: %s
-secret_key: %s`, stripScheme(h.config.ServerURL), h.config.SshURL, teamUser.SecretKey)
-
-	if h.config.SshHostKeyVerification {
-		configContent += "\ninsecure_skip_host_key_verification: false"
-	}
-
-	configContent += `
+ws_url: %s
+secret_key: %s
+enable_request_logging: true
+dashboard_port: 7777
 tunnels:
   - name: portr
     subdomain: portr
-    port: 4321`
+    port: 4321
+    type: http
+    pool_size: 2`, stripScheme(h.config.ServerURL), stripScheme(h.config.WsURL), teamUser.SecretKey)
 
 	return c.JSON(fiber.Map{
 		"message": configContent,

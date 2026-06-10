@@ -232,6 +232,36 @@ func TestExecuteReplaceHeaders(t *testing.T) {
 	}
 }
 
+func TestExecuteUsesConfiguredHTTPScheme(t *testing.T) {
+	t.Parallel()
+
+	var observedHost string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		observedHost = r.Host
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer server.Close()
+
+	request := &db.Request{
+		ID:      "req-http",
+		Host:    strings.TrimPrefix(server.URL, "http://"),
+		Url:     "/local",
+		Method:  "GET",
+		Headers: mustJSONHeaders(t, map[string][]string{}),
+	}
+
+	result, err := Execute(request, EditOptions{Scheme: "http"})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if result.EffectiveURL != server.URL+"/local" {
+		t.Fatalf("unexpected effective url %q", result.EffectiveURL)
+	}
+	if observedHost != strings.TrimPrefix(server.URL, "http://") {
+		t.Fatalf("unexpected host %q", observedHost)
+	}
+}
+
 func TestExecuteRejectsInvalidInputs(t *testing.T) {
 	t.Parallel()
 

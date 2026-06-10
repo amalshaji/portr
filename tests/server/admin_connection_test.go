@@ -243,6 +243,93 @@ func TestCreateConnection_SubdomainConflict_Conflict(t *testing.T) {
 	}
 }
 
+func TestCreateConnection_ReusesOwnReservedSubdomain(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	user := CreateTestUser(t, db, "reserved-owner@example.com", false)
+	_, teamUser := CreateTeamAndTeamUser(t, db, "Reserved Owner Team", user, "admin")
+
+	sub := "reserved-retry"
+	existing := models.NewConnection(models.ConnectionTypeHTTP, &sub, teamUser)
+	if err := db.Create(existing).Error; err != nil {
+		t.Fatalf("failed to create existing reserved connection: %v", err)
+	}
+
+	payload := map[string]interface{}{
+		"secret_key":      teamUser.SecretKey,
+		"connection_type": "http",
+		"subdomain":       sub,
+	}
+	payloadBytes, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/connections/", bytes.NewReader(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected status 200 OK for own reserved subdomain, got %d: %s", resp.StatusCode, string(body))
+	}
+
+	var respBody map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if connID, ok := respBody["connection_id"].(string); !ok || connID != existing.ID {
+		t.Fatalf("expected existing connection_id %q, got: %v", existing.ID, respBody)
+	}
+
+	var count int64
+	if err := db.Model(&models.Connection{}).Where("subdomain = ?", sub).Count(&count).Error; err != nil {
+		t.Fatalf("failed to count connections: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected one connection row for subdomain %q, got %d", sub, count)
+	}
+}
+
+func TestCreateConnection_OtherUsersReservedSubdomainConflicts(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	owner := CreateTestUser(t, db, "reserved-other-owner@example.com", false)
+	_, ownerTeamUser := CreateTeamAndTeamUser(t, db, "Reserved Other Owner Team", owner, "admin")
+	requester := CreateTestUser(t, db, "reserved-other-requester@example.com", false)
+	_, requesterTeamUser := CreateTeamAndTeamUser(t, db, "Reserved Other Requester Team", requester, "admin")
+
+	sub := "reserved-other"
+	existing := models.NewConnection(models.ConnectionTypeHTTP, &sub, ownerTeamUser)
+	if err := db.Create(existing).Error; err != nil {
+		t.Fatalf("failed to create existing reserved connection: %v", err)
+	}
+
+	payload := map[string]interface{}{
+		"secret_key":      requesterTeamUser.SecretKey,
+		"connection_type": "http",
+		"subdomain":       sub,
+	}
+	payloadBytes, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/connections/", bytes.NewReader(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusConflict {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected status 409 Conflict for another user's reserved subdomain, got %d: %s", resp.StatusCode, string(body))
+	}
+}
+
 func TestCreateConnection_TCP_Success(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()

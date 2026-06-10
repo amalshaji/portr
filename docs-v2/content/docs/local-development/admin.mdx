@@ -45,14 +45,13 @@ Create a new `.env` file in the repo root. The admin server uses the following e
 PORTR_DOMAIN=localhost:8000
 PORTR_DB_URL=postgres://postgres:postgres@localhost:5432/postgres
 PORTR_SERVER_URL=http://localhost:8000
-PORTR_SSH_URL=localhost:2222
+PORTR_WS_URL=localhost:8001
 PORTR_TUNNEL_USE_LOCALHOST=true
 PORTR_ADMIN_PORT=8000
 PORTR_ADMIN_DEBUG=true
 PORTR_ADMIN_USE_VITE=true
 PORTR_ADMIN_GITHUB_CLIENT_ID=your_github_client_id  # optional
 PORTR_ADMIN_GITHUB_CLIENT_SECRET=your_github_secret  # optional
-PORTR_SSH_PORT=2222
 PORTR_PROXY_PORT=8001
 PORTR_AUTO_MIGRATE=true
 ```
@@ -183,7 +182,7 @@ PORTR_DB_URL=sqlite:///path/to/database.db
 
 ### Common Issues
 
-**Port conflicts**: Make sure ports 8000 (admin), 8001 (proxy), and 2222 (SSH) aren't being used by another service.
+**Port conflicts**: Make sure ports 8000 (admin) and 8001 (proxy/WebSocket tunnel) aren't being used by another service.
 
 **Database connection errors**: Verify your database instance is running and the connection string is correct. For PostgreSQL, ensure the database exists and credentials are valid.
 

@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/amalshaji/portr/internal/client/db"
@@ -36,6 +37,26 @@ func tunnelKey(subdomain string, localport int) string {
 	return fmt.Sprintf("%s:%d", subdomain, localport)
 }
 
+// deriveStatus is the single source of truth for tunnel liveness, consumed by
+// both the status filter and the live-tunnel stat. The frontend renders this
+// value directly rather than recomputing it.
+func deriveStatus(summary *TunnelSummary, now time.Time) string {
+	if summary.ActiveWebSocketCount > 0 {
+		return "live"
+	}
+	if summary.LastActivityAt.IsZero() {
+		return "closed"
+	}
+	switch elapsed := now.Sub(summary.LastActivityAt); {
+	case elapsed < 2*time.Minute:
+		return "live"
+	case elapsed < 30*time.Minute:
+		return "idle"
+	default:
+		return "closed"
+	}
+}
+
 func parseDBTime(value string) (time.Time, bool) {
 	if value == "" {
 		return time.Time{}, false
@@ -58,24 +79,12 @@ func parseDBTime(value string) (time.Time, bool) {
 	return time.Time{}, false
 }
 
-func (s *Service) GetTunnels() ([]TunnelSummary, error) {
+func (s *Service) GetTunnels(limit, offset int, search, status string) (*TunnelsPage, error) {
+	// One index seek per tunnel via idx_requests_tunnel — a windowed
+	// ROW_NUMBER() over the whole table walks every row and gets slow
+	// once the requests table grows large.
 	var latestRequests []latestRequestRow
 	if err := s.db.Conn.Raw(`
-		WITH ranked_requests AS (
-			SELECT
-				id,
-				subdomain,
-				localport,
-				method,
-				url,
-				response_status_code,
-				logged_at,
-				ROW_NUMBER() OVER (
-					PARTITION BY subdomain, localport
-					ORDER BY logged_at DESC, id DESC
-				) AS row_number
-			FROM requests
-		)
 		SELECT
 			id,
 			subdomain,
@@ -84,8 +93,17 @@ func (s *Service) GetTunnels() ([]TunnelSummary, error) {
 			url,
 			response_status_code,
 			logged_at
-		FROM ranked_requests
-		WHERE row_number = 1
+		FROM requests
+		WHERE id IN (
+			SELECT (
+				SELECT r2.id
+				FROM requests r2
+				WHERE r2.subdomain = t.subdomain AND r2.localport = t.localport
+				ORDER BY r2.logged_at DESC, r2.id DESC
+				LIMIT 1
+			)
+			FROM (SELECT DISTINCT subdomain, localport FROM requests) t
+		)
 	`).Scan(&latestRequests).Error; err != nil {
 		return nil, err
 	}
@@ -183,20 +201,89 @@ func (s *Service) GetTunnels() ([]TunnelSummary, error) {
 		return summaries[i].LastActivityAt.After(summaries[j].LastActivityAt)
 	})
 
-	return summaries, nil
+	// Stats reflect every tunnel, independent of the search/status filters and
+	// pagination applied below. Status is stamped once here and reused by the
+	// filter, the live count, and the frontend (no client-side recomputation).
+	stats := TunnelStats{}
+	now := time.Now()
+	for i := range summaries {
+		summaries[i].Status = deriveStatus(&summaries[i], now)
+		stats.HTTPRequestCount += summaries[i].HTTPRequestCount
+		stats.WebSocketSessionCount += summaries[i].WebSocketSessionCount
+		stats.ActiveWebSocketCount += summaries[i].ActiveWebSocketCount
+		if summaries[i].Status == "live" {
+			stats.LiveTunnelCount++
+		}
+	}
+	if len(summaries) > 0 {
+		lastActivity := summaries[0].LastActivityAt
+		stats.LastActivityAt = &lastActivity
+	}
+
+	summaries = filterTunnels(summaries, search, status)
+
+	total := int64(len(summaries))
+	summaries = paginate(summaries, limit, offset)
+
+	return &TunnelsPage{Tunnels: summaries, Total: total, Stats: stats}, nil
 }
 
-func (s *Service) GetRequests(subdomain string, port string) (*[]db.Request, error) {
-	var result []db.Request
-	if err := s.db.Conn.
+func filterTunnels(summaries []TunnelSummary, search, status string) []TunnelSummary {
+	if search == "" && (status == "" || status == "all") {
+		return summaries
+	}
+
+	needle := strings.ToLower(search)
+	filtered := summaries[:0]
+	for _, summary := range summaries {
+		if status != "" && status != "all" && summary.Status != status {
+			continue
+		}
+		if needle != "" &&
+			!strings.Contains(strings.ToLower(summary.Subdomain), needle) &&
+			!strings.Contains(fmt.Sprint(summary.Localport), needle) {
+			continue
+		}
+		filtered = append(filtered, summary)
+	}
+	return filtered
+}
+
+func paginate(summaries []TunnelSummary, limit, offset int) []TunnelSummary {
+	if offset > 0 {
+		if offset >= len(summaries) {
+			return nil
+		}
+		summaries = summaries[offset:]
+	}
+	if limit > 0 && len(summaries) > limit {
+		summaries = summaries[:limit]
+	}
+	return summaries
+}
+
+func (s *Service) GetRequests(subdomain string, port string, limit, offset int) ([]RequestSummary, int64, error) {
+	var total int64
+	if err := s.db.Conn.Model(&db.Request{}).
+		Where("subdomain = ? AND localport = ?", subdomain, port).
+		Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// GORM derives the SELECT column list from RequestSummary, so blob columns
+	// (headers/bodies) are never read — keep the projection driven by the type.
+	result := make([]RequestSummary, 0, limit)
+	if err := s.db.Conn.Model(&db.Request{}).
 		Where("subdomain = ? AND localport = ?", subdomain, port).
 		Order("logged_at DESC").
 		Order("id DESC").
+		Limit(limit).
+		Offset(offset).
 		Find(&result).Error; err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return &result, nil
+	return result, total, nil
 }
 
 func (s *Service) GetRequestById(id string) (*db.Request, error) {

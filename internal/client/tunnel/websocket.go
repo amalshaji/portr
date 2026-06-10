@@ -1,4 +1,4 @@
-package ssh
+package tunnel
 
 import (
 	"bufio"
@@ -142,7 +142,30 @@ func isIgnorableWebSocketError(err error) bool {
 	return strings.Contains(strings.ToLower(err.Error()), "use of closed network connection")
 }
 
-func (s *SshClient) logWebSocketSession(handshakeRequestID string, request *http.Request, response *http.Response) string {
+func isTransientSQLiteWriteError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "database is locked") ||
+		strings.Contains(message, "database table is locked") ||
+		strings.Contains(message, "database is busy")
+}
+
+func retryTransientSQLiteWrite(write func() error) error {
+	var err error
+	for attempt := 0; attempt < 5; attempt++ {
+		err = write()
+		if !isTransientSQLiteWriteError(err) {
+			return err
+		}
+		time.Sleep(time.Duration(attempt+1) * 25 * time.Millisecond)
+	}
+	return err
+}
+
+func (s *Client) logWebSocketSession(handshakeRequestID string, request *http.Request, response *http.Response) string {
 	requestHeadersBytes, err := json.Marshal(request.Header)
 	if err != nil {
 		if s.config.Debug {
@@ -184,7 +207,7 @@ func (s *SshClient) logWebSocketSession(handshakeRequestID string, request *http
 	return session.ID
 }
 
-func (s *SshClient) recordWebSocketEvent(sessionID string, direction string, frame *webSocketFrame) {
+func (s *Client) recordWebSocketEvent(sessionID string, direction string, frame *webSocketFrame) {
 	if sessionID == "" || frame == nil {
 		return
 	}
@@ -202,7 +225,9 @@ func (s *SshClient) recordWebSocketEvent(sessionID string, direction string, fra
 		LoggedAt:      now,
 	}
 
-	if err := s.db.Conn.Create(&event).Error; err != nil {
+	if err := retryTransientSQLiteWrite(func() error {
+		return s.db.Conn.Create(&event).Error
+	}); err != nil {
 		if s.config.Debug {
 			s.logDebug("Failed to persist websocket event", err)
 		}
@@ -230,14 +255,16 @@ func (s *SshClient) recordWebSocketEvent(sessionID string, direction string, fra
 		}
 	}
 
-	if err := s.db.Conn.Model(&db.WebSocketSession{}).
-		Where("id = ?", sessionID).
-		Updates(updates).Error; err != nil && s.config.Debug {
+	if err := retryTransientSQLiteWrite(func() error {
+		return s.db.Conn.Model(&db.WebSocketSession{}).
+			Where("id = ?", sessionID).
+			Updates(updates).Error
+	}); err != nil && s.config.Debug {
 		s.logDebug("Failed to update websocket session", err)
 	}
 }
 
-func (s *SshClient) closeWebSocketSession(sessionID string, err error) {
+func (s *Client) closeWebSocketSession(sessionID string, err error) {
 	if sessionID == "" {
 		return
 	}
@@ -257,7 +284,7 @@ func (s *SshClient) closeWebSocketSession(sessionID string, err error) {
 	}
 }
 
-func (s *SshClient) proxyWebSocketFrames(sessionID string, direction string, reader io.Reader, writer net.Conn) error {
+func (s *Client) proxyWebSocketFrames(sessionID string, direction string, reader io.Reader, writer net.Conn) error {
 	for {
 		frame, err := readWebSocketFrame(reader)
 		if err != nil {
@@ -272,7 +299,7 @@ func (s *SshClient) proxyWebSocketFrames(sessionID string, direction string, rea
 	}
 }
 
-func (s *SshClient) websocketTunnel(sessionID string, clientReader io.Reader, serverConn net.Conn, serverReader io.Reader, clientConn net.Conn) {
+func (s *Client) websocketTunnel(sessionID string, clientReader io.Reader, serverConn net.Conn, serverReader io.Reader, clientConn net.Conn) {
 	var (
 		once      sync.Once
 		firstErr  error
@@ -315,7 +342,7 @@ func (s *SshClient) websocketTunnel(sessionID string, clientReader io.Reader, se
 	s.closeWebSocketSession(sessionID, firstErr)
 }
 
-func (s *SshClient) handleWebSocketRequest(
+func (s *Client) handleWebSocketRequest(
 	src net.Conn,
 	srcReader *bufio.Reader,
 	srcWriter *bufio.Writer,

@@ -16,8 +16,8 @@ import (
 	"github.com/Masterminds/semver"
 	clientcfg "github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
-	sshclient "github.com/amalshaji/portr/internal/client/ssh"
 	"github.com/amalshaji/portr/internal/client/stubresponder"
+	tunnelclient "github.com/amalshaji/portr/internal/client/tunnel"
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/charmbracelet/log"
 	"github.com/oklog/ulid/v2"
@@ -38,7 +38,7 @@ var ErrTunnelNotFound = errors.New("tunnel not found")
 type tunnelRuntime struct {
 	id           string
 	cancel       context.CancelFunc
-	clients      []*sshclient.SshClient
+	clients      []*tunnelclient.Client
 	callbackURLs []string
 	status       TunnelStatus
 	startedCh    chan struct{}
@@ -105,7 +105,7 @@ func (m *Manager) StartTunnel(ctx context.Context, request StartTunnelRequest) (
 	cfg := m.clientConfigForTunnel(tunnel)
 	workers := m.desiredWorkers(cfg)
 	if cfg.Tunnel.Type == constants.Http && workers > 1 && cfg.ConnectionID == "" {
-		connID, err := sshclient.CreateNewConnectionWithContext(ctx, cfg)
+		connID, err := tunnelclient.CreateNewConnectionWithContext(ctx, cfg)
 		if err != nil {
 			return TunnelStatus{}, fmt.Errorf("failed to create shared connection for pool: %w", err)
 		}
@@ -139,23 +139,23 @@ func (m *Manager) StartTunnel(ctx context.Context, request StartTunnelRequest) (
 
 	for i := 0; i < workers; i++ {
 		workerCfg := cfg
-		sshc := sshclient.New(workerCfg, m.db, nil, nil)
-		sshc.SetEventHandler(func(event sshclient.Event) {
-			m.handleSSHEvent(id, event)
+		tunnelClient := tunnelclient.New(workerCfg, m.db, nil, nil)
+		tunnelClient.SetEventHandler(func(event tunnelclient.Event) {
+			m.handleTunnelEvent(id, event)
 		})
-		runtime.clients = append(runtime.clients, sshc)
+		runtime.clients = append(runtime.clients, tunnelClient)
 	}
 
 	m.mu.Lock()
 	m.tunnels[id] = runtime
 	m.mu.Unlock()
 
-	for _, sshc := range runtime.clients {
-		go func(client *sshclient.SshClient) {
+	for _, tunnelClient := range runtime.clients {
+		go func(client *tunnelclient.Client) {
 			if err := client.Start(runCtx); err != nil {
 				m.handleStartFailure(id, err)
 			}
-		}(sshc)
+		}(tunnelClient)
 	}
 
 	select {
@@ -310,20 +310,19 @@ func (m *Manager) Shutdown(ctx context.Context) {
 
 func (m *Manager) clientConfigForTunnel(tunnel clientcfg.Tunnel) clientcfg.ClientConfig {
 	return clientcfg.ClientConfig{
-		ServerUrl:                       m.baseConfig.ServerUrl,
-		SshUrl:                          m.baseConfig.SshUrl,
-		TunnelUrl:                       m.baseConfig.TunnelUrl,
-		SecretKey:                       m.baseConfig.SecretKey,
-		Tunnel:                          tunnel,
-		UseLocalHost:                    m.baseConfig.UseLocalHost,
-		Debug:                           m.baseConfig.Debug,
-		EnableRequestLogging:            *m.baseConfig.EnableRequestLogging,
-		HealthCheckInterval:             m.baseConfig.HealthCheckInterval,
-		HealthCheckMaxRetries:           m.baseConfig.HealthCheckMaxRetries,
-		DisableTUI:                      true,
-		DisableTerminalLogs:             true,
-		EnableHttpReverseProxy:          m.baseConfig.EnableHttpReverseProxy,
-		InsecureSkipHostKeyVerification: *m.baseConfig.InsecureSkipHostKeyVerification,
+		ServerUrl:              m.baseConfig.ServerUrl,
+		WsUrl:                  m.baseConfig.WsUrl,
+		TunnelUrl:              m.baseConfig.TunnelUrl,
+		SecretKey:              m.baseConfig.SecretKey,
+		Tunnel:                 tunnel,
+		UseLocalHost:           m.baseConfig.UseLocalHost,
+		Debug:                  m.baseConfig.Debug,
+		EnableRequestLogging:   *m.baseConfig.EnableRequestLogging,
+		HealthCheckInterval:    m.baseConfig.HealthCheckInterval,
+		HealthCheckMaxRetries:  m.baseConfig.HealthCheckMaxRetries,
+		DisableTUI:             true,
+		DisableTerminalLogs:    true,
+		EnableHttpReverseProxy: m.baseConfig.EnableHttpReverseProxy,
 	}
 }
 
@@ -347,14 +346,14 @@ func (m *Manager) handleStartFailure(id string, err error) {
 		}
 	})
 
-	m.handleSSHEvent(id, sshclient.Event{
-		Type:  sshclient.EventFailed,
+	m.handleTunnelEvent(id, tunnelclient.Event{
+		Type:  tunnelclient.EventFailed,
 		Error: err.Error(),
 		At:    time.Now().UTC(),
 	})
 }
 
-func (m *Manager) handleSSHEvent(id string, event sshclient.Event) {
+func (m *Manager) handleTunnelEvent(id string, event tunnelclient.Event) {
 	m.mu.RLock()
 	tunnel, ok := m.tunnels[id]
 	m.mu.RUnlock()
@@ -370,12 +369,12 @@ func (m *Manager) handleSSHEvent(id string, event sshclient.Event) {
 
 	shouldRecord := true
 	m.mu.Lock()
-	if (tunnel.stopping || tunnel.status.Status == statusStopped) && event.Type != sshclient.EventStopped {
+	if (tunnel.stopping || tunnel.status.Status == statusStopped) && event.Type != tunnelclient.EventStopped {
 		m.mu.Unlock()
 		return
 	}
 	switch event.Type {
-	case sshclient.EventStarted:
+	case tunnelclient.EventStarted:
 		if tunnel.status.Status == statusRunning {
 			shouldRecord = false
 			break
@@ -387,19 +386,19 @@ func (m *Manager) handleSSHEvent(id string, event sshclient.Event) {
 		tunnel.startOnce.Do(func() {
 			close(tunnel.startedCh)
 		})
-	case sshclient.EventUnhealthy:
+	case tunnelclient.EventUnhealthy:
 		if tunnel.status.Status == statusUnhealthy && tunnel.status.LastError == event.Error {
 			shouldRecord = false
 			break
 		}
 		tunnel.status.Status = statusUnhealthy
 		tunnel.status.LastError = event.Error
-	case sshclient.EventReconnected:
+	case tunnelclient.EventReconnected:
 		tunnel.status.Status = statusRunning
 		tunnel.status.RemotePort = event.Tunnel.RemotePort
 		tunnel.status.TunnelURL = event.TunnelAddr
 		tunnel.status.LastError = ""
-	case sshclient.EventStopped:
+	case tunnelclient.EventStopped:
 		if tunnel.status.Status == statusStopped {
 			shouldRecord = false
 			break
@@ -407,7 +406,7 @@ func (m *Manager) handleSSHEvent(id string, event sshclient.Event) {
 		stoppedAt := now
 		tunnel.status.Status = statusStopped
 		tunnel.status.StoppedAt = &stoppedAt
-	case sshclient.EventFailed:
+	case tunnelclient.EventFailed:
 		if tunnel.status.Status == statusFailed && tunnel.status.LastError == event.Error {
 			shouldRecord = false
 			break
@@ -423,7 +422,7 @@ func (m *Manager) handleSSHEvent(id string, event sshclient.Event) {
 	}
 }
 
-func (m *Manager) recordEvent(tunnel *tunnelRuntime, event sshclient.Event) {
+func (m *Manager) recordEvent(tunnel *tunnelRuntime, event tunnelclient.Event) {
 	m.mu.RLock()
 	status := tunnel.status
 	m.mu.RUnlock()
@@ -462,9 +461,9 @@ func (m *Manager) logEvent(event TunnelEvent) {
 	fields := tunnelEventLogFields(event)
 
 	switch event.Type {
-	case string(sshclient.EventFailed):
+	case string(tunnelclient.EventFailed):
 		logger.Error("App-server tunnel event", fields...)
-	case string(sshclient.EventUnhealthy):
+	case string(tunnelclient.EventUnhealthy):
 		logger.Warn("App-server tunnel event", fields...)
 	default:
 		logger.Info("App-server tunnel event", fields...)

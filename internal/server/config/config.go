@@ -10,16 +10,6 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
-type SshConfig struct {
-	Host    string
-	Port    int
-	HostKey string
-}
-
-func (s SshConfig) Address() string {
-	return s.Host + ":" + fmt.Sprint(s.Port)
-}
-
 type ProxyConfig struct {
 	Host string
 	Port int
@@ -36,16 +26,15 @@ type DatabaseConfig struct {
 }
 
 type AdminConfig struct {
-	Port                   int
-	Domain                 string
-	Debug                  bool
-	UseVite                bool
-	GithubClientID         string
-	GithubSecret           string
-	ServerURL              string
-	SshURL                 string
-	SshHostKeyVerification bool
-	Version                string
+	Port           int
+	Domain         string
+	Debug          bool
+	UseVite        bool
+	GithubClientID string
+	GithubSecret   string
+	ServerURL      string
+	WsURL          string
+	Version        string
 }
 
 func (c *AdminConfig) DomainAddress() string {
@@ -56,7 +45,6 @@ func (c *AdminConfig) DomainAddress() string {
 }
 
 type Config struct {
-	Ssh          SshConfig
 	Proxy        ProxyConfig
 	Domain       string
 	UseLocalHost bool
@@ -66,15 +54,6 @@ type Config struct {
 }
 
 func new() *Config {
-	sshPortStr := os.Getenv("PORTR_SSH_PORT")
-	if sshPortStr == "" {
-		sshPortStr = "2222"
-	}
-	sshPort, err := strconv.Atoi(sshPortStr)
-	if err != nil {
-		log.Fatal("Invalid PORTR_SSH_PORT", "port", sshPortStr, "error", err)
-	}
-
 	proxyPortStr := os.Getenv("PORTR_PROXY_PORT")
 	if proxyPortStr == "" {
 		proxyPortStr = "8001"
@@ -116,19 +95,12 @@ func new() *Config {
 		serverURL = "http://localhost:8001"
 	}
 
-	sshURL := os.Getenv("PORTR_SSH_URL")
-	if sshURL == "" {
-		sshURL = "localhost:2222"
+	wsURL := os.Getenv("PORTR_WS_URL")
+	if wsURL == "" {
+		wsURL = "localhost:8001"
 	}
 
-	sshHostKey := os.Getenv("PORTR_SSH_HOST_KEY")
-
 	return &Config{
-		Ssh: SshConfig{
-			Host:    "localhost",
-			Port:    sshPort,
-			HostKey: sshHostKey,
-		},
 		Proxy: ProxyConfig{
 			Host: "localhost",
 			Port: proxyPort,
@@ -142,15 +114,14 @@ func new() *Config {
 			AutoMigrate: os.Getenv("PORTR_AUTO_MIGRATE") == "true",
 		},
 		Admin: AdminConfig{
-			Port:                   adminPort,
-			Domain:                 adminDomain,
-			Debug:                  os.Getenv("PORTR_ADMIN_DEBUG") == "true",
-			UseVite:                os.Getenv("PORTR_ADMIN_USE_VITE") == "true",
-			GithubClientID:         os.Getenv("PORTR_ADMIN_GITHUB_CLIENT_ID"),
-			GithubSecret:           os.Getenv("PORTR_ADMIN_GITHUB_CLIENT_SECRET"),
-			ServerURL:              serverURL,
-			SshURL:                 sshURL,
-			SshHostKeyVerification: sshHostKey != "",
+			Port:           adminPort,
+			Domain:         adminDomain,
+			Debug:          os.Getenv("PORTR_ADMIN_DEBUG") == "true",
+			UseVite:        os.Getenv("PORTR_ADMIN_USE_VITE") == "true",
+			GithubClientID: os.Getenv("PORTR_ADMIN_GITHUB_CLIENT_ID"),
+			GithubSecret:   os.Getenv("PORTR_ADMIN_GITHUB_CLIENT_SECRET"),
+			ServerURL:      serverURL,
+			WsURL:          wsURL,
 		},
 	}
 }

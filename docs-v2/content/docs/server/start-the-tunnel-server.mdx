@@ -34,11 +34,11 @@ PORTR_ADMIN_GITHUB_CLIENT_SECRET= #optional
 PORTR_DOMAIN=example.com
 PORTR_DB_URL=postgres://postgres:postgres@postgres:5432/postgres
 
-PORTR_SERVER_URL=https://example.com
-PORTR_SSH_URL=example.com:2222
+PORTR_SERVER_URL=example.com
+PORTR_WS_URL=example.com
+PORTR_ADMIN_PORT=8000
+PORTR_PROXY_PORT=8001
 PORTR_AUTO_MIGRATE=true
-
-PORTR_SSH_HOST_KEY= # PEM-encoded Ed25519 private key
 
 CLOUDFLARE_API_TOKEN=
 
@@ -53,35 +53,14 @@ POSTGRES_DB=postgres
 |----------|-------------|---------|
 | `PORTR_DOMAIN` | Your server domain | `localhost:8001` |
 | `PORTR_DB_URL` | PostgreSQL connection URL | Required |
-| `PORTR_SERVER_URL` | Public server URL for clients | `http://localhost:8001` |
-| `PORTR_SSH_URL` | Public SSH URL for clients | `localhost:2222` |
-| `PORTR_SSH_PORT` | SSH server port | `2222` |
-| `PORTR_SSH_HOST_KEY` | PEM-encoded Ed25519 private key | Required |
+| `PORTR_SERVER_URL` | Public admin/API server URL for clients, without a scheme | `localhost:8000` |
+| `PORTR_WS_URL` | Public WebSocket tunnel URL for clients | `localhost:8001` |
 | `PORTR_ADMIN_PORT` | Admin server port | `8000` |
+| `PORTR_PROXY_PORT` | Tunnel proxy and WebSocket endpoint port | `8001` |
 | `PORTR_ADMIN_GITHUB_CLIENT_ID` | GitHub OAuth client ID | Optional |
 | `PORTR_ADMIN_GITHUB_CLIENT_SECRET` | GitHub OAuth client secret | Optional |
 | `PORTR_AUTO_MIGRATE` | Auto-run database migrations | `false` |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token for SSL | Required |
-
-### Generate SSH Host Key
-
-Generate an Ed25519 private key and set it as an environment variable:
-
-```bash
-ssh-keygen -t ed25519 -f /tmp/portr_host_key -N ""
-export PORTR_SSH_HOST_KEY="$(cat /tmp/portr_host_key)"
-rm /tmp/portr_host_key /tmp/portr_host_key.pub
-```
-
-Or use `portrd` to generate and print a key:
-
-```bash
-portrd generate-host-key
-```
-
-<Callout type="info">
-  For Docker deployments, you can pass the key as a multi-line environment variable in your `.env` file or use Docker secrets.
-</Callout>
 
 ### Start the services
 
@@ -94,6 +73,21 @@ docker compose -f docker-compose.prod.yaml up -d
 ### Access the admin dashboard
 
 Once the servers are running, navigate to your domain (e.g., `https://example.com`) and log in to the admin dashboard. The first login will be treated as a superuser account.
+
+## Routing Model
+
+The server process exposes two HTTP listeners:
+
+- `PORTR_ADMIN_PORT` serves the admin dashboard and API, including `/api/v1/healthcheck`.
+- `PORTR_PROXY_PORT` serves the WebSocket tunnel endpoint at `/_portr/tunnel/connect`
+  and routes wildcard tunnel traffic such as `https://my-app.example.com`.
+
+The production compose file routes `PORTR_DOMAIN` to the admin listener and
+`*.PORTR_DOMAIN` to the tunnel listener. Clients receive both `server_url` and
+`ws_url` in their generated config so these paths can be routed independently.
+
+No database migration is required for the WebSocket tunnel transport itself; the
+existing connection tables continue to store HTTP and TCP tunnel metadata.
 
 ## Alternative Database Setup
 
@@ -141,9 +135,9 @@ If you're having SSL certificate issues, ensure:
 Verify that the required ports are accessible:
 
 ```bash
-# Check if port 2222 is accessible
-telnet your-domain.com 2222
+# Check the admin/API health endpoint
+curl https://your-domain.com/api/v1/healthcheck
 
-# Check if HTTP/HTTPS ports are working
-curl https://your-domain.com
+# Check wildcard tunnel routing. An unregistered subdomain should return a Portr 404.
+curl -I https://unregistered.your-domain.com
 ```

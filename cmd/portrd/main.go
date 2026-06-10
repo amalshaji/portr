@@ -17,7 +17,7 @@ import (
 	"github.com/amalshaji/portr/internal/server/db"
 	"github.com/amalshaji/portr/internal/server/proxy"
 	"github.com/amalshaji/portr/internal/server/service"
-	sshd "github.com/amalshaji/portr/internal/server/ssh"
+	"github.com/amalshaji/portr/internal/server/wstunnel"
 	"github.com/charmbracelet/log"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
@@ -74,18 +74,6 @@ func main() {
 				},
 				Action: func(c *cli.Context) error {
 					return runMigrations(c.String("dialect"))
-				},
-			},
-			{
-				Name:  "generate-host-key",
-				Usage: "Generate an Ed25519 SSH host key",
-				Action: func(c *cli.Context) error {
-					key, err := sshd.GenerateHostKey()
-					if err != nil {
-						return fmt.Errorf("failed to generate host key: %w", err)
-					}
-					fmt.Print(key)
-					return nil
 				},
 			},
 		},
@@ -197,11 +185,11 @@ func startTunnel(configFilePath string) {
 	service := service.New(_db)
 
 	proxyServer := proxy.New(config)
-	sshServer := sshd.New(&config.Ssh, proxyServer, service)
+	tunnelManager := wstunnel.New(config, service)
+	proxyServer.SetTunnelManager(tunnelManager)
 	cron := cron.New(_db, config, service)
 
 	go proxyServer.Start()
-	go sshServer.Start()
 	go cron.Start()
 
 	done := make(chan os.Signal, 1)
@@ -215,7 +203,6 @@ func startTunnel(configFilePath string) {
 	defer cancel()
 
 	proxyServer.Shutdown(shutdownCtx)
-	sshServer.Shutdown(shutdownCtx)
 	cron.Shutdown()
 }
 
@@ -267,7 +254,8 @@ func startAll(configFilePath string) error {
 
 	service := service.New(_db)
 	proxyServer := proxy.New(tunnelConfig)
-	sshServer := sshd.New(&tunnelConfig.Ssh, proxyServer, service)
+	tunnelManager := wstunnel.New(tunnelConfig, service)
+	proxyServer.SetTunnelManager(tunnelManager)
 	cronJob := cron.New(_db, tunnelConfig, service)
 	adminServer := admin.NewServer(adminCfg, _db.Conn)
 
@@ -276,15 +264,10 @@ func startAll(configFilePath string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Start tunnel components
-	wg.Add(3)
+	wg.Add(2)
 	go func() {
 		defer wg.Done()
 		proxyServer.Start()
-	}()
-
-	go func() {
-		defer wg.Done()
-		sshServer.Start()
 	}()
 
 	go func() {
@@ -328,7 +311,6 @@ func startAll(configFilePath string) error {
 
 	// Shutdown tunnel components
 	proxyServer.Shutdown(shutdownCtx)
-	sshServer.Shutdown(shutdownCtx)
 	cronJob.Shutdown()
 
 	// Wait for all goroutines to finish
