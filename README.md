@@ -82,6 +82,22 @@ portr logs amal-test --json
 - [HTTP tunnel guide](https://portr.dev/docs/client/http-tunnel)
 - [Getting started guide](https://portr.dev/docs/getting-started)
 
+## Agent Skills
+
+This repo includes a `portr-cli` skill for Claude Code and Codex through [Vercel Labs skills](https://github.com/vercel-labs/skills).
+
+Install it into both agents from GitHub:
+
+```bash
+npx skills add amalshaji/portr --skill portr-cli -a claude-code -a codex -y
+```
+
+To install it globally instead:
+
+```bash
+npx skills add amalshaji/portr --skill portr-cli -a claude-code -a codex -g -y
+```
+
 ## Contributing
 
 Please read through [our contributing guide](.github/contributing.md) and set up your [development environment](https://portr.dev/docs/local-development).

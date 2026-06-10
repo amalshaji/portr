@@ -1,6 +1,9 @@
 package config
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,6 +11,16 @@ import (
 
 	"github.com/amalshaji/portr/internal/constants"
 )
+
+func useDefaultConfigPath(t *testing.T, path string) {
+	t.Helper()
+
+	previousPath := DefaultConfigPath
+	DefaultConfigPath = path
+	t.Cleanup(func() {
+		DefaultConfigPath = previousPath
+	})
+}
 
 func TestSetDefaultsAppliesDashboardPort(t *testing.T) {
 	cfg := Config{}
@@ -48,6 +61,62 @@ func TestLoadPreservesExplicitRequestLoggingFalse(t *testing.T) {
 	}
 	if *cfg.EnableRequestLogging {
 		t.Fatal("expected explicit request logging false to be preserved")
+	}
+}
+
+func TestGetConfigUpdatesOnlyTokenWhenDefaultConfigExists(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	useDefaultConfigPath(t, configPath)
+
+	existingConfig := `server_url: existing.example.com
+ssh_url: existing.example.com:2222
+secret_key: old-token
+tunnels:
+  - name: api
+    subdomain: api-dev
+    port: 3000
+    type: http
+`
+	if err := os.WriteFile(configPath, []byte(existingConfig), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	requestPath := ""
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestPath = r.URL.Path
+		if r.URL.Path != "/api/v1/config/download" {
+			http.Error(w, "unexpected path", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"message":"server_url: downloaded.example.com\nssh_url: downloaded.example.com:2222\nsecret_key: new-token\ntunnels:\n  - name: downloaded\n    subdomain: downloaded\n    port: 4321"}`)
+	}))
+	defer server.Close()
+
+	if err := GetConfig("new-token", server.URL); err != nil {
+		t.Fatalf("get config: %v", err)
+	}
+	if requestPath != "/api/v1/config/download" {
+		t.Fatalf("expected config download endpoint to be called, got %q", requestPath)
+	}
+
+	configBytes, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	configContent := string(configBytes)
+
+	if !strings.Contains(configContent, "secret_key: new-token") {
+		t.Fatalf("expected token to be updated, got: %s", configContent)
+	}
+	if !strings.Contains(configContent, "server_url: existing.example.com") {
+		t.Fatalf("expected existing server_url to be preserved, got: %s", configContent)
+	}
+	if !strings.Contains(configContent, "name: api") || !strings.Contains(configContent, "subdomain: api-dev") {
+		t.Fatalf("expected existing tunnel to be preserved, got: %s", configContent)
+	}
+	if strings.Contains(configContent, "downloaded.example.com") || strings.Contains(configContent, "name: downloaded") {
+		t.Fatalf("expected downloaded template not to overwrite existing config, got: %s", configContent)
 	}
 }
 
