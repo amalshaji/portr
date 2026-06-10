@@ -1,6 +1,6 @@
 import { getReasonPhrase } from "http-status-codes"
 
-import type { HeaderMap, RequestRecord, TunnelSummary, WebSocketEvent } from "@/types"
+import type { HeaderMap, RequestRecord, WebSocketEvent } from "@/types"
 
 const textDecoder = new TextDecoder()
 const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
@@ -315,16 +315,6 @@ export function relativeTime(iso: string | null | undefined): string {
   if (h < 24) return `${h}h ago`
   const d = Math.floor(h / 24)
   return `${d}d ago`
-}
-
-export function deriveStatus(tunnel: TunnelSummary): "live" | "idle" | "closed" {
-  if (tunnel.active_websocket_count > 0) return "live"
-  if (!tunnel.last_activity_at) return "closed"
-  const diffMs = Date.now() - new Date(tunnel.last_activity_at).getTime()
-  const minutes = diffMs / 1000 / 60
-  if (minutes < 2) return "live"
-  if (minutes < 30) return "idle"
-  return "closed"
 }
 
 export function parseCookiesHeader(

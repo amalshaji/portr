@@ -66,8 +66,8 @@ func New(config *config.Config) *Db {
 
 type Request struct {
 	ID                 string `gorm:"primaryKey"`
-	Subdomain          string
-	Localport          int
+	Subdomain          string `gorm:"index:idx_requests_tunnel,priority:1"`
+	Localport          int    `gorm:"index:idx_requests_tunnel,priority:2"`
 	Host               string
 	Url                string
 	Method             string
@@ -76,7 +76,7 @@ type Request struct {
 	ResponseHeaders    datatypes.JSON
 	ResponseBody       []byte
 	ResponseStatusCode int
-	LoggedAt           time.Time
+	LoggedAt           time.Time `gorm:"index:idx_requests_tunnel,priority:3"`
 	IsReplayed         bool
 	ParentID           string
 	DurationMs         int64
