@@ -24,7 +24,8 @@ const C = {
 };
 const SANS = "Geist";
 const MONO = "Geist Mono";
-const glow = (a) => `0 0 18px rgba(34,211,238,${a})`;
+const CYAN_RGB = "34,211,238"; // C.cyan as rgb, for translucent glows
+const glow = (a) => `0 0 18px rgba(${CYAN_RGB},${a})`;
 
 // hyperscript — satori takes React-element-shaped plain objects.
 const h = (type, props = {}, ...children) => {
@@ -33,6 +34,7 @@ const h = (type, props = {}, ...children) => {
   return { type, props: { ...props, style, children: children.flat() } };
 };
 const t = (text, style) => h("div", { style: { display: "flex", ...style } }, text);
+const dot = () => h("div", { style: { width: 13, height: 13, borderRadius: 999, background: C.dot } });
 
 // --- orbs ---------------------------------------------------------------
 const ORBS = [
@@ -52,7 +54,7 @@ const orb = ({ label, cx, cy, d, fs }) =>
         height: d,
         borderRadius: 999,
         border: `3px solid ${C.cyan}`,
-        boxShadow: `0 0 26px rgba(34,211,238,0.45), inset 0 0 20px rgba(34,211,238,0.12)`,
+        boxShadow: `0 0 26px rgba(${CYAN_RGB},0.45), inset 0 0 20px rgba(${CYAN_RGB},0.12)`,
         alignItems: "center",
         justifyContent: "center",
       },
@@ -60,11 +62,16 @@ const orb = ({ label, cx, cy, d, fs }) =>
     t(label, { fontFamily: SANS, fontWeight: 700, fontSize: fs, color: C.cyanBright, letterSpacing: 1, textShadow: glow(0.55) })
   );
 
+// terminal geometry — shared so the connector start can't drift from the box
+const TERM = { left: 150, top: 176, w: 470, h: 286 };
+const EX = TERM.left + TERM.w; // connectors exit the terminal's right edge
+
 // --- connector curves (glowing) -----------------------------------------
+// start x is derived (EX); control points + orb-side endpoints are tuned to ORBS
 const PATHS = [
-  "M620 304 C 800 304 820 198 960 180",
-  "M620 322 C 815 356 905 330 1033 322",
-  "M620 332 C 800 360 768 470 957 460",
+  `M${EX} 304 C 800 304 820 198 960 180`,
+  `M${EX} 322 C 815 356 905 330 1033 322`,
+  `M${EX} 332 C 800 360 768 470 957 460`,
 ];
 const stroke = (d, w, o, color) =>
   `<path d="${d}" fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round" opacity="${o}"/>`;
@@ -83,10 +90,10 @@ const terminal = h(
   {
     style: {
       position: "absolute",
-      left: 150,
-      top: 176,
-      width: 470,
-      height: 286,
+      left: TERM.left,
+      top: TERM.top,
+      width: TERM.w,
+      height: TERM.h,
       borderRadius: 16,
       background: C.termBg,
       border: `1px solid ${C.termBorder}`,
@@ -107,9 +114,9 @@ const terminal = h(
         borderBottom: `1px solid rgba(125,160,200,0.12)`,
       },
     },
-    h("div", { style: { width: 13, height: 13, borderRadius: 999, background: C.dot } }),
-    h("div", { style: { width: 13, height: 13, borderRadius: 999, background: C.dot } }),
-    h("div", { style: { width: 13, height: 13, borderRadius: 999, background: C.dot } })
+    dot(),
+    dot(),
+    dot()
   ),
   // body
   h(
