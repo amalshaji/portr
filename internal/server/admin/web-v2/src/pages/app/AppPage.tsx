@@ -10,6 +10,7 @@ import {
   LogOut,
   EllipsisVertical,
   Activity,
+  Settings,
 } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import SidebarLink from "@/components/SidebarLink";
@@ -167,6 +168,14 @@ export default function AppPage() {
                   <SidebarMenuButton onClick={() => setNewTeamDialogOpen(true)}>
                     <PlusCircle className="h-4 w-4" />
                     New Team
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <SidebarLink to="/instance-settings">
+                      <Settings className="h-4 w-4" />
+                      Instance Settings
+                    </SidebarLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>

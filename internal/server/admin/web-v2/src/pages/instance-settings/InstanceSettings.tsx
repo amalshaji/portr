@@ -1,25 +1,35 @@
 import { useState, useEffect } from 'react'
-import { Save, Mail, Server } from 'lucide-react'
+import { Plus, Save, Server, Trash2, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
-import type { InstanceSettings as InstanceSettingsType } from '@/types'
+import type { AutoSignupDomain, InstanceSettings as InstanceSettingsType, Team } from '@/types'
+
+interface UpdateInstanceSettingsPayload {
+  auto_signup_enabled: boolean
+  auto_signup_domains: Array<{
+    domain: string
+    team_id: number
+  }>
+}
 
 export default function InstanceSettings() {
   const [settings, setSettings] = useState<InstanceSettingsType>({
-    smtp_enabled: false,
-    smtp_host: '',
-    smtp_port: 587,
-    smtp_username: '',
-    smtp_password: '',
-    from_address: '',
-    add_user_email_subject: 'Welcome to {team_name}',
-    add_user_email_body: 'You have been invited to join {team_name}. Click the link below to get started:\n\n{invite_link}',
+    github_auth_enabled: false,
+    auto_signup_enabled: false,
+    auto_signup_domains: [],
   })
+  const [teams, setTeams] = useState<Team[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -30,10 +40,18 @@ export default function InstanceSettings() {
   const fetchSettings = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/v1/instance/settings')
-      if (response.ok) {
-        const data = await response.json()
+      const [settingsResponse, teamsResponse] = await Promise.all([
+        fetch('/api/v1/instance-settings/'),
+        fetch('/api/v1/team/'),
+      ])
+
+      if (settingsResponse.ok) {
+        const data = await settingsResponse.json()
         setSettings(data)
+      }
+      if (teamsResponse.ok) {
+        const data = await teamsResponse.json()
+        setTeams(data)
       }
     } catch (error) {
       console.error('Error fetching settings:', error)
@@ -43,26 +61,59 @@ export default function InstanceSettings() {
     }
   }
 
-  const handleSettingChange = (field: keyof InstanceSettingsType, value: string | number | boolean) => {
-    setSettings((prev) => ({ ...prev, [field]: value }))
+  const handleAutoSignupEnabledChange = (enabled: boolean) => {
+    setSettings((prev) => ({ ...prev, auto_signup_enabled: enabled }))
+  }
+
+  const handleDomainMappingChange = (index: number, patch: Partial<AutoSignupDomain>) => {
+    setSettings((prev) => ({
+      ...prev,
+      auto_signup_domains: prev.auto_signup_domains.map((mapping, mappingIndex) =>
+        mappingIndex === index ? { ...mapping, ...patch } : mapping
+      ),
+    }))
+  }
+
+  const addDomainMapping = () => {
+    setSettings((prev) => ({
+      ...prev,
+      auto_signup_domains: [...prev.auto_signup_domains, { domain: '', team_id: null }],
+    }))
+  }
+
+  const removeDomainMapping = (index: number) => {
+    setSettings((prev) => ({
+      ...prev,
+      auto_signup_domains: prev.auto_signup_domains.filter((_, mappingIndex) => mappingIndex !== index),
+    }))
   }
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      const response = await fetch('/api/v1/instance/settings', {
-        method: 'PUT',
+      const payload: UpdateInstanceSettingsPayload = {
+        auto_signup_enabled: settings.auto_signup_enabled,
+        auto_signup_domains: settings.auto_signup_domains.map((mapping) => ({
+          domain: mapping.domain,
+          team_id: mapping.team_id ?? 0,
+        })),
+      }
+
+      const response = await fetch('/api/v1/instance-settings/', {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(payload),
       })
 
       if (response.ok) {
+        const data = await response.json()
+        setSettings(data)
         toast.success('Settings updated successfully')
       } else {
         const error = await response.json()
-        toast.error(error.message || 'Failed to update settings')
+        toast.error(error.error || 'Failed to update settings')
       }
     } catch (error) {
       console.error('Error updating settings:', error)
@@ -98,121 +149,104 @@ export default function InstanceSettings() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5" />
-                Email Configuration
+                <UserPlus className="h-5 w-5" />
+                GitHub Auto Signup
               </CardTitle>
               <CardDescription>
-                Configure SMTP settings for sending emails to team members
+                Allow GitHub users from trusted domains to join a selected team
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center space-x-2">
                 <Switch
-                  id="smtp-enabled"
-                  checked={settings.smtp_enabled}
-                  onCheckedChange={(checked) => handleSettingChange('smtp_enabled', checked)}
+                  id="auto-signup-enabled"
+                  checked={settings.auto_signup_enabled}
+                  disabled={!settings.github_auth_enabled && !settings.auto_signup_enabled}
+                  onCheckedChange={handleAutoSignupEnabledChange}
                 />
-                <Label htmlFor="smtp-enabled">Enable SMTP</Label>
+                <Label htmlFor="auto-signup-enabled">Enable auto signup</Label>
               </div>
 
-              {settings.smtp_enabled && (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="smtp-host">SMTP Host</Label>
-                      <Input
-                        id="smtp-host"
-                        value={settings.smtp_host}
-                        onChange={(e) => handleSettingChange('smtp_host', e.target.value)}
-                        placeholder="smtp.gmail.com"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="smtp-port">SMTP Port</Label>
-                      <Input
-                        id="smtp-port"
-                        type="number"
-                        value={settings.smtp_port}
-                        onChange={(e) => handleSettingChange('smtp_port', parseInt(e.target.value))}
-                        placeholder="587"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="smtp-username">SMTP Username</Label>
-                      <Input
-                        id="smtp-username"
-                        value={settings.smtp_username}
-                        onChange={(e) => handleSettingChange('smtp_username', e.target.value)}
-                        placeholder="your@email.com"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="smtp-password">SMTP Password</Label>
-                      <Input
-                        id="smtp-password"
-                        type="password"
-                        value={settings.smtp_password}
-                        onChange={(e) => handleSettingChange('smtp_password', e.target.value)}
-                        placeholder="••••••••"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="from-address">From Address</Label>
-                    <Input
-                      id="from-address"
-                      value={settings.from_address}
-                      onChange={(e) => handleSettingChange('from_address', e.target.value)}
-                      placeholder="noreply@yourcompany.com"
-                    />
-                  </div>
-                </>
+              {!settings.github_auth_enabled && (
+                <p className="text-sm text-muted-foreground">
+                  GitHub authentication must be configured on the server before auto signup can be enabled.
+                </p>
               )}
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <Label>Domain mappings</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!settings.auto_signup_enabled}
+                    onClick={addDomainMapping}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add domain
+                  </Button>
+                </div>
+
+                {settings.auto_signup_domains.length === 0 ? (
+                  <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                    No auto signup domains configured.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {settings.auto_signup_domains.map((mapping, index) => (
+                      <div
+                        key={mapping.id ?? `new-${index}`}
+                        className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(180px,240px)_auto] sm:items-end"
+                      >
+                        <div className="space-y-2">
+                          <Label htmlFor={`auto-signup-domain-${index}`}>Domain</Label>
+                          <Input
+                            id={`auto-signup-domain-${index}`}
+                            value={mapping.domain}
+                            disabled={!settings.auto_signup_enabled}
+                            onChange={(e) => handleDomainMappingChange(index, { domain: e.target.value })}
+                            placeholder="amal.sh"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`auto-signup-team-${index}`}>Team</Label>
+                          <Select
+                            value={mapping.team_id ? String(mapping.team_id) : ''}
+                            disabled={!settings.auto_signup_enabled || teams.length === 0}
+                            onValueChange={(value) => handleDomainMappingChange(index, { team_id: Number(value) })}
+                          >
+                            <SelectTrigger id={`auto-signup-team-${index}`}>
+                              <SelectValue placeholder="Select a team" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {teams.map((team) => (
+                                <SelectItem key={team.id} value={String(team.id)}>
+                                  {team.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={!settings.auto_signup_enabled}
+                          onClick={() => removeDomainMapping(index)}
+                          aria-label="Remove domain mapping"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
-
-          {settings.smtp_enabled && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Email Templates</CardTitle>
-                <CardDescription>
-                  customize email templates sent to users
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email-subject">User Invitation Subject</Label>
-                  <Input
-                    id="email-subject"
-                    value={settings.add_user_email_subject}
-                    onChange={(e) => handleSettingChange('add_user_email_subject', e.target.value)}
-                    placeholder="Welcome to {team_name}"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Available variables: {'{team_name}'}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email-body">User Invitation Body</Label>
-                  <Textarea
-                    id="email-body"
-                    value={settings.add_user_email_body}
-                    onChange={(e) => handleSettingChange('add_user_email_body', e.target.value)}
-                    placeholder="You have been invited to join {team_name}..."
-                    rows={6}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Available variables: {'{team_name}, {invite_link}'}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           <Card>
             <CardHeader>

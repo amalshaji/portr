@@ -11,6 +11,7 @@ import (
 	"github.com/amalshaji/portr/internal/server/admin/api/auth"
 	"github.com/amalshaji/portr/internal/server/admin/api/config"
 	"github.com/amalshaji/portr/internal/server/admin/api/connection"
+	"github.com/amalshaji/portr/internal/server/admin/api/instancesettings"
 	"github.com/amalshaji/portr/internal/server/admin/api/team"
 	"github.com/amalshaji/portr/internal/server/admin/api/user"
 	"github.com/amalshaji/portr/internal/server/admin/db"
@@ -122,6 +123,9 @@ func (s *Server) setupRoutes() {
 		Browse:     false,
 	}))
 
+	s.app.Get("/instance-settings", s.auth.RequireAuthRedirect, s.auth.RequireSuperuser, s.handleIndex)
+	s.app.Get("/instance-settings/*", s.auth.RequireAuthRedirect, s.auth.RequireSuperuser, s.handleIndex)
+
 	s.app.Get("/*", s.auth.RequireAuthRedirect, func(c *fiber.Ctx) error {
 		// Skip static paths
 		if strings.HasPrefix(c.Path(), "/static/") {
@@ -154,11 +158,27 @@ func (s *Server) setupUserRoutes(v1 fiber.Router) {
 	userGroup.Patch("/me/rotate-secret-key", s.auth.RequireTeamUser, userHandler.RotateSecretKey)
 }
 
+func getCollectionRoot(router fiber.Router, handlers ...fiber.Handler) {
+	router.Get("", handlers...)
+	router.Get("/", handlers...)
+}
+
+func postCollectionRoot(router fiber.Router, handlers ...fiber.Handler) {
+	router.Post("", handlers...)
+	router.Post("/", handlers...)
+}
+
+func patchCollectionRoot(router fiber.Router, handlers ...fiber.Handler) {
+	router.Patch("", handlers...)
+	router.Patch("/", handlers...)
+}
+
 func (s *Server) setupTeamRoutes(v1 fiber.Router) {
 	teamHandler := team.NewHandler(s.db.DB, s.store)
 	teamGroup := v1.Group("/team")
 
-	teamGroup.Post("/", s.auth.RequireSuperuser, teamHandler.CreateTeam)
+	getCollectionRoot(teamGroup, s.auth.RequireSuperuser, teamHandler.ListTeams)
+	postCollectionRoot(teamGroup, s.auth.RequireSuperuser, teamHandler.CreateTeam)
 	teamGroup.Get("/users", s.auth.RequireTeamUser, teamHandler.GetTeamUsers)
 	teamGroup.Post("/add", s.auth.RequireAdmin, teamHandler.AddUser)
 	teamGroup.Delete("/users/:id", s.auth.RequireAdmin, teamHandler.RemoveUser)
@@ -169,8 +189,8 @@ func (s *Server) setupConnectionRoutes(v1 fiber.Router) {
 	connHandler := connection.NewHandler(s.db.DB, s.store)
 	connGroup := v1.Group("/connections")
 
-	connGroup.Get("/", s.auth.RequireTeamUser, connHandler.GetConnections)
-	connGroup.Post("/", connHandler.CreateConnection)
+	getCollectionRoot(connGroup, s.auth.RequireTeamUser, connHandler.GetConnections)
+	postCollectionRoot(connGroup, connHandler.CreateConnection)
 }
 
 func (s *Server) setupConfigRoutes(v1 fiber.Router) {
@@ -183,11 +203,11 @@ func (s *Server) setupConfigRoutes(v1 fiber.Router) {
 }
 
 func (s *Server) setupInstanceSettingsRoutes(v1 fiber.Router) {
-	configHandler := config.NewHandler(s.db.DB, s.store, s.config, s.statsCollector)
+	instanceSettingsHandler := instancesettings.NewHandler(s.db.DB, s.config)
 	instanceGroup := v1.Group("/instance-settings")
 
-	instanceGroup.Get("/", s.auth.RequireSuperuser, configHandler.GetInstanceSettings)
-	instanceGroup.Patch("/", s.auth.RequireSuperuser, configHandler.UpdateInstanceSettings)
+	getCollectionRoot(instanceGroup, s.auth.RequireSuperuser, instanceSettingsHandler.Get)
+	patchCollectionRoot(instanceGroup, s.auth.RequireSuperuser, instanceSettingsHandler.Update)
 }
 
 func (s *Server) handleIndex(c *fiber.Ctx) error {

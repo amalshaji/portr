@@ -72,6 +72,26 @@ type ResetPasswordResponse struct {
 	Password string `json:"password"`
 }
 
+func (h *Handler) ListTeams(c *fiber.Ctx) error {
+	var teams []models.Team
+	if err := h.db.Order("name ASC").Find(&teams).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to load teams",
+		})
+	}
+
+	response := make([]TeamResponse, 0, len(teams))
+	for _, team := range teams {
+		response = append(response, TeamResponse{
+			ID:   team.ID,
+			Name: team.Name,
+			Slug: team.Slug,
+		})
+	}
+
+	return c.JSON(response)
+}
+
 func (h *Handler) CreateTeam(c *fiber.Ctx) error {
 	user := middleware.GetCurrentUser(c)
 	if user == nil || !user.IsSuperuser {
