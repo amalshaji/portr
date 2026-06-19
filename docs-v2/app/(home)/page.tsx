@@ -9,10 +9,13 @@ import { SparklesText } from "@/components/magicui/sparkles-text";
 import { GithubInfo } from "fumadocs-ui/components/github-info";
 import Logo from "@/components/ui/logo";
 
+const title = "Portr - Self-Hosted Tunnel Solution for Teams";
+const description =
+  "Expose local HTTP, TCP, or WebSocket connections to the internet with Portr, a self-hosted tunnel for teams with admin dashboard and request inspector.";
+
 export const metadata: Metadata = {
-  title: "Portr - Self-Hosted Tunnel Solution for Teams",
-  description:
-    "Expose local HTTP, TCP, or WebSocket connections to the public internet with a self-hosted tunnel solution designed for teams. Features admin dashboard, request inspector, and team collaboration.",
+  title,
+  description,
   keywords: [
     "tunnel",
     "ngrok alternative",
@@ -26,18 +29,16 @@ export const metadata: Metadata = {
     "portr",
   ],
   openGraph: {
-    title: "Portr - Self-Hosted Tunnel Solution for Teams",
-    description:
-      "Expose local HTTP, TCP, or WebSocket connections to the public internet with a self-hosted tunnel solution designed for teams.",
+    title,
+    description,
     type: "website",
     url: "https://portr.dev",
     images: "/og.png",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Portr - Self-Hosted Tunnel Solution for Teams",
-    description:
-      "Expose local HTTP, TCP, or WebSocket connections to the public internet with a self-hosted tunnel solution designed for teams.",
+    title,
+    description,
     images: "/og.png",
   },
 };
