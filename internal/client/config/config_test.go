@@ -64,6 +64,22 @@ func TestLoadPreservesExplicitRequestLoggingFalse(t *testing.T) {
 	}
 }
 
+func TestLoadAcceptsDeprecatedHTTPReverseProxyOption(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	contents := "enable_http_reverse_proxy: false\nserver_url: example.test\n"
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("load config with deprecated option: %v", err)
+	}
+	if cfg.ServerUrl != "example.test" {
+		t.Fatalf("expected remaining config to load, got server_url=%q", cfg.ServerUrl)
+	}
+}
+
 func TestGetConfigUpdatesOnlyTokenWhenDefaultConfigExists(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	useDefaultConfigPath(t, configPath)

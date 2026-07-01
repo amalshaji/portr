@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type CronFunc func(*Cron)
+type CronFunc func(context.Context, *Cron)
 
 type Job struct {
 	Name     string
@@ -17,8 +17,8 @@ var crons = []Job{
 	{
 		Name:     "Ping active connections",
 		Interval: 10 * time.Second,
-		Function: func(c *Cron) {
-			c.pingActiveConnections(context.Background())
+		Function: func(ctx context.Context, c *Cron) {
+			c.pingActiveConnections(ctx)
 		},
 	},
 }

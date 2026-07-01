@@ -147,7 +147,6 @@ type Config struct {
 	HealthCheckInterval             int      `yaml:"health_check_interval"`
 	HealthCheckMaxRetries           int      `yaml:"health_check_max_retries"`
 	DisableTUI                      bool     `yaml:"disable_tui"`
-	EnableHttpReverseProxy          bool     `yaml:"enable_http_reverse_proxy"`
 	DisableUpdateCheck              bool     `yaml:"disable_update_check"`
 	InsecureSkipHostKeyVerification *bool    `yaml:"insecure_skip_host_key_verification"`
 }
@@ -249,7 +248,6 @@ type ClientConfig struct {
 	HealthCheckMaxRetries           int
 	DisableTUI                      bool
 	DisableTerminalLogs             bool
-	EnableHttpReverseProxy          bool
 	InsecureSkipHostKeyVerification bool
 }
 

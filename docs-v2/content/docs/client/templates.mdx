@@ -253,6 +253,9 @@ Each tunnel template supports the following options:
 - **host**: The local host to bind to (default: localhost)
 - **pool_size**: HTTP only. Number of SSH workers to run per HTTP tunnel (default: 2). Increases resilience and throughput.
 
+HTTP tunnels use streaming reverse proxying by default. Request and response bodies are forwarded as they arrive, while inspector captures are stored asynchronously and capped at 1 MiB per body.
+The former `enable_http_reverse_proxy` option is no longer required; existing configurations containing it still load, but the option is ignored.
+
 ## Example Configurations
 
 ### Development Environment
