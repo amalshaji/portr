@@ -8,21 +8,18 @@ func TestGenerateRandomHttpPorts(t *testing.T) {
 	ports := GenerateRandomHttpPorts()
 
 	if len(ports) != 10 {
-		t.Errorf("Expected 10 ports, got %d", len(ports))
+		t.Fatalf("expected 10 ports, got %d", len(ports))
 	}
 
+	seen := make(map[int]bool, len(ports))
 	for i, port := range ports {
 		if port < 20000 || port > 30000 {
-			t.Errorf("Port[%d] = %d is outside expected range [20000-30000]", i, port)
+			t.Errorf("port[%d] = %d is outside expected range [20000-30000]", i, port)
 		}
-	}
-
-	portMap := make(map[int]bool)
-	for _, port := range ports {
-		if portMap[port] {
-			t.Errorf("Duplicate port found: %d", port)
+		if seen[port] {
+			t.Errorf("duplicate port found: %d", port)
 		}
-		portMap[port] = true
+		seen[port] = true
 	}
 }
 

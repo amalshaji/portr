@@ -81,7 +81,6 @@ Global config keys:
 - `health_check_interval`: health check interval in seconds. Default `3`.
 - `health_check_max_retries`: max health check retry count. Default `10`.
 - `disable_tui`: run without the interactive terminal UI.
-- `enable_http_reverse_proxy`: enable the HTTP reverse-proxy path when supported by the running binary.
 - `disable_update_check`: suppress release update checks.
 - `insecure_skip_host_key_verification`: skip SSH host key verification. Default `true`.
 

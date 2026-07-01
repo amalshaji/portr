@@ -213,9 +213,15 @@ func (m *Manager) StopTunnel(ctx context.Context, id string) (TunnelStatus, erro
 	m.mu.Unlock()
 
 	tunnel.cancel()
+	var shutdowns sync.WaitGroup
 	for _, client := range tunnel.clients {
-		_ = client.Shutdown(ctx)
+		shutdowns.Add(1)
+		go func() {
+			defer shutdowns.Done()
+			_ = client.Shutdown(ctx)
+		}()
 	}
+	shutdowns.Wait()
 	m.unregisterStubTunnel(clientcfg.Tunnel{
 		Type:      tunnel.status.Type,
 		Subdomain: tunnel.status.Subdomain,
@@ -322,7 +328,6 @@ func (m *Manager) clientConfigForTunnel(tunnel clientcfg.Tunnel) clientcfg.Clien
 		HealthCheckMaxRetries:           m.baseConfig.HealthCheckMaxRetries,
 		DisableTUI:                      true,
 		DisableTerminalLogs:             true,
-		EnableHttpReverseProxy:          m.baseConfig.EnableHttpReverseProxy,
 		InsecureSkipHostKeyVerification: *m.baseConfig.InsecureSkipHostKeyVerification,
 	}
 }

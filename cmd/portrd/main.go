@@ -194,11 +194,12 @@ func startTunnel(configFilePath string) {
 	_db := db.New(&config.Database)
 	_db.Connect()
 
-	service := service.New(_db)
+	tunnelService := service.New(_db)
+	reconcileTunnelConnections(tunnelService)
 
 	proxyServer := proxy.New(config)
-	sshServer := sshd.New(&config.Ssh, proxyServer, service)
-	cron := cron.New(_db, config, service)
+	sshServer := sshd.New(&config.Ssh, proxyServer, tunnelService)
+	cron := cron.New(config, tunnelService)
 
 	go proxyServer.Start()
 	go sshServer.Start()
@@ -214,9 +215,9 @@ func startTunnel(configFilePath string) {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	cron.Shutdown()
 	proxyServer.Shutdown(shutdownCtx)
 	sshServer.Shutdown(shutdownCtx)
-	cron.Shutdown()
 }
 
 func startAdmin() error {
@@ -265,10 +266,11 @@ func startAll(configFilePath string) error {
 	_db := db.New(&tunnelConfig.Database)
 	_db.Connect()
 
-	service := service.New(_db)
+	tunnelService := service.New(_db)
+	reconcileTunnelConnections(tunnelService)
 	proxyServer := proxy.New(tunnelConfig)
-	sshServer := sshd.New(&tunnelConfig.Ssh, proxyServer, service)
-	cronJob := cron.New(_db, tunnelConfig, service)
+	sshServer := sshd.New(&tunnelConfig.Ssh, proxyServer, tunnelService)
+	cronJob := cron.New(tunnelConfig, tunnelService)
 	adminServer := admin.NewServer(adminCfg, _db.Conn)
 
 	// Use WaitGroup to track all servers
@@ -327,9 +329,9 @@ func startAll(configFilePath string) error {
 	}
 
 	// Shutdown tunnel components
+	cronJob.Shutdown()
 	proxyServer.Shutdown(shutdownCtx)
 	sshServer.Shutdown(shutdownCtx)
-	cronJob.Shutdown()
 
 	// Wait for all goroutines to finish
 	cancel()
@@ -341,4 +343,12 @@ func startAll(configFilePath string) error {
 
 	log.Info("All services shut down successfully")
 	return nil
+}
+
+func reconcileTunnelConnections(tunnelService *service.Service) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := tunnelService.CloseAllActiveConnections(ctx); err != nil {
+		log.Fatal("Failed to reconcile stale tunnel connections", "error", err)
+	}
 }
