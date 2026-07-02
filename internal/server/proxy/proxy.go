@@ -53,12 +53,16 @@ func New(config *config.Config) *Proxy {
 	}
 	p.server = &http.Server{
 		Addr:              p.GetServerAddr(),
-		Handler:           http.HandlerFunc(p.handleRequest),
+		Handler:           p,
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       90 * time.Second,
 		MaxHeaderBytes:    1 << 20,
 	}
 	return p
+}
+
+func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	p.handleRequest(w, r)
 }
 
 // AddBackend adds a backend to a subdomain, creating the subdomain entry if needed.

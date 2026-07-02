@@ -24,7 +24,7 @@ func (l *singleConnListener) Accept() (net.Conn, error) {
 	}
 	l.accepted = true
 	l.doneChannelLocked()
-	conn := &listenerConn{Conn: l.conn, onClose: l.Close}
+	conn := &listenerConn{Conn: newDeadlineConn(l.conn), onClose: l.Close}
 	l.mu.Unlock()
 	return conn, nil
 }

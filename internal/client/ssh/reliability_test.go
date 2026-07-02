@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"os"
 	"testing"
 	"time"
 
@@ -153,6 +154,52 @@ func TestWriteAllRejectsZeroLengthWrite(t *testing.T) {
 	err := writeAll(writerFunc(func([]byte) (int, error) { return 0, nil }), []byte("x"))
 	if !errors.Is(err, io.ErrShortWrite) {
 		t.Fatalf("expected short write, got %v", err)
+	}
+}
+
+func TestDeadlineConnInterruptsReadWithoutLosingData(t *testing.T) {
+	server, client := net.Pipe()
+	wrapped := newDeadlineConn(server)
+	t.Cleanup(func() {
+		_ = wrapped.Close()
+		_ = client.Close()
+	})
+
+	readDone := make(chan error, 1)
+	go func() {
+		buffer := make([]byte, 1)
+		_, err := wrapped.Read(buffer)
+		readDone <- err
+	}()
+	if err := wrapped.SetReadDeadline(time.Now().Add(20 * time.Millisecond)); err != nil {
+		t.Fatalf("set read deadline: %v", err)
+	}
+	select {
+	case err := <-readDone:
+		if !errors.Is(err, os.ErrDeadlineExceeded) {
+			t.Fatalf("expected deadline error, got %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("deadline did not interrupt read")
+	}
+
+	if err := wrapped.SetReadDeadline(time.Time{}); err != nil {
+		t.Fatalf("clear read deadline: %v", err)
+	}
+	writeDone := make(chan error, 1)
+	go func() {
+		_, err := client.Write([]byte("websocket-frame"))
+		writeDone <- err
+	}()
+	buffer := make([]byte, len("websocket-frame"))
+	if _, err := io.ReadFull(wrapped, buffer); err != nil {
+		t.Fatalf("read data after deadline: %v", err)
+	}
+	if err := <-writeDone; err != nil {
+		t.Fatalf("write data after deadline: %v", err)
+	}
+	if string(buffer) != "websocket-frame" {
+		t.Fatalf("data was lost after interrupted read: %q", buffer)
 	}
 }
 
