@@ -2,7 +2,6 @@ import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/notebook";
 import type { ReactNode } from "react";
 import { baseOptions } from "@/app/layout.config";
 import { source } from "@/lib/source";
-import { GithubInfo } from "fumadocs-ui/components/github-info";
 
 const docsOptions: DocsLayoutProps = {
   ...baseOptions,
@@ -11,19 +10,6 @@ const docsOptions: DocsLayoutProps = {
     defaultOpenLevel: 10,
     collapsible: true,
   },
-  links: [
-    {
-      type: "custom",
-      children: (
-        <GithubInfo
-          owner="amalshaji"
-          repo="portr"
-          token={process.env.GITHUB_TOKEN}
-          className="lg:-mx-2"
-        />
-      ),
-    },
-  ],
   nav: {
     ...baseOptions.nav,
     transparentMode: "top",
