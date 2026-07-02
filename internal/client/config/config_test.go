@@ -80,7 +80,7 @@ func TestLoadAcceptsDeprecatedHTTPReverseProxyOption(t *testing.T) {
 	}
 }
 
-func TestGetConfigUpdatesOnlyTokenWhenDefaultConfigExists(t *testing.T) {
+func TestGetConfigUpdatesAuthValuesWhenDefaultConfigExists(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	useDefaultConfigPath(t, configPath)
 
@@ -125,14 +125,44 @@ tunnels:
 	if !strings.Contains(configContent, "secret_key: new-token") {
 		t.Fatalf("expected token to be updated, got: %s", configContent)
 	}
-	if !strings.Contains(configContent, "server_url: existing.example.com") {
-		t.Fatalf("expected existing server_url to be preserved, got: %s", configContent)
+	if !strings.Contains(configContent, "server_url: downloaded.example.com") {
+		t.Fatalf("expected server_url to be updated, got: %s", configContent)
+	}
+	if !strings.Contains(configContent, "ssh_url: downloaded.example.com:2222") {
+		t.Fatalf("expected ssh_url to be updated, got: %s", configContent)
+	}
+	if !strings.Contains(configContent, "tunnel_url: downloaded.example.com") {
+		t.Fatalf("expected tunnel_url to be updated, got: %s", configContent)
 	}
 	if !strings.Contains(configContent, "name: api") || !strings.Contains(configContent, "subdomain: api-dev") {
 		t.Fatalf("expected existing tunnel to be preserved, got: %s", configContent)
 	}
-	if strings.Contains(configContent, "downloaded.example.com") || strings.Contains(configContent, "name: downloaded") {
-		t.Fatalf("expected downloaded template not to overwrite existing config, got: %s", configContent)
+	if strings.Contains(configContent, "name: downloaded") {
+		t.Fatalf("expected downloaded tunnels not to overwrite existing config, got: %s", configContent)
+	}
+}
+
+func TestUpdateConfigValuesPopulatesEmptyConfig(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	useDefaultConfigPath(t, configPath)
+
+	if err := os.WriteFile(configPath, []byte(""), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	entries := [][2]string{{"secret_key", "tok"}, {"server_url", "s.example.com"}}
+	if err := updateConfigValues(entries); err != nil {
+		t.Fatalf("update config values: %v", err)
+	}
+
+	configBytes, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	configContent := string(configBytes)
+
+	if !strings.Contains(configContent, "secret_key: tok") || !strings.Contains(configContent, "server_url: s.example.com") {
+		t.Fatalf("expected values to be written to empty config, got: %s", configContent)
 	}
 }
 

@@ -392,14 +392,28 @@ func writeConfigNode(configNode *yaml.Node) error {
 	return os.WriteFile(DefaultConfigPath, buf.Bytes(), 0644)
 }
 
-func SetConfigToken(token string) error {
+func setConfigMapValue(mappingNode *yaml.Node, key, value string) {
+	for i := 0; i < len(mappingNode.Content)-1; i += 2 {
+		if mappingNode.Content[i].Value == key {
+			mappingNode.Content[i+1] = &yaml.Node{
+				Kind:  yaml.ScalarNode,
+				Tag:   "!!str",
+				Value: value,
+			}
+			return
+		}
+	}
+
+	mappingNode.Content = append(mappingNode.Content,
+		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key},
+		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: value},
+	)
+}
+
+func updateConfigValues(entries [][2]string) error {
 	configBytes, err := os.ReadFile(DefaultConfigPath)
 	if err != nil {
 		return err
-	}
-
-	if len(bytes.TrimSpace(configBytes)) == 0 {
-		return os.WriteFile(DefaultConfigPath, []byte(fmt.Sprintf("secret_key: %s\n", token)), 0644)
 	}
 
 	var configNode yaml.Node
@@ -417,24 +431,35 @@ func SetConfigToken(token string) error {
 	}
 
 	mappingNode := configNode.Content[0]
-	for i := 0; i < len(mappingNode.Content)-1; i += 2 {
-		if mappingNode.Content[i].Value == "secret_key" {
-			mappingNode.Content[i+1] = &yaml.Node{
-				Kind:  yaml.ScalarNode,
-				Tag:   "!!str",
-				Value: token,
-			}
-
-			return writeConfigNode(&configNode)
-		}
+	for _, entry := range entries {
+		setConfigMapValue(mappingNode, entry[0], entry[1])
 	}
 
-	mappingNode.Content = append(mappingNode.Content,
-		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "secret_key"},
-		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: token},
-	)
-
 	return writeConfigNode(&configNode)
+}
+
+func updateAuthValues(token string, downloadedConfig string) error {
+	var downloaded struct {
+		ServerUrl string `yaml:"server_url"`
+		SshUrl    string `yaml:"ssh_url"`
+	}
+	if err := yaml.Unmarshal([]byte(downloadedConfig), &downloaded); err != nil {
+		return err
+	}
+
+	entries := [][2]string{{"secret_key", token}}
+	if downloaded.ServerUrl != "" {
+		// the server doesn't send tunnel_url; tunnels are served on the server_url domain
+		entries = append(entries,
+			[2]string{"server_url", downloaded.ServerUrl},
+			[2]string{"tunnel_url", downloaded.ServerUrl},
+		)
+	}
+	if downloaded.SshUrl != "" {
+		entries = append(entries, [2]string{"ssh_url", downloaded.SshUrl})
+	}
+
+	return updateConfigValues(entries)
 }
 
 func GetConfig(token string, remote string) error {
@@ -467,7 +492,7 @@ func GetConfig(token string, remote string) error {
 	}
 
 	if configFileExists {
-		return SetConfigToken(token)
+		return updateAuthValues(token, response.Message)
 	}
 
 	return SetConfig(response.Message)
