@@ -21,7 +21,7 @@ func New(db *db.Db) *Service {
 
 func (s *Service) GetReservedConnectionById(ctx context.Context, connectionId string) (*db.Connection, error) {
 	var connection db.Connection
-	err := s.db.Conn.Preload("CreatedBy").Where("id = ?", connectionId).First(&connection).Error
+	err := s.db.Conn.WithContext(ctx).Preload("CreatedBy").Where("id = ?", connectionId).First(&connection).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Error("Connection not found", "connection_id", connectionId)
@@ -34,29 +34,38 @@ func (s *Service) GetReservedConnectionById(ctx context.Context, connectionId st
 	return &connection, nil
 }
 
-func (s *Service) AddPortToConnection(ctx context.Context, connectionId string, port uint32) error {
-	connection, err := s.GetReservedConnectionById(ctx, fmt.Sprint(connectionId))
-	if err != nil {
-		return err
-	}
-	connection.Port = &port
-	return s.db.Conn.Save(connection).Error
+func (s *Service) MarkConnectionAsActive(ctx context.Context, connectionId string) error {
+	return s.activateConnection(ctx, connectionId, nil)
 }
 
-func (s *Service) MarkConnectionAsActive(ctx context.Context, connectionId string) error {
-	return s.db.Conn.Model(&db.Connection{}).
+func (s *Service) MarkTCPConnectionAsActive(ctx context.Context, connectionId string, port uint32) error {
+	return s.activateConnection(ctx, connectionId, &port)
+}
+
+func (s *Service) activateConnection(ctx context.Context, connectionId string, port *uint32) error {
+	updates := map[string]any{"status": "active", "started_at": time.Now().UTC(), "closed_at": nil}
+	if port != nil {
+		updates["port"] = *port
+	}
+	return s.db.Conn.WithContext(ctx).Model(&db.Connection{}).
 		Where("id = ?", connectionId).
-		Updates(map[string]any{"status": "active", "started_at": time.Now().UTC()}).Error
+		Updates(updates).Error
 }
 
 func (s *Service) MarkConnectionAsClosed(ctx context.Context, connectionId string) error {
-	return s.db.Conn.Model(&db.Connection{}).
+	return s.db.Conn.WithContext(ctx).Model(&db.Connection{}).
 		Where("id = ?", connectionId).
 		Updates(map[string]any{"status": "closed", "closed_at": time.Now().UTC()}).Error
 }
 
-func (s *Service) GetAllActiveConnections(ctx context.Context) []db.Connection {
+func (s *Service) CloseAllActiveConnections(ctx context.Context) error {
+	return s.db.Conn.WithContext(ctx).Model(&db.Connection{}).
+		Where("status = ?", "active").
+		Updates(map[string]any{"status": "closed", "closed_at": time.Now().UTC()}).Error
+}
+
+func (s *Service) GetAllActiveConnections(ctx context.Context) ([]db.Connection, error) {
 	var connections []db.Connection
-	s.db.Conn.Where("status = ?", "active").Find(&connections)
-	return connections
+	result := s.db.Conn.WithContext(ctx).Where("status = ?", "active").Find(&connections)
+	return connections, result.Error
 }

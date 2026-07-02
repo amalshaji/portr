@@ -140,7 +140,6 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			HealthCheckInterval:             c.config.HealthCheckInterval,
 			HealthCheckMaxRetries:           c.config.HealthCheckMaxRetries,
 			DisableTUI:                      c.config.DisableTUI,
-			EnableHttpReverseProxy:          c.config.EnableHttpReverseProxy,
 			InsecureSkipHostKeyVerification: *c.config.InsecureSkipHostKeyVerification,
 		})
 	}
@@ -266,9 +265,15 @@ func (c *Client) Shutdown(ctx context.Context) {
 		fmt.Printf("🛑 Shutting down tunnels...\n")
 	}
 
+	var shutdowns sync.WaitGroup
 	for _, sshc := range c.sshcs {
-		sshc.Shutdown(ctx)
+		shutdowns.Add(1)
+		go func() {
+			defer shutdowns.Done()
+			_ = sshc.Shutdown(ctx)
+		}()
 	}
+	shutdowns.Wait()
 
 	if c.stubResponder != nil {
 		_ = c.stubResponder.Shutdown(ctx)

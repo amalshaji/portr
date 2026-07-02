@@ -6,7 +6,7 @@ import {
   AnimatedSpan,
 } from "@/components/magicui/terminal";
 import { SparklesText } from "@/components/magicui/sparkles-text";
-import { GithubInfo } from "fumadocs-ui/components/github-info";
+import { GitHubStarsLink } from "@/components/github-stars-link";
 import Logo from "@/components/ui/logo";
 
 const title = "Portr - Self-Hosted Tunnel Solution for Teams";
@@ -133,10 +133,7 @@ export default function HomePage() {
                 Read Documentation
               </SparklesText>
             </Link>
-            <GithubInfo
-              owner="amalshaji"
-              repo="portr"
-              token={process.env.GITHUB_TOKEN}
+            <GitHubStarsLink
               className="w-full md:w-auto px-6 sm:px-8 py-3 sm:py-4 border border-fd-border text-fd-foreground font-semibold rounded-lg hover:bg-fd-accent transition-colors text-base sm:text-lg text-center flex flex-row items-center justify-center gap-2 min-h-[3.5rem]"
             />
             <Link
