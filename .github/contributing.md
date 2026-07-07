@@ -34,7 +34,9 @@ Contributing to another codebase is not as simple as code changes, it is also ab
 
 Run checks from the repo root before opening a pull request:
 
-- `go test ./...`
-- `go build ./...`
+- `make testgo`
+- `make buildgo`
 - `pnpm --dir internal/client/dashboard/ui build`
 - `bun --cwd internal/server/admin/web-v2 run build` when you touch the admin UI
+
+The Go Make targets exclude frontend `node_modules`, which can contain Go files after dependency installation.
