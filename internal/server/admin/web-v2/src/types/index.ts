@@ -32,17 +32,6 @@ export interface TeamUser {
   role: "admin" | "member"
 }
 
-export interface InstanceSettings {
-  smtp_enabled: boolean
-  smtp_host: string
-  smtp_port: number
-  smtp_username: string
-  smtp_password: string
-  from_address: string
-  add_user_email_subject: string
-  add_user_email_body: string
-}
-
 export interface AuthConfig {
   is_first_signup: boolean
   github_auth_enabled: boolean
