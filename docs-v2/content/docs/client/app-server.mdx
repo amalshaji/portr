@@ -83,30 +83,36 @@ Command flags:
 
 ## Authentication
 
-The app-server API is unauthenticated unless you pass a token. For local-only
-development that may be enough, but any shared or non-loopback binding should
-use a token.
+The app-server API is unauthenticated only when it is bound to loopback. Portr
+requires `--token` or `PORTR_APP_SERVER_TOKEN` when you bind the app server to a
+non-loopback address such as `0.0.0.0`, `::`, or a LAN address.
 
 ```bash
-PORTR_APP_SERVER_TOKEN="change-me" portr app-server
+PORTR_APP_SERVER_TOKEN="<choose-a-token>" portr app-server
 ```
 
 Or:
 
 ```bash
-portr app-server --token "change-me"
+portr app-server --token "<choose-a-token>"
+```
+
+For example, to bind on all interfaces:
+
+```bash
+PORTR_APP_SERVER_TOKEN="<choose-a-token>" portr app-server --host 0.0.0.0
 ```
 
 When a token is configured, every API request must include:
 
 ```http
-Authorization: Bearer change-me
+Authorization: Bearer <choose-a-token>
 ```
 
 Example:
 
 ```bash
-curl -H "Authorization: Bearer change-me" \
+curl -H "Authorization: Bearer <choose-a-token>" \
   http://127.0.0.1:7778/api/v1/tunnels
 ```
 
