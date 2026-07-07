@@ -137,6 +137,7 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			UseLocalHost:                    c.config.UseLocalHost,
 			Debug:                           c.config.Debug,
 			EnableRequestLogging:            *c.config.EnableRequestLogging,
+			RedactHeaders:                   append([]string(nil), c.config.RedactHeaders...),
 			HealthCheckInterval:             c.config.HealthCheckInterval,
 			HealthCheckMaxRetries:           c.config.HealthCheckMaxRetries,
 			DisableTUI:                      c.config.DisableTUI,

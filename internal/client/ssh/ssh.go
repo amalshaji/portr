@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -383,6 +384,32 @@ func (s *SshClient) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 	}
 }
 
+func redactHeaderValues(headers http.Header, redactNames []string) map[string][]string {
+	if len(redactNames) == 0 {
+		redactNames = config.DefaultRedactHeaders
+	}
+
+	redactSet := make(map[string]struct{}, len(redactNames))
+	for _, name := range redactNames {
+		redactSet[strings.ToLower(name)] = struct{}{}
+	}
+
+	redacted := make(map[string][]string, len(headers))
+	for key, values := range headers {
+		copiedValues := make([]string, len(values))
+		if _, ok := redactSet[strings.ToLower(key)]; ok {
+			for i := range copiedValues {
+				copiedValues[i] = "[redacted]"
+			}
+		} else {
+			copy(copiedValues, values)
+		}
+		redacted[key] = copiedValues
+	}
+
+	return redacted
+}
+
 func (s *SshClient) logHttpRequest(
 	id string,
 	request *http.Request,
@@ -417,24 +444,19 @@ func (s *SshClient) logHttpRequestSized(
 		return
 	}
 
-	requestHeaders := make(map[string][]string)
-	for key, values := range request.Header {
-		if key == "X-Portr-Ping-Request" && len(values) > 0 {
-			if values[0] == "true" {
-				return
-			}
-		}
-		requestHeaders[key] = values
+	if request.Header.Get("X-Portr-Ping-Request") == "true" {
+		return
 	}
 
 	var replayedRequestId string
 	var isReplayedRequest bool
-
-	_, isReplayedRequest = requestHeaders["X-Portr-Replayed-Request-Id"]
-	if isReplayedRequest {
-		replayedRequestId = requestHeaders["X-Portr-Replayed-Request-Id"][0]
-		delete(requestHeaders, "X-Portr-Replayed-Request-Id")
+	if replayedHeader := request.Header.Values("X-Portr-Replayed-Request-Id"); len(replayedHeader) > 0 {
+		replayedRequestId = replayedHeader[0]
+		isReplayedRequest = true
 	}
+
+	requestHeaders := redactHeaderValues(request.Header, s.config.RedactHeaders)
+	delete(requestHeaders, "X-Portr-Replayed-Request-Id")
 
 	requestHeadersBytes, err := json.Marshal(requestHeaders)
 	if err != nil {
@@ -444,10 +466,7 @@ func (s *SshClient) logHttpRequestSized(
 		return
 	}
 
-	responseHeaders := make(map[string][]string)
-	for key, values := range response.Header {
-		responseHeaders[key] = values
-	}
+	responseHeaders := redactHeaderValues(response.Header, s.config.RedactHeaders)
 
 	responseHeadersBytes, err := json.Marshal(responseHeaders)
 	if err != nil {

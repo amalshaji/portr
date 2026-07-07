@@ -324,6 +324,7 @@ func (m *Manager) clientConfigForTunnel(tunnel clientcfg.Tunnel) clientcfg.Clien
 		UseLocalHost:                    m.baseConfig.UseLocalHost,
 		Debug:                           m.baseConfig.Debug,
 		EnableRequestLogging:            *m.baseConfig.EnableRequestLogging,
+		RedactHeaders:                   append([]string(nil), m.baseConfig.RedactHeaders...),
 		HealthCheckInterval:             m.baseConfig.HealthCheckInterval,
 		HealthCheckMaxRetries:           m.baseConfig.HealthCheckMaxRetries,
 		DisableTUI:                      true,

@@ -131,6 +131,13 @@ func (t *Tunnel) ResolveStubTemplate(baseDir string) error {
 	return nil
 }
 
+var DefaultRedactHeaders = []string{
+	"Authorization",
+	"Cookie",
+	"Set-Cookie",
+	"Proxy-Authorization",
+}
+
 type Config struct {
 	ServerUrl                       string   `yaml:"server_url"`
 	SshUrl                          string   `yaml:"ssh_url"`
@@ -143,6 +150,7 @@ type Config struct {
 	DashboardPort                   int      `yaml:"dashboard_port"`
 	DisableDashboard                bool     `yaml:"disable_dashboard"`
 	EnableRequestLogging            *bool    `yaml:"enable_request_logging"`
+	RedactHeaders                   []string `yaml:"redact_headers"`
 	ConnectionLogRetentionDays      int      `yaml:"connection_log_retention_days"`
 	HealthCheckInterval             int      `yaml:"health_check_interval"`
 	HealthCheckMaxRetries           int      `yaml:"health_check_max_retries"`
@@ -179,6 +187,10 @@ func (c *Config) SetDefaults() {
 	if c.EnableRequestLogging == nil {
 		defaultValue := true
 		c.EnableRequestLogging = &defaultValue
+	}
+
+	if len(c.RedactHeaders) == 0 {
+		c.RedactHeaders = append([]string(nil), DefaultRedactHeaders...)
 	}
 
 	if c.InsecureSkipHostKeyVerification == nil {
@@ -244,6 +256,7 @@ type ClientConfig struct {
 	UseLocalHost                    bool
 	Debug                           bool
 	EnableRequestLogging            bool
+	RedactHeaders                   []string
 	HealthCheckInterval             int
 	HealthCheckMaxRetries           int
 	DisableTUI                      bool
