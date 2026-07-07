@@ -114,8 +114,6 @@ func (s *Server) setupRoutes() {
 	s.setupConnectionRoutes(v1)
 	s.setupConfigRoutes(v1)
 
-	s.setupInstanceSettingsRoutes(v1)
-
 	s.app.Use("/static", filesystem.New(filesystem.Config{
 		Root:       http.FS(staticFS),
 		PathPrefix: "static",
@@ -180,14 +178,6 @@ func (s *Server) setupConfigRoutes(v1 fiber.Router) {
 	configGroup.Post("/download", configHandler.DownloadConfig)
 	configGroup.Get("/setup-script", s.auth.RequireTeamUser, configHandler.GetSetupScript)
 	configGroup.Get("/stats", s.auth.RequireTeamUser, configHandler.GetStats)
-}
-
-func (s *Server) setupInstanceSettingsRoutes(v1 fiber.Router) {
-	configHandler := config.NewHandler(s.db.DB, s.store, s.config, s.statsCollector)
-	instanceGroup := v1.Group("/instance-settings")
-
-	instanceGroup.Get("/", s.auth.RequireSuperuser, configHandler.GetInstanceSettings)
-	instanceGroup.Patch("/", s.auth.RequireSuperuser, configHandler.UpdateInstanceSettings)
 }
 
 func (s *Server) handleIndex(c *fiber.Ctx) error {

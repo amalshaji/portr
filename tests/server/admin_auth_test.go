@@ -85,6 +85,40 @@ func TestLogin_SuccessSetsSessionCookie(t *testing.T) {
 	}
 }
 
+func TestLogin_RejectsInvalidInput(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload string
+	}{
+		{name: "empty email", payload: `{"email":"","password":"password123"}`},
+		{name: "invalid email", payload: `{"email":"not-an-email","password":"password123"}`},
+		{name: "empty password", payload: `{"email":"user@example.com","password":""}`},
+		{name: "short first-signup password", payload: `{"email":"user@example.com","password":"short"}`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, cleanup := NewTestDB(t)
+			defer cleanup()
+
+			srv := NewTestServer(t, db)
+
+			req := httptest.NewRequest("POST", "/api/v1/auth/login", strings.NewReader(tt.payload))
+			req.Header.Set("Content-Type", "application/json")
+
+			resp := DoRequest(t, srv, req)
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusBadRequest {
+				t.Fatalf("expected status 400 Bad Request for invalid login input, got %d", resp.StatusCode)
+			}
+			if setCookie := resp.Header.Get("Set-Cookie"); strings.Contains(setCookie, "portr_session=") {
+				t.Fatalf("expected no session cookie for invalid input, got %q", setCookie)
+			}
+		})
+	}
+}
+
 func TestLogout_RequiresAuthAndSucceedsWithSession(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()

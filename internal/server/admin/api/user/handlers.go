@@ -1,6 +1,8 @@
 package user
 
 import (
+	"strings"
+
 	"github.com/amalshaji/portr/internal/server/admin/middleware"
 	"github.com/amalshaji/portr/internal/server/admin/models"
 	"github.com/gofiber/fiber/v2"
@@ -39,12 +41,12 @@ type TeamUserResponse struct {
 }
 
 type UserResponse struct {
-	ID          uint                 `json:"id"`
-	Email       string               `json:"email"`
-	FirstName   *string              `json:"first_name"`
-	LastName    *string              `json:"last_name"`
-	IsSuperuser bool                 `json:"is_superuser"`
-	GithubUser  *GithubUserResponse  `json:"github_user,omitempty"`
+	ID          uint                `json:"id"`
+	Email       string              `json:"email"`
+	FirstName   *string             `json:"first_name"`
+	LastName    *string             `json:"last_name"`
+	IsSuperuser bool                `json:"is_superuser"`
+	GithubUser  *GithubUserResponse `json:"github_user,omitempty"`
 }
 
 type GithubUserResponse struct {
@@ -194,6 +196,12 @@ func (h *Handler) ChangePassword(c *fiber.Ctx) error {
 	if err := c.BodyParser(&input); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid input",
+		})
+	}
+
+	if strings.TrimSpace(input.Password) == "" || len(input.Password) < 8 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Password must be at least 8 characters",
 		})
 	}
 

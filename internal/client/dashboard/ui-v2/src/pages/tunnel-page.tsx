@@ -1,5 +1,6 @@
 import * as React from "react"
 import { useNavigate, useParams, useSearchParams } from "react-router-dom"
+import { RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 
 import { ServerUnavailableBanner } from "@/components/server-unavailable-banner"
@@ -38,11 +39,15 @@ function dedupeRequests(first: RequestSummary[], rest: RequestSummary[]) {
 function TopBar({
   subdomain,
   localport,
+  refreshing,
   onBack,
+  onRefresh,
 }: {
   subdomain: string
   localport: string
+  refreshing: boolean
   onBack: () => void
+  onRefresh: () => void
 }) {
   return (
     <header
@@ -64,6 +69,14 @@ function TopBar({
         </span>
       </div>
       <div className="flex-1" />
+      <button
+        aria-label="Refresh tunnel"
+        onClick={onRefresh}
+        className="flex items-center gap-1.5 rounded px-2 py-1 font-mono text-[11px] transition-colors hover:bg-muted"
+        style={{ color: "var(--muted-foreground)" }}
+      >
+        <RefreshCw className={`size-3 ${refreshing ? "animate-spin" : ""}`} />
+      </button>
       <ThemeToggle />
     </header>
   )
@@ -87,6 +100,7 @@ export function TunnelPage() {
   const [selectedSession, setSelectedSession] = React.useState<WebSocketSession | null>(null)
   const [selectedSessionEvents, setSelectedSessionEvents] = React.useState<WebSocketEvent[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [refreshing, setRefreshing] = React.useState(false)
   const [pollingError, setPollingError] = React.useState<string | null>(null)
   const [replayOpen, setReplayOpen] = React.useState(false)
 
@@ -108,7 +122,8 @@ export function TunnelPage() {
 
   const loadSummary = React.useEffectEvent(async (refresh = false) => {
     if (!tunnel) return
-    if (!refresh) setLoading(true)
+    if (refresh) setRefreshing(true)
+    else setLoading(true)
     try {
       const [reqData, sessData] = await Promise.all([
         getRequests(tunnel.subdomain, tunnel.localport, {
@@ -132,6 +147,7 @@ export function TunnelPage() {
       setPollingError(err instanceof Error ? err.message : null)
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   })
 
@@ -250,7 +266,9 @@ export function TunnelPage() {
       <TopBar
         subdomain={tunnel.subdomain}
         localport={tunnel.localport}
+        refreshing={refreshing}
         onBack={() => navigate("/")}
+        onRefresh={() => loadSummary(true)}
       />
 
       <div className="relative z-10 w-full px-6 pb-6 pt-5">

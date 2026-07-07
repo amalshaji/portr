@@ -25,21 +25,25 @@ type UpdateInfo struct {
 func createUpdatesFileIfNotExists() error {
 	if _, err := os.Stat(UpdatesFilePath); err != nil {
 		if os.IsNotExist(err) {
-			f, err := os.Create(UpdatesFilePath)
+			f, err := os.OpenFile(UpdatesFilePath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
 			if err != nil {
 				return err
 			}
-			defer f.Close()
 
 			if _, err := f.WriteString("{}"); err != nil {
+				_ = f.Close()
 				return err
 			}
-		} else {
-			return err
+			if err := f.Close(); err != nil {
+				return err
+			}
+
+			return os.Chmod(UpdatesFilePath, 0o600)
 		}
+		return err
 	}
 
-	return nil
+	return os.Chmod(UpdatesFilePath, 0o600)
 }
 
 func getUpdateState() (UpdateInfo, error) {
@@ -130,11 +134,11 @@ func getLatestRelease() error {
 		return err
 	}
 
-	if err := os.WriteFile(UpdatesFilePath, data, 0644); err != nil {
+	if err := os.WriteFile(UpdatesFilePath, data, 0o600); err != nil {
 		return err
 	}
 
-	return nil
+	return os.Chmod(UpdatesFilePath, 0o600)
 }
 
 func getVersionToUpdate() (string, error) {
