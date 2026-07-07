@@ -30,7 +30,6 @@ export interface TeamUser {
   team: Team
   user: User
   role: "admin" | "member"
-  secret_key: string
 }
 
 export interface InstanceSettings {

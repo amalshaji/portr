@@ -50,6 +50,13 @@ type TeamUserForTeamResponse struct {
 	CreatedAt string       `json:"created_at"`
 }
 
+type TeamUserListResponse struct {
+	ID        uint         `json:"id"`
+	User      UserResponse `json:"user"`
+	Role      string       `json:"role"`
+	CreatedAt string       `json:"created_at"`
+}
+
 type UserResponse struct {
 	ID          uint                `json:"id"`
 	Email       string              `json:"email"`
@@ -224,7 +231,7 @@ func (h *Handler) GetTeamUsers(c *fiber.Ctx) error {
 	}
 
 	// Build response
-	var items []TeamUserForTeamResponse
+	var items []TeamUserListResponse
 	for _, tu := range teamUsers {
 		userResp := UserResponse{
 			ID:          tu.User.ID,
@@ -240,11 +247,10 @@ func (h *Handler) GetTeamUsers(c *fiber.Ctx) error {
 			}
 		}
 
-		items = append(items, TeamUserForTeamResponse{
+		items = append(items, TeamUserListResponse{
 			ID:        tu.ID,
 			User:      userResp,
 			Role:      tu.Role,
-			SecretKey: tu.SecretKey,
 			CreatedAt: tu.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		})
 	}

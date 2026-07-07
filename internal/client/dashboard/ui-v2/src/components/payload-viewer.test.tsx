@@ -42,6 +42,8 @@ describe("PayloadViewer", () => {
     render(<PayloadViewer request={makeRequest()} type="response" />)
 
     const iframe = screen.getByTitle("Response body")
+    expect(iframe.getAttribute("sandbox")).toBe("")
+    expect(iframe.getAttribute("referrerpolicy")).toBe("no-referrer")
     expect(iframe.getAttribute("scrolling")).toBe("yes")
     expect(iframe.parentElement?.className.includes("h-full")).toBe(true)
   })

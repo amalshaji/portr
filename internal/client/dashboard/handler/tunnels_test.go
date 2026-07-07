@@ -4,13 +4,15 @@ import (
 	"encoding/json"
 	"io"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
-	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/amalshaji/portr/internal/client/dashboard/service"
+	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/glebarez/sqlite"
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -126,6 +128,56 @@ func TestGetRequestByIdOverHTTP(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != fiber.StatusNotFound {
 		t.Fatalf("expected 404 for missing request, got %d", resp.StatusCode)
+	}
+}
+
+func TestRenderResponseAddsSandboxHeadersForHTML(t *testing.T) {
+	app, conn := newTestApp(t)
+	body := []byte("<html><body>preview</body></html>")
+	headers, err := json.Marshal(map[string][]string{
+		"Content-Type":   {"text/html; charset=utf-8"},
+		"Content-Length": {strconv.Itoa(len(body))},
+	})
+	if err != nil {
+		t.Fatalf("marshal headers: %v", err)
+	}
+
+	if err := conn.Create(&db.Request{
+		ID:                 "html-response",
+		Subdomain:          "alpha",
+		Localport:          3000,
+		Url:                "/preview",
+		Method:             "GET",
+		ResponseHeaders:    datatypes.JSON(headers),
+		ResponseBody:       body,
+		ResponseStatusCode: fiber.StatusOK,
+		LoggedAt:           time.Now(),
+	}).Error; err != nil {
+		t.Fatalf("create request: %v", err)
+	}
+
+	resp, err := app.Test(httptest.NewRequest("GET", "/api/tunnels/render/html-response?type=response", nil))
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	if got := resp.Header.Get("Content-Security-Policy"); got != "sandbox" {
+		t.Fatalf("expected sandbox CSP header, got %q", got)
+	}
+	if got := resp.Header.Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("expected nosniff header, got %q", got)
+	}
+
+	rendered, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	if string(rendered) != string(body) {
+		t.Fatalf("expected body %q, got %q", string(body), string(rendered))
 	}
 }
 
