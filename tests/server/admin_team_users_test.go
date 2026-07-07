@@ -62,17 +62,24 @@ func TestListTeamUsers_ReturnsUsers(t *testing.T) {
 		t.Fatalf("expected non-empty data array, got: %v", body["data"])
 	}
 
-	// Ensure emails present
+	// Ensure emails present and secret keys are not exposed.
 	foundOwner, foundMember := false, false
 	for _, item := range data {
-		if m, ok := item.(map[string]interface{}); ok {
-			if userObj, ok := m["user"].(map[string]interface{}); ok {
-				if userObj["email"] == owner.Email {
-					foundOwner = true
-				}
-				if userObj["email"] == member.Email {
-					foundMember = true
-				}
+		m, ok := item.(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected team user object in response, got: %v", item)
+		}
+
+		if _, exists := m["secret_key"]; exists {
+			t.Fatalf("team user list response must not expose secret_key")
+		}
+
+		if userObj, ok := m["user"].(map[string]interface{}); ok {
+			if userObj["email"] == owner.Email {
+				foundOwner = true
+			}
+			if userObj["email"] == member.Email {
+				foundMember = true
 			}
 		}
 	}
