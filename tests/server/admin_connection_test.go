@@ -342,6 +342,27 @@ func TestCreateConnection_SubdomainConflict_Conflict(t *testing.T) {
 	}
 }
 
+func TestCreateConnection_DatabaseRejectsDuplicateReservedSubdomain(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	user := CreateTestUser(t, db, "dbconflict@example.com", false)
+	_, teamUser := CreateTeamAndTeamUser(t, db, "DB Conflict Team", user, "admin")
+
+	subdomain := "dbconflictdomain"
+	first := models.NewConnection(models.ConnectionTypeHTTP, &subdomain, teamUser)
+	first.Status = models.ConnectionStatusReserved
+	if err := db.Create(first).Error; err != nil {
+		t.Fatalf("failed to create first connection: %v", err)
+	}
+
+	second := models.NewConnection(models.ConnectionTypeHTTP, &subdomain, teamUser)
+	second.Status = models.ConnectionStatusReserved
+	if err := db.Create(second).Error; err == nil {
+		t.Fatal("expected duplicate reserved subdomain insert to fail")
+	}
+}
+
 func TestCreateConnection_TCP_Success(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()
