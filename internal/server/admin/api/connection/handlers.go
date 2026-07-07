@@ -1,6 +1,7 @@
 package connection
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -62,6 +63,19 @@ type TeamResponse struct {
 	ID   uint   `json:"id"`
 	Name string `json:"name"`
 	Slug string `json:"slug"`
+}
+
+func isDuplicateActiveSubdomainError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return true
+	}
+
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "idx_connection_active_subdomain_unique") ||
+		strings.Contains(message, "unique constraint failed: connection.subdomain")
 }
 
 // GetConnections returns paginated list of connections for the team
@@ -221,6 +235,11 @@ func (h *Handler) CreateConnection(c *fiber.Ctx) error {
 	connection := models.NewConnection(input.ConnectionType, input.Subdomain, &teamUser)
 
 	if err := h.db.Create(connection).Error; err != nil {
+		if isDuplicateActiveSubdomainError(err) {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+				"message": "Subdomain already in use",
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to create connection",
 		})
