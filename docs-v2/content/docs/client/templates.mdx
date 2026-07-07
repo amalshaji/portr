@@ -133,6 +133,19 @@ When `connection_log_retention_days` is set to:
 - `0` (default): automatic cleanup is disabled
 - `> 0`: logs older than the configured number of days are removed
 
+### Redact Logged Headers
+
+Portr redacts common sensitive headers in newly captured request logs by default.
+Customize the list with `redact_headers`:
+
+```yaml
+redact_headers:
+  - Authorization
+  - Cookie
+  - Set-Cookie
+  - Proxy-Authorization
+```
+
 ### Add more templates
 
 You can create additional tunnel templates under the `tunnels` key:
@@ -201,6 +214,7 @@ These options apply to the entire client configuration:
 - **disable_dashboard**: Disable the local inspector dashboard completely (default: false)
 - **disable_update_check**: Disable automatic update checks and notifications (default: false)
 - **enable_request_logging**: Persist local HTTP and WebSocket inspector logs for `portr logs`, replay, and the dashboard (default: true)
+- **redact_headers**: Header names whose values are replaced with `[redacted]` in newly captured logs
 - **connection_log_retention_days**: Auto-delete connection logs older than N days (default: 0, disabled)
 - **health_check_interval**: Health check interval in seconds (default: 3)
 - **health_check_max_retries**: Maximum health check retry attempts (default: 10)

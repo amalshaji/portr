@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -67,6 +68,16 @@ func newHTTPLogFixtures() (*http.Request, *http.Response) {
 	}
 
 	return request, response
+}
+
+func decodeStoredHeaders(t *testing.T, raw []byte) map[string][]string {
+	t.Helper()
+
+	var headers map[string][]string
+	if err := json.Unmarshal(raw, &headers); err != nil {
+		t.Fatalf("decode headers: %v", err)
+	}
+	return headers
 }
 
 func newWebSocketLogFixtures() (*http.Request, *http.Response) {
@@ -137,6 +148,45 @@ func TestLogHttpRequestPersistsWhenRequestLoggingEnabled(t *testing.T) {
 	}
 }
 
+func TestLogHttpRequestRedactsSensitiveHeaders(t *testing.T) {
+	store := newTestRequestStore(t)
+	client := newLoggingTestClient(store, true)
+	request, response := newHTTPLogFixtures()
+	request.Header.Set("Authorization", "Bearer dummy-token")
+	request.Header.Set("Cookie", "session=dummy-cookie")
+	response.Header.Set("Set-Cookie", "session=dummy-cookie")
+
+	client.logHttpRequest(
+		"req-1",
+		request,
+		[]byte(`{"ok":true}`),
+		response,
+		[]byte(`{"saved":true}`),
+		42,
+	)
+
+	var stored clientdb.Request
+	if err := store.Conn.First(&stored, "id = ?", "req-1").Error; err != nil {
+		t.Fatalf("load stored request: %v", err)
+	}
+
+	requestHeaders := decodeStoredHeaders(t, stored.Headers)
+	if got := requestHeaders["Authorization"]; len(got) != 1 || got[0] != "[redacted]" {
+		t.Fatalf("expected redacted Authorization header, got %#v", got)
+	}
+	if got := requestHeaders["Cookie"]; len(got) != 1 || got[0] != "[redacted]" {
+		t.Fatalf("expected redacted Cookie header, got %#v", got)
+	}
+	if got := requestHeaders["Content-Type"]; len(got) != 1 || got[0] != "application/json" {
+		t.Fatalf("expected Content-Type to remain unchanged, got %#v", got)
+	}
+
+	responseHeaders := decodeStoredHeaders(t, stored.ResponseHeaders)
+	if got := responseHeaders["Set-Cookie"]; len(got) != 1 || got[0] != "[redacted]" {
+		t.Fatalf("expected redacted Set-Cookie header, got %#v", got)
+	}
+}
+
 func TestLogWebSocketSessionDoesNotPersistWhenRequestLoggingDisabled(t *testing.T) {
 	store := newTestRequestStore(t)
 	client := newLoggingTestClient(store, false)
@@ -168,6 +218,41 @@ func TestLogWebSocketSessionDoesNotPersistWhenRequestLoggingDisabled(t *testing.
 	}
 	if eventCount != 0 {
 		t.Fatalf("expected no stored websocket events, got %d", eventCount)
+	}
+}
+
+func TestLogWebSocketSessionRedactsSensitiveHeaders(t *testing.T) {
+	store := newTestRequestStore(t)
+	client := newLoggingTestClient(store, true)
+	request, response := newWebSocketLogFixtures()
+	request.Header.Set("Authorization", "Bearer dummy-token")
+	request.Header.Set("Cookie", "session=dummy-cookie")
+	response.Header.Set("Set-Cookie", "session=dummy-cookie")
+
+	sessionID := client.logWebSocketSession("handshake-1", request, response)
+	if sessionID == "" {
+		t.Fatal("expected websocket session id to be created")
+	}
+
+	var stored clientdb.WebSocketSession
+	if err := store.Conn.First(&stored, "id = ?", sessionID).Error; err != nil {
+		t.Fatalf("load stored websocket session: %v", err)
+	}
+
+	requestHeaders := decodeStoredHeaders(t, stored.RequestHeaders)
+	if got := requestHeaders["Authorization"]; len(got) != 1 || got[0] != "[redacted]" {
+		t.Fatalf("expected redacted Authorization header, got %#v", got)
+	}
+	if got := requestHeaders["Cookie"]; len(got) != 1 || got[0] != "[redacted]" {
+		t.Fatalf("expected redacted Cookie header, got %#v", got)
+	}
+	if got := requestHeaders["Upgrade"]; len(got) != 1 || got[0] != "websocket" {
+		t.Fatalf("expected Upgrade to remain unchanged, got %#v", got)
+	}
+
+	responseHeaders := decodeStoredHeaders(t, stored.ResponseHeaders)
+	if got := responseHeaders["Set-Cookie"]; len(got) != 1 || got[0] != "[redacted]" {
+		t.Fatalf("expected redacted Set-Cookie header, got %#v", got)
 	}
 }
 

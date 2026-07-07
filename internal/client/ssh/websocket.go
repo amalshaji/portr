@@ -147,7 +147,8 @@ func (s *SshClient) logWebSocketSessionWithID(sessionID, handshakeRequestID stri
 		return ""
 	}
 
-	requestHeadersBytes, err := json.Marshal(request.Header)
+	requestHeaders := redactHeaderValues(request.Header, s.config.RedactHeaders)
+	requestHeadersBytes, err := json.Marshal(requestHeaders)
 	if err != nil {
 		if s.config.Debug {
 			s.logDebug("Failed to marshal websocket request headers", err)
@@ -155,7 +156,8 @@ func (s *SshClient) logWebSocketSessionWithID(sessionID, handshakeRequestID stri
 		return ""
 	}
 
-	responseHeadersBytes, err := json.Marshal(response.Header)
+	responseHeaders := redactHeaderValues(response.Header, s.config.RedactHeaders)
+	responseHeadersBytes, err := json.Marshal(responseHeaders)
 	if err != nil {
 		if s.config.Debug {
 			s.logDebug("Failed to marshal websocket response headers", err)

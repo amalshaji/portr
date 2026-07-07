@@ -64,6 +64,38 @@ func TestLoadPreservesExplicitRequestLoggingFalse(t *testing.T) {
 	}
 }
 
+func TestSetDefaultsAppliesDefaultRedactHeaders(t *testing.T) {
+	cfg := Config{}
+
+	cfg.SetDefaults()
+
+	if len(cfg.RedactHeaders) != len(DefaultRedactHeaders) {
+		t.Fatalf("expected %d redact headers, got %d", len(DefaultRedactHeaders), len(cfg.RedactHeaders))
+	}
+	for i, want := range DefaultRedactHeaders {
+		if cfg.RedactHeaders[i] != want {
+			t.Fatalf("expected redact header %q at index %d, got %q", want, i, cfg.RedactHeaders[i])
+		}
+	}
+}
+
+func TestLoadPreservesExplicitRedactHeaders(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	contents := "redact_headers:\n  - X-Test-Secret\n  - X-Another-Secret\n"
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	if len(cfg.RedactHeaders) != 2 || cfg.RedactHeaders[0] != "X-Test-Secret" || cfg.RedactHeaders[1] != "X-Another-Secret" {
+		t.Fatalf("expected explicit redact headers to be preserved, got %#v", cfg.RedactHeaders)
+	}
+}
+
 func TestLoadAcceptsDeprecatedHTTPReverseProxyOption(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	contents := "enable_http_reverse_proxy: false\nserver_url: example.test\n"
