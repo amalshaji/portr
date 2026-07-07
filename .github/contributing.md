@@ -36,7 +36,7 @@ Run checks from the repo root before opening a pull request:
 
 - `make testgo`
 - `make buildgo`
-- `pnpm --dir internal/client/dashboard/ui build`
-- `bun --cwd internal/server/admin/web-v2 run build` when you touch the admin UI
+- `bun run --cwd internal/client/dashboard/ui-v2 build` when you touch the client dashboard
+- `bun run --cwd internal/server/admin/web-v2 build` when you touch the admin UI
 
 The Go Make targets exclude frontend `node_modules`, which can contain Go files after dependency installation.

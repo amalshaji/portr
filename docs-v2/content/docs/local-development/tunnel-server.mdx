@@ -66,11 +66,11 @@ The tunnel server consists of several components:
 # Start the server
 go run ./cmd/portrd start tunnel
 
-# Build the server
-go build ./...
+# Build Go packages
+make buildgo
 
 # Run tests
-go test ./...
+make testgo
 
 # Format code
 go fmt ./...
