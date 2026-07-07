@@ -105,8 +105,11 @@ func TestHTTPTunnelReusesForwardedConnection(t *testing.T) {
 
 	remoteConn, clientConn := net.Pipe()
 	client := &SshClient{
-		config: clientcfg.ClientConfig{Tunnel: clientcfg.Tunnel{Name: "test", Subdomain: "test", Port: 3000}},
-		db:     newTestRequestStore(t),
+		config: clientcfg.ClientConfig{
+			EnableRequestLogging: true,
+			Tunnel:               clientcfg.Tunnel{Name: "test", Subdomain: "test", Port: 3000},
+		},
+		db: newTestRequestStore(t),
 	}
 	done := make(chan struct{})
 	go func() {

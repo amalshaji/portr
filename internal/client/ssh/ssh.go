@@ -413,6 +413,10 @@ func (s *SshClient) logHttpRequestSized(
 	bytesIn int64,
 	bytesOut int64,
 ) {
+	if !s.requestLoggingEnabled() {
+		return
+	}
+
 	requestHeaders := make(map[string][]string)
 	for key, values := range request.Header {
 		if key == "X-Portr-Ping-Request" && len(values) > 0 {
@@ -488,10 +492,6 @@ func (s *SshClient) logHttpRequestSized(
 		} else {
 			tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
 		}
-	}
-
-	if !s.config.EnableRequestLogging {
-		return
 	}
 
 	if s.tui != nil {
