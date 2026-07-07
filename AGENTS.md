@@ -4,7 +4,7 @@
 The repo root is flattened. Go entrypoints live in `cmd/portr` and `cmd/portrd`, with shared application code under `internal/`. Use `internal/server/admin` for admin server work, `internal/server/admin/web-v2` for the React + shadcn admin UI, and `internal/client/dashboard/ui-v2` for the client dashboard. Keep integration coverage in `tests/`, database changes in `migrations/`, and product docs in `docs-v2/`. Do not add new code under the legacy `tunnel/` path.
 
 ## Build, Test, and Development Commands
-Use `go build ./...` to compile all Go packages and binaries. Run `go test ./...` before opening a PR. Build the CLI with `make buildcli`, which outputs `./portr`.
+Use `make buildgo` to compile repo-owned Go packages and `make testgo` before opening a PR. These targets exclude frontend `node_modules`, which can contain Go files after dependency installation. Build the CLI with `make buildcli`, which outputs `./portr`.
 
 For the client dashboard:
 - `bun --cwd internal/client/dashboard/ui-v2 install`

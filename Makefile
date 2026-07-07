@@ -1,6 +1,15 @@
 buildcli:
 	go build -o portr ./cmd/portr
 
+gopackages:
+	./scripts/go-packages.sh
+
+buildgo:
+	go build $$(./scripts/go-packages.sh --build)
+
+testgo:
+	go test $$(./scripts/go-packages.sh)
+
 installclient:
 	bun --cwd internal/client/dashboard/ui-v2 install
 
