@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"mime"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/amalshaji/portr/internal/client/db"
@@ -173,6 +175,16 @@ func (h *Handler) GetWebSocketSession(c *fiber.Ctx) error {
 	})
 }
 
+func isHTMLContentType(contentType string) bool {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return false
+	}
+
+	mediaType = strings.ToLower(mediaType)
+	return mediaType == "text/html" || strings.HasSuffix(mediaType, "+html")
+}
+
 func (h *Handler) RenderResponse(c *fiber.Ctx) error {
 	requestID := c.Params("id")
 	request, err := h.service.GetRequestById(requestID)
@@ -209,6 +221,11 @@ func (h *Handler) RenderResponse(c *fiber.Ctx) error {
 	contentLength := headersMap["Content-Length"]
 	if len(contentLength) == 0 {
 		contentLength = []string{fmt.Sprintf("%d", len(body))}
+	}
+
+	if isHTMLContentType(contentType[0]) {
+		c.Response().Header.Set("Content-Security-Policy", "sandbox")
+		c.Response().Header.Set("X-Content-Type-Options", "nosniff")
 	}
 
 	c.Response().Header.Set("Content-Type", contentType[0])

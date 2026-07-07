@@ -339,13 +339,15 @@ func initConfig() error {
 		return nil
 	}
 
-	f, err := os.Create(DefaultConfigPath)
+	f, err := os.OpenFile(DefaultConfigPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	if err := f.Close(); err != nil {
+		return err
+	}
 
-	return nil
+	return os.Chmod(DefaultConfigPath, 0o600)
 }
 
 func EditConfig() error {
@@ -379,6 +381,14 @@ func EditConfig() error {
 	return nil
 }
 
+func writeDefaultConfigFile(data []byte) error {
+	if err := os.WriteFile(DefaultConfigPath, data, 0o600); err != nil {
+		return err
+	}
+
+	return os.Chmod(DefaultConfigPath, 0o600)
+}
+
 func SetConfig(config string) error {
 	if !checkDefaultConfigFileExists() {
 		err := initConfig()
@@ -387,7 +397,7 @@ func SetConfig(config string) error {
 		}
 	}
 
-	return os.WriteFile(DefaultConfigPath, []byte(config), 0644)
+	return writeDefaultConfigFile([]byte(config))
 }
 
 func writeConfigNode(configNode *yaml.Node) error {
@@ -402,7 +412,7 @@ func writeConfigNode(configNode *yaml.Node) error {
 		return err
 	}
 
-	return os.WriteFile(DefaultConfigPath, buf.Bytes(), 0644)
+	return writeDefaultConfigFile(buf.Bytes())
 }
 
 func setConfigMapValue(mappingNode *yaml.Node, key, value string) {

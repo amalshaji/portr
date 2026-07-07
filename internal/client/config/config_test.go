@@ -198,6 +198,47 @@ func TestUpdateConfigValuesPopulatesEmptyConfig(t *testing.T) {
 	}
 }
 
+func assertPrivateFileMode(t *testing.T, path string) {
+	t.Helper()
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat file: %v", err)
+	}
+	if info.Mode().Perm()&0o077 != 0 {
+		t.Fatalf("expected private file permissions, got %v", info.Mode().Perm())
+	}
+}
+
+func TestSetConfigWritesPrivateConfigFile(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	useDefaultConfigPath(t, configPath)
+
+	if err := SetConfig("secret_key: dummy-token\n"); err != nil {
+		t.Fatalf("set config: %v", err)
+	}
+
+	assertPrivateFileMode(t, configPath)
+}
+
+func TestUpdateConfigValuesCorrectsExistingConfigFilePermissions(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	useDefaultConfigPath(t, configPath)
+
+	if err := os.WriteFile(configPath, []byte("secret_key: old-token\n"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	if err := os.Chmod(configPath, 0o644); err != nil {
+		t.Fatalf("chmod config: %v", err)
+	}
+
+	if err := updateConfigValues([][2]string{{"secret_key", "new-token"}}); err != nil {
+		t.Fatalf("update config values: %v", err)
+	}
+
+	assertPrivateFileMode(t, configPath)
+}
+
 func TestGetDashboardDisableLabel(t *testing.T) {
 	cfg := Config{
 		DisableDashboard: true,
