@@ -90,7 +90,13 @@ func (h *Handler) GetConnections(c *fiber.Ctx) error {
 	// Parse query parameters
 	queryType := c.Query("type", "recent") // active or recent
 	page := c.QueryInt("page", 1)
+	if page < 1 {
+		page = 1
+	}
 	pageSize := c.QueryInt("page_size", 10)
+	if pageSize < 1 {
+		pageSize = 10
+	}
 	if pageSize > 100 {
 		pageSize = 100
 	}
