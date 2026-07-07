@@ -11,13 +11,13 @@ testgo:
 	go test $$(./scripts/go-packages.sh)
 
 installclient:
-	bun --cwd internal/client/dashboard/ui-v2 install
+	bun install --cwd internal/client/dashboard/ui-v2
 
 runclient:
-	bun --cwd internal/client/dashboard/ui-v2 run dev
+	bun run --cwd internal/client/dashboard/ui-v2 dev
 
 buildclient:
-	bun --cwd internal/client/dashboard/ui-v2 run build
+	bun run --cwd internal/client/dashboard/ui-v2 build
 
 runclienttestserver:
 	cd test-server && uv run main.py

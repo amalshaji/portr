@@ -7,14 +7,14 @@ The repo root is flattened. Go entrypoints live in `cmd/portr` and `cmd/portrd`,
 Use `make buildgo` to compile repo-owned Go packages and `make testgo` before opening a PR. These targets exclude frontend `node_modules`, which can contain Go files after dependency installation. Build the CLI with `make buildcli`, which outputs `./portr`.
 
 For the client dashboard:
-- `bun --cwd internal/client/dashboard/ui-v2 install`
-- `bun --cwd internal/client/dashboard/ui-v2 run dev`
-- `bun --cwd internal/client/dashboard/ui-v2 run build`
-- `bun --cwd internal/client/dashboard/ui-v2 run lint`
+- `bun install --cwd internal/client/dashboard/ui-v2`
+- `bun run --cwd internal/client/dashboard/ui-v2 dev`
+- `bun run --cwd internal/client/dashboard/ui-v2 build`
+- `bun run --cwd internal/client/dashboard/ui-v2 lint`
 
 For the admin UI:
-- `bun --cwd internal/server/admin/web-v2 run build`
-- `bun --cwd internal/server/admin/web-v2 run lint`
+- `bun run --cwd internal/server/admin/web-v2 build`
+- `bun run --cwd internal/server/admin/web-v2 lint`
 
 ## Coding Style & Naming Conventions
 Follow `gofmt` defaults for Go. Keep package names lowercase, exported identifiers in PascalCase, and test files named `*_test.go`. In TypeScript, React, and Svelte files, match the existing two-space indentation. Follow current frontend structure such as `src/components/ui`, `src/pages`, and `src/lib`. Use `github.com/charmbracelet/log` for structured logging. Keep comments minimal and in English.
