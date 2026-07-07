@@ -205,6 +205,105 @@ func TestCreateConnection_SecretKeyInvalid_Unauthorized(t *testing.T) {
 	}
 }
 
+func TestCreateConnection_MissingSecretKey_BadRequest(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	payload := map[string]interface{}{
+		"secret_key":      "",
+		"connection_type": "http",
+		"subdomain":       "some-sub",
+	}
+	payloadBytes, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/connections/", bytes.NewReader(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected status 400 Bad Request for missing secret key, got %d: %s", resp.StatusCode, string(body))
+	}
+
+	var count int64
+	if err := db.Model(&models.Connection{}).Count(&count).Error; err != nil {
+		t.Fatalf("count connections: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected no connections to be created, got %d", count)
+	}
+}
+
+func TestCreateConnection_UnsupportedType_BadRequest(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	payload := map[string]interface{}{
+		"secret_key":      "dummy-secret",
+		"connection_type": "udp",
+		"subdomain":       "some-sub",
+	}
+	payloadBytes, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/connections/", bytes.NewReader(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected status 400 Bad Request for unsupported type, got %d: %s", resp.StatusCode, string(body))
+	}
+
+	var count int64
+	if err := db.Model(&models.Connection{}).Count(&count).Error; err != nil {
+		t.Fatalf("count connections: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected no connections to be created, got %d", count)
+	}
+}
+
+func TestCreateConnection_InvalidSubdomain_BadRequest(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	payload := map[string]interface{}{
+		"secret_key":      "dummy-secret",
+		"connection_type": "http",
+		"subdomain":       "bad subdomain",
+	}
+	payloadBytes, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/connections/", bytes.NewReader(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected status 400 Bad Request for invalid subdomain, got %d: %s", resp.StatusCode, string(body))
+	}
+
+	var count int64
+	if err := db.Model(&models.Connection{}).Count(&count).Error; err != nil {
+		t.Fatalf("count connections: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected no connections to be created, got %d", count)
+	}
+}
+
 func TestCreateConnection_SubdomainConflict_Conflict(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()

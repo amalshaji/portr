@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"net/mail"
+	"strings"
 
 	"github.com/amalshaji/portr/internal/server/admin/models"
 	"github.com/amalshaji/portr/internal/server/admin/services"
@@ -55,9 +57,27 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		})
 	}
 
+	input.Email = strings.TrimSpace(input.Email)
+	parsedEmail, parseErr := mail.ParseAddress(input.Email)
+	if input.Email == "" || parseErr != nil || parsedEmail.Address != input.Email {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"email": "Enter a valid email address",
+		})
+	}
+	if strings.TrimSpace(input.Password) == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"password": "Password is required",
+		})
+	}
+
 	// Check if this is the first user
 	var userCount int64
 	h.db.Model(&models.User{}).Count(&userCount)
+	if userCount == 0 && len(input.Password) < 8 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"password": "Password must be at least 8 characters",
+		})
+	}
 
 	var user *models.User
 	var err error

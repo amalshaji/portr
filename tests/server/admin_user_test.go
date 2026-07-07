@@ -185,6 +185,49 @@ func TestChangePassword_SucceedsAndPersists(t *testing.T) {
 	}
 }
 
+func TestChangePassword_RejectsInvalidPassword(t *testing.T) {
+	tests := []struct {
+		name     string
+		password string
+	}{
+		{name: "empty", password: ""},
+		{name: "whitespace", password: "   "},
+		{name: "short", password: "abc"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, cleanup := NewTestDB(t)
+			defer cleanup()
+
+			srv := NewTestServer(t, db)
+
+			user := CreateTestUser(t, db, "invalidpass@example.com", false)
+			sess := CreateSessionForUser(t, db, user)
+
+			payloadBytes, _ := json.Marshal(map[string]interface{}{"password": tt.password})
+			req := httptest.NewRequest("PATCH", "/api/v1/user/me/change-password", bytes.NewReader(payloadBytes))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Cookie", SessionCookieValue(sess))
+
+			resp := DoRequest(t, srv, req)
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusBadRequest {
+				t.Fatalf("expected status 400 Bad Request for invalid password, got %d", resp.StatusCode)
+			}
+
+			var persisted models.User
+			if err := db.First(&persisted, user.ID).Error; err != nil {
+				t.Fatalf("failed to reload user from DB: %v", err)
+			}
+			if !persisted.CheckPassword("password123") {
+				t.Fatalf("expected original password to remain valid")
+			}
+		})
+	}
+}
+
 func TestRotateSecretKey_SucceedsForTeamUser(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()

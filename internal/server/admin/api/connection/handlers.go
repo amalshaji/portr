@@ -2,10 +2,12 @@ package connection
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/amalshaji/portr/internal/server/admin/middleware"
 	"github.com/amalshaji/portr/internal/server/admin/models"
+	"github.com/amalshaji/portr/internal/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
 	"gorm.io/gorm"
@@ -164,24 +166,44 @@ func (h *Handler) CreateConnection(c *fiber.Ctx) error {
 		})
 	}
 
+	secretKey := strings.TrimSpace(input.SecretKey)
+	if secretKey == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Secret key is required",
+		})
+	}
+	if input.ConnectionType != models.ConnectionTypeHTTP && input.ConnectionType != models.ConnectionTypeTCP {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Connection type must be either 'http' or 'tcp'",
+		})
+	}
+	if input.ConnectionType == models.ConnectionTypeHTTP {
+		if input.Subdomain == nil || strings.TrimSpace(*input.Subdomain) == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "Subdomain is required for HTTP connections",
+			})
+		}
+
+		subdomain := strings.TrimSpace(*input.Subdomain)
+		if err := utils.ValidateSubdomain(subdomain); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "Invalid subdomain",
+			})
+		}
+		input.Subdomain = &subdomain
+	}
+
 	// Find team user by secret key
 	var teamUser models.TeamUser
-	err := h.db.Preload("Team").Where("secret_key = ?", input.SecretKey).First(&teamUser).Error
+	err := h.db.Preload("Team").Where("secret_key = ?", secretKey).First(&teamUser).Error
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": "Invalid secret key",
 		})
 	}
 
-	// Validate subdomain for HTTP connections
+	// Check if subdomain is already in use for HTTP connections
 	if input.ConnectionType == models.ConnectionTypeHTTP {
-		if input.Subdomain == nil || *input.Subdomain == "" {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"message": "Subdomain is required for HTTP connections",
-			})
-		}
-
-		// Check if subdomain is already in use
 		var existingConn models.Connection
 		err := h.db.Where("subdomain = ? AND status IN (?, ?)",
 			*input.Subdomain,
