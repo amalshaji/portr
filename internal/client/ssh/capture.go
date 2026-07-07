@@ -226,7 +226,15 @@ type queuedCaptureTask struct {
 	task   captureTask
 }
 
+func (s *SshClient) requestLoggingEnabled() bool {
+	return s != nil && s.config.EnableRequestLogging
+}
+
 func (s *SshClient) submitCapture(task captureTask) bool {
+	if !s.requestLoggingEnabled() {
+		return false
+	}
+
 	s.mu.Lock()
 	if s.recorder == nil {
 		s.recorder = newCaptureRecorder()
@@ -241,6 +249,10 @@ func (s *SshClient) submitCapture(task captureTask) bool {
 }
 
 func (s *SshClient) submitCaptureContext(ctx context.Context, task captureTask) bool {
+	if !s.requestLoggingEnabled() {
+		return false
+	}
+
 	s.mu.Lock()
 	if s.recorder == nil {
 		s.recorder = newCaptureRecorder()

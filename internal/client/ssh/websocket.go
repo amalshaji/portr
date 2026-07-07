@@ -143,6 +143,10 @@ func (s *SshClient) logWebSocketSession(handshakeRequestID string, request *http
 }
 
 func (s *SshClient) logWebSocketSessionWithID(sessionID, handshakeRequestID string, request *http.Request, response *http.Response) string {
+	if !s.requestLoggingEnabled() {
+		return ""
+	}
+
 	requestHeadersBytes, err := json.Marshal(request.Header)
 	if err != nil {
 		if s.config.Debug {
@@ -185,6 +189,9 @@ func (s *SshClient) logWebSocketSessionWithID(sessionID, handshakeRequestID stri
 }
 
 func (s *SshClient) recordWebSocketEvent(sessionID string, direction string, frame *webSocketFrame) {
+	if !s.requestLoggingEnabled() {
+		return
+	}
 	if sessionID == "" || frame == nil {
 		return
 	}
@@ -238,6 +245,9 @@ func (s *SshClient) recordWebSocketEvent(sessionID string, direction string, fra
 }
 
 func (s *SshClient) closeWebSocketSession(sessionID string, err error) {
+	if !s.requestLoggingEnabled() {
+		return
+	}
 	if sessionID == "" {
 		return
 	}

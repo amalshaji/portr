@@ -14,6 +14,10 @@ the local inspector UI.
 Portr stores HTTP request logs in `~/.portr/db.sqlite`. The `logs` command only
 queries data that has already been captured on the current machine.
 
+If `enable_request_logging: false` is set in the client config, new HTTP and
+WebSocket traffic is not written to the local log database, so it will not appear
+in `portr logs`, replay, or the inspector history.
+
 <Callout type="info">
   `portr logs` works with stored HTTP tunnel requests. It does not stream live TCP
   traffic and it does not require the dashboard UI to be open.
