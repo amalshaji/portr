@@ -81,6 +81,39 @@ func TestListTeamUsers_ReturnsUsers(t *testing.T) {
 	}
 }
 
+func TestListTeamUsers_ClampsInvalidPagination(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	owner := CreateTestUser(t, db, "listclamp@example.com", false)
+	_, ownerTeamUser := CreateTeamAndTeamUser(t, db, "List Clamp Team", owner, "admin")
+	sess := CreateSessionForUser(t, db, owner)
+
+	req := httptest.NewRequest("GET", "/api/v1/team/users?page=-10&page_size=-50", nil)
+	req.Header.Set("Cookie", SessionCookieValue(sess))
+	req.Header.Set("X-Team-Slug", ownerTeamUser.Team.Slug)
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 OK for clamped pagination, got %d", resp.StatusCode)
+	}
+
+	var body map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	if _, ok := body["count"].(float64); !ok {
+		t.Fatalf("expected numeric count in response, got: %v", body["count"])
+	}
+	if _, ok := body["data"].([]interface{}); !ok {
+		t.Fatalf("expected data array in response, got: %v", body["data"])
+	}
+}
+
 func TestRemoveUser_AsAdmin_RemovesTeamUserAndUserDeletedIfNoOtherTeams(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()
