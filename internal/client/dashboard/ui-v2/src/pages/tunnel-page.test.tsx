@@ -56,6 +56,6 @@ describe("TunnelPage", () => {
       ).toBeNull()
     })
 
-    expect(screen.getByText("No request traces")).toBeTruthy()
+    expect(screen.getByText(/no requests match filter/i)).toBeTruthy()
   })
 })
