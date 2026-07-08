@@ -1,4 +1,4 @@
-package instancesettings
+package autosignup
 
 import (
 	"errors"
@@ -55,7 +55,7 @@ func (h *Handler) Get(c *fiber.Ctx) error {
 	settings, err := h.autoSignup.GetSettings()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to load instance settings",
+			"error": "Failed to load auto signup settings",
 		})
 	}
 
@@ -86,7 +86,7 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 		}
 
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to update instance settings",
+			"error": "Failed to update auto signup settings",
 		})
 	}
 

@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type InstanceSettings struct {
+type AutoSignupSettings struct {
 	Model
 	Timestamps
 	AutoSignupEnabled bool `gorm:"default:false" json:"auto_signup_enabled"`
@@ -20,20 +20,20 @@ type AutoSignupDomain struct {
 	Team   Team   `gorm:"constraint:OnDelete:CASCADE;" json:"team,omitempty"`
 }
 
-func (InstanceSettings) TableName() string {
-	return "instance_settings"
+func (AutoSignupSettings) TableName() string {
+	return "auto_signup_settings"
 }
 
 func (AutoSignupDomain) TableName() string {
 	return "auto_signup_domains"
 }
 
-func DefaultInstanceSettings() InstanceSettings {
-	return InstanceSettings{}
+func DefaultAutoSignupSettings() AutoSignupSettings {
+	return AutoSignupSettings{}
 }
 
-func GetOrCreateInstanceSettings(db *gorm.DB) (*InstanceSettings, error) {
-	settings := DefaultInstanceSettings()
+func GetOrCreateAutoSignupSettings(db *gorm.DB) (*AutoSignupSettings, error) {
+	settings := DefaultAutoSignupSettings()
 	settings.ID = 1
 
 	if err := db.Where("id = ?", uint(1)).FirstOrCreate(&settings).Error; err != nil {

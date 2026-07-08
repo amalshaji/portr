@@ -3,6 +3,7 @@ package ssh
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -14,18 +15,25 @@ import (
 	"time"
 
 	"github.com/amalshaji/portr/internal/client/db"
-	"github.com/amalshaji/portr/internal/utils"
 	"github.com/oklog/ulid/v2"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 type webSocketFrame struct {
-	Raw           []byte
 	Opcode        byte
 	IsFinal       bool
 	Payload       []byte
 	PayloadLength int
+}
+
+type webSocketFrameHeader struct {
+	raw           []byte
+	opcode        byte
+	isFinal       bool
+	masked        bool
+	maskingKey    [4]byte
+	payloadLength uint64
 }
 
 func isWebSocketUpgrade(request *http.Request) bool {
@@ -72,7 +80,7 @@ func websocketOpcodeName(opcode byte) string {
 	}
 }
 
-func readWebSocketFrame(reader io.Reader) (*webSocketFrame, error) {
+func readWebSocketFrameHeader(reader io.Reader) (*webSocketFrameHeader, error) {
 	header := make([]byte, 2)
 	if _, err := io.ReadFull(reader, header); err != nil {
 		return nil, err
@@ -82,7 +90,7 @@ func readWebSocketFrame(reader io.Reader) (*webSocketFrame, error) {
 	isFinal := header[0]&0x80 != 0
 	opcode := header[0] & 0x0F
 
-	payloadLength := int64(header[1] & 0x7F)
+	payloadLength := uint64(header[1] & 0x7F)
 	switch payloadLength {
 	case 126:
 		extended := make([]byte, 2)
@@ -90,47 +98,35 @@ func readWebSocketFrame(reader io.Reader) (*webSocketFrame, error) {
 			return nil, err
 		}
 		raw = append(raw, extended...)
-		payloadLength = int64(binary.BigEndian.Uint16(extended))
+		payloadLength = uint64(binary.BigEndian.Uint16(extended))
 	case 127:
 		extended := make([]byte, 8)
 		if _, err := io.ReadFull(reader, extended); err != nil {
 			return nil, err
 		}
 		raw = append(raw, extended...)
-		payloadLength = int64(binary.BigEndian.Uint64(extended))
+		payloadLength = binary.BigEndian.Uint64(extended)
+		if payloadLength&(uint64(1)<<63) != 0 {
+			return nil, errors.New("invalid websocket payload length")
+		}
 	}
 
 	masked := header[1]&0x80 != 0
-	var maskingKey []byte
+	var maskingKey [4]byte
 	if masked {
-		maskingKey = make([]byte, 4)
-		if _, err := io.ReadFull(reader, maskingKey); err != nil {
+		if _, err := io.ReadFull(reader, maskingKey[:]); err != nil {
 			return nil, err
 		}
-		raw = append(raw, maskingKey...)
+		raw = append(raw, maskingKey[:]...)
 	}
 
-	payload := make([]byte, payloadLength)
-	if payloadLength > 0 {
-		if _, err := io.ReadFull(reader, payload); err != nil {
-			return nil, err
-		}
-		raw = append(raw, payload...)
-	}
-
-	decodedPayload := append([]byte{}, payload...)
-	if masked {
-		for idx := range decodedPayload {
-			decodedPayload[idx] ^= maskingKey[idx%4]
-		}
-	}
-
-	return &webSocketFrame{
-		Raw:           raw,
-		Opcode:        opcode,
-		IsFinal:       isFinal,
-		Payload:       decodedPayload,
-		PayloadLength: len(decodedPayload),
+	return &webSocketFrameHeader{
+		raw:           raw,
+		opcode:        opcode,
+		isFinal:       isFinal,
+		masked:        masked,
+		maskingKey:    maskingKey,
+		payloadLength: payloadLength,
 	}, nil
 }
 
@@ -143,7 +139,16 @@ func isIgnorableWebSocketError(err error) bool {
 }
 
 func (s *SshClient) logWebSocketSession(handshakeRequestID string, request *http.Request, response *http.Response) string {
-	requestHeadersBytes, err := json.Marshal(request.Header)
+	return s.logWebSocketSessionWithID(ulid.Make().String(), handshakeRequestID, request, response)
+}
+
+func (s *SshClient) logWebSocketSessionWithID(sessionID, handshakeRequestID string, request *http.Request, response *http.Response) string {
+	if !s.requestLoggingEnabled() {
+		return ""
+	}
+
+	requestHeaders := redactHeaderValues(request.Header, s.config.RedactHeaders)
+	requestHeadersBytes, err := json.Marshal(requestHeaders)
 	if err != nil {
 		if s.config.Debug {
 			s.logDebug("Failed to marshal websocket request headers", err)
@@ -151,7 +156,8 @@ func (s *SshClient) logWebSocketSession(handshakeRequestID string, request *http
 		return ""
 	}
 
-	responseHeadersBytes, err := json.Marshal(response.Header)
+	responseHeaders := redactHeaderValues(response.Header, s.config.RedactHeaders)
+	responseHeadersBytes, err := json.Marshal(responseHeaders)
 	if err != nil {
 		if s.config.Debug {
 			s.logDebug("Failed to marshal websocket response headers", err)
@@ -161,7 +167,7 @@ func (s *SshClient) logWebSocketSession(handshakeRequestID string, request *http
 
 	now := time.Now().UTC()
 	session := db.WebSocketSession{
-		ID:                 ulid.Make().String(),
+		ID:                 sessionID,
 		HandshakeRequestID: handshakeRequestID,
 		Subdomain:          s.config.Tunnel.Subdomain,
 		Localport:          s.config.Tunnel.Port,
@@ -185,6 +191,9 @@ func (s *SshClient) logWebSocketSession(handshakeRequestID string, request *http
 }
 
 func (s *SshClient) recordWebSocketEvent(sessionID string, direction string, frame *webSocketFrame) {
+	if !s.requestLoggingEnabled() {
+		return
+	}
 	if sessionID == "" || frame == nil {
 		return
 	}
@@ -238,6 +247,9 @@ func (s *SshClient) recordWebSocketEvent(sessionID string, direction string, fra
 }
 
 func (s *SshClient) closeWebSocketSession(sessionID string, err error) {
+	if !s.requestLoggingEnabled() {
+		return
+	}
 	if sessionID == "" {
 		return
 	}
@@ -259,17 +271,79 @@ func (s *SshClient) closeWebSocketSession(sessionID string, err error) {
 
 func (s *SshClient) proxyWebSocketFrames(sessionID string, direction string, reader io.Reader, writer net.Conn) error {
 	for {
-		frame, err := readWebSocketFrame(reader)
+		frame, err := forwardWebSocketFrame(reader, writer)
 		if err != nil {
 			return err
 		}
+		if sessionID != "" {
+			s.submitCapture(websocketEventCaptureTask{sessionID: sessionID, direction: direction, frame: frame})
+		}
+	}
+}
 
-		if _, err := writer.Write(frame.Raw); err != nil {
+func forwardWebSocketFrame(reader io.Reader, writer io.Writer) (*webSocketFrame, error) {
+	header, err := readWebSocketFrameHeader(reader)
+	if err != nil {
+		return nil, err
+	}
+	if header.payloadLength > uint64(^uint(0)>>1) {
+		return nil, errors.New("websocket payload length exceeds platform capacity")
+	}
+	if err := writeAll(writer, header.raw); err != nil {
+		return nil, err
+	}
+
+	captureLength := int(header.payloadLength)
+	if captureLength > maxCapturedBodyBytes {
+		captureLength = maxCapturedBodyBytes
+	}
+	captured := make([]byte, 0, captureLength)
+	buffer := make([]byte, 32*1024)
+	remaining := header.payloadLength
+	var payloadOffset uint64
+	for remaining > 0 {
+		chunkLength := uint64(len(buffer))
+		if remaining < chunkLength {
+			chunkLength = remaining
+		}
+		chunk := buffer[:int(chunkLength)]
+		if _, err := io.ReadFull(reader, chunk); err != nil {
+			return nil, err
+		}
+		if err := writeAll(writer, chunk); err != nil {
+			return nil, err
+		}
+		for index := 0; index < len(chunk) && len(captured) < captureLength; index++ {
+			value := chunk[index]
+			if header.masked {
+				value ^= header.maskingKey[(payloadOffset+uint64(index))%4]
+			}
+			captured = append(captured, value)
+		}
+		payloadOffset += chunkLength
+		remaining -= chunkLength
+	}
+
+	return &webSocketFrame{
+		Opcode:        header.opcode,
+		IsFinal:       header.isFinal,
+		Payload:       captured,
+		PayloadLength: int(header.payloadLength),
+	}, nil
+}
+
+func writeAll(writer io.Writer, payload []byte) error {
+	for len(payload) > 0 {
+		written, err := writer.Write(payload)
+		if err != nil {
 			return err
 		}
-
-		s.recordWebSocketEvent(sessionID, direction, frame)
+		if written == 0 {
+			return io.ErrShortWrite
+		}
+		payload = payload[written:]
 	}
+	return nil
 }
 
 func (s *SshClient) websocketTunnel(sessionID string, clientReader io.Reader, serverConn net.Conn, serverReader io.Reader, clientConn net.Conn) {
@@ -312,7 +386,11 @@ func (s *SshClient) websocketTunnel(sessionID string, clientReader io.Reader, se
 
 	completed.Wait()
 	closeAll()
-	s.closeWebSocketSession(sessionID, firstErr)
+	if sessionID != "" {
+		captureCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		s.submitCaptureContext(captureCtx, websocketCloseCaptureTask{sessionID: sessionID, err: firstErr})
+	}
 }
 
 func (s *SshClient) handleWebSocketRequest(
@@ -322,23 +400,11 @@ func (s *SshClient) handleWebSocketRequest(
 	request *http.Request,
 	localEndpoint string,
 ) error {
-	dst, err := net.Dial("tcp", localEndpoint)
+	dialCtx, cancelDial := context.WithTimeout(request.Context(), 5*time.Second)
+	defer cancelDial()
+	dst, err := (&net.Dialer{KeepAlive: 30 * time.Second}).DialContext(dialCtx, "tcp", localEndpoint)
 	if err != nil {
-		htmlContent := []byte(utils.LocalServerNotOnline(localEndpoint))
-		response := &http.Response{
-			Status:        "503 Service Unavailable",
-			StatusCode:    http.StatusServiceUnavailable,
-			Proto:         "HTTP/1.1",
-			ProtoMajor:    1,
-			ProtoMinor:    1,
-			Header:        http.Header{},
-			ContentLength: int64(len(htmlContent)),
-			Body:          io.NopCloser(bytes.NewReader(htmlContent)),
-		}
-		response.Header.Set("Content-Type", "text/html")
-		response.Header.Set("X-Portr-Error", "true")
-		response.Header.Set("X-Portr-Error-Reason", "local-server-not-online")
-		if writeErr := response.Write(srcWriter); writeErr != nil {
+		if writeErr := writeLocalServerUnavailable(srcWriter, localEndpoint); writeErr != nil {
 			return writeErr
 		}
 		return srcWriter.Flush()
@@ -354,33 +420,35 @@ func (s *SshClient) handleWebSocketRequest(
 	dstReader := bufio.NewReader(dst)
 	dstWriter := bufio.NewWriter(dst)
 
-	requestBody, err := io.ReadAll(request.Body)
-	if err != nil {
-		return err
+	requestCapture := &bodyCapture{}
+	if request.Body != nil {
+		request.Body = &capturingReadCloser{ReadCloser: request.Body, capture: requestCapture, onDone: func() {}}
+		defer request.Body.Close()
 	}
-	_ = request.Body.Close()
-	request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
 
 	if err := request.Write(dstWriter); err != nil {
+		_ = writeLocalServerUnavailable(srcWriter, localEndpoint)
+		_ = srcWriter.Flush()
 		return err
 	}
+	requestBody := requestCapture.Bytes()
 	if err := dstWriter.Flush(); err != nil {
+		_ = writeLocalServerUnavailable(srcWriter, localEndpoint)
+		_ = srcWriter.Flush()
 		return err
 	}
 
 	response, err := http.ReadResponse(dstReader, request)
 	if err != nil {
+		_ = writeLocalServerUnavailable(srcWriter, localEndpoint)
+		_ = srcWriter.Flush()
 		return err
 	}
 
 	if response.StatusCode != http.StatusSwitchingProtocols {
-		responseBody, err := io.ReadAll(response.Body)
-		if err != nil {
-			return err
-		}
-		_ = response.Body.Close()
-		response.Body = io.NopCloser(bytes.NewBuffer(responseBody))
-
+		responseCapture := &bodyCapture{}
+		response.Body = &capturingReadCloser{ReadCloser: response.Body, capture: responseCapture, onDone: func() {}}
+		defer response.Body.Close()
 		if err := response.Write(srcWriter); err != nil {
 			return err
 		}
@@ -388,7 +456,17 @@ func (s *SshClient) handleWebSocketRequest(
 			return err
 		}
 
-		s.logHttpRequest(ulid.Make().String(), request, requestBody, response, responseBody, 0)
+		responseBody := responseCapture.Bytes()
+		requestID := ulid.Make().String()
+		s.submitCapture(httpCaptureTask{
+			id:           requestID,
+			request:      request,
+			requestBody:  requestBody,
+			response:     response,
+			responseBody: responseBody,
+			bytesIn:      requestCapture.Size(),
+			bytesOut:     responseCapture.Size(),
+		})
 		return nil
 	}
 
@@ -400,8 +478,21 @@ func (s *SshClient) handleWebSocketRequest(
 	}
 
 	handshakeRequestID := ulid.Make().String()
-	s.logHttpRequest(handshakeRequestID, request, requestBody, response, nil, 0)
-	sessionID := s.logWebSocketSession(handshakeRequestID, request, response)
+	sessionID := ulid.Make().String()
+	if !s.submitCapture(websocketOpenCaptureTask{
+		handshake: httpCaptureTask{
+			id:          handshakeRequestID,
+			request:     request,
+			requestBody: requestBody,
+			response:    response,
+			bytesIn:     requestCapture.Size(),
+		},
+		sessionID: sessionID,
+		request:   request,
+		response:  response,
+	}) {
+		sessionID = ""
+	}
 
 	clientBuffered := drainBufferedBytes(srcReader)
 	serverBuffered := drainBufferedBytes(dstReader)

@@ -5,13 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"mime"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/amalshaji/portr/internal/client/db"
 	clientreplay "github.com/amalshaji/portr/internal/client/replay"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 type replayRequestInput struct {
@@ -80,24 +83,65 @@ func serializeWebSocketEvent(event db.WebSocketEvent) websocketEventPayload {
 
 const timeLayout = "2006-01-02T15:04:05.999999999Z07:00"
 
+const (
+	defaultPageSize = 100
+	maxPageSize     = 500
+)
+
+func pageParams(c *fiber.Ctx) (limit, offset int) {
+	limit = c.QueryInt("limit", defaultPageSize)
+	if limit <= 0 {
+		limit = defaultPageSize
+	}
+	if limit > maxPageSize {
+		limit = maxPageSize
+	}
+
+	offset = c.QueryInt("offset", 0)
+	if offset < 0 {
+		offset = 0
+	}
+
+	return limit, offset
+}
+
 func (h *Handler) GetTunnels(c *fiber.Ctx) error {
-	tunnels, err := h.service.GetTunnels()
+	limit, offset := pageParams(c)
+	page, err := h.service.GetTunnels(limit, offset, c.Query("search"), c.Query("status"))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to get tunnels"})
 	}
 
-	return c.JSON(fiber.Map{"tunnels": tunnels})
+	return c.JSON(fiber.Map{
+		"tunnels": page.Tunnels,
+		"total":   page.Total,
+		"stats":   page.Stats,
+	})
 }
 
 func (h *Handler) GetRequests(c *fiber.Ctx) error {
 	subdomain := c.Params("subdomain")
 	port := c.Params("port")
-	requests, err := h.service.GetRequests(subdomain, port)
+	limit, offset := pageParams(c)
+
+	requests, total, err := h.service.GetRequests(subdomain, port, limit, offset)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to get requests"})
 	}
 
-	return c.JSON(fiber.Map{"requests": requests})
+	return c.JSON(fiber.Map{"requests": requests, "total": total})
+}
+
+func (h *Handler) GetRequest(c *fiber.Ctx) error {
+	request, err := h.service.GetRequestById(c.Params("id"))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": "request not found"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to get request"})
+	}
+
+	return c.JSON(fiber.Map{"request": request})
 }
 
 func (h *Handler) GetWebSocketSessions(c *fiber.Ctx) error {
@@ -129,6 +173,16 @@ func (h *Handler) GetWebSocketSession(c *fiber.Ctx) error {
 		"session": sessionWithEvents.Session,
 		"events":  events,
 	})
+}
+
+func isHTMLContentType(contentType string) bool {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return false
+	}
+
+	mediaType = strings.ToLower(mediaType)
+	return mediaType == "text/html" || strings.HasSuffix(mediaType, "+html")
 }
 
 func (h *Handler) RenderResponse(c *fiber.Ctx) error {
@@ -167,6 +221,11 @@ func (h *Handler) RenderResponse(c *fiber.Ctx) error {
 	contentLength := headersMap["Content-Length"]
 	if len(contentLength) == 0 {
 		contentLength = []string{fmt.Sprintf("%d", len(body))}
+	}
+
+	if isHTMLContentType(contentType[0]) {
+		c.Response().Header.Set("Content-Security-Policy", "sandbox")
+		c.Response().Header.Set("X-Content-Type-Options", "nosniff")
 	}
 
 	c.Response().Header.Set("Content-Type", contentType[0])

@@ -110,6 +110,44 @@ func TestGetConnections_NoTrailingSlashSucceeds(t *testing.T) {
 	}
 }
 
+func TestGetConnections_ClampsInvalidPagination(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	user := CreateTestUser(t, db, "connclamp@example.com", false)
+	team, teamUser := CreateTeamAndTeamUser(t, db, "Conn Clamp Team", user, "admin")
+	subdomain := "connclamp"
+	conn := models.NewConnection(models.ConnectionTypeHTTP, &subdomain, teamUser)
+	if err := db.Create(conn).Error; err != nil {
+		t.Fatalf("failed to create connection in DB: %v", err)
+	}
+	sess := CreateSessionForUser(t, db, user)
+
+	req := httptest.NewRequest("GET", "/api/v1/connections/?page=-10&page_size=-50", nil)
+	req.Header.Set("Cookie", SessionCookieValue(sess))
+	req.Header.Set("X-Team-Slug", team.Slug)
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK for clamped pagination, got %d", resp.StatusCode)
+	}
+
+	var body map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	if _, ok := body["count"].(float64); !ok {
+		t.Fatalf("expected count in response, got: %v", body)
+	}
+	if _, ok := body["data"].([]interface{}); !ok {
+		t.Fatalf("expected data array in response, got: %v", body)
+	}
+}
+
 func TestCreateConnection_HTTP_Success(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()
@@ -255,6 +293,105 @@ func TestCreateConnection_SecretKeyInvalid_Unauthorized(t *testing.T) {
 	}
 }
 
+func TestCreateConnection_MissingSecretKey_BadRequest(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	payload := map[string]interface{}{
+		"secret_key":      "",
+		"connection_type": "http",
+		"subdomain":       "some-sub",
+	}
+	payloadBytes, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/connections/", bytes.NewReader(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected status 400 Bad Request for missing secret key, got %d: %s", resp.StatusCode, string(body))
+	}
+
+	var count int64
+	if err := db.Model(&models.Connection{}).Count(&count).Error; err != nil {
+		t.Fatalf("count connections: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected no connections to be created, got %d", count)
+	}
+}
+
+func TestCreateConnection_UnsupportedType_BadRequest(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	payload := map[string]interface{}{
+		"secret_key":      "dummy-secret",
+		"connection_type": "udp",
+		"subdomain":       "some-sub",
+	}
+	payloadBytes, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/connections/", bytes.NewReader(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected status 400 Bad Request for unsupported type, got %d: %s", resp.StatusCode, string(body))
+	}
+
+	var count int64
+	if err := db.Model(&models.Connection{}).Count(&count).Error; err != nil {
+		t.Fatalf("count connections: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected no connections to be created, got %d", count)
+	}
+}
+
+func TestCreateConnection_InvalidSubdomain_BadRequest(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	payload := map[string]interface{}{
+		"secret_key":      "dummy-secret",
+		"connection_type": "http",
+		"subdomain":       "bad subdomain",
+	}
+	payloadBytes, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/connections/", bytes.NewReader(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected status 400 Bad Request for invalid subdomain, got %d: %s", resp.StatusCode, string(body))
+	}
+
+	var count int64
+	if err := db.Model(&models.Connection{}).Count(&count).Error; err != nil {
+		t.Fatalf("count connections: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected no connections to be created, got %d", count)
+	}
+}
+
 func TestCreateConnection_SubdomainConflict_Conflict(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()
@@ -290,6 +427,27 @@ func TestCreateConnection_SubdomainConflict_Conflict(t *testing.T) {
 	if resp.StatusCode != http.StatusConflict {
 		body, _ := io.ReadAll(resp.Body)
 		t.Fatalf("expected status 409 Conflict for duplicate subdomain, got %d: %s", resp.StatusCode, string(body))
+	}
+}
+
+func TestCreateConnection_DatabaseRejectsDuplicateReservedSubdomain(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	user := CreateTestUser(t, db, "dbconflict@example.com", false)
+	_, teamUser := CreateTeamAndTeamUser(t, db, "DB Conflict Team", user, "admin")
+
+	subdomain := "dbconflictdomain"
+	first := models.NewConnection(models.ConnectionTypeHTTP, &subdomain, teamUser)
+	first.Status = models.ConnectionStatusReserved
+	if err := db.Create(first).Error; err != nil {
+		t.Fatalf("failed to create first connection: %v", err)
+	}
+
+	second := models.NewConnection(models.ConnectionTypeHTTP, &subdomain, teamUser)
+	second.Status = models.ConnectionStatusReserved
+	if err := db.Create(second).Error; err == nil {
+		t.Fatal("expected duplicate reserved subdomain insert to fail")
 	}
 }
 

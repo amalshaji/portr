@@ -30,10 +30,9 @@ export interface TeamUser {
   team: Team
   user: User
   role: "admin" | "member"
-  secret_key: string
 }
 
-export interface InstanceSettings {
+export interface AutoSignupSettings {
   github_auth_enabled: boolean
   auto_signup_enabled: boolean
   auto_signup_domains: AutoSignupDomain[]

@@ -1,8 +1,8 @@
 import { DocsLayout, type DocsLayoutProps } from "fumadocs-ui/layouts/notebook";
 import type { ReactNode } from "react";
 import { baseOptions } from "@/app/layout.config";
+import { GitHubStarsLink } from "@/components/github-stars-link";
 import { source } from "@/lib/source";
-import { GithubInfo } from "fumadocs-ui/components/github-info";
 
 const docsOptions: DocsLayoutProps = {
   ...baseOptions,
@@ -15,12 +15,7 @@ const docsOptions: DocsLayoutProps = {
     {
       type: "custom",
       children: (
-        <GithubInfo
-          owner="amalshaji"
-          repo="portr"
-          token={process.env.GITHUB_TOKEN}
-          className="lg:-mx-2"
-        />
+        <GitHubStarsLink className="rounded-md px-2 py-1.5 text-sm text-fd-muted-foreground transition-colors hover:bg-fd-accent hover:text-fd-foreground lg:-mx-2" />
       ),
     },
   ],

@@ -55,7 +55,10 @@ jobs:
           cache: true
 
       - name: Build server
-        run: go build -v ./...
+        run: go build -v $(./scripts/go-packages.sh --build)
+
+      - name: Test real tunnel data flow
+        run: go test -race -v ./tests -run '^TestTunnelDataFlow' -count=1 -timeout=2m
 
       - name: Test server
-        run: go test -v ./...
+        run: go test -v $(./scripts/go-packages.sh)

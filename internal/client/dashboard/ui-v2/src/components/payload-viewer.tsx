@@ -210,6 +210,8 @@ export function PayloadViewer({ request, type }: PayloadViewerProps) {
       <div className="min-h-0 h-full overflow-hidden border bg-background">
         <iframe
           className="block h-[26rem] min-h-[18rem] w-full bg-white xl:h-full"
+          referrerPolicy="no-referrer"
+          sandbox=""
           scrolling="yes"
           src={renderUrl}
           title={readOnlyLabel(type)}

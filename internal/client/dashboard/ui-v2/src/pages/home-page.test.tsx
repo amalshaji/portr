@@ -27,6 +27,7 @@ function makeTunnel() {
     http_request_count: 3,
     websocket_session_count: 1,
     active_websocket_count: 0,
+    status: "idle" as const,
   }
 }
 
@@ -38,7 +39,17 @@ describe("HomePage", () => {
   it("keeps a server banner visible until a later poll succeeds", async () => {
     vi.mocked(getTunnels)
       .mockRejectedValueOnce(new TypeError("Failed to fetch"))
-      .mockResolvedValue({ tunnels: [makeTunnel()] })
+      .mockResolvedValue({
+        tunnels: [makeTunnel()],
+        total: 1,
+        stats: {
+          live_tunnel_count: 0,
+          http_request_count: 3,
+          websocket_session_count: 1,
+          active_websocket_count: 0,
+          last_activity_at: "2026-04-04T00:00:00Z",
+        },
+      })
 
     render(
       <MemoryRouter>

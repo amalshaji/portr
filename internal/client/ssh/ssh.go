@@ -1,7 +1,6 @@
 package ssh
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -14,7 +13,6 @@ import (
 	"net/url"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/amalshaji/portr/internal/client/config"
@@ -28,7 +26,6 @@ import (
 	"github.com/amalshaji/portr/internal/client/tui"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/oklog/ulid/v2"
-	"golang.org/x/crypto/ssh"
 )
 
 var (
@@ -38,57 +35,19 @@ var (
 	tunnelStartTimeout      = 20 * time.Second
 )
 
-type requestLogContextKey struct{}
-
-type requestLogData struct {
-	id        string
-	request   *http.Request
-	body      []byte
-	startTime time.Time
-}
-
-type singleConnListener struct {
-	conn     net.Conn
-	accepted bool
-	closed   bool
-	mu       sync.Mutex
-}
-
-func (l *singleConnListener) Accept() (net.Conn, error) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	if l.closed || l.accepted {
-		return nil, net.ErrClosed
-	}
-
-	l.accepted = true
-	return l.conn, nil
-}
-
-func (l *singleConnListener) Close() error {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	l.closed = true
-	return nil
-}
-
-func (l *singleConnListener) Addr() net.Addr {
-	return l.conn.LocalAddr()
-}
-
 type SshClient struct {
-	config       config.ClientConfig
-	listener     net.Listener
-	db           *db.Db
-	client       *ssh.Client
-	tui          *tea.Program
-	fatal        func(error)
-	eventHandler func(Event)
-	mu           sync.RWMutex
-	reconnecting int32 // atomic flag to prevent concurrent reconnects
-	shutdown     int32 // atomic flag for shutdown state
+	config          config.ClientConfig
+	db              *db.Db
+	transport       *tunnelTransport
+	tui             *tea.Program
+	fatal           func(error)
+	eventHandler    func(Event)
+	recorder        *captureRecorder
+	mu              sync.RWMutex
+	connections     sync.WaitGroup
+	shutdown        int32
+	lifecycleCancel context.CancelFunc
+	lifecycleDone   chan struct{}
 }
 
 type EventType string
@@ -111,12 +70,10 @@ type Event struct {
 
 func New(config config.ClientConfig, db *db.Db, tui *tea.Program, fatal func(error)) *SshClient {
 	return &SshClient{
-		config:   config,
-		listener: nil,
-		db:       db,
-		client:   nil,
-		tui:      tui,
-		fatal:    fatal,
+		config: config,
+		db:     db,
+		tui:    tui,
+		fatal:  fatal,
 	}
 }
 
@@ -182,70 +139,23 @@ func (s *SshClient) goSafe(scope string, fn func()) {
 	}()
 }
 
-func (s *SshClient) shouldIgnoreListenerError(ctx context.Context, err error) bool {
-	return err == nil ||
-		ctx.Err() != nil ||
-		atomic.LoadInt32(&s.shutdown) == 1 ||
-		errors.Is(err, errClientShuttingDown)
-}
-
-func (s *SshClient) forwardListenerErrors(ctx context.Context, errChan <-chan error) {
-	go func() {
-		select {
-		case err := <-errChan:
-			if s.shouldIgnoreListenerError(ctx, err) {
-				return
-			}
-			s.reportFatal(s.startError(err))
-		case <-ctx.Done():
-		}
-	}()
+func (s *SshClient) runConnection(scope string, fn func()) {
+	s.connections.Add(1)
+	s.goSafe(scope, func() {
+		defer s.connections.Done()
+		fn()
+	})
 }
 
 func (s *SshClient) closeTransport() error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	var err error
-	if s.listener != nil {
-		err = s.listener.Close()
-		s.listener = nil
-	}
-
-	if s.client != nil {
-		if clientErr := s.client.Close(); clientErr != nil && err == nil {
-			err = clientErr
-		}
-		s.client = nil
-	}
-
-	return err
-}
-
-func (s *SshClient) closeListenerIfCurrent(listener net.Listener) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.listener == listener {
-		_ = s.listener.Close()
-		s.listener = nil
-	}
-}
-
-func (s *SshClient) handleAcceptError(listener net.Listener, err error) error {
-	if err == nil {
+	transport := s.transport
+	s.transport = nil
+	s.mu.Unlock()
+	if transport == nil {
 		return nil
 	}
-
-	s.mu.RLock()
-	currentListener := s.listener
-	s.mu.RUnlock()
-
-	if atomic.LoadInt32(&s.shutdown) == 1 || currentListener != listener {
-		return errClientShuttingDown
-	}
-
-	return fmt.Errorf("failed to accept connection: %w", err)
+	return transport.Close()
 }
 
 func CreateNewConnection(cfg config.ClientConfig) (string, error) {
@@ -308,229 +218,26 @@ func tunnelStatusKey(tunnel config.Tunnel) string {
 	return fmt.Sprintf("%d", tunnel.Port)
 }
 
-func (s *SshClient) startListenerForClient(ctx context.Context) error {
-	return s.startListenerForClientWithReady(ctx, nil)
-}
-
-func (s *SshClient) startListenerForClientWithReady(ctx context.Context, ready chan<- struct{}) error {
-	if atomic.LoadInt32(&s.shutdown) == 1 {
-		return errClientShuttingDown
-	}
-
-	var err error
-	var connectionId string
-
-	if connectionId, err = s.createNewConnection(ctx); err != nil {
-		return err
-	}
-
-	sshConfig := &ssh.ClientConfig{
-		User: fmt.Sprintf("%s:%s", connectionId, s.config.SecretKey),
-		Auth: []ssh.AuthMethod{
-			ssh.Password(""),
-		},
-		HostKeyCallback: getHostKeyCallback(s.config.InsecureSkipHostKeyVerification),
-	}
-
-	dialer := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 15 * time.Second}
-	rawConn, err := dialer.DialContext(ctx, "tcp", s.config.SshUrl)
-	if err != nil {
-		if s.config.Debug {
-			s.logDebug("Failed to dial ssh tcp", err)
-		}
-		return err
-	}
-	if tcp, ok := rawConn.(*net.TCPConn); ok {
-		_ = tcp.SetKeepAlive(true)
-		_ = tcp.SetKeepAlivePeriod(15 * time.Second)
-		_ = tcp.SetNoDelay(true)
-	}
-
-	handshakeDone := make(chan struct{})
-	go func() {
-		select {
-		case <-ctx.Done():
-			_ = rawConn.Close()
-		case <-handshakeDone:
-		}
-	}()
-	_ = rawConn.SetDeadline(time.Now().Add(10 * time.Second))
-	cc, chans, reqs, err := ssh.NewClientConn(rawConn, s.config.SshUrl, sshConfig)
-	close(handshakeDone)
-	_ = rawConn.SetDeadline(time.Time{})
-	if err != nil {
-		_ = rawConn.Close()
-		if s.config.Debug {
-			s.logDebug("Failed to establish ssh client conn", err)
-		}
-		return err
-	}
-
-	s.mu.Lock()
-	s.client = ssh.NewClient(cc, chans, reqs)
-	clientRef := s.client
-	s.mu.Unlock()
-
-	s.goSafe("ssh keepalive", func() {
-		s.startSSHKeepAlive(clientRef)
-	})
-
-	localEndpoint := s.config.Tunnel.GetLocalAddr()
-
-	tunnelType := s.config.Tunnel.Type
-	if tunnelType == constants.Stub {
-		tunnelType = constants.Http
-	}
-
-	var randomPorts []int
-	if tunnelType == constants.Http {
-		randomPorts = utils.GenerateRandomHttpPorts()
-	} else {
-		randomPorts = utils.GenerateRandomTcpPorts()
-	}
-
-	var remotePort int
-	var ln net.Listener
-
-	for _, port := range randomPorts {
-		l, lerr := s.client.Listen("tcp", "0.0.0.0:"+fmt.Sprint(port))
-		if lerr == nil {
-			ln = l
-			remotePort = port
-			break
-		} else {
-			err = lerr
-		}
-	}
-
-	if ln == nil {
-		return fmt.Errorf("failed to listen on remote endpoint: %v", err)
-	}
-
-	s.mu.Lock()
-	s.listener = ln
-	s.config.Tunnel.RemotePort = remotePort
-	s.mu.Unlock()
-
-	defer func() {
-		s.closeListenerIfCurrent(ln)
-	}()
-
-	if s.tui != nil {
-		s.tui.Send(tui.AddTunnelMsg{
-			Config:       &s.config.Tunnel,
-			ClientConfig: &s.config,
-			Healthy:      true,
-		})
-	} else if !s.config.DisableTerminalLogs {
-		tunnelAddr := s.config.GetTunnelAddr()
-		fmt.Printf("✅ Tunnel started: %s → %s\n", s.config.Tunnel.GetLocalAddr(), tunnelAddr)
-	}
-
-	s.emitEvent(EventStarted, nil)
-	if ready != nil {
-		close(ready)
-	}
-
-	if s.tui != nil {
-		s.tui.Send(tui.UpdateConnCountMsg{Port: tunnelStatusKey(s.config.Tunnel), Delta: 1})
-	}
-
-	for {
-		if atomic.LoadInt32(&s.shutdown) == 1 {
-			return errClientShuttingDown
-		}
-
-		s.mu.RLock()
-		listener := s.listener
-		s.mu.RUnlock()
-
-		if listener == nil {
-			return fmt.Errorf("listener is nil, cannot accept connections")
-		}
-
-		remoteConn, err := listener.Accept()
-		if err != nil {
-			if s.config.Debug {
-				log.Error("Failed to accept connection", "error", err)
-			}
-			if s.tui != nil {
-				s.tui.Send(tui.UpdateConnCountMsg{Port: tunnelStatusKey(s.config.Tunnel), Delta: -1})
-			}
-			return s.handleAcceptError(listener, err)
-		}
-
-		if tunnelType == constants.Http {
-			s.goSafe("http tunnel", func() {
-				s.httpTunnel(remoteConn, localEndpoint)
-			})
-		} else {
-			// Connect to the local endpoint for TCP passthrough.
-			localConn, err := net.Dial("tcp", localEndpoint)
-			if err != nil {
-				remoteConn.Close()
-				continue
-			}
-			s.goSafe("tcp tunnel", func() {
-				s.tcpTunnel(remoteConn, localConn)
-			})
-		}
-	}
-}
-
-func (s *SshClient) startSSHKeepAlive(clientRef *ssh.Client) {
-	ticker := time.NewTicker(15 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		if atomic.LoadInt32(&s.shutdown) == 1 {
-			return
-		}
-
-		s.mu.RLock()
-		sameClient := s.client == clientRef
-		s.mu.RUnlock()
-		if !sameClient {
-			return
-		}
-
-		select {
-		case <-ticker.C:
-			errCh := make(chan error, 1)
-			s.goSafe("ssh keepalive request", func() {
-				_, _, err := clientRef.SendRequest("keepalive@openssh.com", false, nil)
-				errCh <- err
-			})
-
-			select {
-			case err := <-errCh:
-				if err != nil {
-					if s.config.Debug {
-						s.logDebug("SSH keepalive failed, reconnecting", err)
-					}
-					_ = s.Reconnect()
-					return
-				}
-			case <-time.After(5 * time.Second):
-				if s.config.Debug {
-					s.logDebug("SSH keepalive timed out, reconnecting", nil)
-				}
-				_ = s.Reconnect()
-				return
-			}
-		default:
-			time.Sleep(100 * time.Millisecond)
-		}
-	}
-}
-
 func (s *SshClient) httpTunnel(src net.Conn, localEndpoint string) {
-	if s.config.EnableHttpReverseProxy {
-		s.httpTunnelReverseProxy(src, localEndpoint)
-		return
-	}
+	s.httpTunnelReverseProxy(src, localEndpoint)
+}
 
-	s.httpTunnelLegacy(src, localEndpoint)
+func writeLocalServerUnavailable(writer io.Writer, localEndpoint string) error {
+	htmlContent := []byte(utils.LocalServerNotOnline(localEndpoint))
+	response := &http.Response{
+		Status:        "503 Service Unavailable",
+		StatusCode:    http.StatusServiceUnavailable,
+		Proto:         "HTTP/1.1",
+		ProtoMajor:    1,
+		ProtoMinor:    1,
+		Header:        make(http.Header),
+		ContentLength: int64(len(htmlContent)),
+		Body:          io.NopCloser(bytes.NewReader(htmlContent)),
+	}
+	response.Header.Set("Content-Type", "text/html")
+	response.Header.Set("X-Portr-Error", "true")
+	response.Header.Set("X-Portr-Error-Reason", "local-server-not-online")
+	return response.Write(writer)
 }
 
 func (s *SshClient) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
@@ -545,9 +252,12 @@ func (s *SshClient) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 		Proxy:             http.ProxyFromEnvironment,
 		ForceAttemptHTTP2: false,
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			var d net.Dialer
+			d := net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}
 			return d.DialContext(ctx, network, localEndpoint)
 		},
+		MaxIdleConns:        8,
+		MaxIdleConnsPerHost: 8,
+		IdleConnTimeout:     90 * time.Second,
 	}
 	defer transport.CloseIdleConnections()
 
@@ -562,31 +272,33 @@ func (s *SshClient) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 	}
 
 	proxy.ModifyResponse = func(response *http.Response) error {
-		if response.StatusCode == http.StatusSwitchingProtocols {
-			return nil
-		}
-
-		if strings.Contains(response.Header.Get("Content-Type"), "text/event-stream") {
-			return nil
-		}
-
 		logData, ok := response.Request.Context().Value(requestLogContextKey{}).(*requestLogData)
 		if !ok || logData == nil || logData.request == nil {
 			return nil
 		}
 
-		responseBody, err := io.ReadAll(response.Body)
-		if err != nil {
-			if s.config.Debug {
-				s.logDebug("Failed to read response body from reverse proxy", err)
-			}
-			return err
+		responseSnapshot := *response
+		responseSnapshot.Header = response.Header.Clone()
+		responseSnapshot.Body = nil
+		responseSnapshot.Request = nil
+		responseCapture := &bodyCapture{}
+		response.Body = &capturingReadCloser{
+			ReadCloser: response.Body,
+			capture:    responseCapture,
+			onDone: func() {
+				durationMs := time.Since(logData.startTime).Milliseconds()
+				s.submitCapture(httpCaptureTask{
+					id:           logData.id,
+					request:      logData.request,
+					requestBody:  logData.body.Bytes(),
+					response:     &responseSnapshot,
+					responseBody: responseCapture.Bytes(),
+					durationMs:   durationMs,
+					bytesIn:      logData.body.Size(),
+					bytesOut:     responseCapture.Size(),
+				})
+			},
 		}
-		response.Body.Close()
-		response.Body = io.NopCloser(bytes.NewBuffer(responseBody))
-
-		durationMs := time.Since(logData.startTime).Milliseconds()
-		s.logHttpRequest(logData.id, logData.request, logData.body, response, responseBody, durationMs)
 		return nil
 	}
 
@@ -631,17 +343,6 @@ func (s *SshClient) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 			return
 		}
 
-		requestBody, err := io.ReadAll(request.Body)
-		if err != nil {
-			if s.config.Debug {
-				s.logDebug("Failed to read request body for reverse proxy logging", err)
-			}
-			http.Error(writer, "Bad Request", http.StatusBadRequest)
-			return
-		}
-		request.Body.Close()
-		request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
-
 		requestForLog := request.Clone(context.Background())
 		requestForLog.Header = request.Header.Clone()
 		requestForLog.Host = request.Host
@@ -650,10 +351,19 @@ func (s *SshClient) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 			requestForLog.URL = &clonedURL
 		}
 
+		requestCapture := &bodyCapture{}
+		if request.Body != nil {
+			request.Body = &capturingReadCloser{
+				ReadCloser: request.Body,
+				capture:    requestCapture,
+				onDone:     func() {},
+			}
+		}
+
 		logCtx := context.WithValue(request.Context(), requestLogContextKey{}, &requestLogData{
 			id:        ulid.Make().String(),
 			request:   requestForLog,
-			body:      requestBody,
+			body:      requestCapture,
 			startTime: time.Now(),
 		})
 
@@ -674,212 +384,30 @@ func (s *SshClient) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 	}
 }
 
-func (s *SshClient) httpTunnelLegacy(src net.Conn, localEndpoint string) {
-	var dst net.Conn
-
-	defer src.Close()
-
-	srcReader := bufio.NewReader(src)
-	srcWriter := bufio.NewWriter(src)
-
-	request, err := http.ReadRequest(srcReader)
-	if err != nil {
-		if s.config.Debug {
-			s.logDebug("Failed to read request", err)
-		}
-		return
+func redactHeaderValues(headers http.Header, redactNames []string) map[string][]string {
+	if len(redactNames) == 0 {
+		redactNames = config.DefaultRedactHeaders
 	}
 
-	if request.Header.Get("X-Portr-Ping-Request") == "true" {
-		response := &http.Response{
-			Status:     "200 OK",
-			StatusCode: 200,
-			Proto:      "HTTP/1.1",
-			ProtoMajor: 1,
-			ProtoMinor: 1,
-			Header:     http.Header{},
-			Body:       io.NopCloser(bytes.NewBufferString("")),
-		}
+	redactSet := make(map[string]struct{}, len(redactNames))
+	for _, name := range redactNames {
+		redactSet[strings.ToLower(name)] = struct{}{}
+	}
 
-		err = response.Write(srcWriter)
-		if err != nil {
-			if s.config.Debug {
-				log.Error("Failed to write health check response", "error", err)
+	redacted := make(map[string][]string, len(headers))
+	for key, values := range headers {
+		copiedValues := make([]string, len(values))
+		if _, ok := redactSet[strings.ToLower(key)]; ok {
+			for i := range copiedValues {
+				copiedValues[i] = "[redacted]"
 			}
-			return
+		} else {
+			copy(copiedValues, values)
 		}
-		srcWriter.Flush()
-		return
+		redacted[key] = copiedValues
 	}
 
-	if isWebSocketUpgrade(request) {
-		if err := s.handleWebSocketRequest(src, srcReader, srcWriter, request, localEndpoint); err != nil && s.config.Debug {
-			s.logDebug("Failed to proxy websocket request", err)
-		}
-		return
-	}
-
-	// Connect to the local endpoint only after filtering internal health checks.
-	dst, err = net.Dial("tcp", localEndpoint)
-	if err != nil {
-		// serve local html if the local server is not available
-		// change this to a beautiful template
-		htmlContent := utils.LocalServerNotOnline(localEndpoint)
-		fmt.Fprintf(src, "HTTP/1.1 503 Service Unavailable\r\n")
-		fmt.Fprintf(src, "Content-Length: %d\r\n", len(htmlContent))
-		fmt.Fprintf(src, "Content-Type: text/html\r\n")
-		fmt.Fprintf(src, "X-Portr-Error: true\r\n")
-		fmt.Fprintf(src, "X-Portr-Error-Reason: local-server-not-online\r\n\r\n")
-		fmt.Fprint(src, htmlContent)
-		return
-	}
-	defer dst.Close()
-
-	dstReader := bufio.NewReader(dst)
-	dstWriter := bufio.NewWriter(dst)
-
-	// read and replace request body
-	requestBody, err := io.ReadAll(request.Body)
-	if err != nil {
-		if s.config.Debug {
-			s.logDebug("Failed to read request body", err)
-		}
-		return
-	}
-	defer request.Body.Close()
-	request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
-
-	err = request.Write(dstWriter)
-	if err != nil {
-		if s.config.Debug {
-			s.logDebug("Failed to tunnel request to local", err)
-		}
-		return
-	}
-	dstWriter.Flush()
-
-	response, err := http.ReadResponse(dstReader, request)
-	if err != nil {
-		if s.config.Debug {
-			s.logDebug("Failed to read response", err)
-		}
-		return
-	}
-
-	// Handle WebSocket upgrades and SSE streams with TCP tunneling
-	if response.StatusCode == http.StatusSwitchingProtocols {
-		// WebSocket upgrade - write response headers and switch to TCP tunneling
-		err = response.Write(srcWriter)
-		if err != nil {
-			if s.config.Debug {
-				s.logDebug("Failed to write WebSocket upgrade response", err)
-			}
-			return
-		}
-		srcWriter.Flush()
-
-		// Drain any bytes already buffered post-handshake to avoid loss when switching to raw TCP
-		if n := dstReader.Buffered(); n > 0 {
-			buf := make([]byte, n)
-			if _, err := io.ReadFull(dstReader, buf); err == nil {
-				if _, err := srcWriter.Write(buf); err != nil {
-					if s.config.Debug {
-						s.logDebug("Failed to flush buffered server bytes on WS upgrade", err)
-					}
-					return
-				}
-				srcWriter.Flush()
-			}
-		}
-
-		if n := srcReader.Buffered(); n > 0 {
-			buf := make([]byte, n)
-			if _, err := io.ReadFull(srcReader, buf); err == nil {
-				if _, err := dstWriter.Write(buf); err != nil {
-					if s.config.Debug {
-						s.logDebug("Failed to flush buffered client bytes on WS upgrade", err)
-					}
-					return
-				}
-				dstWriter.Flush()
-			}
-		}
-
-		s.tcpTunnel(src, dst)
-		return
-	}
-
-	// Check for SSE (Server-Sent Events) streams
-	contentType := response.Header.Get("Content-Type")
-	if strings.Contains(contentType, "text/event-stream") {
-		// Ensure SSE response body is closed when streaming finishes or on error
-		defer response.Body.Close()
-
-		// SSE stream - copy the response body in real-time without buffering
-		// Write status line and headers first
-		fmt.Fprintf(srcWriter, "%s %s\r\n", response.Proto, response.Status)
-
-		// Write headers, excluding Content-Length and Transfer-Encoding
-		// as we'll be streaming the body directly
-		for key, values := range response.Header {
-			if key == "Content-Length" || key == "Transfer-Encoding" {
-				continue
-			}
-			for _, value := range values {
-				fmt.Fprintf(srcWriter, "%s: %s\r\n", key, value)
-			}
-		}
-
-		// Empty line to end headers
-		fmt.Fprintf(srcWriter, "\r\n")
-		srcWriter.Flush()
-
-		// Stream the body with immediate flushing for real-time delivery
-		buf := make([]byte, 32*1024) // 32KB buffer
-		for {
-			n, err := response.Body.Read(buf)
-			if n > 0 {
-				_, writeErr := srcWriter.Write(buf[:n])
-				if writeErr != nil {
-					if s.config.Debug {
-						s.logDebug("Failed to write SSE data", writeErr)
-					}
-					return
-				}
-				// Flush immediately to ensure real-time streaming
-				srcWriter.Flush()
-			}
-			if err != nil {
-				if err != io.EOF && s.config.Debug {
-					s.logDebug("SSE stream ended", err)
-				}
-				break
-			}
-		}
-		return
-	}
-
-	// read and replace response body for regular HTTP responses
-	responseBody, err := io.ReadAll(response.Body)
-	if err != nil {
-		if s.config.Debug {
-			s.logDebug("Failed to read response body", err)
-		}
-		return
-	}
-	defer response.Body.Close()
-	response.Body = io.NopCloser(bytes.NewBuffer(responseBody))
-
-	err = response.Write(srcWriter)
-	if err != nil {
-		if s.config.Debug {
-			s.logDebug("Failed to write response to remote", err)
-		}
-		return
-	}
-	srcWriter.Flush()
-
-	s.logHttpRequest(ulid.Make().String(), request, requestBody, response, responseBody, 0)
+	return redacted
 }
 
 func (s *SshClient) logHttpRequest(
@@ -890,24 +418,45 @@ func (s *SshClient) logHttpRequest(
 	responseBody []byte,
 	durationMs int64,
 ) {
-	requestHeaders := make(map[string][]string)
-	for key, values := range request.Header {
-		if key == "X-Portr-Ping-Request" && len(values) > 0 {
-			if values[0] == "true" {
-				return
-			}
-		}
-		requestHeaders[key] = values
+	s.logHttpRequestSized(
+		id,
+		request,
+		requestBody,
+		response,
+		responseBody,
+		durationMs,
+		int64(len(requestBody)),
+		int64(len(responseBody)),
+	)
+}
+
+func (s *SshClient) logHttpRequestSized(
+	id string,
+	request *http.Request,
+	requestBody []byte,
+	response *http.Response,
+	responseBody []byte,
+	durationMs int64,
+	bytesIn int64,
+	bytesOut int64,
+) {
+	if !s.requestLoggingEnabled() {
+		return
+	}
+
+	if request.Header.Get("X-Portr-Ping-Request") == "true" {
+		return
 	}
 
 	var replayedRequestId string
 	var isReplayedRequest bool
-
-	_, isReplayedRequest = requestHeaders["X-Portr-Replayed-Request-Id"]
-	if isReplayedRequest {
-		replayedRequestId = requestHeaders["X-Portr-Replayed-Request-Id"][0]
-		delete(requestHeaders, "X-Portr-Replayed-Request-Id")
+	if replayedHeader := request.Header.Values("X-Portr-Replayed-Request-Id"); len(replayedHeader) > 0 {
+		replayedRequestId = replayedHeader[0]
+		isReplayedRequest = true
 	}
+
+	requestHeaders := redactHeaderValues(request.Header, s.config.RedactHeaders)
+	delete(requestHeaders, "X-Portr-Replayed-Request-Id")
 
 	requestHeadersBytes, err := json.Marshal(requestHeaders)
 	if err != nil {
@@ -917,10 +466,7 @@ func (s *SshClient) logHttpRequest(
 		return
 	}
 
-	responseHeaders := make(map[string][]string)
-	for key, values := range response.Header {
-		responseHeaders[key] = values
-	}
+	responseHeaders := redactHeaderValues(response.Header, s.config.RedactHeaders)
 
 	responseHeadersBytes, err := json.Marshal(responseHeaders)
 	if err != nil {
@@ -946,8 +492,8 @@ func (s *SshClient) logHttpRequest(
 		IsReplayed:         isReplayedRequest,
 		ParentID:           replayedRequestId,
 		DurationMs:         durationMs,
-		BytesIn:            int64(len(requestBody)),
-		BytesOut:           int64(len(responseBody)),
+		BytesIn:            bytesIn,
+		BytesOut:           bytesOut,
 		Protocol:           request.Proto,
 	}
 	result := s.db.Conn.Create(&req)
@@ -965,10 +511,6 @@ func (s *SshClient) logHttpRequest(
 		} else {
 			tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
 		}
-	}
-
-	if !s.config.EnableRequestLogging {
-		return
 	}
 
 	if s.tui != nil {
@@ -989,298 +531,27 @@ func (s *SshClient) logHttpRequest(
 }
 
 func (s *SshClient) tcpTunnel(src, dst net.Conn) {
-	defer src.Close()
-	defer dst.Close()
-
-	s.goSafe("tcp tunnel copy", func() {
-		_, _ = io.Copy(dst, src)
-	})
-	_, _ = io.Copy(src, dst)
-}
-
-func (s *SshClient) Shutdown(ctx context.Context) error {
-	atomic.StoreInt32(&s.shutdown, 1)
-
-	err := s.closeTransport()
-	s.mu.RLock()
-	tuiProgram := s.tui
-	cfg := s.config
-	port := tunnelStatusKey(cfg.Tunnel)
-	address := cfg.GetTunnelAddr()
-	s.mu.RUnlock()
-
-	if tuiProgram != nil {
-		tuiProgram.Send(tui.UpdateConnCountMsg{Port: port, Delta: -1})
-	}
-	s.emitEvent(EventStopped, nil)
-	log.Info("Stopped tunnel connection", "address", address)
-	return err
-}
-
-func (s *SshClient) StartHealthCheck(ctx context.Context) error {
-	ticker := time.NewTicker(time.Duration(s.config.HealthCheckInterval) * time.Second)
-	defer ticker.Stop()
-	retryAttempts := 0
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-ticker.C:
-		}
-
-		if ctx.Err() != nil || atomic.LoadInt32(&s.shutdown) == 1 {
-			return nil
-		}
-
-		err := s.HealthCheck()
-		if err == nil {
-			retryAttempts = 0
-			continue
-		}
-
-		if ctx.Err() != nil || atomic.LoadInt32(&s.shutdown) == 1 {
-			return nil
-		}
-
-		retryAttempts++
-
-		if s.config.Debug {
-			s.logDebug("Health check failed", err)
-		}
-
-		if ctx.Err() != nil || atomic.LoadInt32(&s.shutdown) == 1 {
-			return nil
-		}
-
-		if s.tui != nil {
-			s.tui.Send(tui.UpdateHealthMsg{
-				Port:    tunnelStatusKey(s.config.Tunnel),
-				Healthy: false,
-			})
-		} else if !s.config.DisableTerminalLogs {
-			// Log unhealthy status when TUI is disabled
-			fmt.Printf("❌ Tunnel unhealthy: %s (attempting reconnect)\n", s.config.GetTunnelAddr())
-		}
-
-		if ctx.Err() != nil || atomic.LoadInt32(&s.shutdown) == 1 {
-			return nil
-		}
-
-		s.emitEvent(EventUnhealthy, err)
-
-		reconnectErr := s.Reconnect()
-		if reconnectErr == nil {
-			retryAttempts = 0
-			continue
-		}
-		if errors.Is(reconnectErr, errClientShuttingDown) || ctx.Err() != nil || atomic.LoadInt32(&s.shutdown) == 1 {
-			return nil
-		}
-		if s.config.Debug {
-			s.logDebug(fmt.Sprintf("Failed to reconnect to ssh tunnel (attempt %d)", retryAttempts), reconnectErr)
-		}
-		if retryAttempts > s.config.HealthCheckMaxRetries {
-			return fmt.Errorf("failed to reconnect tunnel '%s' after %d attempts: %w", tunnelDisplayName(s.config.Tunnel), retryAttempts, reconnectErr)
-		}
-	}
-}
-
-func (s *SshClient) startError(err error) error {
-	return fmt.Errorf("failed to start tunnel '%s': %w", tunnelDisplayName(s.config.Tunnel), err)
-}
-
-func tunnelDisplayName(tunnel config.Tunnel) string {
-	if tunnel.Name != "" {
-		return tunnel.Name
-	}
-	if tunnel.Type == constants.Stub && tunnel.Subdomain != "" {
-		return tunnel.Subdomain
-	}
-	return fmt.Sprintf("%d", tunnel.Port)
-}
-
-func (s *SshClient) Start(ctx context.Context) error {
-	errChan := make(chan error, 1)
-	readyChan := make(chan struct{})
-	startupCtx, cancelStartup := context.WithCancel(ctx)
-	timer := time.NewTimer(tunnelStartTimeout)
-	defer timer.Stop()
-
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				errChan <- fmt.Errorf("tunnel listener panic: %v", r)
-			}
-		}()
-		if err := s.startListenerForClientWithReady(startupCtx, readyChan); err != nil {
-			errChan <- err
-		}
+	defer func() {
+		_ = src.Close()
+		_ = dst.Close()
 	}()
 
-	select {
-	case err := <-errChan:
-		if s.shouldIgnoreListenerError(ctx, err) {
-			return nil
+	results := make(chan error, 2)
+	copyDirection := func(target, source net.Conn) {
+		_, err := io.Copy(target, source)
+		if closeWriter, ok := target.(interface{ CloseWrite() error }); ok {
+			_ = closeWriter.CloseWrite()
 		}
-
-		startErr := s.startError(err)
-		s.emitEvent(EventFailed, startErr)
-		return startErr
-
-	case <-readyChan:
-		s.forwardListenerErrors(startupCtx, errChan)
-
-		if s.config.Tunnel.Type == constants.Http || s.config.Tunnel.Type == constants.Stub {
-			defer cancelStartup()
-			return s.StartHealthCheck(startupCtx)
-		}
-		return nil
-
-	case <-timer.C:
-		cancelStartup()
-		_ = s.closeTransport()
-		startErr := s.startError(fmt.Errorf("timed out waiting for tunnel listener after %s", tunnelStartTimeout))
-		s.emitEvent(EventFailed, startErr)
-		return startErr
-
-	case <-ctx.Done():
-		cancelStartup()
-		_ = s.closeTransport()
-		return nil
-	}
-}
-
-func (s *SshClient) Reconnect() error {
-	// Prevent concurrent reconnects using atomic CAS
-	if !atomic.CompareAndSwapInt32(&s.reconnecting, 0, 1) {
-		return fmt.Errorf("reconnect already in progress")
-	}
-	defer atomic.StoreInt32(&s.reconnecting, 0)
-
-	// Check if we're shutting down
-	if atomic.LoadInt32(&s.shutdown) == 1 {
-		return errClientShuttingDown
+		results <- err
 	}
 
-	// Close existing connections with mutex protection
-	s.mu.Lock()
-	if s.client != nil {
-		if err := s.client.Close(); err != nil {
-			if s.config.Debug {
-				s.logDebug("Failed to close client", err)
-			}
-		}
-		s.client = nil
+	go copyDirection(dst, src)
+	go copyDirection(src, dst)
+
+	firstErr := <-results
+	if firstErr != nil && !errors.Is(firstErr, net.ErrClosed) {
+		_ = src.Close()
+		_ = dst.Close()
 	}
-
-	if s.listener != nil {
-		if err := s.listener.Close(); err != nil {
-			if s.config.Debug {
-				s.logDebug("Failed to close listener", err)
-			}
-		}
-		s.listener = nil
-	}
-	s.mu.Unlock()
-
-	// Create context with timeout for the reconnection attempt
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// Channel to receive errors from the goroutine
-	errChan := make(chan error, 1)
-	readyChan := make(chan struct{})
-
-	// Start the listener in a goroutine with context
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				select {
-				case errChan <- fmt.Errorf("reconnect panic: %v", r):
-				default:
-					s.reportFatal(fmt.Errorf("reconnect panic: %v", r))
-				}
-			}
-		}()
-		if err := s.startListenerForClientWithReady(ctx, readyChan); err != nil {
-			select {
-			case errChan <- err:
-			case <-ctx.Done():
-			}
-		}
-	}()
-
-	// Wait for either an error, successful connection, or timeout
-	select {
-	case err := <-errChan:
-		return err
-	case <-readyChan:
-		// Connection successful, update health status
-		if s.tui != nil {
-			s.tui.Send(tui.UpdateHealthMsg{
-				Port:    tunnelStatusKey(s.config.Tunnel),
-				Healthy: true,
-			})
-		} else if !s.config.DisableTerminalLogs {
-			// Log successful reconnection when TUI is disabled
-			fmt.Printf("🔄 Tunnel reconnected: %s\n", s.config.GetTunnelAddr())
-		}
-		s.emitEvent(EventReconnected, nil)
-		return nil
-	case <-ctx.Done():
-		return fmt.Errorf("reconnect timeout")
-	}
-}
-
-func (s *SshClient) HealthCheck() error {
-	client := resty.New().
-		SetTimeout(5 * time.Second)
-
-	resp, err := client.R().
-		SetHeader("X-Portr-Ping-Request", "true").
-		Get(s.config.GetTunnelAddr())
-
-	if err != nil {
-		if s.config.Debug {
-			s.logDebug("Health check failed, attempting to reconnect", err)
-		}
-		return err
-	}
-
-	portrError := resp.Header().Get("X-Portr-Error")
-	portrErrorReason := resp.Header().Get("X-Portr-Error-Reason")
-
-	if portrError == "true" && (portrErrorReason == "connection-lost" || portrErrorReason == "unregistered-subdomain") {
-		return fmt.Errorf("unhealthy tunnel")
-	}
-
-	if s.tui != nil {
-		s.tui.Send(tui.UpdateHealthMsg{
-			Port:    tunnelStatusKey(s.config.Tunnel),
-			Healthy: true,
-		})
-	}
-
-	return nil
-}
-
-func (s *SshClient) logDebug(message string, err error) {
-	if !s.config.Debug {
-		return
-	}
-
-	errStr := ""
-	if err != nil {
-		errStr = err.Error()
-	}
-
-	if s.tui != nil {
-		s.tui.Send(tui.AddDebugLogMsg{
-			Time:    time.Now().Format("15:04:05"),
-			Level:   "DEBUG",
-			Message: message,
-			Error:   errStr,
-		})
-	}
+	<-results
 }

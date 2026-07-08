@@ -10,6 +10,7 @@ vi.mock("@/components/theme-toggle", () => ({
 }))
 
 vi.mock("@/lib/api", () => ({
+  getRequest: vi.fn(),
   getRequests: vi.fn(),
   getWebSocketSession: vi.fn(),
   getWebSocketSessions: vi.fn(),
@@ -25,7 +26,7 @@ describe("TunnelPage", () => {
   it("shows a persistent server banner until polling recovers", async () => {
     vi.mocked(getRequests)
       .mockRejectedValueOnce(new TypeError("Failed to fetch"))
-      .mockResolvedValue({ requests: [] })
+      .mockResolvedValue({ requests: [], total: 0 })
     vi.mocked(getWebSocketSessions)
       .mockRejectedValueOnce(new TypeError("Failed to fetch"))
       .mockResolvedValue({ sessions: [] })
@@ -55,6 +56,6 @@ describe("TunnelPage", () => {
       ).toBeNull()
     })
 
-    expect(screen.getByText("No request traces")).toBeTruthy()
+    expect(screen.getByText(/no requests match filter/i)).toBeTruthy()
   })
 })

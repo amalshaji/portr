@@ -2,9 +2,9 @@ package ssh
 
 import (
 	"context"
-	"errors"
 	"net"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -50,106 +50,38 @@ func TestGoSafeReportsPanic(t *testing.T) {
 	}
 }
 
-func TestHandleAcceptErrorReportsUnexpectedFailure(t *testing.T) {
+func TestInstallTransportPublishesCompleteTransport(t *testing.T) {
 	listener := &testListener{}
-	client := &SshClient{
-		listener: listener,
-	}
+	transport := &tunnelTransport{listener: listener, remotePort: 23456}
+	client := &SshClient{}
 
-	err := client.handleAcceptError(listener, errors.New("boom"))
-	if err == nil {
-		t.Fatal("expected accept error, got nil")
+	if !client.installTransport(context.Background(), transport) {
+		t.Fatal("expected transport to be installed")
 	}
-	if !strings.Contains(err.Error(), "failed to accept connection: boom") {
-		t.Fatalf("unexpected accept error: %v", err)
+	if client.transport != transport {
+		t.Fatal("expected installed transport to be current")
 	}
-}
-
-func TestHandleAcceptErrorIgnoresReplacedListener(t *testing.T) {
-	oldListener := &testListener{}
-	client := &SshClient{
-		listener: &testListener{},
+	if client.ConfigSnapshot().Tunnel.RemotePort != 23456 {
+		t.Fatal("expected remote port to publish with transport")
 	}
-
-	err := client.handleAcceptError(oldListener, net.ErrClosed)
-	if !errors.Is(err, errClientShuttingDown) {
-		t.Fatalf("expected shutdown sentinel, got %v", err)
+	if err := client.closeTransport(); err != nil {
+		t.Fatalf("close transport: %v", err)
+	}
+	if listener.closeCount != 1 || client.transport != nil {
+		t.Fatalf("expected one close and no current transport, closes=%d", listener.closeCount)
 	}
 }
 
-func TestCloseListenerIfCurrentDoesNotCloseReplacement(t *testing.T) {
-	oldListener := &testListener{}
-	newListener := &testListener{}
-	client := &SshClient{
-		listener: newListener,
+func TestInstallTransportRejectsShutdownRace(t *testing.T) {
+	listener := &testListener{}
+	transport := &tunnelTransport{listener: listener}
+	client := &SshClient{}
+	atomic.StoreInt32(&client.shutdown, 1)
+
+	if client.installTransport(context.Background(), transport) {
+		t.Fatal("transport must not publish after shutdown")
 	}
-
-	client.closeListenerIfCurrent(oldListener)
-
-	if oldListener.closeCount != 0 {
-		t.Fatalf("expected old listener not to be closed, got %d closes", oldListener.closeCount)
-	}
-	if newListener.closeCount != 0 {
-		t.Fatalf("expected replacement listener not to be closed, got %d closes", newListener.closeCount)
-	}
-	if client.listener != newListener {
-		t.Fatal("expected replacement listener to remain active")
-	}
-
-	client.closeListenerIfCurrent(newListener)
-
-	if newListener.closeCount != 1 {
-		t.Fatalf("expected current listener to be closed once, got %d closes", newListener.closeCount)
-	}
-	if client.listener != nil {
-		t.Fatal("expected current listener to be cleared")
-	}
-}
-
-func TestForwardListenerErrorsReportsFatal(t *testing.T) {
-	errCh := make(chan error, 1)
-	fatalCh := make(chan error, 1)
-	client := &SshClient{
-		fatal: func(err error) {
-			fatalCh <- err
-		},
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	expected := errors.New("listener failed")
-	client.forwardListenerErrors(ctx, errCh)
-	errCh <- expected
-
-	select {
-	case err := <-fatalCh:
-		if !errors.Is(err, expected) {
-			t.Fatalf("expected %v, got %v", expected, err)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for fatal listener error")
-	}
-}
-
-func TestForwardListenerErrorsIgnoresShutdownError(t *testing.T) {
-	errCh := make(chan error, 1)
-	fatalCh := make(chan error, 1)
-	client := &SshClient{
-		fatal: func(err error) {
-			fatalCh <- err
-		},
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	client.forwardListenerErrors(ctx, errCh)
-	errCh <- errClientShuttingDown
-
-	select {
-	case err := <-fatalCh:
-		t.Fatalf("unexpected fatal error: %v", err)
-	case <-time.After(100 * time.Millisecond):
+	if client.transport != nil || listener.closeCount != 1 {
+		t.Fatalf("expected rejected transport to close, current=%v closes=%d", client.transport, listener.closeCount)
 	}
 }

@@ -5,6 +5,8 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"net/mail"
+	"strings"
 
 	"github.com/amalshaji/portr/internal/server/admin/models"
 	"github.com/amalshaji/portr/internal/server/admin/services"
@@ -49,6 +51,21 @@ type LoginInput struct {
 	Password string `json:"password" validate:"required"`
 }
 
+func safeNextPath(raw string) (string, bool) {
+	path := strings.TrimSpace(raw)
+	if path == "" || !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") {
+		return "", false
+	}
+
+	for i := 0; i < len(path); i++ {
+		if path[i] < 0x20 || path[i] == 0x7f {
+			return "", false
+		}
+	}
+
+	return path, true
+}
+
 func (h *Handler) GetAuthConfig(c *fiber.Ctx) error {
 	var userCount int64
 	h.db.Model(&models.User{}).Count(&userCount)
@@ -69,9 +86,27 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		})
 	}
 
+	input.Email = strings.TrimSpace(input.Email)
+	parsedEmail, parseErr := mail.ParseAddress(input.Email)
+	if input.Email == "" || parseErr != nil || parsedEmail.Address != input.Email {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"email": "Enter a valid email address",
+		})
+	}
+	if strings.TrimSpace(input.Password) == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"password": "Password is required",
+		})
+	}
+
 	// Check if this is the first user
 	var userCount int64
 	h.db.Model(&models.User{}).Count(&userCount)
+	if userCount == 0 && len(input.Password) < 8 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"password": "Password must be at least 8 characters",
+		})
+	}
 
 	var user *models.User
 	var err error
@@ -209,10 +244,13 @@ func (h *Handler) GitHubLogin(c *fiber.Ctx) error {
 	}
 
 	// Handle next URL parameter for post-login redirect
-	nextURL := c.Query("next")
-	if nextURL != "" {
+	if nextURL, ok := safeNextPath(c.Query("next")); ok {
 		sess.Set("portr_next_url", nextURL)
-		sess.Save()
+		if err := sess.Save(); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to save session",
+			})
+		}
 	}
 
 	authURL := h.githubService.GetAuthURL(state)
@@ -297,14 +335,16 @@ func (h *Handler) GitHubCallback(c *fiber.Ctx) error {
 	sess.Delete("portr_next_url")
 	sess.Save()
 
-	if loginResult.RedirectTeamSlug != "" {
-		return c.Redirect("/"+loginResult.RedirectTeamSlug+"/overview", fiber.StatusFound)
+	if nextURL != nil {
+		if nextURLStr, ok := nextURL.(string); ok {
+			if safePath, ok := safeNextPath(nextURLStr); ok {
+				return c.Redirect(safePath, fiber.StatusFound)
+			}
+		}
 	}
 
-	if nextURL != nil {
-		if nextURLStr, ok := nextURL.(string); ok && nextURLStr != "" {
-			return c.Redirect(nextURLStr, fiber.StatusFound)
-		}
+	if loginResult.RedirectTeamSlug != "" {
+		return c.Redirect("/"+loginResult.RedirectTeamSlug+"/overview", fiber.StatusFound)
 	}
 
 	// Get first team for redirect (same as regular login)

@@ -1,5 +1,7 @@
 export type HeaderMap = Record<string, string[]>
 
+export type TunnelStatus = "live" | "idle" | "closed"
+
 export type TunnelSummary = {
   Subdomain: string
   Localport: number
@@ -12,20 +14,26 @@ export type TunnelSummary = {
   http_request_count: number
   websocket_session_count: number
   active_websocket_count: number
+  status: TunnelStatus
 }
 
-export type RequestRecord = {
+export type TunnelStats = {
+  live_tunnel_count: number
+  http_request_count: number
+  websocket_session_count: number
+  active_websocket_count: number
+  last_activity_at: string | null
+}
+
+// List-row projection of RequestRecord — no headers or bodies.
+export type RequestSummary = {
   ID: string
   Subdomain: string
   Host: string
   Localport: number
   Url: string
   Method: string
-  Headers: HeaderMap
-  Body: string
   ResponseStatusCode: number
-  ResponseHeaders: HeaderMap
-  ResponseBody: string
   IsReplayed: boolean
   ParentID: string
   LoggedAt: string
@@ -33,6 +41,14 @@ export type RequestRecord = {
   BytesIn?: number
   BytesOut?: number
   Protocol?: string
+}
+
+// The full record is the list row plus the heavy fields fetched on demand.
+export type RequestRecord = RequestSummary & {
+  Headers: HeaderMap
+  Body: string
+  ResponseHeaders: HeaderMap
+  ResponseBody: string
 }
 
 export type WebSocketSession = {

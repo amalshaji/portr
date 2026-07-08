@@ -12,7 +12,7 @@ import (
 	serverConfig "github.com/amalshaji/portr/internal/server/config"
 )
 
-func TestInstanceSettingsRequireSuperuser_NonSuperuserBlocked(t *testing.T) {
+func TestAutoSignupSettingsRequireSuperuser_NonSuperuserBlocked(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()
 
@@ -22,7 +22,7 @@ func TestInstanceSettingsRequireSuperuser_NonSuperuserBlocked(t *testing.T) {
 	user := CreateTestUser(t, db, "user@example.com", false)
 	sess := CreateSessionForUser(t, db, user)
 
-	req := httptest.NewRequest("GET", "/api/v1/instance-settings/", nil)
+	req := httptest.NewRequest("GET", "/api/v1/auto-signup/", nil)
 	req.Header.Set("Cookie", SessionCookieValue(sess))
 
 	resp := DoRequest(t, srv, req)
@@ -46,7 +46,7 @@ func TestInstanceSettingsRequireSuperuser_NonSuperuserBlocked(t *testing.T) {
 	}
 }
 
-func TestInstanceSettingsRequireSuperuser_SuperuserAllowed(t *testing.T) {
+func TestAutoSignupSettingsRequireSuperuser_SuperuserAllowed(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()
 
@@ -56,14 +56,14 @@ func TestInstanceSettingsRequireSuperuser_SuperuserAllowed(t *testing.T) {
 	admin := CreateTestUser(t, db, "admin@example.com", true)
 	adminSess := CreateSessionForUser(t, db, admin)
 
-	req := httptest.NewRequest("GET", "/api/v1/instance-settings/", nil)
+	req := httptest.NewRequest("GET", "/api/v1/auto-signup/", nil)
 	req.Header.Set("Cookie", SessionCookieValue(adminSess))
 
 	resp := DoRequest(t, srv, req)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected superuser to access instance-settings, got status %d", resp.StatusCode)
+		t.Fatalf("expected superuser to access auto-signup, got status %d", resp.StatusCode)
 	}
 
 	var body map[string]interface{}
@@ -85,7 +85,7 @@ func TestInstanceSettingsRequireSuperuser_SuperuserAllowed(t *testing.T) {
 	}
 }
 
-func TestInstanceSettingsNoTrailingSlashRoutes(t *testing.T) {
+func TestAutoSignupSettingsNoTrailingSlashRoutes(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()
 
@@ -94,7 +94,7 @@ func TestInstanceSettingsNoTrailingSlashRoutes(t *testing.T) {
 	admin := CreateTestUser(t, db, "admin-instance-no-slash@example.com", true)
 	adminSess := CreateSessionForUser(t, db, admin)
 
-	getReq := httptest.NewRequest("GET", "/api/v1/instance-settings", nil)
+	getReq := httptest.NewRequest("GET", "/api/v1/auto-signup", nil)
 	getReq.Header.Set("Cookie", SessionCookieValue(adminSess))
 
 	getResp := DoRequest(t, srv, getReq)
@@ -108,7 +108,7 @@ func TestInstanceSettingsNoTrailingSlashRoutes(t *testing.T) {
 		"auto_signup_enabled": false,
 		"auto_signup_domains": []
 	}`)
-	patchReq := httptest.NewRequest("PATCH", "/api/v1/instance-settings", bytes.NewReader(payload))
+	patchReq := httptest.NewRequest("PATCH", "/api/v1/auto-signup", bytes.NewReader(payload))
 	patchReq.Header.Set("Content-Type", "application/json")
 	patchReq.Header.Set("Cookie", SessionCookieValue(adminSess))
 
@@ -120,27 +120,7 @@ func TestInstanceSettingsNoTrailingSlashRoutes(t *testing.T) {
 	}
 }
 
-func TestInstanceSettingsPageRequireSuperuser(t *testing.T) {
-	db, cleanup := NewTestDB(t)
-	defer cleanup()
-
-	srv := NewTestServer(t, db)
-
-	user := CreateTestUser(t, db, "user@example.com", false)
-	sess := CreateSessionForUser(t, db, user)
-
-	req := httptest.NewRequest("GET", "/instance-settings", nil)
-	req.Header.Set("Cookie", SessionCookieValue(sess))
-
-	resp := DoRequest(t, srv, req)
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusForbidden {
-		t.Fatalf("expected status %d (Forbidden), got %d", http.StatusForbidden, resp.StatusCode)
-	}
-}
-
-func TestInstanceSettingsUpdatePersistsAutoSignupSettings(t *testing.T) {
+func TestAutoSignupSettingsUpdatePersistsAutoSignupSettings(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()
 
@@ -160,7 +140,7 @@ func TestInstanceSettingsUpdatePersistsAutoSignupSettings(t *testing.T) {
 		]
 	}`)
 
-	req := httptest.NewRequest("PATCH", "/api/v1/instance-settings/", bytes.NewReader(payload))
+	req := httptest.NewRequest("PATCH", "/api/v1/auto-signup/", bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Cookie", SessionCookieValue(adminSess))
 
@@ -206,7 +186,7 @@ func TestInstanceSettingsUpdatePersistsAutoSignupSettings(t *testing.T) {
 		t.Fatalf("expected normalized domain mappings for team %d, got %v", team.ID, gotDomains)
 	}
 
-	var settings models.InstanceSettings
+	var settings models.AutoSignupSettings
 	if err := db.First(&settings, 1).Error; err != nil {
 		t.Fatalf("failed to load persisted settings: %v", err)
 	}
@@ -228,7 +208,7 @@ func TestInstanceSettingsUpdatePersistsAutoSignupSettings(t *testing.T) {
 	}
 }
 
-func TestInstanceSettingsUpdateRequiresTrustedDomainsWhenEnabled(t *testing.T) {
+func TestAutoSignupSettingsUpdateRequiresTrustedDomainsWhenEnabled(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()
 
@@ -244,7 +224,7 @@ func TestInstanceSettingsUpdateRequiresTrustedDomainsWhenEnabled(t *testing.T) {
 		"auto_signup_domains": []
 	}`)
 
-	req := httptest.NewRequest("PATCH", "/api/v1/instance-settings/", bytes.NewReader(payload))
+	req := httptest.NewRequest("PATCH", "/api/v1/auto-signup/", bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Cookie", SessionCookieValue(adminSess))
 
@@ -256,7 +236,7 @@ func TestInstanceSettingsUpdateRequiresTrustedDomainsWhenEnabled(t *testing.T) {
 	}
 }
 
-func TestInstanceSettingsUpdateRejectsDomainConfiguredForAnotherTeam(t *testing.T) {
+func TestAutoSignupSettingsUpdateRejectsDomainConfiguredForAnotherTeam(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()
 
@@ -269,9 +249,9 @@ func TestInstanceSettingsUpdateRejectsDomainConfiguredForAnotherTeam(t *testing.
 		cfg.GithubSecret = "github-secret"
 	})
 
-	settings := models.DefaultInstanceSettings()
+	settings := models.DefaultAutoSignupSettings()
 	if err := db.Create(&settings).Error; err != nil {
-		t.Fatalf("failed to create instance settings: %v", err)
+		t.Fatalf("failed to create auto signup settings: %v", err)
 	}
 	if err := db.Create(&models.AutoSignupDomain{Domain: "amal.sh", TeamID: amalTeam.ID}).Error; err != nil {
 		t.Fatalf("failed to create existing auto signup domain: %v", err)
@@ -284,7 +264,7 @@ func TestInstanceSettingsUpdateRejectsDomainConfiguredForAnotherTeam(t *testing.
 		]
 	}`)
 
-	req := httptest.NewRequest("PATCH", "/api/v1/instance-settings/", bytes.NewReader(payload))
+	req := httptest.NewRequest("PATCH", "/api/v1/auto-signup/", bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Cookie", SessionCookieValue(adminSess))
 
@@ -304,7 +284,7 @@ func TestInstanceSettingsUpdateRejectsDomainConfiguredForAnotherTeam(t *testing.
 	}
 }
 
-func TestInstanceSettingsUpdateRejectsDuplicateDomainMappings(t *testing.T) {
+func TestAutoSignupSettingsUpdateRejectsDuplicateDomainMappings(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()
 
@@ -325,7 +305,7 @@ func TestInstanceSettingsUpdateRejectsDuplicateDomainMappings(t *testing.T) {
 		]
 	}`)
 
-	req := httptest.NewRequest("PATCH", "/api/v1/instance-settings/", bytes.NewReader(payload))
+	req := httptest.NewRequest("PATCH", "/api/v1/auto-signup/", bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Cookie", SessionCookieValue(adminSess))
 

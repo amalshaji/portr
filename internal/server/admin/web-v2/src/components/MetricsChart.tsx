@@ -11,6 +11,7 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  type ChartConfig,
 } from "@/components/ui/chart";
 import type { ChartData } from "@/types";
 
@@ -18,6 +19,13 @@ interface MetricsChartProps {
   chartData: ChartData;
   isLoading: boolean;
 }
+
+type MetricDataPoint = { timestamp: string; value: number };
+type ProcessedMetricDataPoint = {
+  timestamp: number;
+  timestampLabel: string;
+  value: number;
+};
 
 // Humanize number formatting for Y-axis labels
 const humanizeNumber = (
@@ -54,9 +62,9 @@ function MetricChart({
 }: {
   title: string;
   description: string;
-  data: any[];
+  data: ProcessedMetricDataPoint[];
   dataKey: string;
-  config: any;
+  config: ChartConfig;
   isLoading: boolean;
   isPercentage?: boolean;
 }) {
@@ -205,7 +213,7 @@ function MetricChart({
 
 export function MetricsChart({ chartData, isLoading }: MetricsChartProps) {
   // Transform data for individual charts
-  const processMetricData = (metricData: any[]) => {
+  const processMetricData = (metricData: MetricDataPoint[] | undefined) => {
     if (!metricData) return [];
 
     // Ensure we're showing the most recent data by sorting chronologically
@@ -227,13 +235,13 @@ export function MetricsChart({ chartData, isLoading }: MetricsChartProps) {
   };
 
   // Individual chart configurations
-  const memoryUsageConfig = {
+  const memoryUsageConfig: ChartConfig = {
     value: {
       label: "Memory Usage (MB)",
     },
   };
 
-  const cpuUsageConfig = {
+  const cpuUsageConfig: ChartConfig = {
     value: {
       label: "CPU Usage (%)",
     },

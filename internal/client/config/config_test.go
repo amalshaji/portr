@@ -1,6 +1,9 @@
 package config
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,6 +11,16 @@ import (
 
 	"github.com/amalshaji/portr/internal/constants"
 )
+
+func useDefaultConfigPath(t *testing.T, path string) {
+	t.Helper()
+
+	previousPath := DefaultConfigPath
+	DefaultConfigPath = path
+	t.Cleanup(func() {
+		DefaultConfigPath = previousPath
+	})
+}
 
 func TestSetDefaultsAppliesDashboardPort(t *testing.T) {
 	cfg := Config{}
@@ -49,6 +62,181 @@ func TestLoadPreservesExplicitRequestLoggingFalse(t *testing.T) {
 	if *cfg.EnableRequestLogging {
 		t.Fatal("expected explicit request logging false to be preserved")
 	}
+}
+
+func TestSetDefaultsAppliesDefaultRedactHeaders(t *testing.T) {
+	cfg := Config{}
+
+	cfg.SetDefaults()
+
+	if len(cfg.RedactHeaders) != len(DefaultRedactHeaders) {
+		t.Fatalf("expected %d redact headers, got %d", len(DefaultRedactHeaders), len(cfg.RedactHeaders))
+	}
+	for i, want := range DefaultRedactHeaders {
+		if cfg.RedactHeaders[i] != want {
+			t.Fatalf("expected redact header %q at index %d, got %q", want, i, cfg.RedactHeaders[i])
+		}
+	}
+}
+
+func TestLoadPreservesExplicitRedactHeaders(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	contents := "redact_headers:\n  - X-Test-Secret\n  - X-Another-Secret\n"
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	if len(cfg.RedactHeaders) != 2 || cfg.RedactHeaders[0] != "X-Test-Secret" || cfg.RedactHeaders[1] != "X-Another-Secret" {
+		t.Fatalf("expected explicit redact headers to be preserved, got %#v", cfg.RedactHeaders)
+	}
+}
+
+func TestLoadAcceptsDeprecatedHTTPReverseProxyOption(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	contents := "enable_http_reverse_proxy: false\nserver_url: example.test\n"
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("load config with deprecated option: %v", err)
+	}
+	if cfg.ServerUrl != "example.test" {
+		t.Fatalf("expected remaining config to load, got server_url=%q", cfg.ServerUrl)
+	}
+}
+
+func TestGetConfigUpdatesAuthValuesWhenDefaultConfigExists(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	useDefaultConfigPath(t, configPath)
+
+	existingConfig := `server_url: existing.example.com
+ssh_url: existing.example.com:2222
+secret_key: old-token
+tunnels:
+  - name: api
+    subdomain: api-dev
+    port: 3000
+    type: http
+`
+	if err := os.WriteFile(configPath, []byte(existingConfig), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	requestPath := ""
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestPath = r.URL.Path
+		if r.URL.Path != "/api/v1/config/download" {
+			http.Error(w, "unexpected path", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"message":"server_url: downloaded.example.com\nssh_url: downloaded.example.com:2222\nsecret_key: new-token\ntunnels:\n  - name: downloaded\n    subdomain: downloaded\n    port: 4321"}`)
+	}))
+	defer server.Close()
+
+	if err := GetConfig("new-token", server.URL); err != nil {
+		t.Fatalf("get config: %v", err)
+	}
+	if requestPath != "/api/v1/config/download" {
+		t.Fatalf("expected config download endpoint to be called, got %q", requestPath)
+	}
+
+	configBytes, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	configContent := string(configBytes)
+
+	if !strings.Contains(configContent, "secret_key: new-token") {
+		t.Fatalf("expected token to be updated, got: %s", configContent)
+	}
+	if !strings.Contains(configContent, "server_url: downloaded.example.com") {
+		t.Fatalf("expected server_url to be updated, got: %s", configContent)
+	}
+	if !strings.Contains(configContent, "ssh_url: downloaded.example.com:2222") {
+		t.Fatalf("expected ssh_url to be updated, got: %s", configContent)
+	}
+	if !strings.Contains(configContent, "tunnel_url: downloaded.example.com") {
+		t.Fatalf("expected tunnel_url to be updated, got: %s", configContent)
+	}
+	if !strings.Contains(configContent, "name: api") || !strings.Contains(configContent, "subdomain: api-dev") {
+		t.Fatalf("expected existing tunnel to be preserved, got: %s", configContent)
+	}
+	if strings.Contains(configContent, "name: downloaded") {
+		t.Fatalf("expected downloaded tunnels not to overwrite existing config, got: %s", configContent)
+	}
+}
+
+func TestUpdateConfigValuesPopulatesEmptyConfig(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	useDefaultConfigPath(t, configPath)
+
+	if err := os.WriteFile(configPath, []byte(""), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	entries := [][2]string{{"secret_key", "tok"}, {"server_url", "s.example.com"}}
+	if err := updateConfigValues(entries); err != nil {
+		t.Fatalf("update config values: %v", err)
+	}
+
+	configBytes, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	configContent := string(configBytes)
+
+	if !strings.Contains(configContent, "secret_key: tok") || !strings.Contains(configContent, "server_url: s.example.com") {
+		t.Fatalf("expected values to be written to empty config, got: %s", configContent)
+	}
+}
+
+func assertPrivateFileMode(t *testing.T, path string) {
+	t.Helper()
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat file: %v", err)
+	}
+	if info.Mode().Perm()&0o077 != 0 {
+		t.Fatalf("expected private file permissions, got %v", info.Mode().Perm())
+	}
+}
+
+func TestSetConfigWritesPrivateConfigFile(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	useDefaultConfigPath(t, configPath)
+
+	if err := SetConfig("secret_key: dummy-token\n"); err != nil {
+		t.Fatalf("set config: %v", err)
+	}
+
+	assertPrivateFileMode(t, configPath)
+}
+
+func TestUpdateConfigValuesCorrectsExistingConfigFilePermissions(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	useDefaultConfigPath(t, configPath)
+
+	if err := os.WriteFile(configPath, []byte("secret_key: old-token\n"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	if err := os.Chmod(configPath, 0o644); err != nil {
+		t.Fatalf("chmod config: %v", err)
+	}
+
+	if err := updateConfigValues([][2]string{{"secret_key", "new-token"}}); err != nil {
+		t.Fatalf("update config values: %v", err)
+	}
+
+	assertPrivateFileMode(t, configPath)
 }
 
 func TestGetDashboardDisableLabel(t *testing.T) {

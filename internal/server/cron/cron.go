@@ -5,20 +5,24 @@ import (
 	"time"
 
 	"github.com/amalshaji/portr/internal/server/config"
-	"github.com/amalshaji/portr/internal/server/db"
 	"github.com/amalshaji/portr/internal/server/service"
 	"github.com/charmbracelet/log"
+	"github.com/go-resty/resty/v2"
 )
 
 type Cron struct {
-	db         *db.Db
 	config     *config.Config
 	service    *service.Service
 	cancelFunc context.CancelFunc
+	httpClient *resty.Client
 }
 
-func New(db *db.Db, config *config.Config, service *service.Service) *Cron {
-	return &Cron{db: db, config: config, service: service}
+func New(config *config.Config, service *service.Service) *Cron {
+	return &Cron{
+		config:     config,
+		service:    service,
+		httpClient: resty.New().SetTimeout(5 * time.Second),
+	}
 }
 
 func (c *Cron) Start() {
@@ -33,7 +37,7 @@ func (c *Cron) Start() {
 				select {
 				case <-ticker.C:
 					log.Debug("Running cron job", "name", job.Name)
-					job.Function(c)
+					job.Function(ctx, c)
 				case <-ctx.Done():
 					ticker.Stop()
 					return
@@ -44,5 +48,7 @@ func (c *Cron) Start() {
 }
 
 func (c *Cron) Shutdown() {
-	c.cancelFunc()
+	if c.cancelFunc != nil {
+		c.cancelFunc()
+	}
 }

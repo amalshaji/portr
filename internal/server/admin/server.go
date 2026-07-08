@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/amalshaji/portr/internal/server/admin/api/auth"
+	"github.com/amalshaji/portr/internal/server/admin/api/autosignup"
 	"github.com/amalshaji/portr/internal/server/admin/api/config"
 	"github.com/amalshaji/portr/internal/server/admin/api/connection"
-	"github.com/amalshaji/portr/internal/server/admin/api/instancesettings"
 	"github.com/amalshaji/portr/internal/server/admin/api/team"
 	"github.com/amalshaji/portr/internal/server/admin/api/user"
 	"github.com/amalshaji/portr/internal/server/admin/db"
@@ -114,17 +114,13 @@ func (s *Server) setupRoutes() {
 	s.setupTeamRoutes(v1)
 	s.setupConnectionRoutes(v1)
 	s.setupConfigRoutes(v1)
-
-	s.setupInstanceSettingsRoutes(v1)
+	s.setupAutoSignupRoutes(v1)
 
 	s.app.Use("/static", filesystem.New(filesystem.Config{
 		Root:       http.FS(staticFS),
 		PathPrefix: "static",
 		Browse:     false,
 	}))
-
-	s.app.Get("/instance-settings", s.auth.RequireAuthRedirect, s.auth.RequireSuperuser, s.handleIndex)
-	s.app.Get("/instance-settings/*", s.auth.RequireAuthRedirect, s.auth.RequireSuperuser, s.handleIndex)
 
 	s.app.Get("/*", s.auth.RequireAuthRedirect, func(c *fiber.Ctx) error {
 		// Skip static paths
@@ -202,12 +198,12 @@ func (s *Server) setupConfigRoutes(v1 fiber.Router) {
 	configGroup.Get("/stats", s.auth.RequireTeamUser, configHandler.GetStats)
 }
 
-func (s *Server) setupInstanceSettingsRoutes(v1 fiber.Router) {
-	instanceSettingsHandler := instancesettings.NewHandler(s.db.DB, s.config)
-	instanceGroup := v1.Group("/instance-settings")
+func (s *Server) setupAutoSignupRoutes(v1 fiber.Router) {
+	autoSignupHandler := autosignup.NewHandler(s.db.DB, s.config)
+	autoSignupGroup := v1.Group("/auto-signup")
 
-	getCollectionRoot(instanceGroup, s.auth.RequireSuperuser, instanceSettingsHandler.Get)
-	patchCollectionRoot(instanceGroup, s.auth.RequireSuperuser, instanceSettingsHandler.Update)
+	getCollectionRoot(autoSignupGroup, s.auth.RequireSuperuser, autoSignupHandler.Get)
+	patchCollectionRoot(autoSignupGroup, s.auth.RequireSuperuser, autoSignupHandler.Update)
 }
 
 func (s *Server) handleIndex(c *fiber.Ctx) error {

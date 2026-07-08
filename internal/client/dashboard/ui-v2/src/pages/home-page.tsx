@@ -1,6 +1,6 @@
 import * as React from "react"
 import { useNavigate } from "react-router-dom"
-import { RefreshCw, Search, Trash2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, RefreshCw, Search, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -15,48 +15,31 @@ import {
 } from "@/components/ui/alert-dialog"
 import { ServerUnavailableBanner } from "@/components/server-unavailable-banner"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { Chip, LogoMark } from "@/components/terminal-primitives"
 import { deleteTunnelLogs, getTunnels } from "@/lib/api"
-import {
-  deriveStatus,
-  relativeTime,
-} from "@/lib/dashboard"
-import type { TunnelSummary } from "@/types"
+import { relativeTime } from "@/lib/dashboard"
+import type { TunnelStats, TunnelStatus, TunnelSummary } from "@/types"
+
+const STATUS_FILTERS = ["all", "live", "idle", "closed"] as const
+type StatusFilter = (typeof STATUS_FILTERS)[number]
+
+const TUNNEL_PAGE_SIZE = 25
+
+const EMPTY_STATS: TunnelStats = {
+  live_tunnel_count: 0,
+  http_request_count: 0,
+  websocket_session_count: 0,
+  active_websocket_count: 0,
+  last_activity_at: null,
+}
 
 function tunnelKey(tunnel: TunnelSummary) {
   return `${tunnel.Subdomain}:${tunnel.Localport}`
 }
 
-function statsFromTunnels(tunnels: TunnelSummary[]) {
-  return tunnels.reduce(
-    (acc, t) => {
-      acc.http += t.http_request_count
-      acc.websocket += t.websocket_session_count
-      acc.active += t.active_websocket_count
-      return acc
-    },
-    { http: 0, websocket: 0, active: 0 }
-  )
-}
+/* ── Small home-specific status components ─────────────── */
 
-/* ── Small shared terminal components ──────────────────── */
-
-function LogoMark() {
-  return (
-    <div
-      className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-[3px]"
-      style={{ border: "1.5px solid var(--foreground)" }}
-    >
-      <div
-        className="h-1.5 w-1.5 rounded-[1px]"
-        style={{ background: "var(--tm-green)" }}
-      />
-    </div>
-  )
-}
-
-type DotStatus = "live" | "idle" | "closed"
-
-function Dot({ status }: { status: DotStatus }) {
+function Dot({ status }: { status: TunnelStatus }) {
   const base = "h-1.5 w-1.5 shrink-0 rounded-full"
   if (status === "live")
     return (
@@ -74,8 +57,8 @@ function Dot({ status }: { status: DotStatus }) {
   )
 }
 
-function StatusBadge({ status }: { status: DotStatus }) {
-  const styles: Record<DotStatus, React.CSSProperties> = {
+function StatusBadge({ status }: { status: TunnelStatus }) {
+  const styles: Record<TunnelStatus, React.CSSProperties> = {
     live: {
       color: "var(--tm-green-ink)",
       background: "var(--tm-green-bg)",
@@ -144,6 +127,7 @@ function TopBar({
       </div>
       <div className="flex-1" />
       <button
+        aria-label="Refresh tunnels"
         onClick={onRefresh}
         className="flex items-center gap-1.5 rounded px-2 py-1 font-mono text-[11px] transition-colors hover:bg-muted"
         style={{ color: "var(--muted-foreground)" }}
@@ -201,49 +185,18 @@ function StatCell({
   )
 }
 
-/* ── Filter chip ────────────────────────────────────────── */
-
-function Chip({
-  active,
-  onClick,
-  children,
-}: {
-  active?: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="inline-flex items-center gap-1 rounded-[3px] border px-1.5 font-mono text-[10px] leading-5 transition-colors"
-      style={
-        active
-          ? {
-              background: "var(--foreground)",
-              color: "var(--background)",
-              borderColor: "var(--foreground)",
-            }
-          : {
-              background: "var(--background)",
-              color: "var(--muted-foreground)",
-              borderColor: "var(--tm-line-2)",
-            }
-      }
-    >
-      {children}
-    </button>
-  )
-}
-
 /* ── Main page ───────────────────────────────────────────── */
 
 export function HomePage() {
   const navigate = useNavigate()
   const [tunnels, setTunnels] = React.useState<TunnelSummary[]>([])
+  const [total, setTotal] = React.useState(0)
+  const [stats, setStats] = React.useState<TunnelStats>(EMPTY_STATS)
+  const [page, setPage] = React.useState(0)
   const [loading, setLoading] = React.useState(true)
   const [refreshing, setRefreshing] = React.useState(false)
   const [search, setSearch] = React.useState("")
-  const [statusFilter, setStatusFilter] = React.useState<"all" | "live" | "idle" | "closed">("all")
+  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all")
   const [selectedKeys, setSelectedKeys] = React.useState<Set<string>>(new Set())
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [deleting, setDeleting] = React.useState(false)
@@ -255,14 +208,24 @@ export function HomePage() {
     if (refresh) setRefreshing(true)
     else setLoading(true)
     try {
-      const data = await getTunnels()
+      const data = await getTunnels({
+        limit: TUNNEL_PAGE_SIZE,
+        offset: page * TUNNEL_PAGE_SIZE,
+        search: search.trim(),
+        status: statusFilter,
+      })
       setTunnels(data.tunnels)
+      setTotal(data.total)
+      setStats(data.stats)
       setLastSyncAt(new Date())
       setPollingError(null)
       setSelectedKeys((cur) => {
         const valid = new Set(data.tunnels.map(tunnelKey))
         return new Set(Array.from(cur).filter((k) => valid.has(k)))
       })
+      // page can fall off the end after deletes or a narrower search
+      const lastPage = Math.max(0, Math.ceil(data.total / TUNNEL_PAGE_SIZE) - 1)
+      if (page > lastPage) setPage(lastPage)
     } catch (err) {
       setPollingError(err instanceof Error ? err.message : null)
     } finally {
@@ -271,11 +234,13 @@ export function HomePage() {
     }
   })
 
+  const initialLoadDone = React.useRef(false)
   React.useEffect(() => {
-    loadTunnels()
+    loadTunnels(initialLoadDone.current)
+    initialLoadDone.current = true
     const interval = window.setInterval(() => loadTunnels(true), 2000)
     return () => window.clearInterval(interval)
-  }, [])
+  }, [page, search, statusFilter])
 
   React.useEffect(() => {
     if (!lastSyncAt) return
@@ -288,25 +253,10 @@ export function HomePage() {
     return () => window.clearInterval(id)
   }, [lastSyncAt])
 
-  const filteredTunnels = tunnels.filter((t) => {
-    const q = search.trim().toLowerCase()
-    const matchesQuery =
-      !q ||
-      t.Subdomain.toLowerCase().includes(q) ||
-      String(t.Localport).includes(q)
-    const status = deriveStatus(t)
-    const matchesStatus = statusFilter === "all" || status === statusFilter
-    return matchesQuery && matchesStatus
-  })
-
-  const stats = statsFromTunnels(tunnels)
-  const liveCount = tunnels.filter((t) => deriveStatus(t) === "live").length
-  const lastActivity =
-    tunnels.length > 0
-      ? tunnels.reduce((a, b) =>
-          new Date(a.last_activity_at) > new Date(b.last_activity_at) ? a : b
-        ).last_activity_at
-      : null
+  // search and status are both applied server-side; render the page as-is
+  const pageCount = Math.max(1, Math.ceil(total / TUNNEL_PAGE_SIZE))
+  const rangeStart = total === 0 ? 0 : page * TUNNEL_PAGE_SIZE + 1
+  const rangeEnd = Math.min(total, page * TUNNEL_PAGE_SIZE + tunnels.length)
 
   async function handleDeleteSelected() {
     const selected = tunnels.filter((t) => selectedKeys.has(tunnelKey(t)))
@@ -357,8 +307,8 @@ export function HomePage() {
               connections
             </h1>
             <p className="font-mono text-xs" style={{ color: "var(--muted-foreground)" }}>
-              Local inspector dashboard · {tunnels.length} tunnel
-              {tunnels.length !== 1 ? "s" : ""} detected
+              Local inspector dashboard · {total} tunnel
+              {total !== 1 ? "s" : ""} detected
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -381,23 +331,25 @@ export function HomePage() {
         >
           <StatCell
             label="Live tunnels"
-            value={`${liveCount}`}
-            sub={`of ${tunnels.length} total`}
+            value={`${stats.live_tunnel_count}`}
+            sub={`of ${total} total`}
             dot
           />
           <StatCell
             label="HTTP logs"
-            value={stats.http.toLocaleString()}
+            value={stats.http_request_count.toLocaleString()}
             sub="across all tunnels"
           />
           <StatCell
             label="WebSockets"
-            value={stats.websocket.toLocaleString()}
-            sub={`${stats.active} session${stats.active !== 1 ? "s" : ""} open`}
+            value={stats.websocket_session_count.toLocaleString()}
+            sub={`${stats.active_websocket_count} session${
+              stats.active_websocket_count !== 1 ? "s" : ""
+            } open`}
           />
           <StatCell
             label="Last activity"
-            value={relativeTime(lastActivity)}
+            value={relativeTime(stats.last_activity_at)}
             sub="most recent tunnel"
             isLast
           />
@@ -424,11 +376,14 @@ export function HomePage() {
                 Tunnels
               </span>
               <div className="flex items-center gap-1.5">
-                {(["all", "live", "idle", "closed"] as const).map((s) => (
+                {STATUS_FILTERS.map((s) => (
                   <Chip
                     key={s}
                     active={statusFilter === s}
-                    onClick={() => setStatusFilter(s)}
+                    onClick={() => {
+                      setStatusFilter(s)
+                      setPage(0)
+                    }}
                   >
                     {s}
                   </Chip>
@@ -443,7 +398,10 @@ export function HomePage() {
               <input
                 placeholder="filter by subdomain or port..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value)
+                  setPage(0)
+                }}
                 className="h-7 w-[260px] rounded-[4px] border border-border bg-background pl-7 font-mono text-xs outline-none focus:border-foreground/40"
                 style={{ color: "var(--foreground)" }}
               />
@@ -489,7 +447,7 @@ export function HomePage() {
                     ))}
                   </tr>
                 ))
-              ) : filteredTunnels.length === 0 ? (
+              ) : tunnels.length === 0 ? (
                 <tr>
                   <td
                     colSpan={8}
@@ -502,9 +460,8 @@ export function HomePage() {
                   </td>
                 </tr>
               ) : (
-                filteredTunnels.map((tunnel) => {
+                tunnels.map((tunnel) => {
                   const key = tunnelKey(tunnel)
-                  const status = deriveStatus(tunnel)
                   const proto =
                     tunnel.last_activity_kind === "websocket"
                       ? "WS"
@@ -554,7 +511,7 @@ export function HomePage() {
                       </td>
                       {/* STATUS */}
                       <td className="px-3 py-2.5">
-                        <StatusBadge status={status} />
+                        <StatusBadge status={tunnel.status} />
                       </td>
                       {/* REQUESTS */}
                       <td className="px-3 py-2.5" style={{ color: "var(--foreground)" }}>
@@ -578,6 +535,50 @@ export function HomePage() {
               )}
             </tbody>
           </table>
+          </div>
+
+          {/* Pagination */}
+          <div
+            className="flex items-center justify-between px-3 py-2"
+            style={{
+              borderTop: "1px solid var(--border)",
+              background: "var(--muted)",
+            }}
+          >
+            <span
+              className="font-mono text-[11px]"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              {total === 0
+                ? "0 tunnels"
+                : `${rangeStart}–${rangeEnd} of ${total.toLocaleString()}`}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                disabled={page === 0}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                className="flex items-center gap-1 rounded-[4px] border border-border bg-background px-2 py-1 font-mono text-[11px] transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
+                style={{ color: "var(--foreground)" }}
+              >
+                <ChevronLeft className="size-3" />
+                prev
+              </button>
+              <span
+                className="px-1 font-mono text-[11px]"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                {page + 1} / {pageCount}
+              </span>
+              <button
+                disabled={page + 1 >= pageCount}
+                onClick={() => setPage((p) => p + 1)}
+                className="flex items-center gap-1 rounded-[4px] border border-border bg-background px-2 py-1 font-mono text-[11px] transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
+                style={{ color: "var(--foreground)" }}
+              >
+                next
+                <ChevronRight className="size-3" />
+              </button>
+            </div>
           </div>
         </div>
 

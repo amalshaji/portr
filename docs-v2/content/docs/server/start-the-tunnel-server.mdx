@@ -1,6 +1,6 @@
 ---
 title: Server Deployment
-description: Learn how to deploy portr admin and tunnel server using docker
+description: Learn how to deploy the Portr admin dashboard and tunnel server with Docker Compose to self-host your own tunneling infrastructure.
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
@@ -32,7 +32,7 @@ PORTR_ADMIN_GITHUB_CLIENT_ID= #optional
 PORTR_ADMIN_GITHUB_CLIENT_SECRET= #optional
 
 PORTR_DOMAIN=example.com
-PORTR_DB_URL=postgres://postgres:postgres@postgres:5432/postgres
+PORTR_DB_URL=postgres://postgres:<choose-a-strong-secret>@postgres:5432/postgres
 
 PORTR_SERVER_URL=https://example.com
 PORTR_SSH_URL=example.com:2222
@@ -43,9 +43,15 @@ PORTR_SSH_HOST_KEY= # PEM-encoded Ed25519 private key
 CLOUDFLARE_API_TOKEN=
 
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
+POSTGRES_PASSWORD=<choose-a-strong-secret>
 POSTGRES_DB=postgres
 ```
+
+<Callout type="warn">
+  Generate unique credentials for each deployment. Replace every placeholder in
+  the `.env` file, and use the same database secret in `POSTGRES_PASSWORD` and
+  `PORTR_DB_URL`.
+</Callout>
 
 ### Environment Variable Reference
 
@@ -90,6 +96,10 @@ Run the following command to start all services:
 ```shell
 docker compose -f docker-compose.prod.yaml up -d
 ```
+
+The server container runs as a non-root user. If you keep the default `./data`
+bind mount, make sure that directory is writable by the container user before
+starting the service.
 
 ### Access the admin dashboard
 

@@ -283,7 +283,7 @@ func performGitHubCallback(t *testing.T, app *fiber.App, fakeService *fakeGitHub
 func createAutoSignupSettings(t *testing.T, db *gorm.DB, domains ...models.AutoSignupDomain) {
 	t.Helper()
 
-	settings := models.DefaultInstanceSettings()
+	settings := models.DefaultAutoSignupSettings()
 	settings.AutoSignupEnabled = true
 	if err := db.Create(&settings).Error; err != nil {
 		t.Fatalf("failed to create instance settings: %v", err)
@@ -309,7 +309,7 @@ func newAuthTestDB(t *testing.T) (*gorm.DB, func()) {
 		&models.Team{},
 		&models.TeamUser{},
 		&models.Session{},
-		&models.InstanceSettings{},
+		&models.AutoSignupSettings{},
 		&models.AutoSignupDomain{},
 	); err != nil {
 		t.Fatalf("failed to auto migrate auth test models: %v", err)

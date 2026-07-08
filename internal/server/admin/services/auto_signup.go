@@ -17,7 +17,7 @@ type AutoSignupDomainInput struct {
 }
 
 type AutoSignupSettings struct {
-	Settings models.InstanceSettings
+	Settings models.AutoSignupSettings
 	Domains  []models.AutoSignupDomain
 }
 
@@ -50,7 +50,7 @@ func NewAutoSignupService(db *gorm.DB) *AutoSignupService {
 }
 
 func (s *AutoSignupService) GetSettings() (*AutoSignupSettings, error) {
-	settings, err := models.GetOrCreateInstanceSettings(s.db)
+	settings, err := models.GetOrCreateAutoSignupSettings(s.db)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (s *AutoSignupService) UpdateSettings(enabled bool, input []AutoSignupDomai
 	}
 
 	if err := s.db.Transaction(func(tx *gorm.DB) error {
-		settings, err := models.GetOrCreateInstanceSettings(tx)
+		settings, err := models.GetOrCreateAutoSignupSettings(tx)
 		if err != nil {
 			return err
 		}
@@ -101,7 +101,7 @@ func (s *AutoSignupService) UpdateSettings(enabled bool, input []AutoSignupDomai
 }
 
 func (s *AutoSignupService) TeamForEmail(email string) (*models.Team, error) {
-	settings, err := models.GetOrCreateInstanceSettings(s.db)
+	settings, err := models.GetOrCreateAutoSignupSettings(s.db)
 	if err != nil {
 		return nil, err
 	}

@@ -41,6 +41,7 @@ import Metrics from "./Metrics";
 import Connections from "./Connections";
 import UsersPage from "./UsersPage";
 import MyAccount from "./MyAccount";
+import AutoSignupSettings from "../auto-signup/AutoSignupSettings";
 import NotFound from "../NotFound";
 
 export default function AppPage() {
@@ -172,9 +173,9 @@ export default function AppPage() {
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <SidebarLink to="/instance-settings">
+                    <SidebarLink to={`/${team}/auto-signup`}>
                       <Settings className="h-4 w-4" />
-                      Instance Settings
+                      GitHub Auto Signup
                     </SidebarLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -292,6 +293,7 @@ export default function AppPage() {
           <Route path="/connections" element={<Connections />} />
           <Route path="/my-account" element={<MyAccount />} />
           <Route path="/users" element={<UsersPage />} />
+          <Route path="/auto-signup" element={<AutoSignupSettings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </AppLayout>
