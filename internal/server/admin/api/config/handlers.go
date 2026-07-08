@@ -90,61 +90,6 @@ type DownloadConfigInput struct {
 	SecretKey string `json:"secret_key" validate:"required"`
 }
 
-type InstanceSettingsResponse struct {
-	SMTPEnabled         bool   `json:"smtp_enabled"`
-	SMTPHost            string `json:"smtp_host"`
-	SMTPPort            int    `json:"smtp_port"`
-	SMTPUsername        string `json:"smtp_username"`
-	SMTPPassword        string `json:"smtp_password"`
-	FromAddress         string `json:"from_address"`
-	AddUserEmailSubject string `json:"add_user_email_subject"`
-	AddUserEmailBody    string `json:"add_user_email_body"`
-}
-
-type UpdateInstanceSettingsInput struct {
-	SMTPEnabled         bool   `json:"smtp_enabled"`
-	SMTPHost            string `json:"smtp_host"`
-	SMTPPort            int    `json:"smtp_port"`
-	SMTPUsername        string `json:"smtp_username"`
-	SMTPPassword        string `json:"smtp_password"`
-	FromAddress         string `json:"from_address"`
-	AddUserEmailSubject string `json:"add_user_email_subject"`
-	AddUserEmailBody    string `json:"add_user_email_body"`
-}
-
-func (h *Handler) GetInstanceSettings(c *fiber.Ctx) error {
-	// For now, return default values since we don't have a settings table yet
-	// In a real implementation, you'd store these in the database
-	settings := InstanceSettingsResponse{
-		SMTPEnabled:         false,
-		SMTPHost:            "",
-		SMTPPort:            587,
-		SMTPUsername:        "",
-		SMTPPassword:        "",
-		FromAddress:         "",
-		AddUserEmailSubject: "Welcome to Portr!",
-		AddUserEmailBody:    "You have been added to a Portr team. Please set up your account using the temporary password provided.",
-	}
-
-	return c.JSON(settings)
-}
-
-func (h *Handler) UpdateInstanceSettings(c *fiber.Ctx) error {
-	var input UpdateInstanceSettingsInput
-	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid input",
-		})
-	}
-
-	// For now, just return success since we don't have a settings table yet
-	// In a real implementation, you'd save these to the database
-
-	return c.JSON(fiber.Map{
-		"message": "Settings updated successfully",
-	})
-}
-
 func (h *Handler) DownloadConfig(c *fiber.Ctx) error {
 	var input DownloadConfigInput
 	if err := c.BodyParser(&input); err != nil {
@@ -163,6 +108,7 @@ func (h *Handler) DownloadConfig(c *fiber.Ctx) error {
 
 	configContent := fmt.Sprintf(`server_url: %s
 ws_url: %s
+tunnel_url: %s
 secret_key: %s
 enable_request_logging: true
 dashboard_port: 7777
@@ -171,7 +117,7 @@ tunnels:
     subdomain: portr
     port: 4321
     type: http
-    pool_size: 2`, stripScheme(h.config.ServerURL), stripScheme(h.config.WsURL), teamUser.SecretKey)
+    pool_size: 2`, stripScheme(h.config.ServerURL), stripScheme(h.config.WsURL), stripScheme(h.config.WsURL), teamUser.SecretKey)
 
 	return c.JSON(fiber.Map{
 		"message": configContent,

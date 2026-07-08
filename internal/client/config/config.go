@@ -131,6 +131,13 @@ func (t *Tunnel) ResolveStubTemplate(baseDir string) error {
 	return nil
 }
 
+var DefaultRedactHeaders = []string{
+	"Authorization",
+	"Cookie",
+	"Set-Cookie",
+	"Proxy-Authorization",
+}
+
 type Config struct {
 	ServerUrl                  string   `yaml:"server_url"`
 	WsUrl                      string   `yaml:"ws_url"`
@@ -143,10 +150,12 @@ type Config struct {
 	DashboardPort              int      `yaml:"dashboard_port"`
 	DisableDashboard           bool     `yaml:"disable_dashboard"`
 	EnableRequestLogging       *bool    `yaml:"enable_request_logging"`
+	RedactHeaders              []string `yaml:"redact_headers"`
 	ConnectionLogRetentionDays int      `yaml:"connection_log_retention_days"`
 	HealthCheckInterval        int      `yaml:"health_check_interval"`
 	HealthCheckMaxRetries      int      `yaml:"health_check_max_retries"`
 	DisableTUI                 bool     `yaml:"disable_tui"`
+	DisableTerminalLogs        bool     `yaml:"disable_terminal_logs"`
 	EnableHttpReverseProxy     bool     `yaml:"enable_http_reverse_proxy"`
 	DisableUpdateCheck         bool     `yaml:"disable_update_check"`
 }
@@ -179,6 +188,10 @@ func (c *Config) SetDefaults() {
 	if c.EnableRequestLogging == nil {
 		defaultValue := true
 		c.EnableRequestLogging = &defaultValue
+	}
+
+	if len(c.RedactHeaders) == 0 {
+		c.RedactHeaders = append([]string(nil), DefaultRedactHeaders...)
 	}
 
 	for i := range c.Tunnels {
@@ -239,6 +252,7 @@ type ClientConfig struct {
 	UseLocalHost           bool
 	Debug                  bool
 	EnableRequestLogging   bool
+	RedactHeaders          []string
 	HealthCheckInterval    int
 	HealthCheckMaxRetries  int
 	DisableTUI             bool
@@ -321,13 +335,15 @@ func initConfig() error {
 		return nil
 	}
 
-	f, err := os.Create(DefaultConfigPath)
+	f, err := os.OpenFile(DefaultConfigPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	if err := f.Close(); err != nil {
+		return err
+	}
 
-	return nil
+	return os.Chmod(DefaultConfigPath, 0o600)
 }
 
 func EditConfig() error {
@@ -361,6 +377,14 @@ func EditConfig() error {
 	return nil
 }
 
+func writeDefaultConfigFile(data []byte) error {
+	if err := os.WriteFile(DefaultConfigPath, data, 0o600); err != nil {
+		return err
+	}
+
+	return os.Chmod(DefaultConfigPath, 0o600)
+}
+
 func SetConfig(config string) error {
 	if !checkDefaultConfigFileExists() {
 		err := initConfig()
@@ -369,7 +393,7 @@ func SetConfig(config string) error {
 		}
 	}
 
-	return os.WriteFile(DefaultConfigPath, []byte(config), 0644)
+	return writeDefaultConfigFile([]byte(config))
 }
 
 func writeConfigNode(configNode *yaml.Node) error {
@@ -384,17 +408,31 @@ func writeConfigNode(configNode *yaml.Node) error {
 		return err
 	}
 
-	return os.WriteFile(DefaultConfigPath, buf.Bytes(), 0644)
+	return writeDefaultConfigFile(buf.Bytes())
 }
 
-func SetConfigToken(token string) error {
+func setConfigMapValue(mappingNode *yaml.Node, key, value string) {
+	for i := 0; i < len(mappingNode.Content)-1; i += 2 {
+		if mappingNode.Content[i].Value == key {
+			mappingNode.Content[i+1] = &yaml.Node{
+				Kind:  yaml.ScalarNode,
+				Tag:   "!!str",
+				Value: value,
+			}
+			return
+		}
+	}
+
+	mappingNode.Content = append(mappingNode.Content,
+		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key},
+		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: value},
+	)
+}
+
+func updateConfigValues(entries [][2]string) error {
 	configBytes, err := os.ReadFile(DefaultConfigPath)
 	if err != nil {
 		return err
-	}
-
-	if len(bytes.TrimSpace(configBytes)) == 0 {
-		return os.WriteFile(DefaultConfigPath, []byte(fmt.Sprintf("secret_key: %s\n", token)), 0644)
 	}
 
 	var configNode yaml.Node
@@ -412,24 +450,37 @@ func SetConfigToken(token string) error {
 	}
 
 	mappingNode := configNode.Content[0]
-	for i := 0; i < len(mappingNode.Content)-1; i += 2 {
-		if mappingNode.Content[i].Value == "secret_key" {
-			mappingNode.Content[i+1] = &yaml.Node{
-				Kind:  yaml.ScalarNode,
-				Tag:   "!!str",
-				Value: token,
-			}
-
-			return writeConfigNode(&configNode)
-		}
+	for _, entry := range entries {
+		setConfigMapValue(mappingNode, entry[0], entry[1])
 	}
 
-	mappingNode.Content = append(mappingNode.Content,
-		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "secret_key"},
-		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: token},
-	)
-
 	return writeConfigNode(&configNode)
+}
+
+func updateAuthValues(token string, downloadedConfig string) error {
+	var downloaded struct {
+		ServerUrl string `yaml:"server_url"`
+		WsUrl     string `yaml:"ws_url"`
+		TunnelUrl string `yaml:"tunnel_url"`
+	}
+	if err := yaml.Unmarshal([]byte(downloadedConfig), &downloaded); err != nil {
+		return err
+	}
+
+	entries := [][2]string{{"secret_key", token}}
+	if downloaded.ServerUrl != "" {
+		entries = append(entries, [2]string{"server_url", downloaded.ServerUrl})
+	}
+	if downloaded.WsUrl != "" {
+		entries = append(entries, [2]string{"ws_url", downloaded.WsUrl})
+	}
+	if downloaded.TunnelUrl != "" {
+		entries = append(entries, [2]string{"tunnel_url", downloaded.TunnelUrl})
+	} else if downloaded.WsUrl != "" {
+		entries = append(entries, [2]string{"tunnel_url", downloaded.WsUrl})
+	}
+
+	return updateConfigValues(entries)
 }
 
 func GetConfig(token string, remote string) error {
@@ -462,7 +513,7 @@ func GetConfig(token string, remote string) error {
 	}
 
 	if configFileExists {
-		return SetConfigToken(token)
+		return updateAuthValues(token, response.Message)
 	}
 
 	return SetConfig(response.Message)

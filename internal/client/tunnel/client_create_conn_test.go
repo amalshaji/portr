@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -130,6 +131,29 @@ func TestCreateNewConnection_StubUsesHTTPPayload(t *testing.T) {
 	}
 	if id != "stub123" {
 		t.Fatalf("expected stub connection id, got %q", id)
+	}
+}
+
+func TestTunnelWebSocketURLDoesNotIncludeCredentials(t *testing.T) {
+	client := New(clientcfg.ClientConfig{
+		WsUrl:     "tunnel.example.com",
+		SecretKey: "portr_secret",
+		Tunnel:    clientcfg.Tunnel{Type: constants.Http, Subdomain: "demo"},
+	}, nil, nil, nil)
+
+	wsURL, err := client.tunnelWebSocketURL()
+	if err != nil {
+		t.Fatalf("expected websocket URL, got error: %v", err)
+	}
+	if strings.Contains(wsURL, "portr_secret") {
+		t.Fatalf("websocket URL must not contain the secret key: %s", wsURL)
+	}
+	parsed, err := url.Parse(wsURL)
+	if err != nil {
+		t.Fatalf("parse websocket URL: %v", err)
+	}
+	if parsed.RawQuery != "" {
+		t.Fatalf("websocket URL must not include credential query parameters, got %q", parsed.RawQuery)
 	}
 }
 

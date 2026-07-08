@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -24,7 +23,6 @@ import (
 	"github.com/amalshaji/portr/internal/utils"
 	"github.com/charmbracelet/log"
 	"github.com/go-resty/resty/v2"
-	"gorm.io/datatypes"
 
 	"github.com/amalshaji/portr/internal/client/tui"
 	tea "github.com/charmbracelet/bubbletea"
@@ -38,46 +36,6 @@ var (
 	newRestyClient          = resty.New
 	tunnelStartTimeout      = 20 * time.Second
 )
-
-type requestLogContextKey struct{}
-
-type requestLogData struct {
-	id        string
-	request   *http.Request
-	body      []byte
-	startTime time.Time
-}
-
-type singleConnListener struct {
-	conn     net.Conn
-	accepted bool
-	closed   bool
-	mu       sync.Mutex
-}
-
-func (l *singleConnListener) Accept() (net.Conn, error) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	if l.closed || l.accepted {
-		return nil, net.ErrClosed
-	}
-
-	l.accepted = true
-	return l.conn, nil
-}
-
-func (l *singleConnListener) Close() error {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	l.closed = true
-	return nil
-}
-
-func (l *singleConnListener) Addr() net.Addr {
-	return l.conn.LocalAddr()
-}
 
 type Client struct {
 	config       config.ClientConfig
@@ -349,12 +307,12 @@ func (s *Client) startListenerForClientWithReady(ctx context.Context, ready chan
 		return err
 	}
 
-	wsURL, err := s.tunnelWebSocketURL(connectionId)
+	wsURL, err := s.tunnelWebSocketURL()
 	if err != nil {
 		return err
 	}
 
-	conn, err := websocket.Dial(wsURL, "", s.config.GetServerAddr())
+	conn, err := s.dialTunnelWebSocket(wsURL, connectionId)
 	if err != nil {
 		if s.config.Debug {
 			s.logDebug("Failed to establish websocket tunnel", err)
@@ -429,7 +387,7 @@ func (s *Client) startListenerForClientWithReady(ctx context.Context, ready chan
 	return err
 }
 
-func (s *Client) tunnelWebSocketURL(connectionID string) (string, error) {
+func (s *Client) tunnelWebSocketURL() (string, error) {
 	raw := strings.TrimRight(s.config.WsUrl, "/")
 	if raw == "" {
 		raw = strings.TrimRight(s.config.TunnelUrl, "/")
@@ -460,11 +418,23 @@ func (s *Client) tunnelWebSocketURL(connectionID string) (string, error) {
 		return "", fmt.Errorf("unsupported websocket tunnel scheme: %s", u.Scheme)
 	}
 	u.Path = "/_portr/tunnel/connect"
-	q := u.Query()
-	q.Set("connection_id", connectionID)
-	q.Set("secret_key", s.config.SecretKey)
-	u.RawQuery = q.Encode()
+	u.RawQuery = ""
 	return u.String(), nil
+}
+
+const (
+	tunnelConnectionIDHeader = "X-Portr-Connection-ID"
+	tunnelSecretKeyHeader    = "X-Portr-Secret-Key"
+)
+
+func (s *Client) dialTunnelWebSocket(wsURL, connectionID string) (*websocket.Conn, error) {
+	wsConfig, err := websocket.NewConfig(wsURL, s.config.GetServerAddr())
+	if err != nil {
+		return nil, err
+	}
+	wsConfig.Header.Set(tunnelConnectionIDHeader, connectionID)
+	wsConfig.Header.Set(tunnelSecretKeyHeader, s.config.SecretKey)
+	return websocket.DialConfig(wsConfig)
 }
 
 func (s *Client) readTunnelFrames(conn *websocket.Conn, readyCh chan<- wsproto.Frame, errCh chan<- error) {
@@ -695,18 +665,17 @@ func (s *Client) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 			return nil
 		}
 
-		responseBody, err := io.ReadAll(response.Body)
-		if err != nil {
-			if s.config.Debug {
-				s.logDebug("Failed to read response body from reverse proxy", err)
-			}
-			return err
+		if !s.requestLoggingEnabled() {
+			return nil
 		}
-		response.Body.Close()
-		response.Body = io.NopCloser(bytes.NewBuffer(responseBody))
 
-		durationMs := time.Since(logData.startTime).Milliseconds()
-		s.logHttpRequest(logData.id, logData.request, logData.body, response, responseBody, durationMs)
+		response.Body = &loggingReadCloser{
+			ReadCloser: response.Body,
+			onDone: func(responseBody []byte, _ int64) {
+				durationMs := time.Since(logData.startTime).Milliseconds()
+				s.logHttpRequest(logData.id, logData.request, logData.body, response, responseBody, durationMs)
+			},
+		}
 		return nil
 	}
 
@@ -1000,112 +969,6 @@ func (s *Client) httpTunnelLegacy(src net.Conn, localEndpoint string) {
 	srcWriter.Flush()
 
 	s.logHttpRequest(ulid.Make().String(), request, requestBody, response, responseBody, 0)
-}
-
-func (s *Client) logHttpRequest(
-	id string,
-	request *http.Request,
-	requestBody []byte,
-	response *http.Response,
-	responseBody []byte,
-	durationMs int64,
-) {
-	requestHeaders := make(map[string][]string)
-	for key, values := range request.Header {
-		if key == "X-Portr-Ping-Request" && len(values) > 0 {
-			if values[0] == "true" {
-				return
-			}
-		}
-		requestHeaders[key] = values
-	}
-
-	var replayedRequestId string
-	var isReplayedRequest bool
-
-	_, isReplayedRequest = requestHeaders["X-Portr-Replayed-Request-Id"]
-	if isReplayedRequest {
-		replayedRequestId = requestHeaders["X-Portr-Replayed-Request-Id"][0]
-		delete(requestHeaders, "X-Portr-Replayed-Request-Id")
-	}
-
-	requestHeadersBytes, err := json.Marshal(requestHeaders)
-	if err != nil {
-		if s.config.Debug {
-			s.logDebug("Failed to marshal request headers", err)
-		}
-		return
-	}
-
-	responseHeaders := make(map[string][]string)
-	for key, values := range response.Header {
-		responseHeaders[key] = values
-	}
-
-	responseHeadersBytes, err := json.Marshal(responseHeaders)
-	if err != nil {
-		if s.config.Debug {
-			s.logDebug("Failed to marshal request headers", err)
-		}
-		return
-	}
-
-	req := db.Request{
-		ID:                 id,
-		Host:               request.Host,
-		Url:                request.URL.String(),
-		Subdomain:          s.config.Tunnel.Subdomain,
-		Localport:          s.config.Tunnel.Port,
-		Method:             request.Method,
-		Headers:            datatypes.JSON(requestHeadersBytes),
-		Body:               requestBody,
-		ResponseHeaders:    datatypes.JSON(responseHeadersBytes),
-		ResponseBody:       responseBody,
-		ResponseStatusCode: response.StatusCode,
-		LoggedAt:           time.Now().UTC(),
-		IsReplayed:         isReplayedRequest,
-		ParentID:           replayedRequestId,
-		DurationMs:         durationMs,
-		BytesIn:            int64(len(requestBody)),
-		BytesOut:           int64(len(responseBody)),
-		Protocol:           request.Proto,
-	}
-	result := s.db.Conn.Create(&req)
-	if result.Error != nil {
-		if s.config.Debug {
-			s.logDebug("Failed to log request", result.Error)
-		}
-		return
-	}
-
-	tunnelName := s.config.Tunnel.Name
-	if tunnelName == "" {
-		if s.config.Tunnel.Type == constants.Stub && s.config.Tunnel.Subdomain != "" {
-			tunnelName = s.config.Tunnel.Subdomain
-		} else {
-			tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
-		}
-	}
-
-	if !s.config.EnableRequestLogging {
-		return
-	}
-
-	if s.tui != nil {
-		s.tui.Send(tui.AddLogMsg{
-			Time:   req.LoggedAt.Local().Format("15:04:05"),
-			Name:   tunnelName,
-			Method: req.Method,
-			Status: req.ResponseStatusCode,
-			URL:    req.Url,
-		})
-	} else if !s.config.DisableTerminalLogs {
-		fmt.Printf("[%s] %s %s → %d\n",
-			req.LoggedAt.Local().Format("15:04:05"),
-			req.Method,
-			req.Url,
-			req.ResponseStatusCode)
-	}
 }
 
 func (s *Client) tcpTunnel(src, dst net.Conn) {

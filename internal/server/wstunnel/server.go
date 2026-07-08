@@ -21,6 +21,11 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+const (
+	tunnelConnectionIDHeader = "X-Portr-Connection-ID"
+	tunnelSecretKeyHeader    = "X-Portr-Secret-Key"
+)
+
 type Manager struct {
 	config   *config.Config
 	service  *service.Service
@@ -82,8 +87,8 @@ func (m *Manager) OpenHTTPStream(subdomain string, clientConn net.Conn, initial 
 
 func (m *Manager) handle(conn *websocket.Conn) {
 	req := conn.Request()
-	connectionID := req.URL.Query().Get("connection_id")
-	secretKey := req.URL.Query().Get("secret_key")
+	connectionID := req.Header.Get(tunnelConnectionIDHeader)
+	secretKey := req.Header.Get(tunnelSecretKeyHeader)
 	if connectionID == "" || secretKey == "" {
 		_ = wsproto.NewWriter(conn).Send(wsproto.Frame{Type: wsproto.TypeError, Message: "missing connection credentials"})
 		_ = conn.Close()
@@ -144,13 +149,17 @@ func (m *Manager) registerSession(ctx context.Context, sess *session) error {
 		m.bySub[*conn.Subdomain] = append(m.bySub[*conn.Subdomain], sess)
 		m.sessions[sess.id] = sess
 		m.mu.Unlock()
+		if err := m.service.MarkConnectionAsActive(ctx, conn.ID); err != nil {
+			m.unregisterSession(sess)
+			return err
+		}
 	case string(constants.Tcp):
 		port, listener, err := m.listenTCP()
 		if err != nil {
 			return err
 		}
 		port32 := uint32(port)
-		if err := m.service.AddPortToConnection(ctx, conn.ID, port32); err != nil {
+		if err := m.service.MarkTCPConnectionAsActive(ctx, conn.ID, port32); err != nil {
 			_ = listener.Close()
 			return err
 		}
@@ -164,10 +173,6 @@ func (m *Manager) registerSession(ctx context.Context, sess *session) error {
 		return fmt.Errorf("unsupported connection type: %s", conn.Type)
 	}
 
-	if err := m.service.MarkConnectionAsActive(ctx, conn.ID); err != nil {
-		m.unregisterSession(sess)
-		return err
-	}
 	return nil
 }
 
@@ -335,6 +340,8 @@ func (s *session) deliver(frame wsproto.Frame) {
 	select {
 	case ch <- frame:
 	case <-s.closed:
+	default:
+		log.Warn("Dropping websocket tunnel frame for blocked stream", "stream_id", frame.StreamID)
 	}
 }
 
@@ -365,8 +372,12 @@ func HijackRequest(w http.ResponseWriter, r *http.Request) (net.Conn, []byte, er
 		r.Body = io.NopCloser(bytes.NewReader(body))
 	}
 
+	wireRequest := r.Clone(r.Context())
+	wireRequest.RequestURI = ""
+	wireRequest.Body = io.NopCloser(bytes.NewReader(body))
+
 	var initial bytes.Buffer
-	if err := r.Write(&initial); err != nil {
+	if err := wireRequest.Write(&initial); err != nil {
 		return nil, nil, err
 	}
 

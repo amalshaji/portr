@@ -1,6 +1,6 @@
 ---
 title: Request Logs
-description: Inspect locally stored HTTP request logs from the Portr CLI
+description: Inspect locally stored HTTP request logs captured by the Portr CLI to debug, replay, and review traffic flowing through your tunnels.
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
@@ -13,6 +13,14 @@ the local inspector UI.
 
 Portr stores HTTP request logs in `~/.portr/db.sqlite`. The `logs` command only
 queries data that has already been captured on the current machine.
+
+If `enable_request_logging: false` is set in the client config, new HTTP and
+WebSocket traffic is not written to the local log database, so it will not appear
+in `portr logs`, replay, or the inspector history.
+
+Newly captured logs redact common sensitive header values such as authorization
+credentials and cookies by default. Replay uses the stored header values, so
+redacted headers remain redacted unless you override them during replay.
 
 <Callout type="info">
   `portr logs` works with stored HTTP tunnel requests. It does not stream live TCP

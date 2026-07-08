@@ -1,14 +1,24 @@
 package utils
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 func EnsureDirExists(path string) error {
-	_, err := os.Stat(path)
+	info, err := os.Stat(path)
 	if os.IsNotExist(err) {
-		err = os.MkdirAll(path, os.ModePerm)
-		if err != nil {
+		if err := os.MkdirAll(path, 0o700); err != nil {
 			return err
 		}
+		return os.Chmod(path, 0o700)
 	}
-	return nil
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("%s exists and is not a directory", path)
+	}
+
+	return os.Chmod(path, 0o700)
 }

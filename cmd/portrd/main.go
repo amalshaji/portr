@@ -187,7 +187,7 @@ func startTunnel(configFilePath string) {
 	proxyServer := proxy.New(config)
 	tunnelManager := wstunnel.New(config, service)
 	proxyServer.SetTunnelManager(tunnelManager)
-	cron := cron.New(_db, config, service)
+	cron := cron.New(config, service)
 
 	go proxyServer.Start()
 	go cron.Start()
@@ -256,7 +256,7 @@ func startAll(configFilePath string) error {
 	proxyServer := proxy.New(tunnelConfig)
 	tunnelManager := wstunnel.New(tunnelConfig, service)
 	proxyServer.SetTunnelManager(tunnelManager)
-	cronJob := cron.New(_db, tunnelConfig, service)
+	cronJob := cron.New(tunnelConfig, service)
 	adminServer := admin.NewServer(adminCfg, _db.Conn)
 
 	// Use WaitGroup to track all servers

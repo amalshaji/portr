@@ -6,13 +6,16 @@ import {
   AnimatedSpan,
 } from "@/components/magicui/terminal";
 import { SparklesText } from "@/components/magicui/sparkles-text";
-import { GithubInfo } from "fumadocs-ui/components/github-info";
+import { GitHubStarsLink } from "@/components/github-stars-link";
 import Logo from "@/components/ui/logo";
 
+const title = "Portr - Self-Hosted Tunnel Solution for Teams";
+const description =
+  "Expose local HTTP, TCP, or WebSocket connections to the internet with Portr, a self-hosted tunnel for teams with admin dashboard and request inspector.";
+
 export const metadata: Metadata = {
-  title: "Portr - Self-Hosted Tunnel Solution for Teams",
-  description:
-    "Expose local HTTP, TCP, or WebSocket connections to the public internet with a self-hosted tunnel solution designed for teams. Features admin dashboard, request inspector, and team collaboration.",
+  title,
+  description,
   keywords: [
     "tunnel",
     "ngrok alternative",
@@ -26,18 +29,16 @@ export const metadata: Metadata = {
     "portr",
   ],
   openGraph: {
-    title: "Portr - Self-Hosted Tunnel Solution for Teams",
-    description:
-      "Expose local HTTP, TCP, or WebSocket connections to the public internet with a self-hosted tunnel solution designed for teams.",
+    title,
+    description,
     type: "website",
     url: "https://portr.dev",
     images: "/og.png",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Portr - Self-Hosted Tunnel Solution for Teams",
-    description:
-      "Expose local HTTP, TCP, or WebSocket connections to the public internet with a self-hosted tunnel solution designed for teams.",
+    title,
+    description,
     images: "/og.png",
   },
 };
@@ -132,10 +133,7 @@ export default function HomePage() {
                 Read Documentation
               </SparklesText>
             </Link>
-            <GithubInfo
-              owner="amalshaji"
-              repo="portr"
-              token={process.env.GITHUB_TOKEN}
+            <GitHubStarsLink
               className="w-full md:w-auto px-6 sm:px-8 py-3 sm:py-4 border border-fd-border text-fd-foreground font-semibold rounded-lg hover:bg-fd-accent transition-colors text-base sm:text-lg text-center flex flex-row items-center justify-center gap-2 min-h-[3.5rem]"
             />
             <Link

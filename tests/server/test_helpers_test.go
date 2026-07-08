@@ -52,6 +52,11 @@ func NewTestDB(t *testing.T) (*gorm.DB, func()) {
 	); err != nil {
 		t.Fatalf("failed to auto migrate admin models: %v", err)
 	}
+	if err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS "idx_connection_active_subdomain_unique"
+ON "connection" ("subdomain")
+WHERE "subdomain" IS NOT NULL AND "status" IN ('reserved', 'active')`).Error; err != nil {
+		t.Fatalf("failed to create active subdomain unique index: %v", err)
+	}
 
 	cleanup := func() {
 		sqlDB, err := db.DB()

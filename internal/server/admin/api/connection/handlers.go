@@ -3,10 +3,12 @@ package connection
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/amalshaji/portr/internal/server/admin/middleware"
 	"github.com/amalshaji/portr/internal/server/admin/models"
+	"github.com/amalshaji/portr/internal/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
 	"gorm.io/gorm"
@@ -63,6 +65,19 @@ type TeamResponse struct {
 	Slug string `json:"slug"`
 }
 
+func isDuplicateActiveSubdomainError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return true
+	}
+
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "idx_connection_active_subdomain_unique") ||
+		strings.Contains(message, "unique constraint failed: connection.subdomain")
+}
+
 // GetConnections returns paginated list of connections for the team
 func (h *Handler) GetConnections(c *fiber.Ctx) error {
 	teamUser := middleware.GetCurrentTeamUser(c)
@@ -75,7 +90,13 @@ func (h *Handler) GetConnections(c *fiber.Ctx) error {
 	// Parse query parameters
 	queryType := c.Query("type", "recent") // active or recent
 	page := c.QueryInt("page", 1)
+	if page < 1 {
+		page = 1
+	}
 	pageSize := c.QueryInt("page_size", 10)
+	if pageSize < 1 {
+		pageSize = 10
+	}
 	if pageSize > 100 {
 		pageSize = 100
 	}
@@ -165,24 +186,44 @@ func (h *Handler) CreateConnection(c *fiber.Ctx) error {
 		})
 	}
 
+	secretKey := strings.TrimSpace(input.SecretKey)
+	if secretKey == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Secret key is required",
+		})
+	}
+	if input.ConnectionType != models.ConnectionTypeHTTP && input.ConnectionType != models.ConnectionTypeTCP {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Connection type must be either 'http' or 'tcp'",
+		})
+	}
+	if input.ConnectionType == models.ConnectionTypeHTTP {
+		if input.Subdomain == nil || strings.TrimSpace(*input.Subdomain) == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "Subdomain is required for HTTP connections",
+			})
+		}
+
+		subdomain := strings.TrimSpace(*input.Subdomain)
+		if err := utils.ValidateSubdomain(subdomain); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"message": "Invalid subdomain",
+			})
+		}
+		input.Subdomain = &subdomain
+	}
+
 	// Find team user by secret key
 	var teamUser models.TeamUser
-	err := h.db.Preload("Team").Where("secret_key = ?", input.SecretKey).First(&teamUser).Error
+	err := h.db.Preload("Team").Where("secret_key = ?", secretKey).First(&teamUser).Error
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": "Invalid secret key",
 		})
 	}
 
-	// Validate subdomain for HTTP connections
+	// Check if subdomain is already in use for HTTP connections
 	if input.ConnectionType == models.ConnectionTypeHTTP {
-		if input.Subdomain == nil || *input.Subdomain == "" {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"message": "Subdomain is required for HTTP connections",
-			})
-		}
-
-		// Check if subdomain is already in use
 		var existingConn models.Connection
 		err := h.db.Where("subdomain = ? AND status IN (?, ?)",
 			*input.Subdomain,
@@ -209,6 +250,11 @@ func (h *Handler) CreateConnection(c *fiber.Ctx) error {
 	connection := models.NewConnection(input.ConnectionType, input.Subdomain, &teamUser)
 
 	if err := h.db.Create(connection).Error; err != nil {
+		if isDuplicateActiveSubdomainError(err) {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+				"message": "Subdomain already in use",
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Failed to create connection",
 		})

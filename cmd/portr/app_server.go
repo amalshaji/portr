@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -41,6 +43,20 @@ func appServerCmd() *cli.Command {
 	}
 }
 
+func requiresAppServerToken(host string) bool {
+	host = strings.TrimSpace(host)
+	if host == "" || strings.EqualFold(host, "localhost") {
+		return false
+	}
+
+	ip := net.ParseIP(strings.Trim(host, "[]"))
+	if ip != nil {
+		return !ip.IsLoopback()
+	}
+
+	return true
+}
+
 func startAppServer(c *cli.Context) error {
 	cfg, err := config.Load(c.String("config"))
 	if err != nil {
@@ -50,9 +66,15 @@ func startAppServer(c *cli.Context) error {
 		return err
 	}
 
+	host := c.String("host")
+	token := strings.TrimSpace(c.String("token"))
+	if requiresAppServerToken(host) && token == "" {
+		return fmt.Errorf("--token or PORTR_APP_SERVER_TOKEN is required when binding app-server to %s", host)
+	}
+
 	manager := appserver.NewManager(cfg, db.New(&cfg))
-	api := appserver.NewServer(manager, c.String("token"))
-	addr := fmt.Sprintf("%s:%d", c.String("host"), c.Int("port"))
+	api := appserver.NewServer(manager, token)
+	addr := fmt.Sprintf("%s:%d", host, c.Int("port"))
 
 	errCh := make(chan error, 1)
 	go func() {

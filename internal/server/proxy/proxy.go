@@ -1,17 +1,16 @@
 package proxy
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"maps"
-	"slices"
-
 	"io"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,12 +21,13 @@ import (
 )
 
 type Proxy struct {
-	config *config.Config
-	routes map[string][]string // subdomain -> list of backends (host:port)
-	rrIdx  map[string]int      // round-robin index per subdomain
-	lock   sync.RWMutex
-	server *http.Server
-	tunnel *wstunnel.Manager
+	config    *config.Config
+	routes    map[string][]string // subdomain -> list of backends (host:port)
+	rrIdx     map[string]int      // round-robin index per subdomain
+	lock      sync.RWMutex
+	server    *http.Server
+	transport *http.Transport
+	tunnel    *wstunnel.Manager
 }
 
 func (p *Proxy) GetServerAddr() string {
@@ -35,18 +35,44 @@ func (p *Proxy) GetServerAddr() string {
 }
 
 func New(config *config.Config) *Proxy {
-	p := &Proxy{
-		config: config,
-		routes: make(map[string][]string),
-		rrIdx:  make(map[string]int),
-		server: nil,
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   5 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		ForceAttemptHTTP2:     false,
+		MaxIdleConns:          256,
+		MaxIdleConnsPerHost:   64,
+		IdleConnTimeout:       90 * time.Second,
+		ExpectContinueTimeout: time.Second,
 	}
-	p.server = &http.Server{Addr: p.GetServerAddr()}
+	p := &Proxy{
+		config:    config,
+		routes:    make(map[string][]string),
+		rrIdx:     make(map[string]int),
+		transport: transport,
+	}
+	p.server = &http.Server{
+		Addr:              p.GetServerAddr(),
+		Handler:           p,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       90 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+	}
 	return p
 }
 
 func (p *Proxy) SetTunnelManager(manager *wstunnel.Manager) {
 	p.tunnel = manager
+}
+
+func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if p.tunnel != nil && r.URL.Path == "/_portr/tunnel/connect" {
+		p.tunnel.Handler().ServeHTTP(w, r)
+		return
+	}
+	p.handleRequest(w, r)
 }
 
 // GetRoute is kept for backward compatibility and returns the first backend if available.
@@ -143,22 +169,6 @@ func (p *Proxy) RemoveBackend(src, dst string) error {
 	return nil
 }
 
-// GetNextBackend returns the next backend target for the subdomain using round-robin.
-func (p *Proxy) GetNextBackend(src string) (string, error) {
-	p.lock.Lock()
-	defer p.lock.Unlock()
-
-	list, ok := p.routes[src]
-	if !ok || len(list) == 0 {
-		log.Error("Route not found", "subdomain", src)
-		return "", fmt.Errorf("route not found")
-	}
-	i := p.rrIdx[src]
-	target := list[i]
-	p.rrIdx[src] = (i + 1) % len(list)
-	return target, nil
-}
-
 func unregisteredSubdomainError(w http.ResponseWriter, subdomain string) {
 	w.Header().Set("X-Portr-Error", "true")
 	w.Header().Set("X-Portr-Error-Reason", "unregistered-subdomain")
@@ -171,21 +181,6 @@ func connectionLostError(w http.ResponseWriter) {
 	w.Header().Set("X-Portr-Error-Reason", "connection-lost")
 	w.WriteHeader(http.StatusServiceUnavailable)
 	w.Write([]byte(utils.ConnectionLost()))
-}
-
-func (p *Proxy) reverseProxy(target *url.URL, subdomain, backend string) *httputil.ReverseProxy {
-	rp := httputil.NewSingleHostReverseProxy(target)
-	// Used for upgraded (WebSocket) connections. Backend lifecycle is owned
-	// solely by the SSH layer (added on tunnel connect, removed on tunnel
-	// disconnect), so the proxy never mutates the route pool here. An EOF after
-	// a successful upgrade is a normal stream close, not a failure.
-	rp.ErrorHandler = func(res http.ResponseWriter, req *http.Request, err error) {
-		if !errors.Is(err, io.EOF) {
-			log.Error("Error from proxy", "error", err, "subdomain", subdomain, "backend", backend)
-		}
-		connectionLostError(res)
-	}
-	return rp
 }
 
 func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
@@ -211,142 +206,108 @@ func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// For upgraded connections (e.g., WebSocket), don't retry — stream directly
-	if isUpgradeRequest(r) {
-		target, err := p.GetNextBackend(subdomain)
-		if err != nil {
-			unregisteredSubdomainError(w, subdomain)
-			return
-		}
-		proxy := p.reverseProxy(&url.URL{Scheme: "http", Host: target}, subdomain, target)
-		proxy.ServeHTTP(w, r)
-		return
-	}
-
-	// Buffer the request body so we can retry on transport errors
-	var bodyBytes []byte
-	if r.Body != nil {
-		var err error
-		bodyBytes, err = io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "failed to read request body", http.StatusBadRequest)
-			return
-		}
-		// Reset original body for safety
-		r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-	}
-
-	// Determine max attempts (bounded by number of backends and a small constant)
-	maxAttempts := p.backendCount(subdomain)
-	if maxAttempts == 0 {
+	backends, err := p.nextBackends(subdomain, 3)
+	if err != nil {
 		unregisteredSubdomainError(w, subdomain)
 		return
 	}
-	if maxAttempts > 3 {
-		maxAttempts = 3
+	if isUpgradeRequest(r) || !isReplaySafe(r) {
+		backends = backends[:1]
 	}
 
-	for attempt := 0; attempt < maxAttempts; attempt++ {
-		target, err := p.GetNextBackend(subdomain)
-		if err != nil {
-			unregisteredSubdomainError(w, subdomain)
-			return
+	proxy := httputil.NewSingleHostReverseProxy(&url.URL{Scheme: "http", Host: backends[0]})
+	proxy.Transport = &backendTransport{
+		base:      p.transport,
+		backends:  backends,
+		subdomain: subdomain,
+	}
+	proxy.ErrorHandler = func(res http.ResponseWriter, _ *http.Request, err error) {
+		if !errors.Is(err, io.EOF) {
+			log.Error("Error from proxy", "error", err, "subdomain", subdomain)
 		}
+		connectionLostError(res)
+	}
+	proxy.ServeHTTP(w, r)
+}
 
-		// Build reverse proxy for this target with an error handler that signals retry
-		failed := false
-		rp := httputil.NewSingleHostReverseProxy(&url.URL{Scheme: "http", Host: target})
-		rp.ErrorHandler = func(res http.ResponseWriter, req *http.Request, err error) {
-			// Don't evict — the backend may just be transiently failing while the
-			// tunnel is healthy. Round-robin to the next backend for this request;
-			// the SSH layer removes backends when the tunnel actually drops.
-			log.Error("Error from proxy (will retry)", "error", err, "subdomain", subdomain, "backend", target)
-			failed = true
-			// Do not write to client here; allow retry loop to proceed
-		}
+func (p *Proxy) nextBackends(src string, limit int) ([]string, error) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
 
-		// Buffer writes so we only send to client on successful attempt
-		bw := newBufferResponseWriter()
-
-		// Clone request and reset body for this attempt
-		req2 := r.Clone(r.Context())
-		if bodyBytes != nil {
-			req2.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-		}
-
-		rp.ServeHTTP(bw, req2)
-
-		if !failed {
-			bw.flushTo(w)
-			return
-		}
-		// else try next backend
+	list := p.routes[src]
+	if len(list) == 0 {
+		return nil, fmt.Errorf("route not found")
+	}
+	if limit > len(list) {
+		limit = len(list)
 	}
 
-	// All attempts failed
-	connectionLostError(w)
-}
-
-// bufferResponseWriter buffers response status, headers, and body until flushed.
-type bufferResponseWriter struct {
-	header      http.Header
-	body        bytes.Buffer
-	statusCode  int
-	wroteHeader bool
-}
-
-func newBufferResponseWriter() *bufferResponseWriter {
-	return &bufferResponseWriter{header: make(http.Header), statusCode: http.StatusOK}
-}
-
-func (b *bufferResponseWriter) Header() http.Header { return b.header }
-
-func (b *bufferResponseWriter) WriteHeader(status int) {
-	if b.wroteHeader {
-		return
+	start := p.rrIdx[src] % len(list)
+	result := make([]string, 0, limit)
+	for offset := 0; offset < limit; offset++ {
+		result = append(result, list[(start+offset)%len(list)])
 	}
-	b.wroteHeader = true
-	b.statusCode = status
+	p.rrIdx[src] = (start + 1) % len(list)
+	return result, nil
 }
 
-func (b *bufferResponseWriter) Write(p []byte) (int, error) {
-	if !b.wroteHeader {
-		b.WriteHeader(http.StatusOK)
+func isReplaySafe(r *http.Request) bool {
+	if r.Body != nil && r.Body != http.NoBody {
+		return false
 	}
-	return b.body.Write(p)
-}
-
-func (b *bufferResponseWriter) flushTo(w http.ResponseWriter) {
-	// Copy headers
-	dst := w.Header()
-	maps.Copy(dst, b.header)
-	w.WriteHeader(b.statusCode)
-	_, _ = w.Write(b.body.Bytes())
-}
-
-func isUpgradeRequest(r *http.Request) bool {
-	if r.Header.Get("Connection") == "Upgrade" || r.Header.Get("Upgrade") != "" {
+	switch r.Method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions:
 		return true
+	default:
+		return false
+	}
+}
+
+type backendTransport struct {
+	base      http.RoundTripper
+	backends  []string
+	subdomain string
+}
+
+func (t *backendTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	var lastErr error
+	for attempt, backend := range t.backends {
+		outbound := request.Clone(request.Context())
+		outboundURL := *request.URL
+		outboundURL.Scheme = "http"
+		outboundURL.Host = backend
+		outbound.URL = &outboundURL
+
+		response, err := t.base.RoundTrip(outbound)
+		if err == nil {
+			return response, nil
+		}
+		if response != nil && response.Body != nil {
+			_ = response.Body.Close()
+		}
+		lastErr = err
+		log.Warn("Tunnel backend transport failed", "error", err, "subdomain", t.subdomain, "backend", backend, "attempt", attempt+1)
+		if request.Context().Err() != nil {
+			break
+		}
+	}
+	return nil, lastErr
+}
+
+func isUpgradeRequest(request *http.Request) bool {
+	if request.Header.Get("Upgrade") == "" {
+		return false
+	}
+	for _, token := range strings.Split(request.Header.Get("Connection"), ",") {
+		if strings.EqualFold(strings.TrimSpace(token), "upgrade") {
+			return true
+		}
 	}
 	return false
 }
 
-// backendCount returns the number of backends for a subdomain.
-func (p *Proxy) backendCount(src string) int {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	return len(p.routes[src])
-}
-
 func (p *Proxy) Start() {
 	log.Info("Starting proxy server", "port", p.GetServerAddr())
-
-	mux := http.NewServeMux()
-	if p.tunnel != nil {
-		mux.Handle("/_portr/tunnel/connect", p.tunnel.Handler())
-	}
-	mux.HandleFunc("/", p.handleRequest)
-	p.server.Handler = mux
 
 	if err := p.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal("Failed to start proxy server", "error", err)
@@ -354,15 +315,14 @@ func (p *Proxy) Start() {
 }
 
 func (p *Proxy) Shutdown(_ context.Context) {
-
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-
-	defer func() { cancel() }()
+	defer cancel()
 
 	if err := p.server.Shutdown(ctx); err != nil {
 		log.Error("Failed to stop proxy server", "error", err)
 		return
 	}
+	p.transport.CloseIdleConnections()
 
 	log.Info("Stopped proxy server")
 }

@@ -37,14 +37,18 @@ LABEL maintainer="Amal Shaji" \
     org.opencontainers.image.description="Server for Portr" \
     org.opencontainers.image.source="https://github.com/amalshaji/portr"
 
-RUN apk --no-cache add ca-certificates curl
+RUN apk --no-cache add ca-certificates curl \
+    && addgroup -S portr \
+    && adduser -S -G portr -h /app portr
 
 WORKDIR /app
 
 COPY --from=builder /app/portrd /app/
 COPY --from=builder /app/migrations /app/migrations
 
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data && chown -R portr:portr /app
+
+USER portr
 
 EXPOSE 8000 8001
 

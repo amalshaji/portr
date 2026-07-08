@@ -1,6 +1,6 @@
 ---
 title: Tunnel Templates
-description: Learn how to setup tunnel templates to reuse tunnel settings
+description: Set up tunnel templates in the Portr CLI to save and reuse tunnel settings, so you can start multiple named tunnels with a single command.
 ---
 
 import { Steps } from "fumadocs-ui/components/steps";
@@ -133,6 +133,19 @@ When `connection_log_retention_days` is set to:
 - `0` (default): automatic cleanup is disabled
 - `> 0`: logs older than the configured number of days are removed
 
+### Redact Logged Headers
+
+Portr redacts common sensitive headers in newly captured request logs by default.
+Customize the list with `redact_headers`:
+
+```yaml
+redact_headers:
+  - Authorization
+  - Cookie
+  - Set-Cookie
+  - Proxy-Authorization
+```
+
 ### Add more templates
 
 You can create additional tunnel templates under the `tunnels` key:
@@ -200,7 +213,8 @@ These options apply to the entire client configuration:
 - **dashboard_port**: Local port for the inspector dashboard (default: 7777)
 - **disable_dashboard**: Disable the local inspector dashboard completely (default: false)
 - **disable_update_check**: Disable automatic update checks and notifications (default: false)
-- **enable_request_logging**: Enable detailed HTTP request logging (default: true)
+- **enable_request_logging**: Persist local HTTP and WebSocket inspector logs for `portr logs`, replay, and the dashboard (default: true)
+- **redact_headers**: Header names whose values are replaced with `[redacted]` in newly captured logs
 - **connection_log_retention_days**: Auto-delete connection logs older than N days (default: 0, disabled)
 - **health_check_interval**: Health check interval in seconds (default: 3)
 - **health_check_max_retries**: Maximum health check retry attempts (default: 10)
@@ -232,6 +246,9 @@ Each tunnel template supports the following options:
   admin/API traffic and tunnel WebSocket traffic are routed through different
   hosts or ports.
 </Callout>
+
+HTTP tunnels use streaming reverse proxying by default. Request and response bodies are forwarded as they arrive, while inspector captures are stored asynchronously and capped at 1 MiB per body.
+The former `enable_http_reverse_proxy` option is no longer required; existing configurations containing it still load, but the option is ignored.
 
 ## Example Configurations
 

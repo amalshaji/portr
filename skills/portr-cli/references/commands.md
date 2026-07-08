@@ -25,7 +25,7 @@ This file mirrors the CLI surface for quick lookup. The skill body contains the 
 
 ## Config Keys
 
-- Global: `server_url`, `ssh_url`, `tunnel_url`, `secret_key`, `use_localhost`, `debug`, `use_vite`, `dashboard_port`, `disable_dashboard`, `enable_request_logging`, `connection_log_retention_days`, `health_check_interval`, `health_check_max_retries`, `disable_tui`, `enable_http_reverse_proxy`, `disable_update_check`, `insecure_skip_host_key_verification`.
+- Global: `server_url`, `ssh_url`, `tunnel_url`, `secret_key`, `use_localhost`, `debug`, `use_vite`, `dashboard_port`, `disable_dashboard`, `enable_request_logging`, `connection_log_retention_days`, `health_check_interval`, `health_check_max_retries`, `disable_tui`, `disable_update_check`, `insecure_skip_host_key_verification`.
 - Tunnel: `name`, `type`, `host`, `port`, `subdomain`, `pool_size`, `response_format`, `response_tmpl`, `response_tmpl_file`.
 
 ## App Server API

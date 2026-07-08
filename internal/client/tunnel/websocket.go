@@ -166,7 +166,11 @@ func retryTransientSQLiteWrite(write func() error) error {
 }
 
 func (s *Client) logWebSocketSession(handshakeRequestID string, request *http.Request, response *http.Response) string {
-	requestHeadersBytes, err := json.Marshal(request.Header)
+	if !s.requestLoggingEnabled() {
+		return ""
+	}
+
+	requestHeadersBytes, err := json.Marshal(redactHeaderValues(request.Header, s.config.RedactHeaders))
 	if err != nil {
 		if s.config.Debug {
 			s.logDebug("Failed to marshal websocket request headers", err)
@@ -174,7 +178,7 @@ func (s *Client) logWebSocketSession(handshakeRequestID string, request *http.Re
 		return ""
 	}
 
-	responseHeadersBytes, err := json.Marshal(response.Header)
+	responseHeadersBytes, err := json.Marshal(redactHeaderValues(response.Header, s.config.RedactHeaders))
 	if err != nil {
 		if s.config.Debug {
 			s.logDebug("Failed to marshal websocket response headers", err)
@@ -208,7 +212,7 @@ func (s *Client) logWebSocketSession(handshakeRequestID string, request *http.Re
 }
 
 func (s *Client) recordWebSocketEvent(sessionID string, direction string, frame *webSocketFrame) {
-	if sessionID == "" || frame == nil {
+	if !s.requestLoggingEnabled() || sessionID == "" || frame == nil {
 		return
 	}
 
