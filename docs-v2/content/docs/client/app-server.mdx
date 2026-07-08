@@ -10,9 +10,9 @@ another process needs to create, inspect, and shut down tunnels without launchin
 one CLI command per tunnel.
 
 The app server uses the same client configuration and tunnel implementation as
-the regular CLI commands. It reads your configured `server_url`, `ws_url`,
-`tunnel_url`, `secret_key`, request logging settings, and health check settings
-from the Portr client config file.
+the regular CLI commands. It reads your configured `server_url`, `transport`,
+`ssh_url` or `ws_url`, `tunnel_url`, `secret_key`, request logging settings, and
+health check settings from the Portr client config file.
 
 <Callout type="info">
   The app server is a local control plane. Tunnels live inside the running

@@ -138,31 +138,45 @@ var DefaultRedactHeaders = []string{
 	"Proxy-Authorization",
 }
 
+type Transport string
+
+const (
+	TransportSSH       Transport = "ssh"
+	TransportWebSocket Transport = "websocket"
+)
+
 type Config struct {
-	ServerUrl                  string   `yaml:"server_url"`
-	WsUrl                      string   `yaml:"ws_url"`
-	TunnelUrl                  string   `yaml:"tunnel_url"`
-	SecretKey                  string   `yaml:"secret_key"`
-	Tunnels                    []Tunnel `yaml:"tunnels"`
-	UseLocalHost               bool     `yaml:"use_localhost"`
-	Debug                      bool     `yaml:"debug"`
-	UseVite                    bool     `yaml:"use_vite"`
-	DashboardPort              int      `yaml:"dashboard_port"`
-	DisableDashboard           bool     `yaml:"disable_dashboard"`
-	EnableRequestLogging       *bool    `yaml:"enable_request_logging"`
-	RedactHeaders              []string `yaml:"redact_headers"`
-	ConnectionLogRetentionDays int      `yaml:"connection_log_retention_days"`
-	HealthCheckInterval        int      `yaml:"health_check_interval"`
-	HealthCheckMaxRetries      int      `yaml:"health_check_max_retries"`
-	DisableTUI                 bool     `yaml:"disable_tui"`
-	DisableTerminalLogs        bool     `yaml:"disable_terminal_logs"`
-	EnableHttpReverseProxy     bool     `yaml:"enable_http_reverse_proxy"`
-	DisableUpdateCheck         bool     `yaml:"disable_update_check"`
+	ServerUrl                       string    `yaml:"server_url"`
+	SshUrl                          string    `yaml:"ssh_url"`
+	WsUrl                           string    `yaml:"ws_url"`
+	TunnelUrl                       string    `yaml:"tunnel_url"`
+	Transport                       Transport `yaml:"transport"`
+	SecretKey                       string    `yaml:"secret_key"`
+	Tunnels                         []Tunnel  `yaml:"tunnels"`
+	UseLocalHost                    bool      `yaml:"use_localhost"`
+	Debug                           bool      `yaml:"debug"`
+	UseVite                         bool      `yaml:"use_vite"`
+	DashboardPort                   int       `yaml:"dashboard_port"`
+	DisableDashboard                bool      `yaml:"disable_dashboard"`
+	EnableRequestLogging            *bool     `yaml:"enable_request_logging"`
+	RedactHeaders                   []string  `yaml:"redact_headers"`
+	ConnectionLogRetentionDays      int       `yaml:"connection_log_retention_days"`
+	HealthCheckInterval             int       `yaml:"health_check_interval"`
+	HealthCheckMaxRetries           int       `yaml:"health_check_max_retries"`
+	DisableTUI                      bool      `yaml:"disable_tui"`
+	DisableTerminalLogs             bool      `yaml:"disable_terminal_logs"`
+	EnableHttpReverseProxy          bool      `yaml:"enable_http_reverse_proxy"`
+	DisableUpdateCheck              bool      `yaml:"disable_update_check"`
+	InsecureSkipHostKeyVerification *bool     `yaml:"insecure_skip_host_key_verification"`
 }
 
 func (c *Config) SetDefaults() {
 	if c.ServerUrl == "" {
 		c.ServerUrl = "localhost:8000"
+	}
+
+	if c.SshUrl == "" {
+		c.SshUrl = c.ServerUrl
 	}
 
 	if c.TunnelUrl == "" {
@@ -171,6 +185,10 @@ func (c *Config) SetDefaults() {
 
 	if c.WsUrl == "" {
 		c.WsUrl = c.TunnelUrl
+	}
+
+	if c.Transport == "" {
+		c.Transport = TransportSSH
 	}
 
 	if c.DashboardPort == 0 {
@@ -194,6 +212,11 @@ func (c *Config) SetDefaults() {
 		c.RedactHeaders = append([]string(nil), DefaultRedactHeaders...)
 	}
 
+	if c.InsecureSkipHostKeyVerification == nil {
+		defaultValue := true
+		c.InsecureSkipHostKeyVerification = &defaultValue
+	}
+
 	for i := range c.Tunnels {
 		c.Tunnels[i].SetDefaults()
 	}
@@ -206,6 +229,12 @@ func (c Config) Validate() error {
 
 	if !c.DisableDashboard && (c.DashboardPort < 1 || c.DashboardPort > 65535) {
 		return fmt.Errorf("dashboard_port must be between 1 and 65535")
+	}
+
+	switch c.Transport {
+	case "", TransportSSH, TransportWebSocket:
+	default:
+		return fmt.Errorf("transport must be either %q or %q", TransportSSH, TransportWebSocket)
 	}
 
 	for _, tunnel := range c.Tunnels {
@@ -243,21 +272,24 @@ func (c Config) GetDashboardDisableLabel() string {
 }
 
 type ClientConfig struct {
-	ServerUrl              string
-	WsUrl                  string
-	TunnelUrl              string
-	SecretKey              string
-	ConnectionID           string
-	Tunnel                 Tunnel
-	UseLocalHost           bool
-	Debug                  bool
-	EnableRequestLogging   bool
-	RedactHeaders          []string
-	HealthCheckInterval    int
-	HealthCheckMaxRetries  int
-	DisableTUI             bool
-	DisableTerminalLogs    bool
-	EnableHttpReverseProxy bool
+	ServerUrl                       string
+	SshUrl                          string
+	WsUrl                           string
+	TunnelUrl                       string
+	Transport                       Transport
+	SecretKey                       string
+	ConnectionID                    string
+	Tunnel                          Tunnel
+	UseLocalHost                    bool
+	Debug                           bool
+	EnableRequestLogging            bool
+	RedactHeaders                   []string
+	HealthCheckInterval             int
+	HealthCheckMaxRetries           int
+	DisableTUI                      bool
+	DisableTerminalLogs             bool
+	EnableHttpReverseProxy          bool
+	InsecureSkipHostKeyVerification bool
 }
 
 const DefaultDashboardPort = 7777
@@ -459,9 +491,11 @@ func updateConfigValues(entries [][2]string) error {
 
 func updateAuthValues(token string, downloadedConfig string) error {
 	var downloaded struct {
-		ServerUrl string `yaml:"server_url"`
-		WsUrl     string `yaml:"ws_url"`
-		TunnelUrl string `yaml:"tunnel_url"`
+		ServerUrl string    `yaml:"server_url"`
+		SshUrl    string    `yaml:"ssh_url"`
+		WsUrl     string    `yaml:"ws_url"`
+		TunnelUrl string    `yaml:"tunnel_url"`
+		Transport Transport `yaml:"transport"`
 	}
 	if err := yaml.Unmarshal([]byte(downloadedConfig), &downloaded); err != nil {
 		return err
@@ -470,6 +504,12 @@ func updateAuthValues(token string, downloadedConfig string) error {
 	entries := [][2]string{{"secret_key", token}}
 	if downloaded.ServerUrl != "" {
 		entries = append(entries, [2]string{"server_url", downloaded.ServerUrl})
+	}
+	if downloaded.Transport != "" {
+		entries = append(entries, [2]string{"transport", string(downloaded.Transport)})
+	}
+	if downloaded.SshUrl != "" {
+		entries = append(entries, [2]string{"ssh_url", downloaded.SshUrl})
 	}
 	if downloaded.WsUrl != "" {
 		entries = append(entries, [2]string{"ws_url", downloaded.WsUrl})

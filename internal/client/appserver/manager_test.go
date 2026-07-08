@@ -11,7 +11,7 @@ import (
 	"time"
 
 	clientcfg "github.com/amalshaji/portr/internal/client/config"
-	tunnelclient "github.com/amalshaji/portr/internal/client/tunnel"
+	"github.com/amalshaji/portr/internal/client/tunneltransport"
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/charmbracelet/log"
 )
@@ -152,8 +152,8 @@ func TestRecordEventLogsTerminalEvent(t *testing.T) {
 		},
 	}
 
-	manager.recordEvent(tunnel, tunnelclient.Event{
-		Type: tunnelclient.EventStarted,
+	manager.recordEvent(tunnel, tunneltransport.Event{
+		Type: tunneltransport.EventStarted,
 		At:   time.Date(2026, 5, 16, 10, 0, 0, 0, time.UTC),
 	})
 
@@ -196,8 +196,8 @@ func TestHandleTunnelEventIgnoresLateUnhealthyAfterStopped(t *testing.T) {
 		},
 	}
 
-	manager.handleTunnelEvent("tun_1", tunnelclient.Event{
-		Type:  tunnelclient.EventUnhealthy,
+	manager.handleTunnelEvent("tun_1", tunneltransport.Event{
+		Type:  tunneltransport.EventUnhealthy,
 		Error: "unhealthy tunnel",
 		At:    stoppedAt.Add(time.Second),
 	})

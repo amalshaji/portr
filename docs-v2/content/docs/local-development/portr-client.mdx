@@ -134,7 +134,8 @@ Development configuration for the CLI:
 
 ```yaml
 server_url: localhost:8000
-ws_url: localhost:8001
+transport: ssh
+ssh_url: localhost:2222
 secret_key: your_secret_key_here
 tunnels:
   - name: test
@@ -142,9 +143,11 @@ tunnels:
     port: 3000
 ```
 
-`server_url` points at the admin/API server. `ws_url` points at the WebSocket
-tunnel listener. In local development with `portrd start all`, those are usually
-`localhost:8000` and `localhost:8001`.
+`server_url` points at the admin/API server. `ssh_url` points at the SSH tunnel
+listener. In local development with `portrd start all`, those are usually
+`localhost:8000` and `localhost:2222`. If the server is configured with
+`PORTR_TRANSPORT=websocket`, use `transport: websocket` and
+`ws_url: localhost:8001` instead.
 
 #### Inspector Configuration
 

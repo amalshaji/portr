@@ -13,7 +13,7 @@
 
 <br />
 
-Portr is a tunnel solution that allows you to expose local http, tcp or websocket connections to the public internet. It utilizes WebSocket tunneling under the hood to securely tunnel connections.
+Portr is a tunnel solution that allows you to expose local HTTP, TCP, or WebSocket services to the public internet. Servers can run either SSH or WebSocket as the client-to-server tunnel transport, and generated client configs tell the client which transport to use.
 
 Portr is primarily designed for small teams looking to expose development servers on a public URL. It is not recommended for use alongside production servers.
 
@@ -50,8 +50,8 @@ Starting an HTTP tunnel does three useful things immediately:
 
 HTTP tunnels also support WebSocket upgrades, so a local WebSocket endpoint behind
 the tunneled HTTP service can be reached with `wss://<subdomain>.<server-domain>`.
-The client starts two WebSocket tunnel workers for HTTP tunnels by default; set
-`pool_size` in the client config when you need a different worker count.
+HTTP tunnels start two tunnel workers by default; set `pool_size` in the client
+config when you need a different worker count.
 
 ## Inspector And Logs
 

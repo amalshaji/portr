@@ -70,11 +70,9 @@ WHERE "subdomain" IS NOT NULL AND "status" IN ('reserved', 'active')`).Error; er
 	return db, cleanup
 }
 
-// NewTestServer creates an admin.Server configured for tests using the provided DB.
-func NewTestServer(t *testing.T, db *gorm.DB) *serverAdmin.Server {
-	t.Helper()
-
-	cfg := &serverConfig.AdminConfig{
+// DefaultAdminConfig returns the default admin config used by server tests.
+func DefaultAdminConfig() *serverConfig.AdminConfig {
+	return &serverConfig.AdminConfig{
 		Port:           0,
 		Domain:         "localhost:8000",
 		Debug:          true,
@@ -82,11 +80,18 @@ func NewTestServer(t *testing.T, db *gorm.DB) *serverAdmin.Server {
 		GithubClientID: "",
 		GithubSecret:   "",
 		ServerURL:      "http://localhost:8001",
+		SshURL:         "localhost:2222",
 		WsURL:          "localhost:8001",
+		Transport:      serverConfig.TransportSSH,
 		Version:        "1.0.0",
 	}
+}
 
-	srv := serverAdmin.NewServer(cfg, db)
+// NewTestServer creates an admin.Server configured for tests using the provided DB.
+func NewTestServer(t *testing.T, db *gorm.DB) *serverAdmin.Server {
+	t.Helper()
+
+	srv := serverAdmin.NewServer(DefaultAdminConfig(), db)
 	return srv
 }
 

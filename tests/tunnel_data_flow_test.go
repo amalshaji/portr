@@ -57,6 +57,13 @@ func openTestDatabase(t *testing.T, name string, models ...any) *gorm.DB {
 	if err := database.AutoMigrate(models...); err != nil {
 		t.Fatalf("migrate %s database: %v", name, err)
 	}
+	sqlDB, err := database.DB()
+	if err != nil {
+		t.Fatalf("get %s sql database: %v", name, err)
+	}
+	t.Cleanup(func() {
+		_ = sqlDB.Close()
+	})
 	return database
 }
 

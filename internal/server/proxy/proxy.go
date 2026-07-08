@@ -186,16 +186,16 @@ func connectionLostError(w http.ResponseWriter) {
 func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 	subdomain := p.config.ExtractSubdomain(r.Host)
 
-	if p.tunnel != nil {
-		if r.Header.Get("X-Portr-Ping-Request") == "true" {
-			if !p.tunnel.HasHTTPBackend(subdomain) {
-				unregisteredSubdomainError(w, subdomain)
-				return
-			}
+	if r.Header.Get("X-Portr-Ping-Request") == "true" {
+		if p.hasHTTPBackend(subdomain) {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
+		unregisteredSubdomainError(w, subdomain)
+		return
+	}
 
+	if p.tunnel != nil && p.tunnel.HasHTTPBackend(subdomain) {
 		conn, initial, err := wstunnel.HijackRequest(w, r)
 		if err != nil {
 			log.Error("Failed to hijack proxied request", "error", err, "subdomain", subdomain)
@@ -228,6 +228,15 @@ func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 		connectionLostError(res)
 	}
 	proxy.ServeHTTP(w, r)
+}
+
+func (p *Proxy) hasHTTPBackend(subdomain string) bool {
+	if p.tunnel != nil && p.tunnel.HasHTTPBackend(subdomain) {
+		return true
+	}
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	return len(p.routes[subdomain]) > 0
 }
 
 func (p *Proxy) nextBackends(src string, limit int) ([]string, error) {

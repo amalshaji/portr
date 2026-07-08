@@ -17,7 +17,7 @@ import (
 	clientcfg "github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/amalshaji/portr/internal/client/stubresponder"
-	tunnelclient "github.com/amalshaji/portr/internal/client/tunnel"
+	"github.com/amalshaji/portr/internal/client/tunneltransport"
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/charmbracelet/log"
 	"github.com/oklog/ulid/v2"
@@ -38,7 +38,7 @@ var ErrTunnelNotFound = errors.New("tunnel not found")
 type tunnelRuntime struct {
 	id           string
 	cancel       context.CancelFunc
-	clients      []*tunnelclient.Client
+	clients      []tunneltransport.Worker
 	callbackURLs []string
 	status       TunnelStatus
 	startedCh    chan struct{}
@@ -105,7 +105,7 @@ func (m *Manager) StartTunnel(ctx context.Context, request StartTunnelRequest) (
 	cfg := m.clientConfigForTunnel(tunnel)
 	workers := m.desiredWorkers(cfg)
 	if cfg.Tunnel.Type == constants.Http && workers > 1 && cfg.ConnectionID == "" {
-		connID, err := tunnelclient.CreateNewConnectionWithContext(ctx, cfg)
+		connID, err := m.createNewConnection(ctx, cfg)
 		if err != nil {
 			return TunnelStatus{}, fmt.Errorf("failed to create shared connection for pool: %w", err)
 		}
@@ -139,11 +139,7 @@ func (m *Manager) StartTunnel(ctx context.Context, request StartTunnelRequest) (
 
 	for i := 0; i < workers; i++ {
 		workerCfg := cfg
-		tunnelClient := tunnelclient.New(workerCfg, m.db, nil, nil)
-		tunnelClient.SetEventHandler(func(event tunnelclient.Event) {
-			m.handleTunnelEvent(id, event)
-		})
-		runtime.clients = append(runtime.clients, tunnelClient)
+		runtime.clients = append(runtime.clients, m.newTunnelClient(id, workerCfg))
 	}
 
 	m.mu.Lock()
@@ -151,7 +147,7 @@ func (m *Manager) StartTunnel(ctx context.Context, request StartTunnelRequest) (
 	m.mu.Unlock()
 
 	for _, tunnelClient := range runtime.clients {
-		go func(client *tunnelclient.Client) {
+		go func(client tunneltransport.Worker) {
 			if err := client.Start(runCtx); err != nil {
 				m.handleStartFailure(id, err)
 			}
@@ -316,21 +312,34 @@ func (m *Manager) Shutdown(ctx context.Context) {
 
 func (m *Manager) clientConfigForTunnel(tunnel clientcfg.Tunnel) clientcfg.ClientConfig {
 	return clientcfg.ClientConfig{
-		ServerUrl:              m.baseConfig.ServerUrl,
-		WsUrl:                  m.baseConfig.WsUrl,
-		TunnelUrl:              m.baseConfig.TunnelUrl,
-		SecretKey:              m.baseConfig.SecretKey,
-		Tunnel:                 tunnel,
-		UseLocalHost:           m.baseConfig.UseLocalHost,
-		Debug:                  m.baseConfig.Debug,
-		EnableRequestLogging:   *m.baseConfig.EnableRequestLogging,
-		RedactHeaders:          append([]string(nil), m.baseConfig.RedactHeaders...),
-		HealthCheckInterval:    m.baseConfig.HealthCheckInterval,
-		HealthCheckMaxRetries:  m.baseConfig.HealthCheckMaxRetries,
-		DisableTUI:             true,
-		DisableTerminalLogs:    true,
-		EnableHttpReverseProxy: m.baseConfig.EnableHttpReverseProxy,
+		ServerUrl:                       m.baseConfig.ServerUrl,
+		SshUrl:                          m.baseConfig.SshUrl,
+		WsUrl:                           m.baseConfig.WsUrl,
+		TunnelUrl:                       m.baseConfig.TunnelUrl,
+		Transport:                       m.baseConfig.Transport,
+		SecretKey:                       m.baseConfig.SecretKey,
+		Tunnel:                          tunnel,
+		UseLocalHost:                    m.baseConfig.UseLocalHost,
+		Debug:                           m.baseConfig.Debug,
+		EnableRequestLogging:            *m.baseConfig.EnableRequestLogging,
+		RedactHeaders:                   append([]string(nil), m.baseConfig.RedactHeaders...),
+		HealthCheckInterval:             m.baseConfig.HealthCheckInterval,
+		HealthCheckMaxRetries:           m.baseConfig.HealthCheckMaxRetries,
+		DisableTUI:                      true,
+		DisableTerminalLogs:             true,
+		EnableHttpReverseProxy:          m.baseConfig.EnableHttpReverseProxy,
+		InsecureSkipHostKeyVerification: *m.baseConfig.InsecureSkipHostKeyVerification,
 	}
+}
+
+func (m *Manager) createNewConnection(ctx context.Context, cfg clientcfg.ClientConfig) (string, error) {
+	return tunneltransport.CreateNewConnectionWithContext(ctx, cfg)
+}
+
+func (m *Manager) newTunnelClient(id string, cfg clientcfg.ClientConfig) tunneltransport.Worker {
+	return tunneltransport.NewWorker(cfg, m.db, nil, nil, func(event tunneltransport.Event) {
+		m.handleTunnelEvent(id, event)
+	})
 }
 
 func (m *Manager) handleStartFailure(id string, err error) {
@@ -353,14 +362,14 @@ func (m *Manager) handleStartFailure(id string, err error) {
 		}
 	})
 
-	m.handleTunnelEvent(id, tunnelclient.Event{
-		Type:  tunnelclient.EventFailed,
+	m.handleTunnelEvent(id, tunneltransport.Event{
+		Type:  tunneltransport.EventFailed,
 		Error: err.Error(),
 		At:    time.Now().UTC(),
 	})
 }
 
-func (m *Manager) handleTunnelEvent(id string, event tunnelclient.Event) {
+func (m *Manager) handleTunnelEvent(id string, event tunneltransport.Event) {
 	m.mu.RLock()
 	tunnel, ok := m.tunnels[id]
 	m.mu.RUnlock()
@@ -376,12 +385,12 @@ func (m *Manager) handleTunnelEvent(id string, event tunnelclient.Event) {
 
 	shouldRecord := true
 	m.mu.Lock()
-	if (tunnel.stopping || tunnel.status.Status == statusStopped) && event.Type != tunnelclient.EventStopped {
+	if (tunnel.stopping || tunnel.status.Status == statusStopped) && event.Type != tunneltransport.EventStopped {
 		m.mu.Unlock()
 		return
 	}
 	switch event.Type {
-	case tunnelclient.EventStarted:
+	case tunneltransport.EventStarted:
 		if tunnel.status.Status == statusRunning {
 			shouldRecord = false
 			break
@@ -393,19 +402,19 @@ func (m *Manager) handleTunnelEvent(id string, event tunnelclient.Event) {
 		tunnel.startOnce.Do(func() {
 			close(tunnel.startedCh)
 		})
-	case tunnelclient.EventUnhealthy:
+	case tunneltransport.EventUnhealthy:
 		if tunnel.status.Status == statusUnhealthy && tunnel.status.LastError == event.Error {
 			shouldRecord = false
 			break
 		}
 		tunnel.status.Status = statusUnhealthy
 		tunnel.status.LastError = event.Error
-	case tunnelclient.EventReconnected:
+	case tunneltransport.EventReconnected:
 		tunnel.status.Status = statusRunning
 		tunnel.status.RemotePort = event.Tunnel.RemotePort
 		tunnel.status.TunnelURL = event.TunnelAddr
 		tunnel.status.LastError = ""
-	case tunnelclient.EventStopped:
+	case tunneltransport.EventStopped:
 		if tunnel.status.Status == statusStopped {
 			shouldRecord = false
 			break
@@ -413,7 +422,7 @@ func (m *Manager) handleTunnelEvent(id string, event tunnelclient.Event) {
 		stoppedAt := now
 		tunnel.status.Status = statusStopped
 		tunnel.status.StoppedAt = &stoppedAt
-	case tunnelclient.EventFailed:
+	case tunneltransport.EventFailed:
 		if tunnel.status.Status == statusFailed && tunnel.status.LastError == event.Error {
 			shouldRecord = false
 			break
@@ -429,7 +438,7 @@ func (m *Manager) handleTunnelEvent(id string, event tunnelclient.Event) {
 	}
 }
 
-func (m *Manager) recordEvent(tunnel *tunnelRuntime, event tunnelclient.Event) {
+func (m *Manager) recordEvent(tunnel *tunnelRuntime, event tunneltransport.Event) {
 	m.mu.RLock()
 	status := tunnel.status
 	m.mu.RUnlock()
@@ -468,9 +477,9 @@ func (m *Manager) logEvent(event TunnelEvent) {
 	fields := tunnelEventLogFields(event)
 
 	switch event.Type {
-	case string(tunnelclient.EventFailed):
+	case string(tunneltransport.EventFailed):
 		logger.Error("App-server tunnel event", fields...)
-	case string(tunnelclient.EventUnhealthy):
+	case string(tunneltransport.EventUnhealthy):
 		logger.Warn("App-server tunnel event", fields...)
 	default:
 		logger.Info("App-server tunnel event", fields...)

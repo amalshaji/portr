@@ -106,10 +106,29 @@ func (h *Handler) DownloadConfig(c *fiber.Ctx) error {
 		})
 	}
 
-	configContent := fmt.Sprintf(`server_url: %s
-ws_url: %s
-tunnel_url: %s
-secret_key: %s
+	return c.JSON(fiber.Map{
+		"message": h.clientConfigTemplate(teamUser.SecretKey),
+	})
+}
+
+func (h *Handler) clientConfigTemplate(secretKey string) string {
+	transport := h.config.Transport
+	if transport == "" {
+		transport = serverConfig.TransportSSH
+	}
+
+	configContent := fmt.Sprintf("server_url: %s\ntransport: %s\n", stripScheme(h.config.ServerURL), transport)
+	switch transport {
+	case serverConfig.TransportWebSocket:
+		configContent += fmt.Sprintf("ws_url: %s\ntunnel_url: %s\n", stripScheme(h.config.WsURL), stripScheme(h.config.WsURL))
+	default:
+		configContent += fmt.Sprintf("ssh_url: %s\ntunnel_url: %s\n", h.config.SshURL, stripScheme(h.config.ServerURL))
+		if h.config.SshHostKeyVerification {
+			configContent += "insecure_skip_host_key_verification: false\n"
+		}
+	}
+
+	configContent += fmt.Sprintf(`secret_key: %s
 enable_request_logging: true
 dashboard_port: 7777
 tunnels:
@@ -117,11 +136,9 @@ tunnels:
     subdomain: portr
     port: 4321
     type: http
-    pool_size: 2`, stripScheme(h.config.ServerURL), stripScheme(h.config.WsURL), stripScheme(h.config.WsURL), teamUser.SecretKey)
+    pool_size: 2`, secretKey)
 
-	return c.JSON(fiber.Map{
-		"message": configContent,
-	})
+	return configContent
 }
 
 func (h *Handler) GetSetupScript(c *fiber.Ctx) error {
