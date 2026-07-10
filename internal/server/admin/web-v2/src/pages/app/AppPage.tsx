@@ -10,6 +10,7 @@ import {
   LogOut,
   EllipsisVertical,
   Activity,
+  Settings,
   Globe,
 } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
@@ -41,6 +42,7 @@ import Metrics from "./Metrics";
 import Connections from "./Connections";
 import UsersPage from "./UsersPage";
 import MyAccount from "./MyAccount";
+import AutoSignupSettings from "../auto-signup/AutoSignupSettings";
 import ReservedDomains from "./ReservedDomains";
 import NotFound from "../NotFound";
 
@@ -179,6 +181,14 @@ export default function AppPage() {
                     New Team
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <SidebarLink to={`/${team}/auto-signup`}>
+                      <Settings className="h-4 w-4" />
+                      GitHub Auto Signup
+                    </SidebarLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -294,6 +304,7 @@ export default function AppPage() {
           <Route path="/reserved-domains" element={<ReservedDomains />} />
           <Route path="/my-account" element={<MyAccount />} />
           <Route path="/users" element={<UsersPage />} />
+          <Route path="/auto-signup" element={<AutoSignupSettings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </AppLayout>

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/amalshaji/portr/internal/server/admin/api/auth"
+	"github.com/amalshaji/portr/internal/server/admin/api/autosignup"
 	"github.com/amalshaji/portr/internal/server/admin/api/config"
 	"github.com/amalshaji/portr/internal/server/admin/api/connection"
 	"github.com/amalshaji/portr/internal/server/admin/api/subdomain"
@@ -115,6 +116,7 @@ func (s *Server) setupRoutes() {
 	s.setupConnectionRoutes(v1)
 	s.setupSubdomainRoutes(v1)
 	s.setupConfigRoutes(v1)
+	s.setupAutoSignupRoutes(v1)
 
 	s.app.Use("/static", filesystem.New(filesystem.Config{
 		Root:       http.FS(staticFS),
@@ -154,11 +156,27 @@ func (s *Server) setupUserRoutes(v1 fiber.Router) {
 	userGroup.Patch("/me/rotate-secret-key", s.auth.RequireTeamUser, userHandler.RotateSecretKey)
 }
 
+func getCollectionRoot(router fiber.Router, handlers ...fiber.Handler) {
+	router.Get("", handlers...)
+	router.Get("/", handlers...)
+}
+
+func postCollectionRoot(router fiber.Router, handlers ...fiber.Handler) {
+	router.Post("", handlers...)
+	router.Post("/", handlers...)
+}
+
+func patchCollectionRoot(router fiber.Router, handlers ...fiber.Handler) {
+	router.Patch("", handlers...)
+	router.Patch("/", handlers...)
+}
+
 func (s *Server) setupTeamRoutes(v1 fiber.Router) {
 	teamHandler := team.NewHandler(s.db.DB, s.store)
 	teamGroup := v1.Group("/team")
 
-	teamGroup.Post("/", s.auth.RequireSuperuser, teamHandler.CreateTeam)
+	getCollectionRoot(teamGroup, s.auth.RequireSuperuser, teamHandler.ListTeams)
+	postCollectionRoot(teamGroup, s.auth.RequireSuperuser, teamHandler.CreateTeam)
 	teamGroup.Get("/users", s.auth.RequireTeamUser, teamHandler.GetTeamUsers)
 	teamGroup.Post("/add", s.auth.RequireAdmin, teamHandler.AddUser)
 	teamGroup.Delete("/users/:id", s.auth.RequireAdmin, teamHandler.RemoveUser)
@@ -169,8 +187,8 @@ func (s *Server) setupConnectionRoutes(v1 fiber.Router) {
 	connHandler := connection.NewHandler(s.db.DB, s.store)
 	connGroup := v1.Group("/connections")
 
-	connGroup.Get("/", s.auth.RequireTeamUser, connHandler.GetConnections)
-	connGroup.Post("/", connHandler.CreateConnection)
+	getCollectionRoot(connGroup, s.auth.RequireTeamUser, connHandler.GetConnections)
+	postCollectionRoot(connGroup, connHandler.CreateConnection)
 }
 
 func (s *Server) setupSubdomainRoutes(v1 fiber.Router) {
@@ -189,6 +207,14 @@ func (s *Server) setupConfigRoutes(v1 fiber.Router) {
 	configGroup.Post("/download", configHandler.DownloadConfig)
 	configGroup.Get("/setup-script", s.auth.RequireTeamUser, configHandler.GetSetupScript)
 	configGroup.Get("/stats", s.auth.RequireTeamUser, configHandler.GetStats)
+}
+
+func (s *Server) setupAutoSignupRoutes(v1 fiber.Router) {
+	autoSignupHandler := autosignup.NewHandler(s.db.DB, s.config)
+	autoSignupGroup := v1.Group("/auto-signup")
+
+	getCollectionRoot(autoSignupGroup, s.auth.RequireSuperuser, autoSignupHandler.Get)
+	patchCollectionRoot(autoSignupGroup, s.auth.RequireSuperuser, autoSignupHandler.Update)
 }
 
 func (s *Server) handleIndex(c *fiber.Ctx) error {

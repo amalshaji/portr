@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	serverConfig "github.com/amalshaji/portr/internal/server/config"
 	"golang.org/x/oauth2"
@@ -16,11 +17,12 @@ type GitHubService struct {
 }
 
 type GitHubUser struct {
-	ID        int64  `json:"id"`
-	Login     string `json:"login"`
-	Email     string `json:"email"`
-	Name      string `json:"name"`
-	AvatarURL string `json:"avatar_url"`
+	ID            int64  `json:"id"`
+	Login         string `json:"login"`
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"-"`
+	Name          string `json:"name"`
+	AvatarURL     string `json:"avatar_url"`
 }
 
 func NewGitHubService(cfg *serverConfig.AdminConfig) *GitHubService {
@@ -67,19 +69,9 @@ func (g *GitHubService) GetUser(ctx context.Context, token *oauth2.Token) (*GitH
 		return nil, fmt.Errorf("failed to decode user info: %w", err)
 	}
 
-	if user.Email == "" {
-		emails, err := g.getUserEmails(ctx, client)
-		if err == nil && len(emails) > 0 {
-			for _, email := range emails {
-				if email.Primary {
-					user.Email = email.Email
-					break
-				}
-			}
-			if user.Email == "" {
-				user.Email = emails[0].Email
-			}
-		}
+	emails, err := g.getUserEmails(ctx, client)
+	if err == nil && len(emails) > 0 {
+		applyVerifiedEmail(&user, emails)
 	}
 
 	return &user, nil
@@ -108,6 +100,39 @@ func (g *GitHubService) getUserEmails(ctx context.Context, client *http.Client) 
 	}
 
 	return emails, nil
+}
+
+func applyVerifiedEmail(user *GitHubUser, emails []GitHubEmail) {
+	if user == nil {
+		return
+	}
+
+	currentEmail := strings.TrimSpace(user.Email)
+	if currentEmail != "" {
+		for _, email := range emails {
+			if strings.EqualFold(email.Email, currentEmail) && email.Verified {
+				user.Email = email.Email
+				user.EmailVerified = true
+				return
+			}
+		}
+	}
+
+	for _, email := range emails {
+		if email.Primary && email.Verified {
+			user.Email = email.Email
+			user.EmailVerified = true
+			return
+		}
+	}
+
+	for _, email := range emails {
+		if email.Verified {
+			user.Email = email.Email
+			user.EmailVerified = true
+			return
+		}
+	}
 }
 
 func (g *GitHubService) IsEnabled() bool {

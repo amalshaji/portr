@@ -49,6 +49,8 @@ func NewTestDB(t *testing.T) (*gorm.DB, func()) {
 		&models.TeamUser{},
 		&models.Session{},
 		&models.Connection{},
+		&models.AutoSignupSettings{},
+		&models.AutoSignupDomain{},
 		&models.SubdomainReservation{},
 	); err != nil {
 		t.Fatalf("failed to auto migrate admin models: %v", err)
@@ -95,6 +97,28 @@ func NewTestServer(t *testing.T, db *gorm.DB) *serverAdmin.Server {
 
 	srv := serverAdmin.NewServer(cfg, db)
 	return srv
+}
+
+func NewTestServerWithConfig(t *testing.T, db *gorm.DB, configure func(*serverConfig.AdminConfig)) *serverAdmin.Server {
+	t.Helper()
+
+	cfg := &serverConfig.AdminConfig{
+		Port:           0,
+		Domain:         "localhost:8000",
+		Debug:          true,
+		UseVite:        false,
+		GithubClientID: "",
+		GithubSecret:   "",
+		ServerURL:      "http://localhost:8001",
+		SshURL:         "localhost:2222",
+		Version:        "1.0.0",
+	}
+
+	if configure != nil {
+		configure(cfg)
+	}
+
+	return serverAdmin.NewServer(cfg, db)
 }
 
 // CreateTestUser creates a user record in the DB with the given email and superuser flag.

@@ -88,6 +88,28 @@ func TestGetConnections_AsTeamUser_ReturnsConnections(t *testing.T) {
 	}
 }
 
+func TestGetConnections_NoTrailingSlashSucceeds(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	user := CreateTestUser(t, db, "conn-no-slash@example.com", false)
+	team, _ := CreateTeamAndTeamUser(t, db, "Conn No Slash Team", user, "admin")
+	sess := CreateSessionForUser(t, db, user)
+
+	req := httptest.NewRequest("GET", "/api/v1/connections?type=recent", nil)
+	req.Header.Set("Cookie", SessionCookieValue(sess))
+	req.Header.Set("X-Team-Slug", team.Slug)
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK, got %d", resp.StatusCode)
+	}
+}
+
 func TestGetConnections_ClampsInvalidPagination(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()
@@ -179,6 +201,34 @@ func TestCreateConnection_HTTP_Success(t *testing.T) {
 	}
 	if createdConn.Subdomain == nil || *createdConn.Subdomain != "uniquesubdomain" {
 		t.Fatalf("expected subdomain 'uniquesubdomain', got %v", createdConn.Subdomain)
+	}
+}
+
+func TestCreateConnection_NoTrailingSlashSucceeds(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	user := CreateTestUser(t, db, "creator-no-slash@example.com", false)
+	_, teamUser := CreateTeamAndTeamUser(t, db, "CreateConn No Slash Team", user, "admin")
+
+	payload := map[string]interface{}{
+		"secret_key":      teamUser.SecretKey,
+		"connection_type": "http",
+		"subdomain":       "uniquesubdomainnoslash",
+	}
+	payloadBytes, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/connections", bytes.NewReader(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected status 200 OK, got %d: %s", resp.StatusCode, string(body))
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"net/mail"
 	"strings"
 
@@ -13,21 +14,34 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
+	"golang.org/x/oauth2"
 	"gorm.io/gorm"
 )
+
+type githubOAuthService interface {
+	IsEnabled() bool
+	GetAuthURL(state string) string
+	ExchangeCode(ctx context.Context, code string) (*oauth2.Token, error)
+	GetUser(ctx context.Context, token *oauth2.Token) (*services.GitHubUser, error)
+}
 
 type Handler struct {
 	db            *gorm.DB
 	store         *session.Store
-	githubService *services.GitHubService
+	githubService githubOAuthService
 	config        *serverConfig.AdminConfig
 }
 
 func NewHandler(db *gorm.DB, store *session.Store, cfg *serverConfig.AdminConfig) *Handler {
+	var githubService githubOAuthService
+	if service := services.NewGitHubService(cfg); service != nil {
+		githubService = service
+	}
+
 	return &Handler{
 		db:            db,
 		store:         store,
-		githubService: services.NewGitHubService(cfg),
+		githubService: githubService,
 		config:        cfg,
 	}
 }
@@ -289,45 +303,19 @@ func (h *Handler) GitHubCallback(c *fiber.Ctx) error {
 		return c.Redirect("/?code=private-email", fiber.StatusFound)
 	}
 
-	// Check if user already exists
-	var user models.User
-	var githubUserRecord models.GithubUser
+	loginResult, err := newGitHubLoginResolver(h.db).resolve(githubUser, token.AccessToken)
+	if err != nil {
+		var deniedErr githubLoginDeniedError
+		if errors.As(err, &deniedErr) {
+			return c.Redirect("/?code="+deniedErr.Code(), fiber.StatusFound)
+		}
 
-	// First check if GitHub user exists
-	err = h.db.Preload("User").Where("github_id = ?", githubUser.ID).First(&githubUserRecord).Error
-	if err == nil {
-		// GitHub user exists, use associated user
-		user = githubUserRecord.User
-	} else if err != gorm.ErrRecordNotFound {
+		log.Error("Database error during GitHub login", "error", err)
 		return c.Redirect("/?code=database-error", fiber.StatusFound)
-	} else {
-		// GitHub user doesn't exist, check if user with email exists
-		err = h.db.Where("email = ?", githubUser.Email).First(&user).Error
-		if err == gorm.ErrRecordNotFound {
-			// User doesn't exist - return error (matching original Python behavior)
-			log.Warn("GitHub user attempted login but no account exists", "email", githubUser.Email)
-			return c.Redirect("/?code=user-not-found", fiber.StatusFound)
-		} else if err != nil {
-			log.Error("Database error during GitHub user lookup", "error", err)
-			return c.Redirect("/?code=database-error", fiber.StatusFound)
-		}
-
-		// Create or update GitHub user record
-		githubUserRecord = models.GithubUser{
-			GithubID:          githubUser.ID,
-			GithubAccessToken: token.AccessToken,
-			GithubAvatarURL:   githubUser.AvatarURL,
-			UserID:            user.ID,
-		}
-
-		if err := h.db.Create(&githubUserRecord).Error; err != nil {
-			// If creation fails, try to update existing record
-			h.db.Where("user_id = ?", user.ID).Updates(&githubUserRecord)
-		}
 	}
 
 	// Create session
-	session := models.NewSession(user.ID)
+	session := models.NewSession(loginResult.User.ID)
 	if err := h.db.Create(session).Error; err != nil {
 		return c.Redirect("/?code=session-creation-failed", fiber.StatusFound)
 	}
@@ -355,10 +343,14 @@ func (h *Handler) GitHubCallback(c *fiber.Ctx) error {
 		}
 	}
 
+	if loginResult.RedirectTeamSlug != "" {
+		return c.Redirect("/"+loginResult.RedirectTeamSlug+"/overview", fiber.StatusFound)
+	}
+
 	// Get first team for redirect (same as regular login)
 	var team models.Team
 	h.db.Joins("JOIN team_users ON team_users.team_id = team.id").
-		Where("team_users.user_id = ?", user.ID).
+		Where("team_users.user_id = ?", loginResult.User.ID).
 		First(&team)
 
 	if team.ID != 0 {

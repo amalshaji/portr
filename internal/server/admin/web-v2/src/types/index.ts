@@ -32,6 +32,19 @@ export interface TeamUser {
   role: "admin" | "member"
 }
 
+export interface AutoSignupSettings {
+  github_auth_enabled: boolean
+  auto_signup_enabled: boolean
+  auto_signup_domains: AutoSignupDomain[]
+}
+
+export interface AutoSignupDomain {
+  id?: number
+  domain: string
+  team_id: number | null
+  team?: Team
+}
+
 export interface AuthConfig {
   is_first_signup: boolean
   github_auth_enabled: boolean
