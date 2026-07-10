@@ -43,6 +43,14 @@ test("documentation theme covers navigation, code, cards, and both color schemes
   await expect(page.locator(".portr-code-block")).toBeVisible();
   await expect(page.locator(".portr-code-viewport")).toHaveCount(1);
   await expect(page.locator(".portr-code-actions")).toHaveCount(1);
+
+  const sidebarHoverItem = page.getByRole("link", { name: "Client Installation" });
+  await sidebarHoverItem.hover();
+  await expect(sidebarHoverItem).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(sidebarHoverItem).toHaveCSS("color", "oklch(0.13 0.028 245)");
+  await expect(sidebarHoverItem).toHaveScreenshot("docs-sidebar-hover-dark.png");
+
+  await page.locator("article h1").hover();
   await expect(page).toHaveScreenshot("docs-desktop-dark.png", { fullPage: true });
 
   await page.emulateMedia({ colorScheme: "light" });

@@ -18,6 +18,7 @@
   --color-fd-error: var(--portr-coral);
   --color-fd-success: var(--portr-success);
   --color-fd-ring: var(--portr-focus);
+  --portr-sidebar-item-shape: polygon(1% 5%, 12% 1%, 25% 4%, 39% 1%, 54% 4%, 70% 1%, 84% 4%, 99% 1%, 98% 94%, 83% 98%, 67% 95%, 50% 99%, 33% 95%, 17% 99%, 2% 95%);
 
   min-height: 100dvh;
   background-color: var(--background);
@@ -97,7 +98,7 @@
   background: var(--portr-coral);
   color: var(--portr-accent-ink);
   font-weight: 700;
-  clip-path: polygon(1% 5%, 12% 1%, 25% 4%, 39% 1%, 54% 4%, 70% 1%, 84% 4%, 99% 1%, 98% 94%, 83% 98%, 67% 95%, 50% 99%, 33% 95%, 17% 99%, 2% 95%);
+  clip-path: var(--portr-sidebar-item-shape);
 }
 
 .portr-docs-shell #nd-sidebar [data-active="true"]::before,
@@ -369,13 +370,17 @@
 
 @media (hover: hover) and (pointer: fine) {
   .portr-docs-shell #nd-sidebar [data-active="false"]:hover,
+  .portr-docs-shell #nd-sidebar-mobile [data-active="false"]:hover {
+    background: color-mix(in oklab, var(--portr-coral) 82%, var(--portr-night));
+    color: var(--portr-accent-ink);
+    font-weight: 650;
+    clip-path: var(--portr-sidebar-item-shape);
+  }
+
   .portr-docs-shell #nd-sidebar button[aria-expanded]:hover,
-  .portr-docs-shell #nd-sidebar-mobile [data-active="false"]:hover,
   .portr-docs-shell #nd-sidebar-mobile button[aria-expanded]:hover {
-    background: var(--portr-night-raised);
-    color: var(--portr-light-ink);
-    box-shadow: inset 0 calc(var(--portr-space-3xs) * -1) 0 var(--portr-cyan-muted);
-    transform: translateX(var(--portr-space-3xs));
+    background: color-mix(in oklab, var(--portr-night) 82%, var(--portr-coral));
+    color: var(--portr-coral-hover);
   }
 
   .portr-docs-shell #nd-sidebar button[aria-label]:hover,
