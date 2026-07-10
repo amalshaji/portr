@@ -38,6 +38,8 @@ type DatabaseConfig struct {
 type AdminConfig struct {
 	Port                   int
 	Domain                 string
+	TunnelDomain           string
+	ReservedSubdomainLimit int
 	Debug                  bool
 	UseVite                bool
 	GithubClientID         string
@@ -123,6 +125,15 @@ func new() *Config {
 
 	sshHostKey := os.Getenv("PORTR_SSH_HOST_KEY")
 
+	reservedSubdomainLimitStr := os.Getenv("PORTR_RESERVED_SUBDOMAIN_LIMIT")
+	if reservedSubdomainLimitStr == "" {
+		reservedSubdomainLimitStr = "3"
+	}
+	reservedSubdomainLimit, err := strconv.Atoi(reservedSubdomainLimitStr)
+	if err != nil || reservedSubdomainLimit < 0 {
+		log.Fatal("Invalid PORTR_RESERVED_SUBDOMAIN_LIMIT", "limit", reservedSubdomainLimitStr)
+	}
+
 	return &Config{
 		Ssh: SshConfig{
 			Host:    "localhost",
@@ -144,6 +155,8 @@ func new() *Config {
 		Admin: AdminConfig{
 			Port:                   adminPort,
 			Domain:                 adminDomain,
+			TunnelDomain:           domain,
+			ReservedSubdomainLimit: reservedSubdomainLimit,
 			Debug:                  os.Getenv("PORTR_ADMIN_DEBUG") == "true",
 			UseVite:                os.Getenv("PORTR_ADMIN_USE_VITE") == "true",
 			GithubClientID:         os.Getenv("PORTR_ADMIN_GITHUB_CLIENT_ID"),

@@ -47,7 +47,7 @@ export default function HomePage() {
   return (
     <main className="flex flex-1 flex-col">
       <Link
-        href="/docs/client/app-server"
+        href="/docs/server/reserved-subdomains"
         className="group border-b border-fd-border/70 text-fd-muted-foreground transition-colors hover:text-fd-foreground"
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2 text-xs sm:justify-center sm:text-sm">
@@ -55,21 +55,21 @@ export default function HomePage() {
             <span className="sm:hidden">
               New:{" "}
               <span className="font-medium text-fd-foreground">
-                portr app-server
+                Reserved subdomains
               </span>
             </span>
             <span className="hidden sm:inline">
-              Introducing{" "}
+              New:{" "}
               <span className="font-medium text-fd-foreground">
-                portr app-server
+                Reserve a subdomain from the dashboard
               </span>
-              : the control plane for your tunnels
+              {" "}and keep it between tunnel runs.
             </span>
           </span>
           <span
             className="shrink-0 text-fd-foreground/70 transition-colors group-hover:text-fd-foreground"
           >
-            <span className="sm:hidden">Read guide</span>
+            <span className="sm:hidden">Learn more</span>
             <span className="hidden sm:inline" aria-hidden="true">
               -&gt;
             </span>

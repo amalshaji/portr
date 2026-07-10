@@ -394,7 +394,8 @@ func TestCreateConnection_DatabaseRejectsDuplicateReservedSubdomain(t *testing.T
 		t.Fatalf("failed to create first connection: %v", err)
 	}
 
-	second := models.NewConnection(models.ConnectionTypeHTTP, &subdomain, teamUser)
+	caseVariant := strings.ToUpper(subdomain)
+	second := models.NewConnection(models.ConnectionTypeHTTP, &caseVariant, teamUser)
 	second.Status = models.ConnectionStatusReserved
 	if err := db.Create(second).Error; err == nil {
 		t.Fatal("expected duplicate reserved subdomain insert to fail")
