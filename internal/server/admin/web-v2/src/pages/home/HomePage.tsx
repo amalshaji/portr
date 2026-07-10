@@ -105,9 +105,9 @@ export default function HomePage() {
         {/* Logo/Brand */}
         <div className="text-center">
           <img
-            src={`${import.meta.env.BASE_URL}portr-mark-128.png`}
+            src={`${import.meta.env.BASE_URL}portr-mark-64.png`}
             alt="Portr"
-            className="mx-auto mb-6 h-16 w-16 rounded-full bg-[#02142a] p-2"
+            className="mx-auto mb-6 h-8 w-8"
           />
           <h1 className="text-2xl font-bold text-black">
             {isSuperUserSignup ? 'Create Account' : 'Welcome Back'}
