@@ -1,6 +1,8 @@
 import "@/app/global.css";
+import "@fontsource-variable/sora";
 import { Provider } from "./provider";
 import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
@@ -27,6 +29,14 @@ export const metadata: Metadata = {
   creator: "Amal Shaji",
   publisher: "Portr",
   metadataBase: new URL("https://portr.dev"),
+  manifest: "/site.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   alternates: {
     canonical: "/",
   },
@@ -60,23 +70,19 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "white" },
-    { media: "(prefers-color-scheme: dark)", color: "black" },
-  ],
   width: "device-width",
   initialScale: 1,
+  themeColor: "#02142a",
 };
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={GeistSans.className} suppressHydrationWarning>
-      <head>
-        <link rel="icon" href="/logo.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.svg" />
-        <link rel="manifest" href="/manifest.json" />
-      </head>
-      <body className="flex flex-col min-h-screen">
+    <html
+      lang="en"
+      className={`${GeistSans.variable} ${GeistMono.variable}`}
+      suppressHydrationWarning
+    >
+      <body className="flex min-h-screen flex-col">
         <Provider>{children}</Provider>
         {/* 100% privacy-first analytics */}
         <Script

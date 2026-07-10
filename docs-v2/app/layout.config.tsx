@@ -12,7 +12,7 @@ export const baseOptions: BaseLayoutProps = {
   nav: {
     title: (
       <>
-        <Logo width={24} height={24} />
+        <Logo width={28} height={28} />
         Portr
       </>
     ),

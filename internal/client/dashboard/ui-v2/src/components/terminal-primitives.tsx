@@ -4,12 +4,12 @@ import * as React from "react"
 
 export function LogoMark() {
   return (
-    <div
-      className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-[3px]"
-      style={{ border: "1.5px solid var(--foreground)" }}
-    >
-      <div className="h-1.5 w-1.5 rounded-[1px]" style={{ background: "var(--tm-green)" }} />
-    </div>
+    <img
+      alt=""
+      aria-hidden="true"
+      className="h-[18px] w-[18px] shrink-0 object-cover"
+      src="/static/portr-mark-64.png"
+    />
   )
 }
 

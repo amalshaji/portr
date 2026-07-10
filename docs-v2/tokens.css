@@ -1,0 +1,73 @@
+:root {
+  --portr-font-display: "Sora Variable", var(--font-geist-sans), sans-serif;
+  --portr-font-body: var(--font-geist-sans), sans-serif;
+  --portr-font-code: var(--font-geist-mono), ui-monospace, monospace;
+
+  --portr-paper: oklch(94% 0.018 78);
+  --portr-paper-raised: oklch(97% 0.014 78);
+  --portr-paper-muted: oklch(89% 0.022 78);
+  --portr-paper-rule: oklch(79% 0.022 78);
+  --portr-ink: oklch(18% 0.03 245);
+  --portr-ink-muted: oklch(42% 0.025 245);
+  --portr-night: oklch(17% 0.032 245);
+  --portr-night-raised: oklch(21% 0.032 245);
+  --portr-night-deep: oklch(13% 0.028 245);
+  --portr-night-rule: oklch(35% 0.028 245);
+  --portr-light-ink: oklch(94% 0.016 78);
+  --portr-light-muted: oklch(73% 0.02 245);
+  --portr-coral: oklch(69% 0.205 27);
+  --portr-coral-hover: oklch(74% 0.18 27);
+  --portr-accent-ink: var(--portr-night-deep);
+  --portr-cyan: oklch(79% 0.125 202);
+  --portr-cyan-muted: oklch(68% 0.095 202);
+  --portr-lime: oklch(84% 0.17 111);
+  --portr-success: oklch(75% 0.15 142);
+  --portr-focus: oklch(55% 0.205 27);
+  --portr-shadow: oklch(10% 0.025 245 / 0.28);
+  --portr-grain: oklch(94% 0.016 78 / 0.045);
+  --portr-grain-dark: oklch(9% 0.025 245 / 0.16);
+
+  --portr-space-3xs: 0.125rem;
+  --portr-space-2xs: 0.25rem;
+  --portr-space-xs: 0.5rem;
+  --portr-space-sm: 0.75rem;
+  --portr-space-md: 1rem;
+  --portr-space-lg: 1.5rem;
+  --portr-space-xl: 2.5rem;
+  --portr-space-2xl: 4rem;
+  --portr-space-3xl: 6rem;
+  --portr-space-4xl: 9rem;
+
+  --portr-text-xs: 0.75rem;
+  --portr-text-sm: 0.875rem;
+  --portr-text-base: 1rem;
+  --portr-text-md: 1.25rem;
+  --portr-text-lg: 1.5625rem;
+  --portr-text-xl: 1.953rem;
+  --portr-text-2xl: 2.441rem;
+  --portr-text-3xl: 3.052rem;
+  --portr-text-4xl: 3.815rem;
+  --portr-text-display: clamp(2.75rem, 5vw + 1rem, 5.25rem);
+
+  --portr-radius-sm: 0.25rem;
+  --portr-radius-md: 0.5rem;
+  --portr-radius-frame: 1.5rem;
+  --portr-rule: 0.0625rem;
+  --portr-page-gutter: clamp(1rem, 4vw, 4rem);
+  --portr-content: 82rem;
+
+  --portr-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --portr-ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --portr-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --portr-duration-micro: 120ms;
+  --portr-duration-short: 220ms;
+  --portr-duration-long: 420ms;
+
+  --portr-z-base: 1;
+  --portr-z-raised: 10;
+  --portr-z-dropdown: 100;
+  --portr-z-sticky: 200;
+  --portr-z-modal: 400;
+  --portr-z-toast: 500;
+  --portr-z-tooltip: 600;
+}
