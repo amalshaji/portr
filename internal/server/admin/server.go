@@ -12,6 +12,7 @@ import (
 	"github.com/amalshaji/portr/internal/server/admin/api/autosignup"
 	"github.com/amalshaji/portr/internal/server/admin/api/config"
 	"github.com/amalshaji/portr/internal/server/admin/api/connection"
+	"github.com/amalshaji/portr/internal/server/admin/api/subdomain"
 	"github.com/amalshaji/portr/internal/server/admin/api/team"
 	"github.com/amalshaji/portr/internal/server/admin/api/user"
 	"github.com/amalshaji/portr/internal/server/admin/db"
@@ -113,6 +114,7 @@ func (s *Server) setupRoutes() {
 	s.setupUserRoutes(v1)
 	s.setupTeamRoutes(v1)
 	s.setupConnectionRoutes(v1)
+	s.setupSubdomainRoutes(v1)
 	s.setupConfigRoutes(v1)
 	s.setupAutoSignupRoutes(v1)
 
@@ -187,6 +189,15 @@ func (s *Server) setupConnectionRoutes(v1 fiber.Router) {
 
 	getCollectionRoot(connGroup, s.auth.RequireTeamUser, connHandler.GetConnections)
 	postCollectionRoot(connGroup, connHandler.CreateConnection)
+}
+
+func (s *Server) setupSubdomainRoutes(v1 fiber.Router) {
+	handler := subdomain.NewHandler(s.db.DB, s.config)
+	group := v1.Group("/reserved-subdomains", s.auth.RequireTeamUser)
+
+	group.Get("/", handler.List)
+	group.Post("/", handler.Create)
+	group.Delete("/:subdomain", handler.Delete)
 }
 
 func (s *Server) setupConfigRoutes(v1 fiber.Router) {

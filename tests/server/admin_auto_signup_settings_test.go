@@ -236,7 +236,7 @@ func TestAutoSignupSettingsUpdateRequiresTrustedDomainsWhenEnabled(t *testing.T)
 	}
 }
 
-func TestAutoSignupSettingsUpdateRejectsDomainConfiguredForAnotherTeam(t *testing.T) {
+func TestAutoSignupSettingsUpdateReassignsExistingDomain(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()
 
@@ -271,16 +271,16 @@ func TestAutoSignupSettingsUpdateRejectsDomainConfiguredForAnotherTeam(t *testin
 	resp := DoRequest(t, srv, req)
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected status 400 Bad Request, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK, got %d", resp.StatusCode)
 	}
 
-	var body map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		t.Fatalf("failed to decode response body: %v", err)
+	var mapping models.AutoSignupDomain
+	if err := db.Where("domain = ?", "amal.sh").First(&mapping).Error; err != nil {
+		t.Fatalf("failed to load reassigned domain: %v", err)
 	}
-	if body["error"] != "Domain amal.sh is already configured for another team" {
-		t.Fatalf("expected conflicting domain error, got %v", body)
+	if mapping.TeamID != otherTeam.ID {
+		t.Fatalf("expected domain to move to team %d, got %d", otherTeam.ID, mapping.TeamID)
 	}
 }
 

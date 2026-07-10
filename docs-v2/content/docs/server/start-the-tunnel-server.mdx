@@ -37,6 +37,7 @@ PORTR_DB_URL=postgres://postgres:<choose-a-strong-secret>@postgres:5432/postgres
 PORTR_SERVER_URL=https://example.com
 PORTR_SSH_URL=example.com:2222
 PORTR_AUTO_MIGRATE=true
+PORTR_RESERVED_SUBDOMAIN_LIMIT=3
 
 PORTR_SSH_HOST_KEY= # PEM-encoded Ed25519 private key
 
@@ -66,6 +67,7 @@ POSTGRES_DB=postgres
 | `PORTR_ADMIN_PORT` | Admin server port | `8000` |
 | `PORTR_ADMIN_GITHUB_CLIENT_ID` | GitHub OAuth client ID | Optional |
 | `PORTR_ADMIN_GITHUB_CLIENT_SECRET` | GitHub OAuth client secret | Optional |
+| `PORTR_RESERVED_SUBDOMAIN_LIMIT` | Maximum reserved subdomains per team membership; use `0` to disable new reservations | `3` |
 | `PORTR_AUTO_MIGRATE` | Auto-run database migrations | `false` |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token for SSL | Required |
 

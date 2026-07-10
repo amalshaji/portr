@@ -11,6 +11,7 @@ import {
   EllipsisVertical,
   Activity,
   Settings,
+  Globe,
 } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import SidebarLink from "@/components/SidebarLink";
@@ -42,6 +43,7 @@ import Connections from "./Connections";
 import UsersPage from "./UsersPage";
 import MyAccount from "./MyAccount";
 import AutoSignupSettings from "../auto-signup/AutoSignupSettings";
+import ReservedDomains from "./ReservedDomains";
 import NotFound from "../NotFound";
 
 export default function AppPage() {
@@ -129,6 +131,14 @@ export default function AppPage() {
                   <SidebarLink to={`/${team}/connections`}>
                     <ArrowUpDown className="h-4 w-4" />
                     Connections
+                  </SidebarLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <SidebarLink to={`/${team}/reserved-domains`}>
+                    <Globe className="h-4 w-4" />
+                    Reserved domains
                   </SidebarLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -291,6 +301,7 @@ export default function AppPage() {
           <Route path="/overview" element={<Overview />} />
           <Route path="/metrics" element={<Metrics />} />
           <Route path="/connections" element={<Connections />} />
+          <Route path="/reserved-domains" element={<ReservedDomains />} />
           <Route path="/my-account" element={<MyAccount />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/auto-signup" element={<AutoSignupSettings />} />

@@ -1,1 +1,2 @@
 **/*.svelte -linguist-detectable
+internal/server/admin/static/assets/* -whitespace

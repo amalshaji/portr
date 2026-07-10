@@ -23,11 +23,16 @@ func TestValidateSubdomain(t *testing.T) {
 		{
 			name:      "subdomain with underscore",
 			subdomain: "test_subdomain",
-			wantErr:   false,
+			wantErr:   true,
 		},
 		{
 			name:      "subdomain with uppercase letters",
 			subdomain: "TestSubdomain",
+			wantErr:   true,
+		},
+		{
+			name:      "single character subdomain",
+			subdomain: "x",
 			wantErr:   false,
 		},
 		{
@@ -74,5 +79,11 @@ func TestValidateSubdomain(t *testing.T) {
 				t.Errorf("ValidateSubdomain(%q) = %v, wantErr %v", test.subdomain, err, test.wantErr)
 			}
 		})
+	}
+}
+
+func TestNormalizeSubdomain(t *testing.T) {
+	if got := NormalizeSubdomain("  My-App  "); got != "my-app" {
+		t.Fatalf("NormalizeSubdomain() = %q, want %q", got, "my-app")
 	}
 }

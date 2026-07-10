@@ -31,6 +31,7 @@ export default function AutoSignupSettings() {
   })
   const [teams, setTeams] = useState<Team[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -39,22 +40,26 @@ export default function AutoSignupSettings() {
 
   const fetchSettings = async () => {
     setLoading(true)
+    setLoadError(false)
     try {
       const [settingsResponse, teamsResponse] = await Promise.all([
         fetch('/api/v1/auto-signup/'),
         fetch('/api/v1/team/'),
       ])
 
-      if (settingsResponse.ok) {
-        const data = await settingsResponse.json()
-        setSettings(data)
+      if (!settingsResponse.ok || !teamsResponse.ok) {
+        throw new Error('Failed to load auto signup settings')
       }
-      if (teamsResponse.ok) {
-        const data = await teamsResponse.json()
-        setTeams(data)
-      }
+
+      const [settingsData, teamsData] = await Promise.all([
+        settingsResponse.json(),
+        teamsResponse.json(),
+      ])
+      setSettings(settingsData)
+      setTeams(teamsData)
     } catch (error) {
       console.error('Error fetching auto signup settings:', error)
+      setLoadError(true)
       toast.error('Failed to load auto signup settings')
     } finally {
       setLoading(false)
@@ -130,6 +135,22 @@ export default function AutoSignupSettings() {
           <div className="text-center py-8">
             <p className="text-muted-foreground">Loading auto signup settings...</p>
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen p-8">
+        <div className="max-w-4xl mx-auto space-y-4 text-center py-8">
+          <p className="font-medium">Auto signup settings could not be loaded.</p>
+          <p className="text-sm text-muted-foreground">
+            Your saved configuration has not been changed.
+          </p>
+          <Button type="button" variant="outline" onClick={fetchSettings}>
+            Retry
+          </Button>
         </div>
       </div>
     )

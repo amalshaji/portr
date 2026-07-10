@@ -139,7 +139,6 @@ func (s *AutoSignupService) loadDomains(db *gorm.DB) ([]models.AutoSignupDomain,
 func (s *AutoSignupService) buildDomainModels(input []AutoSignupDomainInput, requireDomains bool) ([]models.AutoSignupDomain, error) {
 	seenDomains := make(map[string]uint, len(input))
 	teamIDs := make(map[uint]struct{}, len(input))
-	domains := make([]string, 0, len(input))
 	autoSignupDomains := make([]models.AutoSignupDomain, 0, len(input))
 
 	for _, item := range input {
@@ -160,7 +159,6 @@ func (s *AutoSignupService) buildDomainModels(input []AutoSignupDomainInput, req
 
 		seenDomains[domain] = item.TeamID
 		teamIDs[item.TeamID] = struct{}{}
-		domains = append(domains, domain)
 		autoSignupDomains = append(autoSignupDomains, models.AutoSignupDomain{
 			Domain: domain,
 			TeamID: item.TeamID,
@@ -172,9 +170,6 @@ func (s *AutoSignupService) buildDomainModels(input []AutoSignupDomainInput, req
 	}
 
 	if err := s.validateTeams(teamIDs); err != nil {
-		return nil, err
-	}
-	if err := s.validateExistingDomainOwnership(domains, seenDomains); err != nil {
 		return nil, err
 	}
 
@@ -197,24 +192,6 @@ func (s *AutoSignupService) validateTeams(teamIDs map[uint]struct{}) error {
 	}
 	if count != int64(len(ids)) {
 		return AutoSignupValidationError{Message: "Auto signup team does not exist"}
-	}
-
-	return nil
-}
-
-func (s *AutoSignupService) validateExistingDomainOwnership(domains []string, requested map[string]uint) error {
-	if len(domains) == 0 {
-		return nil
-	}
-
-	var existing []models.AutoSignupDomain
-	if err := s.db.Where("domain IN ?", domains).Find(&existing).Error; err != nil {
-		return err
-	}
-	for _, mapping := range existing {
-		if requested[mapping.Domain] != mapping.TeamID {
-			return AutoSignupValidationError{Message: fmt.Sprintf("Domain %s is already configured for another team", mapping.Domain)}
-		}
 	}
 
 	return nil
