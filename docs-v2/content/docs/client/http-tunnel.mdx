@@ -14,6 +14,8 @@ portr http 9000
 Or start it with a custom subdomain:
 
 ```bash
+portr http 9000 -s amal-test
+# or
 portr http 9000 --subdomain amal-test
 ```
 
@@ -21,12 +23,32 @@ portr http 9000 --subdomain amal-test
   This also starts the portr inspector on [http://localhost:7777](http://localhost:7777) by default, where you can inspect and replay HTTP requests. Change `dashboard_port` in the client config to move it to another local port, or set `disable_dashboard: true` to skip starting it entirely.
 </Callout>
 
+## Worker Pool
+
+HTTP tunnels use the server-selected tunnel transport from your config: SSH when
+`transport: ssh`, or WebSocket when `transport: websocket`. By default, each
+HTTP tunnel starts two workers so concurrent incoming requests can keep moving
+while another request is in flight. Configure `pool_size` on a tunnel template
+when you want a different worker count:
+
+```yaml
+tunnels:
+  - name: api
+    subdomain: api-dev
+    port: 3000
+    type: http
+    pool_size: 4
+```
+
+TCP tunnels use a single worker because the server assigns a remote TCP port for
+that tunnel connection.
+
 ## How it works
 
 When you run the HTTP tunnel command:
 
 1. Portr connects to your configured server
-2. Creates a secure tunnel from your local port to a public URL
+2. Opens tunnel workers to the configured `ssh_url` or `ws_url`, based on `transport`
 3. Starts the request inspector interface locally
 4. Routes all incoming requests through the tunnel to your local service
 
@@ -35,7 +57,7 @@ When you run the HTTP tunnel command:
 The Portr inspector provides powerful debugging capabilities:
 
 - **Request inspection**: View all incoming HTTP requests in real-time
-- **Request replay**: Replay a stored request as-is or edit it before resending
+- **Request replay**: Replay a stored request as-is or edit method, path, headers, and body before resending
 - **Headers analysis**: Examine request and response headers
 - **Payload viewing**: Inspect request and response bodies
 - **WebSocket inspection**: Monitor upgraded WebSocket sessions and captured frames

@@ -106,23 +106,43 @@ func (h *Handler) DownloadConfig(c *fiber.Ctx) error {
 		})
 	}
 
-	configContent := fmt.Sprintf(`server_url: %s
-ssh_url: %s
-secret_key: %s`, stripScheme(h.config.ServerURL), h.config.SshURL, teamUser.SecretKey)
+	return c.JSON(fiber.Map{
+		"message": h.clientConfigTemplate(teamUser.SecretKey),
+	})
+}
 
-	if h.config.SshHostKeyVerification {
-		configContent += "\ninsecure_skip_host_key_verification: false"
+func (h *Handler) clientConfigTemplate(secretKey string) string {
+	transport := h.config.Transport
+	if transport == "" {
+		transport = serverConfig.TransportSSH
+	}
+	tunnelURL := stripScheme(h.config.TunnelDomain)
+	if tunnelURL == "" {
+		tunnelURL = stripScheme(h.config.ServerURL)
 	}
 
-	configContent += `
+	configContent := fmt.Sprintf("server_url: %s\ntransport: %s\n", stripScheme(h.config.ServerURL), transport)
+	switch transport {
+	case serverConfig.TransportWebSocket:
+		configContent += fmt.Sprintf("ws_url: %s\ntunnel_url: %s\n", stripScheme(h.config.WsURL), tunnelURL)
+	default:
+		configContent += fmt.Sprintf("ssh_url: %s\ntunnel_url: %s\n", h.config.SshURL, tunnelURL)
+		if h.config.SshHostKeyVerification {
+			configContent += "insecure_skip_host_key_verification: false\n"
+		}
+	}
+
+	configContent += fmt.Sprintf(`secret_key: %s
+enable_request_logging: true
+dashboard_port: 7777
 tunnels:
   - name: portr
     subdomain: portr
-    port: 4321`
+    port: 4321
+    type: http
+    pool_size: 2`, secretKey)
 
-	return c.JSON(fiber.Map{
-		"message": configContent,
-	})
+	return configContent
 }
 
 func (h *Handler) GetSetupScript(c *fiber.Ctx) error {

@@ -15,11 +15,12 @@ func TestViewRendersStatusIcons(t *testing.T) {
 			"8765": {
 				config:       &tunnel,
 				clientConfig: testClientConfig(tunnel),
+				healthy:      true,
 				active:       2,
 				poolSize:     2,
 			},
 		},
-		width: 200,
+		width: 1000,
 	}
 
 	view := m.View()
@@ -41,7 +42,7 @@ func TestUpdateConnCountClampsToPoolSize(t *testing.T) {
 				poolSize:     2,
 			},
 		},
-		width: 100,
+		width: 200,
 	}
 
 	for i := 0; i < 598; i++ {
@@ -72,6 +73,7 @@ func TestViewRendersStubTunnelWithoutLocalPort(t *testing.T) {
 			"stub:yaml": {
 				config:       &tunnel,
 				clientConfig: testClientConfig(tunnel),
+				healthy:      true,
 				active:       1,
 				poolSize:     1,
 			},
@@ -85,6 +87,65 @@ func TestViewRendersStubTunnelWithoutLocalPort(t *testing.T) {
 	}
 	if !strings.Contains(view, "yaml (stub → https://yaml.go.portr.dev)") {
 		t.Fatalf("expected stub tunnel address, got %q", view)
+	}
+}
+
+func TestUpdateHealthFalsePreservesActivePool(t *testing.T) {
+	tunnel := testTunnel()
+	m := model{
+		tunnels: map[string]*tunnelStatus{
+			"8765": {
+				config:       &tunnel,
+				clientConfig: testClientConfig(tunnel),
+				healthy:      true,
+				active:       2,
+				poolSize:     2,
+			},
+		},
+		width: 1000,
+	}
+
+	updated, _ := m.Update(UpdateHealthMsg{Port: "8765", Healthy: false})
+	m = updated.(model)
+
+	status := m.tunnels["8765"]
+	if !status.healthy {
+		t.Fatal("expected remaining pooled workers to keep the tunnel healthy")
+	}
+	if status.active != 2 {
+		t.Fatalf("expected health updates not to overwrite the active pool count, got %d", status.active)
+	}
+	if !strings.Contains(m.View(), "🟢 Healthy (2/2)") {
+		t.Fatalf("expected healthy pooled status in view, got %q", m.View())
+	}
+}
+
+func TestWorkerLossLeavesRemainingPoolWorkerActive(t *testing.T) {
+	tunnel := testTunnel()
+	m := model{
+		tunnels: map[string]*tunnelStatus{
+			"8765": {
+				config:       &tunnel,
+				clientConfig: testClientConfig(tunnel),
+				healthy:      true,
+				active:       2,
+				poolSize:     2,
+			},
+		},
+		width: 1000,
+	}
+
+	updated, _ := m.Update(UpdateConnCountMsg{Port: "8765", Delta: -1})
+	m = updated.(model)
+	updated, _ = m.Update(UpdateHealthMsg{Port: "8765", Healthy: false})
+	m = updated.(model)
+
+	status := m.tunnels["8765"]
+	if !status.healthy || status.active != 1 {
+		t.Fatalf("expected one healthy pooled worker, got healthy=%v active=%d", status.healthy, status.active)
+	}
+	if !strings.Contains(m.View(), "🟡 Partial (1/2)") {
+		t.Fatalf("expected partial pooled status in view, got %q", m.View())
 	}
 }
 

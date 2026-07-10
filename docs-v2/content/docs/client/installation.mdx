@@ -30,6 +30,31 @@ Once the download/install is complete, login to the portr admin dashboard and co
 portr auth set --token {your_token} --remote {your_domain}
 ```
 
+The command downloads a client config into `~/.portr/config.yaml`. The server's
+`PORTR_TRANSPORT` setting decides which transport appears in generated client
+configs. SSH is the default:
+
+```yaml
+server_url: example.com
+transport: ssh
+ssh_url: example.com:2222
+secret_key: portr_xxx
+```
+
+If the server is configured with `PORTR_TRANSPORT=websocket`, generated configs
+use the WebSocket tunnel endpoint instead:
+
+```yaml
+server_url: example.com
+transport: websocket
+ws_url: tunnel.example.com
+tunnel_url: example.com
+secret_key: portr_xxx
+```
+
+Use `server_url` for admin API calls. Use `ssh_url` or `ws_url` for
+client-to-server tunnel connections, depending on the generated `transport`.
+
 ### Verify installation
 
 For more details and to verify everything is working, run:

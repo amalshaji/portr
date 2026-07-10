@@ -8,7 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	serverAdmin "github.com/amalshaji/portr/internal/server/admin"
 	"github.com/amalshaji/portr/internal/server/admin/models"
+	serverConfig "github.com/amalshaji/portr/internal/server/config"
 )
 
 func TestDownloadConfig_ValidSecretKeyReturnsConfig(t *testing.T) {
@@ -46,15 +48,71 @@ func TestDownloadConfig_ValidSecretKeyReturnsConfig(t *testing.T) {
 		t.Fatalf("expected 'message' string in response, got: %v", body)
 	}
 
-	// Basic containment checks: should include server_url, ssh_url and the secret key
-	if !strings.Contains(message, "server_url:") || !strings.Contains(message, "ssh_url:") {
-		t.Fatalf("expected config content to include server_url and ssh_url, got: %s", message)
+	// Basic containment checks: default server setup should generate an SSH client config.
+	if !strings.Contains(message, "server_url:") || !strings.Contains(message, "transport: ssh") || !strings.Contains(message, "ssh_url:") {
+		t.Fatalf("expected config content to include server_url, transport ssh, and ssh_url, got: %s", message)
+	}
+	if strings.Contains(message, "ws_url:") {
+		t.Fatalf("expected default SSH config not to include ws_url, got: %s", message)
 	}
 	if strings.Contains(message, "server_url: http://") || strings.Contains(message, "server_url: https://") {
 		t.Fatalf("expected downloaded config to use a host-only server_url, got: %s", message)
 	}
 	if !strings.Contains(message, teamUser.SecretKey) {
 		t.Fatalf("expected config content to include secret key, got: %s", message)
+	}
+	for _, expected := range []string{
+		"enable_request_logging: true",
+		"dashboard_port: 7777",
+		"type: http",
+		"pool_size: 2",
+	} {
+		if !strings.Contains(message, expected) {
+			t.Fatalf("expected downloaded config to include %q, got: %s", expected, message)
+		}
+	}
+}
+
+func TestDownloadConfig_WebSocketTransportReturnsWebSocketConfig(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	cfg := DefaultAdminConfig()
+	cfg.Transport = serverConfig.TransportWebSocket
+	cfg.WsURL = "ws.example.com"
+	cfg.TunnelDomain = "public.example.com"
+	srv := serverAdmin.NewServer(cfg, db)
+
+	user := CreateTestUser(t, db, "cfgws@example.com", false)
+	_, teamUser := CreateTeamAndTeamUser(t, db, "Cfg WS Team", user, "admin")
+
+	payloadBytes, _ := json.Marshal(map[string]string{"secret_key": teamUser.SecretKey})
+	req := httptest.NewRequest("POST", "/api/v1/config/download", bytes.NewReader(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK for valid download config, got %d", resp.StatusCode)
+	}
+
+	var body map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	message, ok := body["message"].(string)
+	if !ok || message == "" {
+		t.Fatalf("expected 'message' string in response, got: %v", body)
+	}
+
+	for _, expected := range []string{"transport: websocket", "ws_url: ws.example.com", "tunnel_url: public.example.com"} {
+		if !strings.Contains(message, expected) {
+			t.Fatalf("expected websocket config to include %q, got: %s", expected, message)
+		}
+	}
+	if strings.Contains(message, "ssh_url:") {
+		t.Fatalf("expected websocket config not to include ssh_url, got: %s", message)
 	}
 }
 

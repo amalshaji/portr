@@ -27,7 +27,8 @@ Configure the following DNS records for your domain:
 
 ### Port Requirements
 
-- **Port 2222**: Open for incoming SSH connections
+- **Port 2222**: Open for SSH tunnel clients when `PORTR_TRANSPORT=ssh`
+- **Port 8001**: Open for wildcard proxied HTTP traffic, and for WebSocket tunnel clients when `PORTR_TRANSPORT=websocket`
 - **Port range 30001-40001**: Open for incoming TCP connections (required for TCP tunnels)
 
 ## Quick Setup Guides

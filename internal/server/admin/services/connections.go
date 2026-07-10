@@ -47,6 +47,9 @@ func (s *ConnectionService) createHTTP(ctx context.Context, teamUser *models.Tea
 			Where("LOWER(subdomain) = ? AND status IN (?, ?)", subdomain, models.ConnectionStatusReserved, models.ConnectionStatusActive).
 			First(&existing).Error
 		switch {
+		case err == nil && existing.Status == models.ConnectionStatusReserved && existing.CreatedByID == teamUser.ID:
+			connection = &existing
+			return nil
 		case err == nil:
 			return ErrSubdomainInUse
 		case !errors.Is(err, gorm.ErrRecordNotFound):

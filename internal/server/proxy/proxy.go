@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/amalshaji/portr/internal/server/config"
+	"github.com/amalshaji/portr/internal/server/wstunnel"
 	"github.com/amalshaji/portr/internal/utils"
 	"github.com/charmbracelet/log"
 )
@@ -26,6 +27,7 @@ type Proxy struct {
 	lock      sync.RWMutex
 	server    *http.Server
 	transport *http.Transport
+	tunnel    *wstunnel.Manager
 }
 
 func (p *Proxy) GetServerAddr() string {
@@ -61,8 +63,58 @@ func New(config *config.Config) *Proxy {
 	return p
 }
 
+func (p *Proxy) SetTunnelManager(manager *wstunnel.Manager) {
+	p.tunnel = manager
+}
+
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if p.tunnel != nil && r.URL.Path == "/_portr/tunnel/connect" {
+		p.tunnel.Handler().ServeHTTP(w, r)
+		return
+	}
 	p.handleRequest(w, r)
+}
+
+// GetRoute is kept for backward compatibility and returns the first backend if available.
+func (p *Proxy) GetRoute(src string) (string, error) {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	backends, ok := p.routes[src]
+	if !ok || len(backends) == 0 {
+		log.Error("Route not found", "subdomain", src)
+		return "", fmt.Errorf("route not found")
+	}
+	return backends[0], nil
+}
+
+// AddRoute is kept for backward compatibility and only allows adding a new subdomain once with a single backend.
+func (p *Proxy) AddRoute(src, dst string) error {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	_, ok := p.routes[src]
+	if ok {
+		log.Error("Route already added", "subdomain", src)
+		return fmt.Errorf("route already added")
+	}
+	p.routes[src] = []string{dst}
+	p.rrIdx[src] = 0
+	return nil
+}
+
+// RemoveRoute removes all backends for the subdomain.
+func (p *Proxy) RemoveRoute(src string) error {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	_, ok := p.routes[src]
+	if !ok {
+		log.Error("Route not found", "subdomain", src)
+		return fmt.Errorf("route not found")
+	}
+	delete(p.routes, src)
+	delete(p.rrIdx, src)
+	return nil
 }
 
 // AddBackend adds a backend to a subdomain, creating the subdomain entry if needed.
@@ -133,6 +185,27 @@ func connectionLostError(w http.ResponseWriter) {
 
 func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 	subdomain := p.config.ExtractSubdomain(r.Host)
+
+	if r.Header.Get("X-Portr-Ping-Request") == "true" {
+		if p.hasHTTPBackend(subdomain) {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		unregisteredSubdomainError(w, subdomain)
+		return
+	}
+
+	if p.tunnel != nil && p.tunnel.HasHTTPBackend(subdomain) {
+		conn, initial, err := wstunnel.HijackRequest(w, r)
+		if err != nil {
+			log.Error("Failed to hijack proxied request", "error", err, "subdomain", subdomain)
+			http.Error(w, "failed to proxy request", http.StatusBadGateway)
+			return
+		}
+		p.tunnel.OpenHTTPStream(subdomain, conn, initial)
+		return
+	}
+
 	backends, err := p.nextBackends(subdomain, 3)
 	if err != nil {
 		unregisteredSubdomainError(w, subdomain)
@@ -155,6 +228,15 @@ func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 		connectionLostError(res)
 	}
 	proxy.ServeHTTP(w, r)
+}
+
+func (p *Proxy) hasHTTPBackend(subdomain string) bool {
+	if p.tunnel != nil && p.tunnel.HasHTTPBackend(subdomain) {
+		return true
+	}
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	return len(p.routes[subdomain]) > 0
 }
 
 func (p *Proxy) nextBackends(src string, limit int) ([]string, error) {
@@ -242,10 +324,8 @@ func (p *Proxy) Start() {
 }
 
 func (p *Proxy) Shutdown(_ context.Context) {
-
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-
-	defer func() { cancel() }()
+	defer cancel()
 
 	if err := p.server.Shutdown(ctx); err != nil {
 		log.Error("Failed to stop proxy server", "error", err)

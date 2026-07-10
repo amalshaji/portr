@@ -11,9 +11,21 @@ WebSocket connections use the HTTP protocol for the initial handshake and then s
 portr http 9000
 ```
 
+With a fixed subdomain:
+
+```bash
+portr http 9000 -s realtime-dev
+```
+
 <Callout type="info">
   Use the HTTP tunnel command for WebSocket services. The initial HTTP handshake will be handled properly, and the connection will upgrade to WebSocket as expected.
 </Callout>
+
+The Portr client-to-server tunnel transport is selected by your server-generated
+config. It connects to `ssh_url` when `transport: ssh`, or to `ws_url` when
+`transport: websocket`. Public HTTP and application WebSocket traffic still uses
+the normal tunnel URL such as `https://realtime-dev.example.com` or
+`wss://realtime-dev.example.com`.
 
 ## How WebSocket Tunneling Works
 
@@ -21,6 +33,7 @@ portr http 9000
 2. **Protocol upgrade**: The server responds with a `101 Switching Protocols` status
 3. **WebSocket connection**: The connection upgrades to WebSocket protocol over the existing TCP connection
 4. **Bidirectional communication**: Full-duplex communication is established
+5. **Local logging**: The inspector records the handshake and WebSocket frame events in the local SQLite dashboard database
 
 ## Testing WebSocket Connections
 

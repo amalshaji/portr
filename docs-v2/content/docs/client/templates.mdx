@@ -31,6 +31,7 @@ This will open a file with contents similar to:
 
 ```yaml
 server_url: example.com
+transport: ssh
 ssh_url: example.com:2222
 secret_key: { your-secret-key }
 tunnels:
@@ -39,12 +40,17 @@ tunnels:
     port: 4321
 ```
 
+The admin dashboard generates this transport block from the server's
+`PORTR_TRANSPORT` setting. For WebSocket deployments it will use
+`transport: websocket` with `ws_url` instead of `ssh_url`.
+
 ### Disable TUI (Terminal User Interface)
 
 You can disable the interactive terminal interface by adding `disable_tui: true` to your configuration:
 
 ```yaml
 server_url: example.com
+transport: ssh
 ssh_url: example.com:2222
 secret_key: { your-secret-key }
 disable_tui: true
@@ -67,6 +73,7 @@ You can change the inspector port or disable it permanently in the client config
 
 ```yaml
 server_url: example.com
+transport: ssh
 ssh_url: example.com:2222
 secret_key: { your-secret-key }
 dashboard_port: 8888
@@ -81,6 +88,7 @@ Or disable the dashboard entirely:
 
 ```yaml
 server_url: example.com
+transport: ssh
 ssh_url: example.com:2222
 secret_key: { your-secret-key }
 disable_dashboard: true
@@ -98,6 +106,7 @@ You can disable automatic update checks and notifications by adding `disable_upd
 
 ```yaml
 server_url: example.com
+transport: ssh
 ssh_url: example.com:2222
 secret_key: { your-secret-key }
 disable_update_check: true
@@ -119,6 +128,7 @@ You can automatically clear old connection logs by adding `connection_log_retent
 
 ```yaml
 server_url: example.com
+transport: ssh
 ssh_url: example.com:2222
 secret_key: { your-secret-key }
 connection_log_retention_days: 7
@@ -206,8 +216,10 @@ portr start
 
 These options apply to the entire client configuration:
 
-- **server_url**: The Portr server URL
-- **ssh_url**: The SSH server URL for tunnel connections
+- **server_url**: The Portr admin/API server URL
+- **transport**: Tunnel transport selected by the server-generated config. Supported values are `ssh` and `websocket` (default: `ssh`).
+- **ssh_url**: SSH tunnel endpoint URL when `transport: ssh`.
+- **ws_url**: WebSocket tunnel endpoint URL when `transport: websocket`.
 - **secret_key**: Your authentication secret key
 - **disable_tui**: Disable the interactive terminal interface (default: false)
 - **dashboard_port**: Local port for the inspector dashboard (default: 7777)
@@ -218,7 +230,6 @@ These options apply to the entire client configuration:
 - **connection_log_retention_days**: Auto-delete connection logs older than N days (default: 0, disabled)
 - **health_check_interval**: Health check interval in seconds (default: 3)
 - **health_check_max_retries**: Maximum health check retry attempts (default: 10)
-- **insecure_skip_host_key_verification**: Skip SSH host key verification (default: true)
 
 ### Stub Tunnel Options
 
@@ -231,31 +242,6 @@ These options apply to stub tunnel entries with `type: stub`:
 
 Use exactly one of `response_tmpl` or `response_tmpl_file`.
 
-### SSH Host Key Verification
-
-By default, the Portr client skips SSH host key verification for ease of use. You can enable host key verification for additional security:
-
-```yaml
-server_url: example.com
-ssh_url: example.com:2222
-secret_key: { your-secret-key }
-insecure_skip_host_key_verification: false
-tunnels:
-  - name: portr
-    subdomain: portr
-    port: 4321
-```
-
-When host key verification is enabled:
-
-- On first connection, the server's host key is automatically saved to `~/.portr/known_hosts` (Trust On First Use)
-- Subsequent connections verify the server's key matches the saved key
-- If the key changes unexpectedly, the connection fails with a warning (potential security issue)
-
-<Callout type="warn">
-  If you enable host key verification, ensure your server persists SSH host keys across restarts using the `PORTR_SSH_KEYS_DIR` environment variable. Otherwise, clients will fail to connect after each server restart.
-</Callout>
-
 ### Tunnel Template Options
 
 Each tunnel template supports the following options:
@@ -263,9 +249,15 @@ Each tunnel template supports the following options:
 - **name**: A unique identifier for the tunnel
 - **subdomain**: The subdomain to use for the tunnel
 - **port**: The local port to tunnel
-- **type**: The tunnel type (`http` or `tcp`)
+- **type**: The tunnel type (`http`, `tcp`, or `stub`)
 - **host**: The local host to bind to (default: localhost)
-- **pool_size**: HTTP only. Number of SSH workers to run per HTTP tunnel (default: 2). Increases resilience and throughput.
+- **pool_size**: HTTP only. Number of tunnel workers to run per HTTP tunnel (default: 2). Increases resilience and throughput.
+
+<Callout type="info">
+  The admin dashboard generates `transport` plus either `ssh_url` or `ws_url`
+  from the server's `PORTR_TRANSPORT` setting. Keep those fields aligned with the
+  running server transport.
+</Callout>
 
 HTTP tunnels use streaming reverse proxying by default. Request and response bodies are forwarded as they arrive, while inspector captures are stored asynchronously and capped at 1 MiB per body.
 The former `enable_http_reverse_proxy` option is no longer required; existing configurations containing it still load, but the option is ignored.

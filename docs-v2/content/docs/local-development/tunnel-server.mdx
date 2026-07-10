@@ -5,7 +5,7 @@ description: Set up the Portr tunnel server for local development, so you can ru
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-The tunnel server is built using Go and handles SSH remote port forwarding to tunnel HTTP/TCP connections.
+The tunnel server is built using Go and handles the server-selected client tunnel transport for HTTP/TCP connections. SSH is the default transport; WebSocket can be selected with `PORTR_TRANSPORT=websocket`.
 
 ## Requirements
 
@@ -27,24 +27,31 @@ go run ./cmd/portrd start tunnel
 You should see output similar to:
 
 ```shell
-time=2024-03-29T19:16:35.023+05:30 level=INFO msg="starting SSH server" port=:2222
+time=2024-03-29T19:16:35.023+05:30 level=INFO msg="Starting SSH server" port=:2222
 time=2024-03-29T19:16:35.023+05:30 level=INFO msg="starting proxy server" port=:8001
 time=2024-03-29T19:16:35.023+05:30 level=INFO msg="Starting 1 cron jobs"
 ```
 
-This starts:
+With the default `PORTR_TRANSPORT=ssh`, this starts:
 
-- **SSH server** on port `:2222` for tunnel connections
-- **Proxy server** on port `:8001` for routing traffic
+- **SSH tunnel server** on port `:2222`
+- **Proxy server** on port `:8001` for wildcard HTTP and upgraded WebSocket traffic
+
+With `PORTR_TRANSPORT=websocket`, the proxy also serves the WebSocket tunnel
+endpoint at `/_portr/tunnel/connect` instead of starting the SSH server.
+
+When running the combined server with `go run ./cmd/portrd start all`, the admin
+server listens on `:8000` by default and the selected tunnel transport listens on
+its configured port.
 
 ## Server Architecture
 
 The tunnel server consists of several components:
 
-### SSH Server
+### Tunnel Transport
 
+- Starts SSH or WebSocket based on `PORTR_TRANSPORT`
 - Handles incoming tunnel connections from clients
-- Manages SSH remote port forwarding
 - Authenticates clients using tokens
 
 ### Proxy Server
@@ -86,7 +93,7 @@ For all configuration variables, check out the [tunnel server config file](https
 Key configuration options include:
 
 - **Database connection**: PostgreSQL connection string
-- **SSH server settings**: Port, host keys, and authentication
+- **Transport settings**: `PORTR_TRANSPORT`, `PORTR_SSH_URL`, `PORTR_WS_URL`, and authentication
 - **Proxy settings**: HTTP server configuration
 - **Security settings**: Token validation and access control
 
@@ -105,20 +112,21 @@ Key configuration options include:
 
 ### Connection Flow
 
-1. Client connects to SSH server on port 2222
-2. SSH server validates the client token with the admin server
-3. Remote port forwarding is established
-4. Proxy server routes incoming requests to the client
+1. Client reads `transport` from the generated config
+2. Client connects to `ssh_url` or `ws_url` based on that transport
+3. The selected tunnel transport validates the client token with the server
+4. HTTP tunnels register one or more workers; TCP tunnels register one remote TCP listener
+5. Proxy server routes incoming requests or TCP bytes to the client
 
 ## Troubleshooting
 
 ### Common Issues
 
-**Port conflicts**: Ensure ports 2222 and 8001 are available.
+**Port conflicts**: Ensure the selected transport port is available (`2222` for SSH by default, `8001` for WebSocket/proxy by default).
 
 **Database connection errors**: Verify your PostgreSQL instance is running and accessible.
 
-**SSH connection failures**: Check that the SSH server is properly configured and the client has valid credentials.
+**Tunnel connection failures**: Check that the generated client config matches the server transport and that the client has valid credentials.
 
 ### Debugging
 
