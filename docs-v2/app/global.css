@@ -467,13 +467,18 @@ button[aria-label="Copy Text"] {
   background: var(--portr-coral);
 }
 
-.portr-map__request {
+.portr-map__request-group {
   position: absolute;
   inset-block-start: 38%;
   inset-inline-end: 0;
   width: min(13.5rem, 68%);
-  padding: var(--portr-space-lg) var(--portr-space-md);
   transform: rotate(-1deg);
+}
+
+.portr-map__request {
+  position: relative;
+  width: 100%;
+  padding: var(--portr-space-lg) var(--portr-space-md);
   background: var(--portr-paper-raised);
   box-shadow: var(--portr-space-sm) var(--portr-space-sm) 0 var(--portr-cyan-muted);
   color: var(--portr-ink);
@@ -488,7 +493,7 @@ button[aria-label="Copy Text"] {
   white-space: nowrap;
 }
 
-.portr-map__request span {
+.portr-map__request-rule {
   display: block;
   width: 62%;
   height: var(--portr-rule);
@@ -496,13 +501,14 @@ button[aria-label="Copy Text"] {
   background: var(--portr-cyan-muted);
 }
 
-.portr-map__request span:last-child {
+.portr-map__request-rule:last-child {
   width: 42%;
   margin-block-start: var(--portr-space-2xs);
 }
 
 .portr-map__annotation {
   position: absolute;
+  z-index: var(--portr-z-raised);
   display: inline-block;
   width: max-content;
   color: var(--portr-light-ink);
@@ -524,15 +530,15 @@ button[aria-label="Copy Text"] {
 }
 
 .portr-map__annotation--inspect {
-  inset-block-start: 22%;
-  inset-inline-end: 4%;
-  transform: rotate(-5deg);
+  inset-block-start: 50%;
+  inset-inline-end: calc(100% + var(--portr-space-sm));
+  transform: translateY(-50%) rotate(-5deg);
 }
 
 .portr-map__annotation--replay {
-  inset-block-start: 63%;
-  inset-inline-end: 2%;
-  transform: rotate(-4deg);
+  inset-block-start: 50%;
+  inset-inline-start: calc(100% + var(--portr-space-sm));
+  transform: translateY(-50%) rotate(-4deg);
 }
 
 .portr-map__annotation--replay::after {
@@ -540,9 +546,9 @@ button[aria-label="Copy Text"] {
 }
 
 .portr-map__annotation--own {
-  inset-block-end: 10%;
-  inset-inline-end: 0;
-  transform: rotate(-3deg);
+  inset-block-start: 50%;
+  inset-inline-start: calc(100% + var(--portr-space-sm));
+  transform: translateY(-50%) rotate(-3deg);
   text-align: center;
 }
 
@@ -1007,15 +1013,9 @@ button[aria-label="Copy Text"] {
     min-height: 8.5rem;
   }
 
-  .portr-map__request {
+  .portr-map__request-group {
     inset-inline-end: 12%;
     width: 15rem;
-  }
-
-  .portr-map__annotation--replay {
-    z-index: var(--portr-z-raised);
-    inset-block-start: 55%;
-    inset-inline-end: 0;
   }
 
   .portr-ledger {

@@ -58,24 +58,26 @@ function TunnelMap() {
       <div className="portr-map__node portr-map__node--public">
         <span className="portr-cut-label portr-cut-label--cyan">Public</span>
         <GlobeIcon />
+        <span className="portr-map__annotation portr-map__annotation--own">own the edge</span>
       </div>
 
-      <div className="portr-map__request">
-        <p>GET&nbsp;&nbsp; /api/user</p>
-        <p>Host:&nbsp; quiet-otter.portr.dev</p>
-        <p>200&nbsp;&nbsp; OK</p>
-        <span />
-        <span />
+      <div className="portr-map__request-group">
+        <div className="portr-map__request">
+          <p>GET&nbsp;&nbsp; /api/user</p>
+          <p>Host:&nbsp; quiet-otter.portr.dev</p>
+          <p>200&nbsp;&nbsp; OK</p>
+          <span className="portr-map__request-rule" />
+          <span className="portr-map__request-rule" />
+        </div>
+        <span className="portr-map__annotation portr-map__annotation--inspect">inspect traffic</span>
       </div>
 
       <div className="portr-map__node portr-map__node--local">
         <LaptopIcon />
         <span className="portr-cut-label portr-cut-label--lime">Local</span>
+        <span className="portr-map__annotation portr-map__annotation--replay">replay locally</span>
       </div>
 
-      <span className="portr-map__annotation portr-map__annotation--inspect">inspect</span>
-      <span className="portr-map__annotation portr-map__annotation--replay">replay</span>
-      <span className="portr-map__annotation portr-map__annotation--own">own the stack</span>
       <figcaption className="sr-only" id="portr-map-caption">
         A request travels from a public Portr URL through the tunnel to a service running on localhost.
       </figcaption>
