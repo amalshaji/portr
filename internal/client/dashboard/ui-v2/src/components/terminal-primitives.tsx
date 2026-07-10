@@ -8,7 +8,7 @@ export function LogoMark() {
       alt=""
       aria-hidden="true"
       className="h-[18px] w-[18px] shrink-0 object-cover"
-      src="/static/portr-mark-64.png"
+      src={`${import.meta.env.BASE_URL}portr-mark-64.png`}
     />
   )
 }
