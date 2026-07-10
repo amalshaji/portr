@@ -1,0 +1,61 @@
+---
+title: Reserved Subdomains
+description: Reserve stable Portr subdomains from the dashboard and keep them assigned between tunnel runs.
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+Reserve a subdomain in the Portr dashboard to keep it assigned to your team credential between tunnel runs. Reserved names are unique across the deployment, so other users cannot claim them.
+
+## Reserve a subdomain
+
+1. Open the Portr dashboard and select your team.
+2. Choose **Reserved domains** in the sidebar.
+3. Enter a DNS-safe name using lowercase letters, numbers, or internal hyphens.
+4. Select **Reserve**.
+
+Start an HTTP tunnel with the reserved name:
+
+```bash
+portr http 9000 --subdomain my-project
+```
+
+<Callout type="info">
+  A reservation belongs to the exact team membership that created it. Use that membership's CLI secret key when starting the tunnel; another member of the same team cannot claim the name.
+</Callout>
+
+## Reservation status
+
+The dashboard shows how each reserved name is being used:
+
+| Status | Meaning |
+| --- | --- |
+| Reserved | The name is assigned to you and no tunnel is using it. |
+| Starting | A tunnel has claimed the name and is connecting. |
+| Active | A tunnel is currently running on the name. |
+
+## Release a reservation
+
+Select **Release** beside a name to make it available to other users.
+
+If a tunnel is still starting or active, releasing the reservation does not interrupt it. The name remains unavailable until that tunnel stops, then another user can claim it.
+
+## Reservation limits
+
+Server administrators control how many names each team membership can reserve with `PORTR_RESERVED_SUBDOMAIN_LIMIT`:
+
+```bash
+PORTR_RESERVED_SUBDOMAIN_LIMIT=3
+```
+
+The default is `3`. Set the value to `0` to disable new reservations. Existing reservations remain assigned until their owners release them.
+
+## Reserved-name errors
+
+If another credential attempts to start a tunnel with your reserved name, the CLI reports:
+
+```text
+This is a reserved subdomain
+```
+
+Choose another subdomain, or authenticate with the team membership that owns the reservation.
