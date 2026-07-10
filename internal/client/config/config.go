@@ -40,6 +40,9 @@ func (t *Tunnel) SetDefaults() {
 	if t.Type == constants.Http && t.Subdomain == "" {
 		t.Subdomain = utils.GenerateTunnelSubdomain()
 	}
+	if t.Type == constants.Http || t.Type == constants.Stub {
+		t.Subdomain = utils.NormalizeSubdomain(t.Subdomain)
+	}
 
 	if t.Host == "" && t.Type != constants.Stub {
 		t.Host = "localhost"
