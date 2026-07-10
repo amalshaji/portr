@@ -200,8 +200,8 @@ export function LandingPage() {
               </Link>
               <p>
                 Portr is a self-hosted tunnel for teams.<br />
-                Expose services. Inspect traffic.<br />
-                Replay requests. Own your stack.
+                Tunnel HTTP, TCP, and WebSocket connections.<br />
+                Inspect traffic. Replay requests. Own your stack.
               </p>
             </div>
             <TunnelMap />
