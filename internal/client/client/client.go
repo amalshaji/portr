@@ -248,7 +248,6 @@ func (c *Client) clientConfigForTunnel(tunnel config.Tunnel) config.ClientConfig
 		HealthCheckInterval:             c.config.HealthCheckInterval,
 		HealthCheckMaxRetries:           c.config.HealthCheckMaxRetries,
 		DisableTUI:                      c.config.DisableTUI,
-		EnableHttpReverseProxy:          c.config.EnableHttpReverseProxy,
 		InsecureSkipHostKeyVerification: *c.config.InsecureSkipHostKeyVerification,
 	}
 }

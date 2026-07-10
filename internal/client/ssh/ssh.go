@@ -30,6 +30,7 @@ import (
 
 var (
 	ErrLocalSetupIncomplete = fmt.Errorf("local setup incomplete")
+	ErrReservedSubdomain    = errors.New("This is a reserved subdomain")
 	errClientShuttingDown   = errors.New("client is shutting down")
 	newRestyClient          = resty.New
 	tunnelStartTimeout      = 20 * time.Second
@@ -166,6 +167,7 @@ func CreateNewConnectionWithContext(ctx context.Context, cfg config.ClientConfig
 	client := newRestyClient().SetTimeout(10 * time.Second)
 	var reqErr struct {
 		Message string `json:"message"`
+		Code    string `json:"code"`
 	}
 	var response struct {
 		ConnectionId string `json:"connection_id"`
@@ -196,6 +198,9 @@ func CreateNewConnectionWithContext(ctx context.Context, cfg config.ClientConfig
 	}
 
 	if resp.StatusCode() != 200 {
+		if reqErr.Code == "reserved_subdomain" {
+			return "", ErrReservedSubdomain
+		}
 		if reqErr.Message == "" {
 			reqErr.Message = resp.Status()
 		}

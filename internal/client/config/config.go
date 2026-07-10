@@ -40,6 +40,9 @@ func (t *Tunnel) SetDefaults() {
 	if t.Type == constants.Http && t.Subdomain == "" {
 		t.Subdomain = utils.GenerateTunnelSubdomain()
 	}
+	if t.Type == constants.Http || t.Type == constants.Stub {
+		t.Subdomain = utils.NormalizeSubdomain(t.Subdomain)
+	}
 
 	if t.Host == "" && t.Type != constants.Stub {
 		t.Host = "localhost"
@@ -165,7 +168,6 @@ type Config struct {
 	HealthCheckMaxRetries           int       `yaml:"health_check_max_retries"`
 	DisableTUI                      bool      `yaml:"disable_tui"`
 	DisableTerminalLogs             bool      `yaml:"disable_terminal_logs"`
-	EnableHttpReverseProxy          bool      `yaml:"enable_http_reverse_proxy"`
 	DisableUpdateCheck              bool      `yaml:"disable_update_check"`
 	InsecureSkipHostKeyVerification *bool     `yaml:"insecure_skip_host_key_verification"`
 }
@@ -288,7 +290,6 @@ type ClientConfig struct {
 	HealthCheckMaxRetries           int
 	DisableTUI                      bool
 	DisableTerminalLogs             bool
-	EnableHttpReverseProxy          bool
 	InsecureSkipHostKeyVerification bool
 }
 
@@ -516,8 +517,8 @@ func updateAuthValues(token string, downloadedConfig string) error {
 	}
 	if downloaded.TunnelUrl != "" {
 		entries = append(entries, [2]string{"tunnel_url", downloaded.TunnelUrl})
-	} else if downloaded.WsUrl != "" {
-		entries = append(entries, [2]string{"tunnel_url", downloaded.WsUrl})
+	} else if downloaded.ServerUrl != "" {
+		entries = append(entries, [2]string{"tunnel_url", downloaded.ServerUrl})
 	}
 
 	return updateConfigValues(entries)

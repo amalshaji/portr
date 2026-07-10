@@ -8,6 +8,8 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"slices"
+	"strings"
 	"sync"
 
 	"github.com/amalshaji/portr/internal/constants"
@@ -39,11 +41,16 @@ type session struct {
 	id         string
 	connection *db.Connection
 	writer     *wsproto.Writer
-	streams    map[string]chan wsproto.Frame
+	streams    map[string]*streamQueue
 	streamMu   sync.Mutex
 	listener   net.Listener
 	closed     chan struct{}
 	closeOnce  sync.Once
+}
+
+type streamQueue struct {
+	frames chan wsproto.Frame
+	closed chan struct{}
 }
 
 func New(config *config.Config, service *service.Service) *Manager {
@@ -106,7 +113,7 @@ func (m *Manager) handle(conn *websocket.Conn) {
 		id:         ulid.Make().String(),
 		connection: reserved,
 		writer:     wsproto.NewWriter(conn),
-		streams:    make(map[string]chan wsproto.Frame),
+		streams:    make(map[string]*streamQueue),
 		closed:     make(chan struct{}),
 	}
 
@@ -261,7 +268,7 @@ func (m *Manager) pipeStream(sess *session, conn net.Conn, initial []byte) {
 	defer conn.Close()
 
 	streamID := ulid.Make().String()
-	frames := sess.addStream(streamID)
+	stream := sess.addStream(streamID)
 	defer sess.removeStream(streamID)
 
 	if err := sess.writer.Send(wsproto.Frame{Type: wsproto.TypeOpen, StreamID: streamID, Data: initial}); err != nil {
@@ -291,11 +298,7 @@ func (m *Manager) pipeStream(sess *session, conn net.Conn, initial []byte) {
 
 	for {
 		select {
-		case frame, ok := <-frames:
-			if !ok {
-				_ = sess.writer.Send(wsproto.Frame{Type: wsproto.TypeClose, StreamID: streamID})
-				return
-			}
+		case frame := <-stream.frames:
 			switch frame.Type {
 			case wsproto.TypeData:
 				if _, err := conn.Write(frame.Data); err != nil {
@@ -313,17 +316,24 @@ func (m *Manager) pipeStream(sess *session, conn net.Conn, initial []byte) {
 	}
 }
 
-func (s *session) addStream(streamID string) chan wsproto.Frame {
-	ch := make(chan wsproto.Frame, 32)
+func (s *session) addStream(streamID string) *streamQueue {
+	stream := &streamQueue{
+		frames: make(chan wsproto.Frame, 32),
+		closed: make(chan struct{}),
+	}
 	s.streamMu.Lock()
-	s.streams[streamID] = ch
+	s.streams[streamID] = stream
 	s.streamMu.Unlock()
-	return ch
+	return stream
 }
 
 func (s *session) removeStream(streamID string) {
 	s.streamMu.Lock()
-	delete(s.streams, streamID)
+	stream := s.streams[streamID]
+	if stream != nil {
+		delete(s.streams, streamID)
+		close(stream.closed)
+	}
 	s.streamMu.Unlock()
 }
 
@@ -332,16 +342,15 @@ func (s *session) deliver(frame wsproto.Frame) {
 		return
 	}
 	s.streamMu.Lock()
-	ch := s.streams[frame.StreamID]
+	stream := s.streams[frame.StreamID]
 	s.streamMu.Unlock()
-	if ch == nil {
+	if stream == nil {
 		return
 	}
 	select {
-	case ch <- frame:
+	case stream.frames <- frame:
+	case <-stream.closed:
 	case <-s.closed:
-	default:
-		log.Warn("Dropping websocket tunnel frame for blocked stream", "stream_id", frame.StreamID)
 	}
 }
 
@@ -361,23 +370,8 @@ func HijackRequest(w http.ResponseWriter, r *http.Request) (net.Conn, []byte, er
 		return nil, nil, fmt.Errorf("response writer does not support hijacking")
 	}
 
-	var body []byte
-	if r.Body != nil {
-		var err error
-		body, err = io.ReadAll(r.Body)
-		if err != nil {
-			return nil, nil, err
-		}
-		_ = r.Body.Close()
-		r.Body = io.NopCloser(bytes.NewReader(body))
-	}
-
-	wireRequest := r.Clone(r.Context())
-	wireRequest.RequestURI = ""
-	wireRequest.Body = io.NopCloser(bytes.NewReader(body))
-
 	var initial bytes.Buffer
-	if err := wireRequest.Write(&initial); err != nil {
+	if err := writeRequestHead(&initial, r); err != nil {
 		return nil, nil, err
 	}
 
@@ -390,6 +384,50 @@ func HijackRequest(w http.ResponseWriter, r *http.Request) (net.Conn, []byte, er
 		initial.Write(buffered)
 	}
 	return conn, initial.Bytes(), nil
+}
+
+func writeRequestHead(dst io.Writer, request *http.Request) error {
+	requestURI := request.URL.RequestURI()
+	if requestURI == "" {
+		requestURI = "/"
+	}
+	proto := request.Proto
+	if proto == "" {
+		proto = "HTTP/1.1"
+	}
+	if _, err := fmt.Fprintf(dst, "%s %s %s\r\n", request.Method, requestURI, proto); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(dst, "Host: %s\r\n", request.Host); err != nil {
+		return err
+	}
+
+	headers := request.Header.Clone()
+	headers.Del("Host")
+	headers.Del("Content-Length")
+	headers.Del("Transfer-Encoding")
+	if request.ContentLength > 0 {
+		headers.Set("Content-Length", fmt.Sprint(request.ContentLength))
+	}
+	if len(request.TransferEncoding) > 0 {
+		headers.Set("Transfer-Encoding", strings.Join(request.TransferEncoding, ", "))
+	}
+	if request.Close || headers.Get("Upgrade") == "" {
+		headers.Set("Connection", "close")
+	}
+	if len(request.Trailer) > 0 && headers.Get("Trailer") == "" {
+		trailerNames := make([]string, 0, len(request.Trailer))
+		for name := range request.Trailer {
+			trailerNames = append(trailerNames, name)
+		}
+		slices.Sort(trailerNames)
+		headers.Set("Trailer", strings.Join(trailerNames, ", "))
+	}
+	if err := headers.Write(dst); err != nil {
+		return err
+	}
+	_, err := io.WriteString(dst, "\r\n")
+	return err
 }
 
 func drainBuffered(reader *bufio.Reader) []byte {

@@ -26,6 +26,19 @@ type requestLogData struct {
 	request   *http.Request
 	body      []byte
 	startTime time.Time
+	bodyMu    sync.RWMutex
+}
+
+func (d *requestLogData) setBody(body []byte) {
+	d.bodyMu.Lock()
+	d.body = body
+	d.bodyMu.Unlock()
+}
+
+func (d *requestLogData) bodySnapshot() []byte {
+	d.bodyMu.RLock()
+	defer d.bodyMu.RUnlock()
+	return bytes.Clone(d.body)
 }
 
 type loggingReadCloser struct {

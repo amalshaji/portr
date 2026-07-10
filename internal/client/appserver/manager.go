@@ -327,7 +327,6 @@ func (m *Manager) clientConfigForTunnel(tunnel clientcfg.Tunnel) clientcfg.Clien
 		HealthCheckMaxRetries:           m.baseConfig.HealthCheckMaxRetries,
 		DisableTUI:                      true,
 		DisableTerminalLogs:             true,
-		EnableHttpReverseProxy:          m.baseConfig.EnableHttpReverseProxy,
 		InsecureSkipHostKeyVerification: *m.baseConfig.InsecureSkipHostKeyVerification,
 	}
 }

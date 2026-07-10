@@ -47,6 +47,7 @@ type Client struct {
 	mu           sync.RWMutex
 	reconnecting int32 // atomic flag to prevent concurrent reconnects
 	shutdown     int32 // atomic flag for shutdown state
+	tuiActive    int32 // atomic flag for whether this worker contributes to the TUI pool count
 }
 
 type tunnelStream struct {
@@ -129,6 +130,27 @@ func (s *Client) emitEvent(eventType EventType, err error) {
 		event.Error = err.Error()
 	}
 	handler(event)
+}
+
+func (s *Client) setTUIActive(active bool) {
+	if s.tui == nil {
+		return
+	}
+
+	var next int32
+	delta := -1
+	if active {
+		next = 1
+		delta = 1
+	}
+	if atomic.SwapInt32(&s.tuiActive, next) == next {
+		return
+	}
+
+	s.mu.RLock()
+	port := tunnelStatusKey(s.config.Tunnel)
+	s.mu.RUnlock()
+	s.tui.Send(tui.UpdateConnCountMsg{Port: port, Delta: delta})
 }
 
 func (s *Client) reportFatal(err error) {
@@ -372,14 +394,13 @@ func (s *Client) startListenerForClientWithReady(ctx context.Context, ready chan
 		close(ready)
 	}
 
-	if s.tui != nil {
-		s.tui.Send(tui.UpdateConnCountMsg{Port: tunnelStatusKey(s.config.Tunnel), Delta: 1})
-	}
+	s.setTUIActive(true)
 
 	err = <-errCh
 	if s.shouldIgnoreListenerError(context.Background(), err) {
 		return nil
 	}
+	s.setTUIActive(false)
 	return err
 }
 
@@ -625,15 +646,11 @@ func (s *Client) Shutdown(ctx context.Context) error {
 
 	err := s.closeTransport()
 	s.mu.RLock()
-	tuiProgram := s.tui
 	cfg := s.config
-	port := tunnelStatusKey(cfg.Tunnel)
 	address := cfg.GetTunnelAddr()
 	s.mu.RUnlock()
 
-	if tuiProgram != nil {
-		tuiProgram.Send(tui.UpdateConnCountMsg{Port: port, Delta: -1})
-	}
+	s.setTUIActive(false)
 	s.emitEvent(EventStopped, nil)
 	log.Info("Stopped tunnel connection", "address", address)
 	return err
@@ -676,6 +693,7 @@ func (s *Client) StartHealthCheck(ctx context.Context) error {
 		}
 
 		if s.tui != nil {
+			s.setTUIActive(false)
 			s.tui.Send(tui.UpdateHealthMsg{
 				Port:    tunnelStatusKey(s.config.Tunnel),
 				Healthy: false,

@@ -49,13 +49,18 @@ func NewTestDB(t *testing.T) (*gorm.DB, func()) {
 		&models.TeamUser{},
 		&models.Session{},
 		&models.Connection{},
+		&models.SubdomainReservation{},
 	); err != nil {
 		t.Fatalf("failed to auto migrate admin models: %v", err)
 	}
 	if err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS "idx_connection_active_subdomain_unique"
-ON "connection" ("subdomain")
+ON "connection" (LOWER("subdomain"))
 WHERE "subdomain" IS NOT NULL AND "status" IN ('reserved', 'active')`).Error; err != nil {
 		t.Fatalf("failed to create active subdomain unique index: %v", err)
+	}
+	if err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS "idx_subdomain_reservation_name_unique"
+ON "subdomain_reservation" (LOWER("subdomain"))`).Error; err != nil {
+		t.Fatalf("failed to create reserved subdomain unique index: %v", err)
 	}
 
 	cleanup := func() {
@@ -73,17 +78,19 @@ WHERE "subdomain" IS NOT NULL AND "status" IN ('reserved', 'active')`).Error; er
 // DefaultAdminConfig returns the default admin config used by server tests.
 func DefaultAdminConfig() *serverConfig.AdminConfig {
 	return &serverConfig.AdminConfig{
-		Port:           0,
-		Domain:         "localhost:8000",
-		Debug:          true,
-		UseVite:        false,
-		GithubClientID: "",
-		GithubSecret:   "",
-		ServerURL:      "http://localhost:8001",
-		SshURL:         "localhost:2222",
-		WsURL:          "localhost:8001",
-		Transport:      serverConfig.TransportSSH,
-		Version:        "1.0.0",
+		Port:                   0,
+		Domain:                 "localhost:8000",
+		TunnelDomain:           "example.test",
+		ReservedSubdomainLimit: 3,
+		Debug:                  true,
+		UseVite:                false,
+		GithubClientID:         "",
+		GithubSecret:           "",
+		ServerURL:              "http://localhost:8001",
+		SshURL:                 "localhost:2222",
+		WsURL:                  "localhost:8001",
+		Transport:              serverConfig.TransportSSH,
+		Version:                "1.0.0",
 	}
 }
 

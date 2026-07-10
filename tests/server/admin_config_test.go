@@ -80,6 +80,7 @@ func TestDownloadConfig_WebSocketTransportReturnsWebSocketConfig(t *testing.T) {
 	cfg := DefaultAdminConfig()
 	cfg.Transport = serverConfig.TransportWebSocket
 	cfg.WsURL = "ws.example.com"
+	cfg.TunnelDomain = "public.example.com"
 	srv := serverAdmin.NewServer(cfg, db)
 
 	user := CreateTestUser(t, db, "cfgws@example.com", false)
@@ -105,7 +106,7 @@ func TestDownloadConfig_WebSocketTransportReturnsWebSocketConfig(t *testing.T) {
 		t.Fatalf("expected 'message' string in response, got: %v", body)
 	}
 
-	for _, expected := range []string{"transport: websocket", "ws_url: ws.example.com", "tunnel_url: ws.example.com"} {
+	for _, expected := range []string{"transport: websocket", "ws_url: ws.example.com", "tunnel_url: public.example.com"} {
 		if !strings.Contains(message, expected) {
 			t.Fatalf("expected websocket config to include %q, got: %s", expected, message)
 		}

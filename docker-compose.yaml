@@ -49,5 +49,6 @@ services:
       start_period: 40s
     restart: "${RESTART_POLICY:-no}"
     ports:
+      - "2222:2222"
       - "${PORTR_ADMIN_PORT:-8000}:8000"
       - "8001:8001"

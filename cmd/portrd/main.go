@@ -197,6 +197,7 @@ func startTunnel(configFilePath string) {
 	_db.Connect()
 
 	service := service.New(_db)
+	reconcileTunnelConnections(service)
 
 	proxyServer := proxy.New(config)
 	transportProcess := configureTunnelTransport(config, service, proxyServer)
@@ -272,6 +273,7 @@ func startAll(configFilePath string) error {
 	_db.Connect()
 
 	service := service.New(_db)
+	reconcileTunnelConnections(service)
 	proxyServer := proxy.New(tunnelConfig)
 	transportProcess := configureTunnelTransport(tunnelConfig, service, proxyServer)
 	cronJob := cron.New(tunnelConfig, service)
@@ -352,4 +354,12 @@ func startAll(configFilePath string) error {
 
 	log.Info("All services shut down successfully")
 	return nil
+}
+
+func reconcileTunnelConnections(tunnelService *service.Service) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := tunnelService.CloseAllActiveConnections(ctx); err != nil {
+		log.Fatal("Failed to reconcile stale tunnel connections", "error", err)
+	}
 }

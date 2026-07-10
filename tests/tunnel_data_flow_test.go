@@ -141,19 +141,18 @@ func startTunnelHarness(t *testing.T, backendURL string) *tunnelHarness {
 	)
 	backendHost, backendPort := backendAddress(t, backendURL)
 	client := clienttunnel.New(clientconfig.ClientConfig{
-		ServerUrl:              publicHost,
-		WsUrl:                  publicHost,
-		TunnelUrl:              publicHost,
-		SecretKey:              testSecretKey,
-		ConnectionID:           testConnectionID,
-		UseLocalHost:           true,
-		Debug:                  true,
-		HealthCheckInterval:    60,
-		HealthCheckMaxRetries:  1,
-		DisableTerminalLogs:    true,
-		EnableRequestLogging:   true,
-		EnableHttpReverseProxy: true,
-		RedactHeaders:          append([]string(nil), clientconfig.DefaultRedactHeaders...),
+		ServerUrl:             publicHost,
+		WsUrl:                 publicHost,
+		TunnelUrl:             publicHost,
+		SecretKey:             testSecretKey,
+		ConnectionID:          testConnectionID,
+		UseLocalHost:          true,
+		Debug:                 true,
+		HealthCheckInterval:   60,
+		HealthCheckMaxRetries: 1,
+		DisableTerminalLogs:   true,
+		EnableRequestLogging:  true,
+		RedactHeaders:         append([]string(nil), clientconfig.DefaultRedactHeaders...),
 		Tunnel: clientconfig.Tunnel{
 			Name:      "ci-data-flow",
 			Subdomain: testSubdomain,
@@ -317,6 +316,91 @@ func TestTunnelDataFlowHTTP(t *testing.T) {
 	}
 	if response.Trailer.Get("X-Tunnel-Trailer") != "complete" {
 		t.Fatalf("response trailer was not preserved: %q", response.Trailer.Get("X-Tunnel-Trailer"))
+	}
+}
+
+func TestTunnelDataFlowStreamsRequestBody(t *testing.T) {
+	firstChunkSeen := make(chan error, 1)
+	requestComplete := make(chan error, 1)
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		first := make([]byte, len("first-chunk"))
+		_, err := io.ReadFull(r.Body, first)
+		if err == nil && string(first) != "first-chunk" {
+			err = fmt.Errorf("unexpected first request chunk %q", first)
+		}
+		firstChunkSeen <- err
+		if err != nil {
+			return
+		}
+
+		rest, err := io.ReadAll(r.Body)
+		if err == nil && string(rest) != "second-chunk" {
+			err = fmt.Errorf("unexpected final request chunk %q", rest)
+		}
+		requestComplete <- err
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer backend.Close()
+
+	harness := startTunnelHarness(t, backend.URL)
+	bodyReader, bodyWriter := io.Pipe()
+	t.Cleanup(func() { _ = bodyWriter.Close() })
+	request, err := http.NewRequest(http.MethodPost, harness.publicServer.URL+"/upload", bodyReader)
+	if err != nil {
+		t.Fatalf("create streaming request: %v", err)
+	}
+	request.Host = harness.publicTunnelHost()
+
+	type responseResult struct {
+		response *http.Response
+		err      error
+	}
+	responseCh := make(chan responseResult, 1)
+	go func() {
+		response, requestErr := http.DefaultClient.Do(request)
+		responseCh <- responseResult{response: response, err: requestErr}
+	}()
+
+	if _, err := io.WriteString(bodyWriter, "first-chunk"); err != nil {
+		t.Fatalf("write first request chunk: %v", err)
+	}
+	select {
+	case err := <-firstChunkSeen:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(testTimeout):
+		_ = bodyWriter.Close()
+		t.Fatal("request body was buffered instead of streamed through the tunnel")
+	}
+
+	if _, err := io.WriteString(bodyWriter, "second-chunk"); err != nil {
+		t.Fatalf("write final request chunk: %v", err)
+	}
+	if err := bodyWriter.Close(); err != nil {
+		t.Fatalf("close streaming request body: %v", err)
+	}
+
+	select {
+	case err := <-requestComplete:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(testTimeout):
+		t.Fatal("backend did not receive the complete streaming request")
+	}
+
+	select {
+	case result := <-responseCh:
+		if result.err != nil {
+			t.Fatalf("send streaming request through tunnel: %v", result.err)
+		}
+		defer result.response.Body.Close()
+		if result.response.StatusCode != http.StatusNoContent {
+			t.Fatalf("unexpected response status %d", result.response.StatusCode)
+		}
+	case <-time.After(testTimeout):
+		t.Fatal("timed out waiting for streaming request response")
 	}
 }
 

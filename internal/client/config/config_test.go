@@ -32,6 +32,25 @@ func TestSetDefaultsAppliesDashboardPort(t *testing.T) {
 	}
 }
 
+func TestSetDefaultsNormalizesSubdomain(t *testing.T) {
+	cfg := Config{Tunnels: []Tunnel{{Type: constants.Http, Subdomain: "  My-App  "}}}
+
+	cfg.SetDefaults()
+
+	if got := cfg.Tunnels[0].Subdomain; got != "my-app" {
+		t.Fatalf("expected normalized subdomain, got %q", got)
+	}
+}
+
+func TestValidateRejectsUnderscoreSubdomain(t *testing.T) {
+	cfg := Config{Tunnels: []Tunnel{{Type: constants.Http, Subdomain: "my_app"}}}
+	cfg.SetDefaults()
+
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected underscore subdomain to be rejected")
+	}
+}
+
 func TestSetDefaultsEnablesRequestLoggingByDefault(t *testing.T) {
 	cfg := Config{}
 
@@ -169,8 +188,8 @@ tunnels:
 	if !strings.Contains(configContent, "ws_url: tunnel.example.com") {
 		t.Fatalf("expected ws_url to be updated, got: %s", configContent)
 	}
-	if !strings.Contains(configContent, "tunnel_url: tunnel.example.com") {
-		t.Fatalf("expected tunnel_url to follow ws_url, got: %s", configContent)
+	if !strings.Contains(configContent, "tunnel_url: admin.example.com") {
+		t.Fatalf("expected legacy websocket config to fall back to server_url, got: %s", configContent)
 	}
 	if !strings.Contains(configContent, "ssh_url: existing.example.com:2222") {
 		t.Fatalf("expected existing ssh_url to be preserved when websocket template omits it, got: %s", configContent)

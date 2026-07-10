@@ -249,10 +249,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case UpdateHealthMsg:
 		if tunnel, exists := m.tunnels[msg.Port]; exists {
-			tunnel.healthy = msg.Healthy
-			if !msg.Healthy {
-				tunnel.active = 0
-			}
+			tunnel.healthy = msg.Healthy || tunnel.active > 0
 		}
 
 	case UpdateConnCountMsg:

@@ -52,6 +52,21 @@ export interface Connection {
   created_by: TeamUser
 }
 
+export type SubdomainClaimStatus = "idle" | "starting" | "active"
+
+export interface ReservedSubdomain {
+  subdomain: string
+  created_at: string
+  claim_status: SubdomainClaimStatus
+}
+
+export interface ReservedSubdomainsResponse {
+  data: ReservedSubdomain[]
+  count: number
+  limit: number
+  base_domain: string
+}
+
 export interface DashboardStats {
   activeConnections: number
   totalUsers: number

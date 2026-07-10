@@ -19,12 +19,7 @@ import (
 )
 
 func (s *Client) httpTunnel(src net.Conn, localEndpoint string) {
-	if s.config.EnableHttpReverseProxy {
-		s.httpTunnelReverseProxy(src, localEndpoint)
-		return
-	}
-
-	s.httpTunnelLegacy(src, localEndpoint)
+	s.httpTunnelReverseProxy(src, localEndpoint)
 }
 
 func (s *Client) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
@@ -77,7 +72,7 @@ func (s *Client) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 			ReadCloser: response.Body,
 			onDone: func(responseBody []byte, _ int64) {
 				durationMs := time.Since(logData.startTime).Milliseconds()
-				s.logHttpRequest(logData.id, logData.request, logData.body, response, responseBody, durationMs)
+				s.logHttpRequest(logData.id, logData.request, logData.bodySnapshot(), response, responseBody, durationMs)
 			},
 		}
 		return nil
@@ -124,17 +119,6 @@ func (s *Client) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 			return
 		}
 
-		requestBody, err := io.ReadAll(request.Body)
-		if err != nil {
-			if s.config.Debug {
-				s.logDebug("Failed to read request body for reverse proxy logging", err)
-			}
-			http.Error(writer, "Bad Request", http.StatusBadRequest)
-			return
-		}
-		request.Body.Close()
-		request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
-
 		requestForLog := request.Clone(context.Background())
 		requestForLog.Header = request.Header.Clone()
 		requestForLog.Host = request.Host
@@ -143,12 +127,21 @@ func (s *Client) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 			requestForLog.URL = &clonedURL
 		}
 
-		logCtx := context.WithValue(request.Context(), requestLogContextKey{}, &requestLogData{
+		logData := &requestLogData{
 			id:        ulid.Make().String(),
 			request:   requestForLog,
-			body:      requestBody,
 			startTime: time.Now(),
-		})
+		}
+		if s.requestLoggingEnabled() && request.Body != nil {
+			request.Body = &loggingReadCloser{
+				ReadCloser: request.Body,
+				onDone: func(requestBody []byte, _ int64) {
+					logData.setBody(requestBody)
+				},
+			}
+		}
+
+		logCtx := context.WithValue(request.Context(), requestLogContextKey{}, logData)
 
 		proxy.ServeHTTP(writer, request.WithContext(logCtx))
 	})

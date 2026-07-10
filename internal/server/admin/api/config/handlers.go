@@ -116,13 +116,17 @@ func (h *Handler) clientConfigTemplate(secretKey string) string {
 	if transport == "" {
 		transport = serverConfig.TransportSSH
 	}
+	tunnelURL := stripScheme(h.config.TunnelDomain)
+	if tunnelURL == "" {
+		tunnelURL = stripScheme(h.config.ServerURL)
+	}
 
 	configContent := fmt.Sprintf("server_url: %s\ntransport: %s\n", stripScheme(h.config.ServerURL), transport)
 	switch transport {
 	case serverConfig.TransportWebSocket:
-		configContent += fmt.Sprintf("ws_url: %s\ntunnel_url: %s\n", stripScheme(h.config.WsURL), stripScheme(h.config.WsURL))
+		configContent += fmt.Sprintf("ws_url: %s\ntunnel_url: %s\n", stripScheme(h.config.WsURL), tunnelURL)
 	default:
-		configContent += fmt.Sprintf("ssh_url: %s\ntunnel_url: %s\n", h.config.SshURL, stripScheme(h.config.ServerURL))
+		configContent += fmt.Sprintf("ssh_url: %s\ntunnel_url: %s\n", h.config.SshURL, tunnelURL)
 		if h.config.SshHostKeyVerification {
 			configContent += "insecure_skip_host_key_verification: false\n"
 		}

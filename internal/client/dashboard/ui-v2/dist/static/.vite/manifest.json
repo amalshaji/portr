@@ -1,22 +1,4 @@
 {
-  "index.html": {
-    "file": "assets/index-TEK4UMrJ.js",
-    "name": "index",
-    "src": "index.html",
-    "isEntry": true,
-    "css": [
-      "assets/index-DYdVlEv-.css"
-    ],
-    "assets": [
-      "assets/geist-cyrillic-wght-normal-CHSlOQsW.woff2",
-      "assets/geist-latin-ext-wght-normal-DMtmJ5ZE.woff2",
-      "assets/geist-latin-wght-normal-Dm3htQBi.woff2",
-      "assets/fragment-mono-latin-ext-400-normal-BbKYyvR9.woff2",
-      "assets/fragment-mono-latin-ext-400-normal-CT4YFKeK.woff",
-      "assets/fragment-mono-latin-400-normal-yxdJ5AmL.woff2",
-      "assets/fragment-mono-latin-400-normal-BYwT3kSJ.woff"
-    ]
-  },
   "node_modules/@fontsource-variable/geist/files/geist-cyrillic-wght-normal.woff2": {
     "file": "assets/geist-cyrillic-wght-normal-CHSlOQsW.woff2",
     "src": "node_modules/@fontsource-variable/geist/files/geist-cyrillic-wght-normal.woff2"
@@ -44,5 +26,23 @@
   "node_modules/@fontsource/fragment-mono/files/fragment-mono-latin-ext-400-normal.woff2": {
     "file": "assets/fragment-mono-latin-ext-400-normal-BbKYyvR9.woff2",
     "src": "node_modules/@fontsource/fragment-mono/files/fragment-mono-latin-ext-400-normal.woff2"
+  },
+  "index.html": {
+    "file": "assets/index-TEK4UMrJ.js",
+    "name": "index",
+    "src": "index.html",
+    "isEntry": true,
+    "css": [
+      "assets/index-DYdVlEv-.css"
+    ],
+    "assets": [
+      "assets/geist-cyrillic-wght-normal-CHSlOQsW.woff2",
+      "assets/geist-latin-ext-wght-normal-DMtmJ5ZE.woff2",
+      "assets/geist-latin-wght-normal-Dm3htQBi.woff2",
+      "assets/fragment-mono-latin-ext-400-normal-BbKYyvR9.woff2",
+      "assets/fragment-mono-latin-ext-400-normal-CT4YFKeK.woff",
+      "assets/fragment-mono-latin-400-normal-yxdJ5AmL.woff2",
+      "assets/fragment-mono-latin-400-normal-BYwT3kSJ.woff"
+    ]
   }
 }

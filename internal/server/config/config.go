@@ -45,6 +45,8 @@ const (
 type AdminConfig struct {
 	Port                   int
 	Domain                 string
+	TunnelDomain           string
+	ReservedSubdomainLimit int
 	Debug                  bool
 	UseVite                bool
 	GithubClientID         string
@@ -145,6 +147,20 @@ func new() *Config {
 	}
 
 	sshHostKey := os.Getenv("PORTR_SSH_HOST_KEY")
+	useLocalHost := os.Getenv("PORTR_TUNNEL_USE_LOCALHOST") == "true"
+	tunnelDomain := domain
+	if useLocalHost {
+		tunnelDomain = fmt.Sprintf("localhost:%d", proxyPort)
+	}
+
+	reservedSubdomainLimitStr := os.Getenv("PORTR_RESERVED_SUBDOMAIN_LIMIT")
+	if reservedSubdomainLimitStr == "" {
+		reservedSubdomainLimitStr = "3"
+	}
+	reservedSubdomainLimit, err := strconv.Atoi(reservedSubdomainLimitStr)
+	if err != nil || reservedSubdomainLimit < 0 {
+		log.Fatal("Invalid PORTR_RESERVED_SUBDOMAIN_LIMIT", "limit", reservedSubdomainLimitStr)
+	}
 
 	return &Config{
 		Ssh: SshConfig{
@@ -157,7 +173,7 @@ func new() *Config {
 			Port: proxyPort,
 		},
 		Domain:       domain,
-		UseLocalHost: os.Getenv("PORTR_TUNNEL_USE_LOCALHOST") == "true",
+		UseLocalHost: useLocalHost,
 		Debug:        os.Getenv("PORTR_TUNNEL_DEBUG") == "true",
 		Transport:    transport,
 		Database: DatabaseConfig{
@@ -168,6 +184,8 @@ func new() *Config {
 		Admin: AdminConfig{
 			Port:                   adminPort,
 			Domain:                 adminDomain,
+			TunnelDomain:           tunnelDomain,
+			ReservedSubdomainLimit: reservedSubdomainLimit,
 			Debug:                  os.Getenv("PORTR_ADMIN_DEBUG") == "true",
 			UseVite:                os.Getenv("PORTR_ADMIN_USE_VITE") == "true",
 			GithubClientID:         os.Getenv("PORTR_ADMIN_GITHUB_CLIENT_ID"),

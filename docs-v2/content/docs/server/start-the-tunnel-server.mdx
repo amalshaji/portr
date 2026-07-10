@@ -38,10 +38,11 @@ PORTR_SERVER_URL=example.com
 PORTR_TRANSPORT=ssh
 PORTR_SSH_URL=example.com:2222
 PORTR_SSH_PORT=2222
-PORTR_WS_URL=example.com
+PORTR_WS_URL=tunnel.example.com
 PORTR_ADMIN_PORT=8000
 PORTR_PROXY_PORT=8001
 PORTR_AUTO_MIGRATE=true
+PORTR_RESERVED_SUBDOMAIN_LIMIT=3
 
 CLOUDFLARE_API_TOKEN=
 
@@ -66,11 +67,12 @@ POSTGRES_DB=postgres
 | `PORTR_TRANSPORT` | Transport to emit in generated client configs: `ssh` or `websocket` | `ssh` |
 | `PORTR_SSH_URL` | Public SSH tunnel URL for clients when `PORTR_TRANSPORT=ssh` | `localhost:2222` |
 | `PORTR_SSH_PORT` | SSH tunnel listener port | `2222` |
-| `PORTR_WS_URL` | Public WebSocket tunnel URL for clients when `PORTR_TRANSPORT=websocket` | `localhost:8001` |
+| `PORTR_WS_URL` | WebSocket control hostname routed to the tunnel proxy when `PORTR_TRANSPORT=websocket` | `localhost:8001` |
 | `PORTR_ADMIN_PORT` | Admin server port | `8000` |
 | `PORTR_PROXY_PORT` | Tunnel proxy port; also the WebSocket endpoint port when `PORTR_TRANSPORT=websocket` | `8001` |
 | `PORTR_ADMIN_GITHUB_CLIENT_ID` | GitHub OAuth client ID | Optional |
 | `PORTR_ADMIN_GITHUB_CLIENT_SECRET` | GitHub OAuth client secret | Optional |
+| `PORTR_RESERVED_SUBDOMAIN_LIMIT` | Maximum reserved subdomains per team membership; use `0` to disable new reservations | `3` |
 | `PORTR_AUTO_MIGRATE` | Auto-run database migrations | `false` |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token for SSL | Required |
 
@@ -105,6 +107,11 @@ The production compose file routes `PORTR_DOMAIN` to the admin listener and
 server-side tunnel listener and the generated client config, so clients receive
 either `ssh_url` or `ws_url` to match the running transport.
 
+For WebSocket transport, set `PORTR_WS_URL` to a hostname covered by the
+wildcard route, such as `tunnel.example.com`. Generated configs keep
+`tunnel_url: example.com` separate so public application URLs remain
+`https://<subdomain>.example.com`.
+
 No database migration is required for the WebSocket tunnel transport itself; the
 existing connection tables continue to store HTTP and TCP tunnel metadata.
 
@@ -113,7 +120,7 @@ existing connection tables continue to store HTTP and TCP tunnel metadata.
 <Callout type="info">
   If you want to run PostgreSQL separately and not as a Docker service, you can exclude the following environment variables from your `.env` file:
   - `POSTGRES_USER`
-  - `POSTGRES_PASSWORD` 
+  - `POSTGRES_PASSWORD`
   - `POSTGRES_DB`
 </Callout>
 

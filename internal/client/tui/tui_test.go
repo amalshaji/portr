@@ -90,7 +90,7 @@ func TestViewRendersStubTunnelWithoutLocalPort(t *testing.T) {
 	}
 }
 
-func TestUpdateHealthFalseClearsActiveCount(t *testing.T) {
+func TestUpdateHealthFalsePreservesActivePool(t *testing.T) {
 	tunnel := testTunnel()
 	m := model{
 		tunnels: map[string]*tunnelStatus{
@@ -109,14 +109,43 @@ func TestUpdateHealthFalseClearsActiveCount(t *testing.T) {
 	m = updated.(model)
 
 	status := m.tunnels["8765"]
-	if status.healthy {
-		t.Fatal("expected tunnel to be unhealthy")
+	if !status.healthy {
+		t.Fatal("expected remaining pooled workers to keep the tunnel healthy")
 	}
-	if status.active != 0 {
-		t.Fatalf("expected unhealthy tunnel to clear active count, got %d", status.active)
+	if status.active != 2 {
+		t.Fatalf("expected health updates not to overwrite the active pool count, got %d", status.active)
 	}
-	if !strings.Contains(m.View(), "🔴 Unhealthy (0/2)") {
-		t.Fatalf("expected unhealthy status in view, got %q", m.View())
+	if !strings.Contains(m.View(), "🟢 Healthy (2/2)") {
+		t.Fatalf("expected healthy pooled status in view, got %q", m.View())
+	}
+}
+
+func TestWorkerLossLeavesRemainingPoolWorkerActive(t *testing.T) {
+	tunnel := testTunnel()
+	m := model{
+		tunnels: map[string]*tunnelStatus{
+			"8765": {
+				config:       &tunnel,
+				clientConfig: testClientConfig(tunnel),
+				healthy:      true,
+				active:       2,
+				poolSize:     2,
+			},
+		},
+		width: 1000,
+	}
+
+	updated, _ := m.Update(UpdateConnCountMsg{Port: "8765", Delta: -1})
+	m = updated.(model)
+	updated, _ = m.Update(UpdateHealthMsg{Port: "8765", Healthy: false})
+	m = updated.(model)
+
+	status := m.tunnels["8765"]
+	if !status.healthy || status.active != 1 {
+		t.Fatalf("expected one healthy pooled worker, got healthy=%v active=%d", status.healthy, status.active)
+	}
+	if !strings.Contains(m.View(), "🟡 Partial (1/2)") {
+		t.Fatalf("expected partial pooled status in view, got %q", m.View())
 	}
 }
 
