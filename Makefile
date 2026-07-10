@@ -19,5 +19,11 @@ runclient:
 buildclient:
 	bun run --cwd internal/client/dashboard/ui-v2 build
 
+syncbrand:
+	./scripts/sync-brand-assets.sh
+
+checkbrand:
+	./scripts/sync-brand-assets.sh --check
+
 runclienttestserver:
 	cd test-server && uv run main.py

@@ -3,12 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "prebuild": "../scripts/sync-brand-assets.sh --check",
     "build": "next build",
+    "predev": "../scripts/sync-brand-assets.sh --check",
     "dev": "next dev --turbo",
     "start": "next start",
     "export": "next build",
     "mdx": "fumadocs-mdx",
-    "og": "node scripts/generate-og.mjs"
+    "og": "node scripts/generate-og.mjs",
+    "test:visual": "playwright test",
+    "test:visual:update": "playwright test --update-snapshots"
   },
   "dependencies": {
     "@fontsource-variable/sora": "^5.2.8",
@@ -24,6 +28,7 @@
     "tw-animate-css": "^1.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/postcss": "^4.1.11",
     "@types/mdx": "^2.0.13",

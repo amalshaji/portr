@@ -11,10 +11,10 @@ import { Logo } from "../components/ui/logo";
 export const baseOptions: BaseLayoutProps = {
   nav: {
     title: (
-      <>
+      <span className="portr-docs-brand">
         <Logo width={28} height={28} />
         Portr
-      </>
+      </span>
     ),
   },
   links: [

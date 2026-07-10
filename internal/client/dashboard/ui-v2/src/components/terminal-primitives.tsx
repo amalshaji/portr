@@ -8,7 +8,7 @@ export function LogoMark() {
       alt=""
       aria-hidden="true"
       className="h-[18px] w-[18px] shrink-0 object-cover"
-      src={`${import.meta.env.BASE_URL}favicon.svg`}
+      src={`${import.meta.env.BASE_URL}portr-mark.svg`}
     />
   )
 }

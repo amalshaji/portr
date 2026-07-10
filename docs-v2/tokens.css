@@ -25,7 +25,6 @@
   --portr-focus: oklch(55% 0.205 27);
   --portr-shadow: oklch(10% 0.025 245 / 0.28);
   --portr-grain: oklch(94% 0.016 78 / 0.045);
-  --portr-grain-dark: oklch(9% 0.025 245 / 0.16);
 
   --portr-space-3xs: 0.125rem;
   --portr-space-2xs: 0.25rem;
@@ -43,10 +42,7 @@
   --portr-text-base: 1rem;
   --portr-text-md: 1.25rem;
   --portr-text-lg: 1.5625rem;
-  --portr-text-xl: 1.953rem;
   --portr-text-2xl: 2.441rem;
-  --portr-text-3xl: 3.052rem;
-  --portr-text-4xl: 3.815rem;
   --portr-text-display: clamp(2.75rem, 5vw + 1rem, 5.25rem);
 
   --portr-radius-sm: 0.25rem;
@@ -57,17 +53,10 @@
   --portr-content: 82rem;
 
   --portr-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --portr-ease-in: cubic-bezier(0.7, 0, 0.84, 0);
-  --portr-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --portr-duration-micro: 120ms;
   --portr-duration-short: 220ms;
   --portr-duration-long: 420ms;
 
-  --portr-z-base: 1;
   --portr-z-raised: 10;
   --portr-z-dropdown: 100;
-  --portr-z-sticky: 200;
-  --portr-z-modal: 400;
-  --portr-z-toast: 500;
-  --portr-z-tooltip: 600;
 }

@@ -31,9 +31,8 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://portr.dev"),
   manifest: "/site.webmanifest",
   icons: {
-    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-    shortcut: "/favicon.svg",
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    icon: [{ url: "/portr-mark.svg", type: "image/svg+xml" }],
+    shortcut: "/portr-mark.svg",
   },
   alternates: {
     canonical: "/",

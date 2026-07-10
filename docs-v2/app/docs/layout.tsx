@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { baseOptions } from "@/app/layout.config";
 import { GitHubStarsLink } from "@/components/github-stars-link";
 import { source } from "@/lib/source";
+import "./docs-theme.css";
 
 const docsOptions: DocsLayoutProps = {
   ...baseOptions,
