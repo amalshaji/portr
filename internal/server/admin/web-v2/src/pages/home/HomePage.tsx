@@ -104,7 +104,11 @@ export default function HomePage() {
       <div className="max-w-md w-full space-y-8">
         {/* Logo/Brand */}
         <div className="text-center">
-          <img src="/static/logo.svg" alt="Portr Logo" className="mx-auto h-16 w-16 mb-6" />
+          <img
+            src={`${import.meta.env.BASE_URL}portr-mark.svg`}
+            alt="Portr"
+            className="mx-auto mb-6 h-8 w-8"
+          />
           <h1 className="text-2xl font-bold text-black">
             {isSuperUserSignup ? 'Create Account' : 'Welcome Back'}
           </h1>

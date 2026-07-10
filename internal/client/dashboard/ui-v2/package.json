@@ -4,7 +4,9 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "prebuild": "../../../../scripts/sync-brand-assets.sh --check",
     "dev": "vite",
+    "predev": "../../../../scripts/sync-brand-assets.sh --check",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
