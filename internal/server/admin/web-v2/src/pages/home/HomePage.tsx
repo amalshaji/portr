@@ -105,7 +105,7 @@ export default function HomePage() {
         {/* Logo/Brand */}
         <div className="text-center">
           <img
-            src={`${import.meta.env.BASE_URL}portr-mark-64.png`}
+            src={`${import.meta.env.BASE_URL}favicon.svg`}
             alt="Portr"
             className="mx-auto mb-6 h-8 w-8"
           />

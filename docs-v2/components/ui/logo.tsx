@@ -16,7 +16,7 @@ export const Logo: React.FC<LogoProps> = ({
     alt=""
     className={`portr-logo-mark ${className}`}
     height={height}
-    src="/portr-mark-64.png"
+    src="/favicon.svg"
     width={width}
   />
 );
