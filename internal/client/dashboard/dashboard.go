@@ -6,13 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"time"
 
 	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/dashboard/handler"
 	"github.com/amalshaji/portr/internal/client/dashboard/service"
-	"github.com/amalshaji/portr/internal/client/dashboard/ui-v2/dist"
 	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/amalshaji/portr/internal/client/vite"
 	"github.com/charmbracelet/log"
@@ -31,6 +31,25 @@ type Dashboard struct {
 
 //go:embed templates
 var templatesFS embed.FS
+
+//go:embed ui-v2/dist/static ui-v2/dist/static/.vite/manifest.json
+var dashboardBundleFS embed.FS
+
+var dashboardStaticFS = func() fs.FS {
+	staticFS, err := fs.Sub(dashboardBundleFS, "ui-v2/dist/static")
+	if err != nil {
+		panic(err)
+	}
+	return staticFS
+}()
+
+var dashboardManifest = func() string {
+	manifest, err := fs.ReadFile(dashboardStaticFS, ".vite/manifest.json")
+	if err != nil {
+		panic(err)
+	}
+	return string(manifest)
+}()
 
 func New(db *db.Db, config *config.Config) *Dashboard {
 	var engine *django.Engine
@@ -54,8 +73,7 @@ func New(db *db.Db, config *config.Config) *Dashboard {
 		app.Static("/static", "./internal/client/dashboard/ui-v2/public")
 	} else {
 		app.Use("/static", filesystem.New(filesystem.Config{
-			Root:       http.FS(dist.EmbeddedDirStatic),
-			PathPrefix: "static",
+			Root: http.FS(dashboardStaticFS),
 		}))
 	}
 
@@ -64,7 +82,7 @@ func New(db *db.Db, config *config.Config) *Dashboard {
 			"UseVite": config.UseVite,
 		}
 		if !config.UseVite {
-			context["ViteTags"] = vite.GenerateViteTags(dist.ManifestString)
+			context["ViteTags"] = vite.GenerateViteTags(dashboardManifest)
 		}
 		return c.Render("index", context)
 	}
