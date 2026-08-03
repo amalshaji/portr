@@ -7,6 +7,7 @@ COPY internal/server/admin/web-v2/package.json internal/server/admin/web-v2/bun.
 RUN bun install --frozen-lockfile
 
 COPY internal/server/admin/web-v2 ./
+COPY assets/brand/portr-mark.svg ./public/portr-mark.svg
 
 RUN bun run build:app
 
