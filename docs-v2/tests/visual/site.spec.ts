@@ -6,6 +6,13 @@ async function settle(page: Page) {
 }
 
 test("landing page stays aligned at desktop and mobile breakpoints", async ({ page }) => {
+  await page.route("https://github-stars.amalshaji.workers.dev/", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ "amalshaji/portr": { stars: 3148 } }),
+    });
+  });
+
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/");
@@ -19,6 +26,7 @@ test("landing page stays aligned at desktop and mobile breakpoints", async ({ pa
 
   const cta = page.locator(".portr-nav__cta");
   await expect(cta).toHaveCount(1);
+  await expect(page.locator(".portr-nav__links .github-stars-link__count")).toHaveText("★ 3,148");
   await cta.hover();
   await expect(cta).not.toHaveCSS("color", "rgba(0, 0, 0, 0)");
   await expect(page).toHaveScreenshot("landing-desktop-dark.png", { fullPage: true });
@@ -31,6 +39,10 @@ test("landing page stays aligned at desktop and mobile breakpoints", async ({ pa
   );
   expect(requestLinesStayTogether).toBe(true);
   await expect(page).toHaveScreenshot("landing-mobile-dark.png", { fullPage: true });
+
+  await page.locator(".portr-nav__menu summary").click();
+  await expect(page.locator(".portr-nav__menu .github-stars-link__count")).toHaveText("★ 3,148");
+  await expect(page).toHaveScreenshot("landing-mobile-menu-dark.png", { fullPage: true });
 });
 
 test("documentation theme covers navigation, code, cards, and both color schemes", async ({ page }) => {

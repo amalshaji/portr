@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { GitHubStarsLink } from "@/components/github-stars-link";
 import { Logo } from "@/components/ui/logo";
 
 const routePath = "M 214 86 C 214 150 332 132 332 222 C 332 302 218 286 218 412";
@@ -136,7 +137,7 @@ function LandingNav() {
       <nav className="portr-nav__links" aria-label="Primary navigation">
         <Link href="/docs">Docs</Link>
         <Link href="/docs/server">Self-host</Link>
-        <Link href="https://github.com/amalshaji/portr">GitHub</Link>
+        <GitHubStarsLink />
         <Link href="https://news.ycombinator.com/item?id=39913197">Community</Link>
       </nav>
       <Link className="portr-nav__cta" href="/docs/getting-started">Start with Portr</Link>
@@ -145,7 +146,7 @@ function LandingNav() {
         <nav aria-label="Mobile navigation">
           <Link href="/docs">Docs</Link>
           <Link href="/docs/server">Self-host</Link>
-          <Link href="https://github.com/amalshaji/portr">GitHub</Link>
+          <GitHubStarsLink />
           <Link href="https://news.ycombinator.com/item?id=39913197">Community</Link>
           <Link className="portr-nav__menu-cta" href="/docs/getting-started">Start with Portr</Link>
         </nav>

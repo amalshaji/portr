@@ -64,6 +64,14 @@
   display: none;
 }
 
+.portr-nav .github-stars-link__count {
+  color: var(--portr-cyan);
+  font-family: var(--portr-font-mono);
+  font-size: 0.82em;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
 .portr-nav__menu {
   position: relative;
 }
