@@ -7,7 +7,8 @@
     "prebuild": "../../../../scripts/sync-brand-assets.sh --check",
     "dev": "vite",
     "predev": "../../../../scripts/sync-brand-assets.sh --check",
-    "build": "tsc -b && vite build",
+    "build": "bun run build:app",
+    "build:app": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "vitest run",
     "preview": "vite preview"

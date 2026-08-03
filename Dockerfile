@@ -8,7 +8,7 @@ RUN bun install --frozen-lockfile
 
 COPY internal/server/admin/web-v2 ./
 
-RUN bun run build
+RUN bun run build:app
 
 FROM golang:1.25-alpine AS builder
 
