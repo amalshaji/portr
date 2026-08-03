@@ -1,6 +1,6 @@
 
 <div align="center">
-  <img src="docs-v2/public/icon.png" height="300px">
+  <img src="assets/brand/portr-mark.svg" height="300px">
 </div>
 
 <br />
