@@ -116,10 +116,10 @@ func TestReplayWantsJSONAndHelp(t *testing.T) {
 	if replayWantsJSON([]string{"req-1", "--", "--json"}) {
 		t.Fatal("expected --json after -- to be positional")
 	}
-	if !replayWantsHelp([]string{"--help"}) {
+	if !commandWantsHelp([]string{"--help"}) {
 		t.Fatal("expected --help to be detected")
 	}
-	if replayWantsHelp([]string{"req-1", "--", "--help"}) {
+	if commandWantsHelp([]string{"req-1", "--", "--help"}) {
 		t.Fatal("expected --help after -- to be positional")
 	}
 }

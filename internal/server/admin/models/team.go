@@ -49,9 +49,9 @@ type TeamUser struct {
 	Timestamps
 	SecretKey string `gorm:"uniqueIndex;not null" json:"secret_key"`
 	Role      string `gorm:"default:'member'" json:"role"`
-	TeamID    uint   `json:"team_id"`
+	TeamID    uint   `gorm:"uniqueIndex:idx_team_users_team_user_unique" json:"team_id"`
 	Team      Team   `json:"team,omitempty"`
-	UserID    uint   `json:"user_id"`
+	UserID    uint   `gorm:"uniqueIndex:idx_team_users_team_user_unique" json:"user_id"`
 	User      User   `json:"user,omitempty"`
 }
 
@@ -60,9 +60,14 @@ func (TeamUser) TableName() string {
 }
 
 const (
-	RoleAdmin  = "admin"
-	RoleMember = "member"
+	DefaultTeamSlug = "default-team"
+	RoleAdmin       = "admin"
+	RoleMember      = "member"
 )
+
+func IsValidTeamRole(role string) bool {
+	return role == RoleAdmin || role == RoleMember
+}
 
 func (tu *TeamUser) BeforeCreate(tx *gorm.DB) error {
 	if tu.SecretKey == "" {

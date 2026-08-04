@@ -3,6 +3,7 @@
   "pages": [
     "index",
     "installation",
+    "team-administration",
     "http-tunnel",
     "request-logs",
     "request-replay",

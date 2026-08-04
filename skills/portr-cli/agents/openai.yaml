@@ -1,4 +1,4 @@
 interface:
   display_name: "Portr CLI"
-  short_description: "Use Portr tunnels from an agent harness"
-  default_prompt: "Use $portr-cli to expose a local service, inspect captured traffic, or control Portr tunnels from an agent harness."
+  short_description: "Operate Portr tunnels and team administration"
+  default_prompt: "Use $portr-cli to operate Portr tunnels or safely add a user to a team."

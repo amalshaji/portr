@@ -1,0 +1,36 @@
+---
+title: Team Administration
+description: Add users to Portr teams from the client CLI, including role selection and password handling.
+---
+
+The Portr client can add a user to a team using the server and secret key in the selected config file.
+
+```bash
+portr admin users add user@example.com
+portr admin users add admin@example.com --team engineering --role admin
+```
+
+`--team` accepts a team slug. When it is omitted, Portr adds the user to `default-team`. `--role` accepts `member` or `admin` and defaults to `member`.
+
+The configured secret key must belong to a team administrator for the target team. A superuser credential can add users to any team.
+
+## Password output
+
+When GitHub auto signup is disabled and the email is new, Portr creates an initial password and prints it once:
+
+```text
+Added user@example.com to default-team as member.
+Password: generated-password
+```
+
+Share the password through a secure channel. It is not returned again.
+
+When GitHub auto signup is enabled, Portr creates new users without a password and omits the password line. Existing users keep their current credentials, so their password is never reset or printed when they are added to another team.
+
+## Use another config
+
+Use the global `--config` flag to select the server and credential:
+
+```bash
+portr --config ./portr-production.yaml admin users add user@example.com --team engineering
+```
