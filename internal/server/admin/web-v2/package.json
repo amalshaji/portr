@@ -4,8 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "prebuild": "../../../../scripts/sync-brand-assets.sh --check",
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "predev": "../../../../scripts/sync-brand-assets.sh --check",
+    "build": "bun run build:app",
+    "build:app": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "vitest run",
     "preview": "vite preview"

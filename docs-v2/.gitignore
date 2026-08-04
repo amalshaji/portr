@@ -8,8 +8,10 @@
 
 # test & build
 /coverage
+/.playwright-report/
 /.next/
 /out/
+/test-results/
 /build
 *.tsbuildinfo
 

@@ -1,6 +1,10 @@
 
 <div align="center">
-  <img src="docs-v2/public/icon.png" height="300px">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/portr-mark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/brand/portr-mark-on-light.svg">
+    <img alt="Portr" src="assets/brand/portr-mark-on-light.svg" height="300">
+  </picture>
 </div>
 
 <br />
