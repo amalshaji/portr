@@ -142,11 +142,11 @@ export default function AppPage() {
 
   const sidebar = (
     <>
-      <SidebarHeader className="gap-3 p-3 pb-2">
+      <SidebarHeader className="gap-2.5 p-3 pb-2">
         <Link
           to={`/${team}/overview`}
           aria-label="Portr overview"
-          className="flex h-10 items-center gap-3 rounded-xl px-1.5 outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+          className="flex h-10 items-center gap-3 rounded-xl px-3 outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
         >
           <span className="flex size-8 shrink-0 items-center justify-center rounded-[0.7rem] bg-[#17211e] shadow-sm">
             <img
@@ -232,7 +232,7 @@ export default function AppPage() {
                 <SidebarMenuButton
                   size="lg"
                   tooltip={currentUser?.user?.email || "Account"}
-                  className="h-12 w-full rounded-xl px-2 hover:bg-white/60 data-[state=open]:bg-white/70"
+                  className="h-12 w-full rounded-xl px-3 hover:bg-white/60 data-[state=open]:bg-white/70"
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-2.5">
                     <div className="relative size-8 shrink-0">

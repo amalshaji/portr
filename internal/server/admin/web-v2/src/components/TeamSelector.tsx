@@ -51,7 +51,7 @@ export default function TeamSelector() {
     <Select value={currentTeamSlug} onValueChange={switchTeams}>
       <SelectTrigger
         aria-label="Switch team"
-        className="h-12 w-full rounded-xl border-sidebar-border/70 bg-white/55 px-2.5 shadow-none hover:bg-white/85 focus-visible:ring-2 group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1 group-data-[collapsible=icon]:[&>svg]:hidden"
+        className="w-full rounded-xl border-sidebar-border/70 bg-white/55 px-[0.6875rem] shadow-none hover:bg-white/85 focus-visible:ring-2 data-[size=default]:h-12 group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1! group-data-[collapsible=icon]:[&>svg]:hidden"
       >
         <div className="flex min-w-0 items-center gap-2.5">
           <div className="flex size-8 shrink-0 items-center justify-center rounded-[0.65rem] bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
@@ -69,7 +69,7 @@ export default function TeamSelector() {
           </div>
         </div>
       </SelectTrigger>
-      <SelectContent className="rounded-xl border-border/80 p-1 shadow-xl">
+      <SelectContent className="rounded-xl border-border/80 p-0 shadow-xl">
         <div className="px-2 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           Your teams
         </div>
