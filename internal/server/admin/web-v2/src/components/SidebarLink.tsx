@@ -19,9 +19,11 @@ export default function SidebarLink({
   return (
     <Link
       to={to}
+      aria-current={isActive ? "page" : undefined}
       className={cn(
-        "flex items-center gap-2 px-2 py-1.5 text-sm",
-        isActive && "bg-accent text-accent-foreground",
+        "flex h-10 items-center gap-3 rounded-xl px-3 text-[0.875rem] font-medium text-sidebar-foreground/75 transition-[background-color,color,transform] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+        isActive &&
+          "bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_1px_2px_rgba(23,33,30,0.18)] hover:bg-sidebar-primary hover:text-sidebar-primary-foreground",
         className
       )}
     >
