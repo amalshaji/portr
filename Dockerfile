@@ -8,6 +8,7 @@ RUN bun install --frozen-lockfile
 
 COPY internal/server/admin/web-v2 ./
 COPY assets/brand/portr-mark.svg ./public/portr-mark.svg
+COPY assets/brand/portr-mark-on-light.svg ./public/portr-mark-on-light.svg
 
 RUN bun run build:app
 
