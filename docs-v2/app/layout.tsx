@@ -31,8 +31,18 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://portr.dev"),
   manifest: "/site.webmanifest",
   icons: {
-    icon: [{ url: "/portr-mark.svg", type: "image/svg+xml" }],
-    shortcut: "/portr-mark.svg",
+    icon: [
+      {
+        url: "/portr-mark-on-light.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/portr-mark.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: dark)",
+      },
+    ],
   },
   alternates: {
     canonical: "/",
