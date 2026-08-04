@@ -112,7 +112,7 @@ func startTunnelHarness(t *testing.T, backendURL string) *tunnelHarness {
 	}
 	serverService := service.New(&serverdb.Db{Conn: serverDatabase})
 	proxyServer := proxy.New(serverConfig)
-	proxyServer.SetTunnelManager(wstunnel.New(serverConfig, serverService))
+	proxyServer.SetTunnelBackend(wstunnel.New(serverConfig, serverService))
 	publicServer := httptest.NewServer(proxyServer)
 	publicURL, err := url.Parse(publicServer.URL)
 	if err != nil {

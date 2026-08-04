@@ -174,13 +174,14 @@ func runAutoMigrations(cfg *configpkg.Config) error {
 
 type tunnelTransportProcess interface {
 	Start()
-	Shutdown(context.Context)
+	Shutdown(context.Context) error
 }
 
 func configureTunnelTransport(cfg *configpkg.Config, svc *service.Service, proxyServer *proxy.Proxy) tunnelTransportProcess {
 	if cfg.Transport == configpkg.TransportWebSocket {
-		proxyServer.SetTunnelManager(wstunnel.New(cfg, svc))
-		return nil
+		manager := wstunnel.New(cfg, svc)
+		proxyServer.SetTunnelBackend(manager)
+		return manager
 	}
 	return sshd.New(&cfg.Ssh, proxyServer, svc)
 }
@@ -201,9 +202,7 @@ func startTunnel(configFilePath string) {
 
 	proxyServer := proxy.New(config)
 	transportProcess := configureTunnelTransport(config, service, proxyServer)
-	if transportProcess != nil {
-		go transportProcess.Start()
-	}
+	go transportProcess.Start()
 	cron := cron.New(config, service)
 
 	go proxyServer.Start()
@@ -220,8 +219,8 @@ func startTunnel(configFilePath string) {
 	defer cancel()
 
 	proxyServer.Shutdown(shutdownCtx)
-	if transportProcess != nil {
-		transportProcess.Shutdown(shutdownCtx)
+	if err := transportProcess.Shutdown(shutdownCtx); err != nil {
+		log.Error("Failed to stop tunnel transport", "error", err)
 	}
 	cron.Shutdown()
 }
@@ -290,13 +289,11 @@ func startAll(configFilePath string) error {
 		proxyServer.Start()
 	}()
 
-	if transportProcess != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			transportProcess.Start()
-		}()
-	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		transportProcess.Start()
+	}()
 
 	go func() {
 		defer wg.Done()
@@ -339,8 +336,9 @@ func startAll(configFilePath string) error {
 
 	// Shutdown tunnel components
 	proxyServer.Shutdown(shutdownCtx)
-	if transportProcess != nil {
-		transportProcess.Shutdown(shutdownCtx)
+	if err := transportProcess.Shutdown(shutdownCtx); err != nil {
+		log.Error("Error shutting down tunnel transport", "error", err)
+		shutdownErr = err
 	}
 	cronJob.Shutdown()
 

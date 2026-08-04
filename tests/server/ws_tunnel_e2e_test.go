@@ -69,15 +69,11 @@ func TestWebSocketTunnelProxiesHTTPToLocalService(t *testing.T) {
 
 	manager := wstunnel.New(&serverconfig.Config{}, service.New(&serverdb.Db{Conn: db}))
 	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/_portr/tunnel/connect" {
+		if r.URL.Path == manager.Endpoint() {
 			manager.Handler().ServeHTTP(w, r)
 			return
 		}
-		conn, initial, err := wstunnel.HijackRequest(w, r)
-		if err != nil {
-			t.Fatalf("hijack request: %v", err)
-		}
-		manager.OpenHTTPStream(subdomain, conn, initial)
+		manager.ServeHTTPStream(subdomain, w, r)
 	}))
 	defer proxy.Close()
 
@@ -325,7 +321,7 @@ func TestWebSocketTunnelProxiesTCPToLocalService(t *testing.T) {
 
 	manager := wstunnel.New(&serverconfig.Config{}, service.New(&serverdb.Db{Conn: db}))
 	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/_portr/tunnel/connect" {
+		if r.URL.Path == manager.Endpoint() {
 			manager.Handler().ServeHTTP(w, r)
 			return
 		}
@@ -450,15 +446,11 @@ func newWSTunnelHTTPProxy(t *testing.T, manager *wstunnel.Manager, subdomain str
 	t.Helper()
 
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/_portr/tunnel/connect" {
+		if r.URL.Path == manager.Endpoint() {
 			manager.Handler().ServeHTTP(w, r)
 			return
 		}
-		conn, initial, err := wstunnel.HijackRequest(w, r)
-		if err != nil {
-			t.Fatalf("hijack request: %v", err)
-		}
-		manager.OpenHTTPStream(subdomain, conn, initial)
+		manager.ServeHTTPStream(subdomain, w, r)
 	}))
 }
 

@@ -8,6 +8,10 @@ import (
 )
 
 const (
+	ConnectPath        = "/_portr/tunnel/connect"
+	ConnectionIDHeader = "X-Portr-Connection-ID"
+	SecretKeyHeader    = "X-Portr-Secret-Key"
+
 	TypeReady = "ready"
 	TypeOpen  = "open"
 	TypeData  = "data"
