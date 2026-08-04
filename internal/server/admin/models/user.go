@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"golang.org/x/crypto/argon2"
+	"gorm.io/gorm"
 )
 
 type User struct {
@@ -38,6 +39,15 @@ type GithubUser struct {
 
 func (GithubUser) TableName() string {
 	return "githubuser"
+}
+
+func NormalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
+func (u *User) BeforeSave(_ *gorm.DB) error {
+	u.Email = NormalizeEmail(u.Email)
+	return nil
 }
 
 const (

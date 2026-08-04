@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	serverConfig "github.com/amalshaji/portr/internal/server/config"
 	"golang.org/x/oauth2"
@@ -67,22 +68,17 @@ func (g *GitHubService) GetUser(ctx context.Context, token *oauth2.Token) (*GitH
 		return nil, fmt.Errorf("failed to decode user info: %w", err)
 	}
 
-	if user.Email == "" {
-		emails, err := g.getUserEmails(ctx, client)
-		if err == nil && len(emails) > 0 {
-			for _, email := range emails {
-				if email.Primary {
-					user.Email = email.Email
-					break
-				}
-			}
-			if user.Email == "" {
-				user.Email = emails[0].Email
-			}
-		}
+	return &user, nil
+}
+
+func (g *GitHubService) GetVerifiedEmail(ctx context.Context, token *oauth2.Token, publicEmail string) (string, error) {
+	emails, err := g.getUserEmails(ctx, g.config.Client(ctx, token))
+	if err != nil {
+		return "", fmt.Errorf("failed to get GitHub emails: %w", err)
 	}
 
-	return &user, nil
+	email, _ := selectVerifiedEmail(publicEmail, emails)
+	return email, nil
 }
 
 type GitHubEmail struct {
@@ -108,6 +104,31 @@ func (g *GitHubService) getUserEmails(ctx context.Context, client *http.Client) 
 	}
 
 	return emails, nil
+}
+
+func selectVerifiedEmail(publicEmail string, emails []GitHubEmail) (string, bool) {
+	currentEmail := strings.TrimSpace(publicEmail)
+	if currentEmail != "" {
+		for _, email := range emails {
+			if strings.EqualFold(email.Email, currentEmail) && email.Verified {
+				return email.Email, true
+			}
+		}
+	}
+
+	for _, email := range emails {
+		if email.Primary && email.Verified {
+			return email.Email, true
+		}
+	}
+
+	for _, email := range emails {
+		if email.Verified {
+			return email.Email, true
+		}
+	}
+
+	return "", false
 }
 
 func (g *GitHubService) IsEnabled() bool {
