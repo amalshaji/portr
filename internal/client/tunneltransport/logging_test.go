@@ -1,4 +1,4 @@
-package ssh
+package tunneltransport
 
 import (
 	"encoding/json"
@@ -39,8 +39,8 @@ func newTestRequestStore(t *testing.T) *clientdb.Db {
 	return &clientdb.Db{Conn: conn}
 }
 
-func newLoggingTestClient(store *clientdb.Db, enabled bool) *SshClient {
-	return &SshClient{
+func newLoggingTestClient(store *clientdb.Db, enabled bool) *Client {
+	return &Client{
 		config: clientcfg.ClientConfig{
 			EnableRequestLogging: enabled,
 			Tunnel: clientcfg.Tunnel{

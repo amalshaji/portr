@@ -1,4 +1,4 @@
-package tunnel
+package tunneltransport
 
 import (
 	"net"
@@ -38,9 +38,7 @@ func (l *singleConnListener) Close() error {
 	return nil
 }
 
-func (l *singleConnListener) Addr() net.Addr {
-	return l.conn.LocalAddr()
-}
+func (l *singleConnListener) Addr() net.Addr { return l.conn.LocalAddr() }
 
 func (l *singleConnListener) doneChannelLocked() chan struct{} {
 	if l.done == nil {

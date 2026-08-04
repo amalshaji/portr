@@ -1,4 +1,4 @@
-package ssh
+package tunneltransport
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"github.com/charmbracelet/log"
 )
 
-func (s *SshClient) Shutdown(ctx context.Context) error {
+func (s *Client) Shutdown(ctx context.Context) error {
 	atomic.StoreInt32(&s.shutdown, 1)
 	s.mu.Lock()
 	if s.lifecycleCancel != nil {
@@ -41,9 +41,7 @@ func (s *SshClient) Shutdown(ctx context.Context) error {
 		}
 	}
 	cfg := s.ConfigSnapshot()
-	if s.tui != nil {
-		s.tui.Send(tui.UpdateConnCountMsg{Port: tunnelStatusKey(cfg.Tunnel), Delta: -1})
-	}
+	s.setTUIActive(false)
 	s.emitEvent(EventStopped, nil)
 	log.Info("Stopped tunnel connection", "address", cfg.GetTunnelAddr())
 	return err
@@ -60,7 +58,7 @@ func reconnectBackoff(attempt int) time.Duration {
 	return base + time.Duration(rand.IntN(500))*time.Millisecond
 }
 
-func (s *SshClient) startError(err error) error {
+func (s *Client) startError(err error) error {
 	return fmt.Errorf("failed to start tunnel '%s': %w", tunnelDisplayName(s.config.Tunnel), err)
 }
 
@@ -74,7 +72,7 @@ func tunnelDisplayName(tunnel config.Tunnel) string {
 	return fmt.Sprintf("%d", tunnel.Port)
 }
 
-func (s *SshClient) Start(ctx context.Context) error {
+func (s *Client) Start(ctx context.Context) error {
 	if atomic.LoadInt32(&s.shutdown) == 1 {
 		return errClientShuttingDown
 	}
@@ -138,7 +136,7 @@ func (s *SshClient) Start(ctx context.Context) error {
 				return nil
 			}
 			if s.config.Debug {
-				s.logDebug(fmt.Sprintf("Failed to reconnect to ssh tunnel (attempt %d)", attempt), err)
+				s.logDebug(fmt.Sprintf("Failed to reconnect tunnel transport (attempt %d)", attempt), err)
 			}
 			if attempt >= maxRetries {
 				return fmt.Errorf("failed to reconnect tunnel '%s' after %d attempts: %w", tunnelDisplayName(s.config.Tunnel), attempt, err)
@@ -150,7 +148,7 @@ func (s *SshClient) Start(ctx context.Context) error {
 	}
 }
 
-func (s *SshClient) establishWithTimeout(ctx context.Context) (*tunnelTransport, error) {
+func (s *Client) establishWithTimeout(ctx context.Context) (tunnelSession, error) {
 	setupCtx, cancel := context.WithTimeout(ctx, tunnelStartTimeout)
 	defer cancel()
 	return s.establishTransport(setupCtx)
@@ -167,7 +165,7 @@ func waitForReconnect(ctx context.Context, delay time.Duration) bool {
 	}
 }
 
-func (s *SshClient) monitorTransport(ctx context.Context, transport *tunnelTransport) error {
+func (s *Client) monitorTransport(ctx context.Context, transport tunnelSession) error {
 	serveErr := make(chan error, 1)
 	go func() {
 		defer func() {
@@ -193,7 +191,7 @@ func (s *SshClient) monitorTransport(ctx context.Context, transport *tunnelTrans
 		case err := <-serveErr:
 			return err
 		case <-ticker.C:
-			if err := checkSSHKeepAlive(transport.client, 5*time.Second); err != nil {
+			if err := transport.HealthCheck(5 * time.Second); err != nil {
 				_ = transport.Close()
 				<-serveErr
 				return err
@@ -205,7 +203,7 @@ func (s *SshClient) monitorTransport(ctx context.Context, transport *tunnelTrans
 	}
 }
 
-func (s *SshClient) announceTransportReady(initial bool) {
+func (s *Client) announceTransportReady(initial bool) {
 	cfg := s.ConfigSnapshot()
 	if initial {
 		if s.tui != nil {
@@ -222,18 +220,16 @@ func (s *SshClient) announceTransportReady(initial bool) {
 		}
 		s.emitEvent(EventReconnected, nil)
 	}
-	if s.tui != nil {
-		s.tui.Send(tui.UpdateConnCountMsg{Port: tunnelStatusKey(cfg.Tunnel), Delta: 1})
-	}
+	s.setTUIActive(true)
 }
 
-func (s *SshClient) announceTransportLost(err error) {
+func (s *Client) announceTransportLost(err error) {
 	cfg := s.ConfigSnapshot()
 	if s.config.Debug {
 		s.logDebug("Tunnel transport failed", err)
 	}
 	if s.tui != nil {
-		s.tui.Send(tui.UpdateConnCountMsg{Port: tunnelStatusKey(cfg.Tunnel), Delta: -1})
+		s.setTUIActive(false)
 		s.tui.Send(tui.UpdateHealthMsg{Port: tunnelStatusKey(cfg.Tunnel), Healthy: false})
 	} else if !cfg.DisableTerminalLogs {
 		fmt.Printf("❌ Tunnel unhealthy: %s (attempting reconnect)\n", cfg.GetTunnelAddr())
@@ -241,47 +237,17 @@ func (s *SshClient) announceTransportLost(err error) {
 	s.emitEvent(EventUnhealthy, err)
 }
 
-func (s *SshClient) HealthCheck() error {
+func (s *Client) HealthCheck() error {
 	s.mu.RLock()
 	transport := s.transport
 	s.mu.RUnlock()
-	if transport == nil || transport.client == nil || transport.listener == nil {
-		return fmt.Errorf("ssh tunnel transport is not connected")
+	if transport == nil {
+		return fmt.Errorf("tunnel transport is not connected")
 	}
-	return checkSSHKeepAlive(transport.client, 5*time.Second)
+	return transport.HealthCheck(5 * time.Second)
 }
 
-type sshRequestSender interface {
-	SendRequest(string, bool, []byte) (bool, []byte, error)
-}
-
-func checkSSHKeepAlive(client sshRequestSender, timeout time.Duration) error {
-	type keepAliveResult struct {
-		accepted bool
-		err      error
-	}
-	result := make(chan keepAliveResult, 1)
-	go func() {
-		accepted, _, err := client.SendRequest("keepalive@openssh.com", true, nil)
-		result <- keepAliveResult{accepted: accepted, err: err}
-	}()
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-	select {
-	case response := <-result:
-		if response.err != nil {
-			return response.err
-		}
-		if !response.accepted {
-			return fmt.Errorf("ssh keepalive rejected")
-		}
-	case <-timer.C:
-		return fmt.Errorf("ssh keepalive timed out")
-	}
-	return nil
-}
-
-func (s *SshClient) logDebug(message string, err error) {
+func (s *Client) logDebug(message string, err error) {
 	if !s.config.Debug {
 		return
 	}

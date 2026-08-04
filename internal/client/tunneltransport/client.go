@@ -1,4 +1,4 @@
-package ssh
+package tunneltransport
 
 import (
 	"bytes"
@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/amalshaji/portr/internal/client/config"
@@ -36,10 +37,11 @@ var (
 	tunnelStartTimeout      = 20 * time.Second
 )
 
-type SshClient struct {
+type Client struct {
 	config          config.ClientConfig
 	db              *db.Db
-	transport       *tunnelTransport
+	transport       tunnelSession
+	connect         connectSession
 	tui             *tea.Program
 	fatal           func(error)
 	eventHandler    func(Event)
@@ -47,8 +49,28 @@ type SshClient struct {
 	mu              sync.RWMutex
 	connections     sync.WaitGroup
 	shutdown        int32
+	tuiActive       int32
 	lifecycleCancel context.CancelFunc
 	lifecycleDone   chan struct{}
+}
+
+func (s *Client) setTUIActive(active bool) {
+	if s.tui == nil {
+		return
+	}
+
+	next := int32(0)
+	delta := -1
+	if active {
+		next = 1
+		delta = 1
+	}
+	if atomic.SwapInt32(&s.tuiActive, next) == next {
+		return
+	}
+
+	cfg := s.ConfigSnapshot()
+	s.tui.Send(tui.UpdateConnCountMsg{Port: tunnelStatusKey(cfg.Tunnel), Delta: delta})
 }
 
 type EventType string
@@ -69,28 +91,29 @@ type Event struct {
 	At         time.Time     `json:"at"`
 }
 
-func New(config config.ClientConfig, db *db.Db, tui *tea.Program, fatal func(error)) *SshClient {
-	return &SshClient{
-		config: config,
-		db:     db,
-		tui:    tui,
-		fatal:  fatal,
+func New(config config.ClientConfig, db *db.Db, tui *tea.Program, fatal func(error)) *Client {
+	return &Client{
+		config:  config,
+		db:      db,
+		tui:     tui,
+		fatal:   fatal,
+		connect: connectorFor(config.Transport),
 	}
 }
 
-func (s *SshClient) SetEventHandler(handler func(Event)) {
+func (s *Client) SetEventHandler(handler func(Event)) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.eventHandler = handler
 }
 
-func (s *SshClient) ConfigSnapshot() config.ClientConfig {
+func (s *Client) ConfigSnapshot() config.ClientConfig {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.config
 }
 
-func (s *SshClient) emitEvent(eventType EventType, err error) {
+func (s *Client) emitEvent(eventType EventType, err error) {
 	s.mu.RLock()
 	handler := s.eventHandler
 	cfg := s.config
@@ -112,7 +135,7 @@ func (s *SshClient) emitEvent(eventType EventType, err error) {
 	handler(event)
 }
 
-func (s *SshClient) reportFatal(err error) {
+func (s *Client) reportFatal(err error) {
 	if err == nil {
 		return
 	}
@@ -127,20 +150,20 @@ func (s *SshClient) reportFatal(err error) {
 	log.Error("Tunnel worker failed", "error", err, "address", s.config.GetTunnelAddr())
 }
 
-func (s *SshClient) recoverPanic(scope string) {
+func (s *Client) recoverPanic(scope string) {
 	if r := recover(); r != nil {
 		s.reportFatal(fmt.Errorf("%s panic: %v", scope, r))
 	}
 }
 
-func (s *SshClient) goSafe(scope string, fn func()) {
+func (s *Client) goSafe(scope string, fn func()) {
 	go func() {
 		defer s.recoverPanic(scope)
 		fn()
 	}()
 }
 
-func (s *SshClient) runConnection(scope string, fn func()) {
+func (s *Client) runConnection(scope string, fn func()) {
 	s.connections.Add(1)
 	s.goSafe(scope, func() {
 		defer s.connections.Done()
@@ -148,7 +171,7 @@ func (s *SshClient) runConnection(scope string, fn func()) {
 	})
 }
 
-func (s *SshClient) closeTransport() error {
+func (s *Client) closeTransport() error {
 	s.mu.Lock()
 	transport := s.transport
 	s.transport = nil
@@ -209,7 +232,7 @@ func CreateNewConnectionWithContext(ctx context.Context, cfg config.ClientConfig
 	return response.ConnectionId, nil
 }
 
-func (s *SshClient) createNewConnection(ctx context.Context) (string, error) {
+func (s *Client) createNewConnection(ctx context.Context) (string, error) {
 	if s.config.ConnectionID != "" {
 		return s.config.ConnectionID, nil
 	}
@@ -223,7 +246,7 @@ func tunnelStatusKey(tunnel config.Tunnel) string {
 	return fmt.Sprintf("%d", tunnel.Port)
 }
 
-func (s *SshClient) httpTunnel(src net.Conn, localEndpoint string) {
+func (s *Client) httpTunnel(src net.Conn, localEndpoint string) {
 	s.httpTunnelReverseProxy(src, localEndpoint)
 }
 
@@ -245,7 +268,7 @@ func writeLocalServerUnavailable(writer io.Writer, localEndpoint string) error {
 	return response.Write(writer)
 }
 
-func (s *SshClient) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
+func (s *Client) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 	defer src.Close()
 
 	target := &url.URL{
@@ -415,7 +438,7 @@ func redactHeaderValues(headers http.Header, redactNames []string) map[string][]
 	return redacted
 }
 
-func (s *SshClient) logHttpRequest(
+func (s *Client) logHttpRequest(
 	id string,
 	request *http.Request,
 	requestBody []byte,
@@ -435,7 +458,7 @@ func (s *SshClient) logHttpRequest(
 	)
 }
 
-func (s *SshClient) logHttpRequestSized(
+func (s *Client) logHttpRequestSized(
 	id string,
 	request *http.Request,
 	requestBody []byte,
@@ -535,7 +558,7 @@ func (s *SshClient) logHttpRequestSized(
 	}
 }
 
-func (s *SshClient) tcpTunnel(src, dst net.Conn) {
+func (s *Client) tcpTunnel(src, dst net.Conn) {
 	defer func() {
 		_ = src.Close()
 		_ = dst.Close()

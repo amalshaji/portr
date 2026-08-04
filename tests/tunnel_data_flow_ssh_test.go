@@ -15,7 +15,7 @@ import (
 
 	clientconfig "github.com/amalshaji/portr/internal/client/config"
 	clientdb "github.com/amalshaji/portr/internal/client/db"
-	clientssh "github.com/amalshaji/portr/internal/client/ssh"
+	"github.com/amalshaji/portr/internal/client/tunneltransport"
 	"github.com/amalshaji/portr/internal/constants"
 	serverconfig "github.com/amalshaji/portr/internal/server/config"
 	serverdb "github.com/amalshaji/portr/internal/server/db"
@@ -35,7 +35,7 @@ const (
 
 type sshTunnelHarness struct {
 	proxy     *proxy.Proxy
-	client    *clientssh.SshClient
+	client    *tunneltransport.Client
 	cancel    context.CancelFunc
 	clientErr chan error
 	sshServer *sshserver.Server
@@ -92,8 +92,9 @@ func startSSHTunnelHarness(t *testing.T, backendURL string) *sshTunnelHarness {
 		&clientdb.WebSocketEvent{},
 	)
 	backendHost, backendPort := backendAddress(t, backendURL)
-	client := clientssh.New(clientconfig.ClientConfig{
+	client := tunneltransport.New(clientconfig.ClientConfig{
 		SshUrl:                          sshListener.Addr().String(),
+		Transport:                       clientconfig.TransportSSH,
 		TunnelUrl:                       "example.test",
 		SecretKey:                       sshDataFlowSecretKey,
 		ConnectionID:                    sshDataFlowConnectionID,
@@ -113,8 +114,8 @@ func startSSHTunnelHarness(t *testing.T, backendURL string) *sshTunnelHarness {
 	}, &clientdb.Db{Conn: clientDatabase}, nil, nil)
 
 	started := make(chan struct{}, 1)
-	client.SetEventHandler(func(event clientssh.Event) {
-		if event.Type == clientssh.EventStarted {
+	client.SetEventHandler(func(event tunneltransport.Event) {
+		if event.Type == tunneltransport.EventStarted {
 			select {
 			case started <- struct{}{}:
 			default:

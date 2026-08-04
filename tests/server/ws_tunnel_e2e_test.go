@@ -14,7 +14,7 @@ import (
 
 	clientconfig "github.com/amalshaji/portr/internal/client/config"
 	clientdb "github.com/amalshaji/portr/internal/client/db"
-	tunnelclient "github.com/amalshaji/portr/internal/client/tunnel"
+	"github.com/amalshaji/portr/internal/client/tunneltransport"
 	"github.com/amalshaji/portr/internal/constants"
 	adminmodels "github.com/amalshaji/portr/internal/server/admin/models"
 	serverconfig "github.com/amalshaji/portr/internal/server/config"
@@ -83,10 +83,11 @@ func TestWebSocketTunnelProxiesHTTPToLocalService(t *testing.T) {
 	}
 
 	clientDB := newClientTestDB(t)
-	tunnelClient := tunnelclient.New(clientconfig.ClientConfig{
+	tunnelClient := tunneltransport.New(clientconfig.ClientConfig{
 		ServerUrl:             "localhost:1",
 		WsUrl:                 proxyURL.Host,
 		TunnelUrl:             proxyURL.Host,
+		Transport:             clientconfig.TransportWebSocket,
 		SecretKey:             teamUser.SecretKey,
 		ConnectionID:          reserved.ID,
 		UseLocalHost:          true,
@@ -334,10 +335,11 @@ func TestWebSocketTunnelProxiesTCPToLocalService(t *testing.T) {
 	}
 
 	clientDB := newClientTestDB(t)
-	tunnelClient := tunnelclient.New(clientconfig.ClientConfig{
+	tunnelClient := tunneltransport.New(clientconfig.ClientConfig{
 		ServerUrl:             "localhost:1",
 		WsUrl:                 proxyURL.Host,
 		TunnelUrl:             proxyURL.Host,
+		Transport:             clientconfig.TransportWebSocket,
 		SecretKey:             teamUser.SecretKey,
 		ConnectionID:          reserved.ID,
 		UseLocalHost:          true,
@@ -465,13 +467,14 @@ func startHTTPClient(
 	subdomain string,
 	localHost string,
 	localPort int,
-) *tunnelclient.Client {
+) *tunneltransport.Client {
 	t.Helper()
 
-	tunnelClient := tunnelclient.New(clientconfig.ClientConfig{
+	tunnelClient := tunneltransport.New(clientconfig.ClientConfig{
 		ServerUrl:             "localhost:1",
 		WsUrl:                 proxyHost,
 		TunnelUrl:             proxyHost,
+		Transport:             clientconfig.TransportWebSocket,
 		SecretKey:             secretKey,
 		ConnectionID:          connectionID,
 		UseLocalHost:          true,

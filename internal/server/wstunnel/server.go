@@ -186,7 +186,10 @@ func (m *Manager) handle(conn *websocket.Conn) {
 		_ = conn.Close()
 		return
 	}
-	defer m.unregisterSession(sess)
+	defer func() {
+		m.unregisterSession(sess)
+		sess.workers.Wait()
+	}()
 
 	ready := wsproto.Frame{Type: wsproto.TypeReady}
 	if reserved.Port != nil {
@@ -385,7 +388,7 @@ func (m *Manager) pipeStream(sess *session, conn net.Conn, initial []byte) {
 	}
 
 	done := make(chan struct{})
-	go func() {
+	if !sess.goWorker(func() {
 		defer close(done)
 		buf := make([]byte, 32*1024)
 		for {
@@ -403,7 +406,9 @@ func (m *Manager) pipeStream(sess *session, conn net.Conn, initial []byte) {
 				return
 			}
 		}
-	}()
+	}) {
+		return
+	}
 
 	for {
 		select {

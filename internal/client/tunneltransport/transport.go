@@ -2,6 +2,7 @@ package tunneltransport
 
 import (
 	"context"
+	"net"
 	"time"
 
 	"github.com/amalshaji/portr/internal/client/config"
@@ -16,59 +17,28 @@ type Worker interface {
 	Shutdown(context.Context) error
 }
 
-type EventType string
-
-const (
-	EventStarted     EventType = "started"
-	EventStopped     EventType = "stopped"
-	EventUnhealthy   EventType = "unhealthy"
-	EventReconnected EventType = "reconnected"
-	EventFailed      EventType = "failed"
-)
-
-type Event struct {
-	Type       EventType     `json:"type"`
-	Tunnel     config.Tunnel `json:"tunnel"`
-	TunnelAddr string        `json:"tunnel_addr"`
-	Error      string        `json:"error,omitempty"`
-	At         time.Time     `json:"at"`
+type tunnelSession interface {
+	Accept() (net.Conn, error)
+	RemotePort() int
+	HealthCheck(time.Duration) error
+	Close() error
 }
 
-func CreateNewConnectionWithContext(ctx context.Context, cfg config.ClientConfig) (string, error) {
-	if cfg.Transport == config.TransportWebSocket {
-		return wsclient.CreateNewConnectionWithContext(ctx, cfg)
+type connectSession func(context.Context, config.ClientConfig, string) (tunnelSession, error)
+
+func connectorFor(transport config.Transport) connectSession {
+	if transport == config.TransportWebSocket {
+		return func(ctx context.Context, cfg config.ClientConfig, connectionID string) (tunnelSession, error) {
+			return wsclient.Connect(ctx, cfg, connectionID)
+		}
 	}
-	return sshclient.CreateNewConnectionWithContext(ctx, cfg)
+	return func(ctx context.Context, cfg config.ClientConfig, connectionID string) (tunnelSession, error) {
+		return sshclient.Connect(ctx, cfg, connectionID)
+	}
 }
 
 func NewWorker(cfg config.ClientConfig, database *db.Db, tui *tea.Program, fatal func(error), handler func(Event)) Worker {
-	if cfg.Transport == config.TransportWebSocket {
-		client := wsclient.New(cfg, database, tui, fatal)
-		if handler != nil {
-			client.SetEventHandler(func(event wsclient.Event) {
-				handler(Event{
-					Type:       EventType(event.Type),
-					Tunnel:     event.Tunnel,
-					TunnelAddr: event.TunnelAddr,
-					Error:      event.Error,
-					At:         event.At,
-				})
-			})
-		}
-		return client
-	}
-
-	client := sshclient.New(cfg, database, tui, fatal)
-	if handler != nil {
-		client.SetEventHandler(func(event sshclient.Event) {
-			handler(Event{
-				Type:       EventType(event.Type),
-				Tunnel:     event.Tunnel,
-				TunnelAddr: event.TunnelAddr,
-				Error:      event.Error,
-				At:         event.At,
-			})
-		})
-	}
+	client := New(cfg, database, tui, fatal)
+	client.SetEventHandler(handler)
 	return client
 }
