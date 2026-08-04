@@ -1,6 +1,14 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@font-face {
+  font-family: "Manrope";
+  src: url("/Manrope-VariableFont_wght.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -43,38 +51,38 @@
 }
 
 :root {
-  --radius: 0.5rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --radius: 0.75rem;
+  --background: #f4f7f5;
+  --foreground: #17211e;
+  --card: #ffffff;
+  --card-foreground: #17211e;
+  --popover: #ffffff;
+  --popover-foreground: #17211e;
+  --primary: #17211e;
+  --primary-foreground: #f8fbf9;
+  --secondary: #e8efeb;
+  --secondary-foreground: #24312d;
+  --muted: #edf2ef;
+  --muted-foreground: #66736e;
+  --accent: #e3ebe7;
+  --accent-foreground: #17211e;
+  --destructive: #bd3f3a;
+  --border: #dce4e0;
+  --input: #d2dcd7;
+  --ring: #2f7d67;
+  --chart-1: #2f7d67;
+  --chart-2: #659d8d;
+  --chart-3: #9eb8ae;
+  --chart-4: #3e5d54;
+  --chart-5: #c5d7d0;
+  --sidebar: #eef3f0;
+  --sidebar-foreground: #24312d;
+  --sidebar-primary: #17211e;
+  --sidebar-primary-foreground: #f8fbf9;
+  --sidebar-accent: #e1e9e5;
+  --sidebar-accent-foreground: #17211e;
+  --sidebar-border: #d8e1dc;
+  --sidebar-ring: #2f7d67;
 }
 
 .dark {
@@ -115,7 +123,89 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    font-family: "Manrope", system-ui, -apple-system, BlinkMacSystemFont,
+      "Segoe UI", sans-serif;
+    font-optical-sizing: auto;
+    text-rendering: optimizeLegibility;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply min-w-80 bg-background text-foreground antialiased;
+    min-height: 100vh;
+  }
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  h1,
+  h2 {
+    letter-spacing: -0.025em;
+  }
+  code,
+  pre {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+      "Liberation Mono", monospace;
+    font-variant-ligatures: none;
+  }
+  ::selection {
+    background: color-mix(in srgb, #2f7d67 22%, transparent);
+  }
+}
+
+@layer components {
+  .app-chrome {
+    background: color-mix(in srgb, #f4f7f5 82%, transparent);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+  }
+
+  [data-slot="button"],
+  [data-sidebar="menu-button"],
+  [data-slot="select-trigger"] {
+    transition-duration: 160ms;
+    transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  [data-slot="button"]:active,
+  [data-sidebar="menu-button"]:active,
+  [data-slot="select-trigger"]:active {
+    transform: scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  [data-slot="button"]:active,
+  [data-sidebar="menu-button"]:active,
+  [data-slot="select-trigger"]:active {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .app-chrome {
+    background: #f4f7f5;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .app-chrome {
+    background: #f4f7f5;
+    border-color: #74817c;
   }
 }
