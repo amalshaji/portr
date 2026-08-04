@@ -46,7 +46,10 @@ export function GitHubStarsLink({ className }: { className?: string }) {
       href="https://github.com/amalshaji/portr"
       target="_blank"
       rel="noopener noreferrer"
-      className={cn("inline-flex items-center justify-center gap-2", className)}
+      className={cn(
+        "github-stars-link inline-flex items-center justify-center gap-2",
+        className,
+      )}
     >
       <svg
         viewBox="0 0 24 24"
@@ -65,7 +68,7 @@ export function GitHubStarsLink({ className }: { className?: string }) {
         <span
           aria-label={`${stars.toLocaleString()} GitHub stars`}
           aria-live="polite"
-          className="tabular-nums text-fd-muted-foreground"
+          className="github-stars-link__count tabular-nums text-fd-muted-foreground"
         >
           ★ {stars.toLocaleString()}
         </span>

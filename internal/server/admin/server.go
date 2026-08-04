@@ -156,27 +156,12 @@ func (s *Server) setupUserRoutes(v1 fiber.Router) {
 	userGroup.Patch("/me/rotate-secret-key", s.auth.RequireTeamUser, userHandler.RotateSecretKey)
 }
 
-func getCollectionRoot(router fiber.Router, handlers ...fiber.Handler) {
-	router.Get("", handlers...)
-	router.Get("/", handlers...)
-}
-
-func postCollectionRoot(router fiber.Router, handlers ...fiber.Handler) {
-	router.Post("", handlers...)
-	router.Post("/", handlers...)
-}
-
-func patchCollectionRoot(router fiber.Router, handlers ...fiber.Handler) {
-	router.Patch("", handlers...)
-	router.Patch("/", handlers...)
-}
-
 func (s *Server) setupTeamRoutes(v1 fiber.Router) {
 	teamHandler := team.NewHandler(s.db.DB, s.store)
 	teamGroup := v1.Group("/team")
 
-	getCollectionRoot(teamGroup, s.auth.RequireSuperuser, teamHandler.ListTeams)
-	postCollectionRoot(teamGroup, s.auth.RequireSuperuser, teamHandler.CreateTeam)
+	teamGroup.Get("/", s.auth.RequireSuperuser, teamHandler.ListTeams)
+	teamGroup.Post("/", s.auth.RequireSuperuser, teamHandler.CreateTeam)
 	teamGroup.Get("/users", s.auth.RequireTeamUser, teamHandler.GetTeamUsers)
 	teamGroup.Post("/add", s.auth.RequireAdmin, teamHandler.AddUser)
 	teamGroup.Delete("/users/:id", s.auth.RequireAdmin, teamHandler.RemoveUser)
@@ -187,8 +172,8 @@ func (s *Server) setupConnectionRoutes(v1 fiber.Router) {
 	connHandler := connection.NewHandler(s.db.DB, s.store)
 	connGroup := v1.Group("/connections")
 
-	getCollectionRoot(connGroup, s.auth.RequireTeamUser, connHandler.GetConnections)
-	postCollectionRoot(connGroup, connHandler.CreateConnection)
+	connGroup.Get("/", s.auth.RequireTeamUser, connHandler.GetConnections)
+	connGroup.Post("/", connHandler.CreateConnection)
 }
 
 func (s *Server) setupSubdomainRoutes(v1 fiber.Router) {
@@ -213,8 +198,8 @@ func (s *Server) setupAutoSignupRoutes(v1 fiber.Router) {
 	autoSignupHandler := autosignup.NewHandler(s.db.DB, s.config)
 	autoSignupGroup := v1.Group("/auto-signup")
 
-	getCollectionRoot(autoSignupGroup, s.auth.RequireSuperuser, autoSignupHandler.Get)
-	patchCollectionRoot(autoSignupGroup, s.auth.RequireSuperuser, autoSignupHandler.Update)
+	autoSignupGroup.Get("/", s.auth.RequireSuperuser, autoSignupHandler.Get)
+	autoSignupGroup.Patch("/", s.auth.RequireSuperuser, autoSignupHandler.Update)
 }
 
 func (s *Server) handleIndex(c *fiber.Ctx) error {

@@ -23,6 +23,7 @@ type githubOAuthService interface {
 	GetAuthURL(state string) string
 	ExchangeCode(ctx context.Context, code string) (*oauth2.Token, error)
 	GetUser(ctx context.Context, token *oauth2.Token) (*services.GitHubUser, error)
+	GetVerifiedEmail(ctx context.Context, token *oauth2.Token, publicEmail string) (string, error)
 }
 
 type Handler struct {
@@ -93,6 +94,7 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 			"email": "Enter a valid email address",
 		})
 	}
+	input.Email = models.NormalizeEmail(input.Email)
 	if strings.TrimSpace(input.Password) == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"password": "Password is required",
@@ -299,15 +301,16 @@ func (h *Handler) GitHubCallback(c *fiber.Ctx) error {
 		return c.Redirect("/?code=user-fetch-failed", fiber.StatusFound)
 	}
 
-	if githubUser.Email == "" {
-		return c.Redirect("/?code=private-email", fiber.StatusFound)
-	}
-
-	loginResult, err := newGitHubLoginResolver(h.db).resolve(githubUser, token.AccessToken)
+	loginResult, err := newGitHubLoginResolver(h.db).resolve(ctx, h.githubService, githubUser, token)
 	if err != nil {
 		var deniedErr githubLoginDeniedError
 		if errors.As(err, &deniedErr) {
 			return c.Redirect("/?code="+deniedErr.Code(), fiber.StatusFound)
+		}
+		var verificationErr githubEmailVerificationError
+		if errors.As(err, &verificationErr) {
+			log.Error("Failed to get verified GitHub email", "error", err)
+			return c.Redirect("/?code=email-verification-failed", fiber.StatusFound)
 		}
 
 		log.Error("Database error during GitHub login", "error", err)

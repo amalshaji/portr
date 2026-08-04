@@ -5,6 +5,7 @@ import (
 
 	"github.com/amalshaji/portr/internal/server/admin/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type AutoSignupService struct {
@@ -19,6 +20,18 @@ type AutoSignupDomainInput struct {
 type AutoSignupSettings struct {
 	Settings models.AutoSignupSettings
 	Domains  []models.AutoSignupDomain
+}
+
+type GitHubAutoSignupInput struct {
+	Email             string
+	GithubID          int64
+	GithubAccessToken string
+	GithubAvatarURL   string
+}
+
+type GitHubAutoSignupResult struct {
+	User models.User
+	Team models.Team
 }
 
 type AutoSignupValidationError struct {
@@ -73,7 +86,7 @@ func (s *AutoSignupService) UpdateSettings(enabled bool, input []AutoSignupDomai
 	}
 
 	if err := s.db.Transaction(func(tx *gorm.DB) error {
-		settings, err := models.GetOrCreateAutoSignupSettings(tx)
+		settings, err := autoSignupSettingsForUpdate(tx)
 		if err != nil {
 			return err
 		}
@@ -100,11 +113,72 @@ func (s *AutoSignupService) UpdateSettings(enabled bool, input []AutoSignupDomai
 	return s.GetSettings()
 }
 
-func (s *AutoSignupService) TeamForEmail(email string) (*models.Team, error) {
-	settings, err := models.GetOrCreateAutoSignupSettings(s.db)
+func (s *AutoSignupService) ProvisionGitHubUser(input GitHubAutoSignupInput) (*GitHubAutoSignupResult, error) {
+	input.Email = models.NormalizeEmail(input.Email)
+	var result GitHubAutoSignupResult
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		settings, err := autoSignupSettingsForUpdate(tx)
+		if err != nil {
+			return err
+		}
+
+		var existingUser models.User
+		err = tx.Where("LOWER(email) = ?", input.Email).First(&existingUser).Error
+		if err == nil {
+			if err := createGitHubUser(tx, input, existingUser.ID); err != nil {
+				return err
+			}
+			result.User = existingUser
+			return nil
+		}
+		if err != gorm.ErrRecordNotFound {
+			return err
+		}
+
+		team, err := autoSignupTeamForEmail(tx, settings, input.Email)
+		if err != nil {
+			return err
+		}
+
+		user := models.User{Email: input.Email}
+		if err := tx.Create(&user).Error; err != nil {
+			return err
+		}
+
+		if err := createGitHubUser(tx, input, user.ID); err != nil {
+			return err
+		}
+
+		teamUser := models.TeamUser{
+			UserID: user.ID,
+			TeamID: team.ID,
+			Role:   models.RoleMember,
+		}
+		if err := tx.Create(&teamUser).Error; err != nil {
+			return err
+		}
+
+		result = GitHubAutoSignupResult{User: user, Team: *team}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
+
+	return &result, nil
+}
+
+func createGitHubUser(tx *gorm.DB, input GitHubAutoSignupInput, userID uint) error {
+	return tx.Create(&models.GithubUser{
+		GithubID:          input.GithubID,
+		GithubAccessToken: input.GithubAccessToken,
+		GithubAvatarURL:   input.GithubAvatarURL,
+		UserID:            userID,
+	}).Error
+}
+
+func autoSignupTeamForEmail(tx *gorm.DB, settings *models.AutoSignupSettings, email string) (*models.Team, error) {
 	if !settings.AutoSignupEnabled {
 		return nil, AutoSignupDeniedError{Reason: AutoSignupDeniedDisabled}
 	}
@@ -115,17 +189,40 @@ func (s *AutoSignupService) TeamForEmail(email string) (*models.Team, error) {
 	}
 
 	var domainMapping models.AutoSignupDomain
-	if err := s.db.Preload("Team").Where("domain = ?", emailDomain).First(&domainMapping).Error; err != nil {
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("domain = ?", emailDomain).First(&domainMapping).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, AutoSignupDeniedError{Reason: AutoSignupDeniedDomain}
 		}
 		return nil, err
 	}
-	if domainMapping.Team.ID == 0 {
-		return nil, AutoSignupDeniedError{Reason: AutoSignupDeniedTeamMissing}
+
+	var team models.Team
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&team, domainMapping.TeamID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, AutoSignupDeniedError{Reason: AutoSignupDeniedTeamMissing}
+		}
+		return nil, err
 	}
 
-	return &domainMapping.Team, nil
+	return &team, nil
+}
+
+func autoSignupSettingsForUpdate(tx *gorm.DB) (*models.AutoSignupSettings, error) {
+	settings := models.DefaultAutoSignupSettings()
+	settings.ID = 1
+
+	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&settings, settings.ID).Error
+	if err == nil {
+		return &settings, nil
+	}
+	if err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+	if err := tx.Create(&settings).Error; err != nil {
+		return nil, err
+	}
+
+	return &settings, nil
 }
 
 func (s *AutoSignupService) loadDomains(db *gorm.DB) ([]models.AutoSignupDomain, error) {

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -18,8 +19,11 @@ import (
 )
 
 type fakeGitHubService struct {
-	user  *services.GitHubUser
-	state string
+	user                  *services.GitHubUser
+	state                 string
+	verifiedEmail         string
+	verifiedEmailErr      error
+	verifiedEmailRequests int
 }
 
 func (f *fakeGitHubService) IsEnabled() bool {
@@ -39,6 +43,17 @@ func (f *fakeGitHubService) GetUser(ctx context.Context, token *oauth2.Token) (*
 	return f.user, nil
 }
 
+func (f *fakeGitHubService) GetVerifiedEmail(ctx context.Context, token *oauth2.Token, publicEmail string) (string, error) {
+	f.verifiedEmailRequests++
+	if f.verifiedEmailErr != nil {
+		return "", f.verifiedEmailErr
+	}
+	if f.verifiedEmail != "" {
+		return f.verifiedEmail, nil
+	}
+	return "", nil
+}
+
 func TestGitHubCallbackAutoSignupCreatesUserAndTeamMembership(t *testing.T) {
 	db, cleanup := newAuthTestDB(t)
 	defer cleanup()
@@ -51,11 +66,11 @@ func TestGitHubCallbackAutoSignupCreatesUserAndTeamMembership(t *testing.T) {
 	createAutoSignupSettings(t, db, models.AutoSignupDomain{Domain: "example.com", TeamID: team.ID})
 
 	fakeService := &fakeGitHubService{
+		verifiedEmail: "new-user@example.com",
 		user: &services.GitHubUser{
-			ID:            12345,
-			Email:         "new-user@example.com",
-			EmailVerified: true,
-			AvatarURL:     "https://avatars.example.com/new-user",
+			ID:        12345,
+			Email:     "new-user@example.com",
+			AvatarURL: "https://avatars.example.com/new-user",
 		},
 	}
 	app := newAuthTestApp(db, fakeService)
@@ -89,6 +104,93 @@ func TestGitHubCallbackAutoSignupCreatesUserAndTeamMembership(t *testing.T) {
 	}
 }
 
+func TestGitHubCallbackLinksExistingUserCaseInsensitively(t *testing.T) {
+	db, cleanup := newAuthTestDB(t)
+	defer cleanup()
+
+	team := &models.Team{Name: "Engineering"}
+	if err := db.Create(team).Error; err != nil {
+		t.Fatalf("failed to create team: %v", err)
+	}
+	existingUser := &models.User{Email: "Member@Example.com"}
+	if err := db.Session(&gorm.Session{SkipHooks: true}).Create(existingUser).Error; err != nil {
+		t.Fatalf("failed to create existing user: %v", err)
+	}
+	if err := db.Create(&models.TeamUser{UserID: existingUser.ID, TeamID: team.ID, Role: models.RoleMember}).Error; err != nil {
+		t.Fatalf("failed to create existing team membership: %v", err)
+	}
+
+	createAutoSignupSettings(t, db, models.AutoSignupDomain{Domain: "example.com", TeamID: team.ID})
+
+	fakeService := &fakeGitHubService{
+		verifiedEmail: "member@example.com",
+		user: &services.GitHubUser{
+			ID:    54321,
+			Email: "member@example.com",
+		},
+	}
+	app := newAuthTestApp(db, fakeService)
+
+	resp := performGitHubCallback(t, app, fakeService)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusFound {
+		t.Fatalf("expected status 302 Found, got %d", resp.StatusCode)
+	}
+
+	var userCount int64
+	if err := db.Model(&models.User{}).Count(&userCount).Error; err != nil {
+		t.Fatalf("failed to count users: %v", err)
+	}
+	if userCount != 1 {
+		t.Fatalf("expected GitHub login to reuse the existing user, got %d users", userCount)
+	}
+
+	var githubUser models.GithubUser
+	if err := db.Where("github_id = ?", int64(54321)).First(&githubUser).Error; err != nil {
+		t.Fatalf("expected GitHub user link to be created: %v", err)
+	}
+	if githubUser.UserID != existingUser.ID {
+		t.Fatalf("expected GitHub account to link to user %d, got user %d", existingUser.ID, githubUser.UserID)
+	}
+}
+
+func TestGitHubCallbackLinkedUserSkipsVerifiedEmailFetch(t *testing.T) {
+	db, cleanup := newAuthTestDB(t)
+	defer cleanup()
+
+	team := &models.Team{Name: "Engineering"}
+	if err := db.Create(&team).Error; err != nil {
+		t.Fatalf("failed to create team: %v", err)
+	}
+	user := &models.User{Email: "member@example.com"}
+	if err := db.Create(user).Error; err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+	if err := db.Create(&models.TeamUser{UserID: user.ID, TeamID: team.ID, Role: models.RoleMember}).Error; err != nil {
+		t.Fatalf("failed to create team membership: %v", err)
+	}
+	if err := db.Create(&models.GithubUser{GithubID: 98765, UserID: user.ID}).Error; err != nil {
+		t.Fatalf("failed to create GitHub user link: %v", err)
+	}
+
+	fakeService := &fakeGitHubService{
+		user:             &services.GitHubUser{ID: 98765},
+		verifiedEmailErr: errors.New("github email API unavailable"),
+	}
+	app := newAuthTestApp(db, fakeService)
+
+	resp := performGitHubCallback(t, app, fakeService)
+	defer resp.Body.Close()
+
+	if location := resp.Header.Get("Location"); location != "/engineering/overview" {
+		t.Fatalf("expected linked user login to succeed, got redirect %q", location)
+	}
+	if fakeService.verifiedEmailRequests != 0 {
+		t.Fatalf("expected linked login to skip verified email fetch, got %d requests", fakeService.verifiedEmailRequests)
+	}
+}
+
 func TestGitHubCallbackAutoSignupUsesDomainTeamMapping(t *testing.T) {
 	db, cleanup := newAuthTestDB(t)
 	defer cleanup()
@@ -108,11 +210,11 @@ func TestGitHubCallbackAutoSignupUsesDomainTeamMapping(t *testing.T) {
 	)
 
 	fakeService := &fakeGitHubService{
+		verifiedEmail: "new-user@amal.sh",
 		user: &services.GitHubUser{
-			ID:            67890,
-			Email:         "new-user@amal.sh",
-			EmailVerified: true,
-			AvatarURL:     "https://avatars.example.com/new-user",
+			ID:        67890,
+			Email:     "new-user@amal.sh",
+			AvatarURL: "https://avatars.example.com/new-user",
 		},
 	}
 	app := newAuthTestApp(db, fakeService)
@@ -161,11 +263,11 @@ func TestGitHubCallbackAutoSignupRejectsUntrustedDomain(t *testing.T) {
 	createAutoSignupSettings(t, db, models.AutoSignupDomain{Domain: "example.com", TeamID: team.ID})
 
 	fakeService := &fakeGitHubService{
+		verifiedEmail: "new-user@other.example",
 		user: &services.GitHubUser{
-			ID:            12345,
-			Email:         "new-user@other.example",
-			EmailVerified: true,
-			AvatarURL:     "https://avatars.example.com/new-user",
+			ID:        12345,
+			Email:     "new-user@other.example",
+			AvatarURL: "https://avatars.example.com/new-user",
 		},
 	}
 	app := newAuthTestApp(db, fakeService)
@@ -225,6 +327,24 @@ func TestGitHubCallbackAutoSignupRejectsUnverifiedEmail(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatalf("expected no user to be created, got %d", count)
+	}
+}
+
+func TestGitHubCallbackReportsVerifiedEmailFetchFailure(t *testing.T) {
+	db, cleanup := newAuthTestDB(t)
+	defer cleanup()
+
+	fakeService := &fakeGitHubService{
+		user:             &services.GitHubUser{ID: 12345},
+		verifiedEmailErr: errors.New("github email API unavailable"),
+	}
+	app := newAuthTestApp(db, fakeService)
+
+	resp := performGitHubCallback(t, app, fakeService)
+	defer resp.Body.Close()
+
+	if location := resp.Header.Get("Location"); location != "/?code=email-verification-failed" {
+		t.Fatalf("expected verified email fetch failure redirect, got %q", location)
 	}
 }
 

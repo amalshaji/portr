@@ -1,12 +1,13 @@
 package auth
 
 import (
+	"context"
 	"errors"
-	"strings"
 
 	"github.com/amalshaji/portr/internal/server/admin/models"
 	"github.com/amalshaji/portr/internal/server/admin/services"
 	"github.com/charmbracelet/log"
+	"golang.org/x/oauth2"
 	"gorm.io/gorm"
 )
 
@@ -29,6 +30,22 @@ type githubLoginDeniedError struct {
 	reason githubLoginDeniedReason
 }
 
+type githubEmailVerifier interface {
+	GetVerifiedEmail(ctx context.Context, token *oauth2.Token, publicEmail string) (string, error)
+}
+
+type githubEmailVerificationError struct {
+	err error
+}
+
+func (e githubEmailVerificationError) Error() string {
+	return e.err.Error()
+}
+
+func (e githubEmailVerificationError) Unwrap() error {
+	return e.err
+}
+
 func (e githubLoginDeniedError) Error() string {
 	return string(e.reason)
 }
@@ -49,7 +66,7 @@ func newGitHubLoginResolver(db *gorm.DB) *githubLoginResolver {
 	}
 }
 
-func (r *githubLoginResolver) resolve(githubUser *services.GitHubUser, accessToken string) (*githubLoginResult, error) {
+func (r *githubLoginResolver) resolve(ctx context.Context, verifier githubEmailVerifier, githubUser *services.GitHubUser, token *oauth2.Token) (*githubLoginResult, error) {
 	var user models.User
 	var githubUserRecord models.GithubUser
 
@@ -61,16 +78,20 @@ func (r *githubLoginResolver) resolve(githubUser *services.GitHubUser, accessTok
 		return nil, err
 	}
 
-	if !githubUser.EmailVerified {
+	verifiedEmail, err := verifier.GetVerifiedEmail(ctx, token, githubUser.Email)
+	if err != nil {
+		return nil, githubEmailVerificationError{err: err}
+	}
+	if verifiedEmail == "" {
 		log.Warn("GitHub user attempted login with an unverified email", "email", githubUser.Email)
 		return nil, githubLoginDeniedError{reason: githubLoginDeniedPrivateEmail}
 	}
-
-	err = r.db.Where("email = ?", githubUser.Email).First(&user).Error
+	email := models.NormalizeEmail(verifiedEmail)
+	err = r.db.Where("LOWER(email) = ?", email).First(&user).Error
 	if err == nil {
 		githubUserRecord = models.GithubUser{
 			GithubID:          githubUser.ID,
-			GithubAccessToken: accessToken,
+			GithubAccessToken: token.AccessToken,
 			GithubAvatarURL:   githubUser.AvatarURL,
 			UserID:            user.ID,
 		}
@@ -87,11 +108,17 @@ func (r *githubLoginResolver) resolve(githubUser *services.GitHubUser, accessTok
 		return nil, err
 	}
 
-	return r.autoSignupUser(githubUser, accessToken)
+	githubUser.Email = email
+	return r.autoSignupUser(githubUser, token.AccessToken)
 }
 
 func (r *githubLoginResolver) autoSignupUser(githubUser *services.GitHubUser, accessToken string) (*githubLoginResult, error) {
-	team, err := r.autoSignupService.TeamForEmail(githubUser.Email)
+	provisioned, err := r.autoSignupService.ProvisionGitHubUser(services.GitHubAutoSignupInput{
+		Email:             githubUser.Email,
+		GithubID:          githubUser.ID,
+		GithubAccessToken: accessToken,
+		GithubAvatarURL:   githubUser.AvatarURL,
+	})
 	if err != nil {
 		var deniedErr services.AutoSignupDeniedError
 		if errors.As(err, &deniedErr) {
@@ -110,62 +137,9 @@ func (r *githubLoginResolver) autoSignupUser(githubUser *services.GitHubUser, ac
 		return nil, err
 	}
 
-	tx := r.db.Begin()
-	if tx.Error != nil {
-		return nil, tx.Error
-	}
-	defer func() {
-		if recovered := recover(); recovered != nil {
-			tx.Rollback()
-			panic(recovered)
-		}
-	}()
-
-	var teamForUpdate models.Team
-	if err := tx.First(&teamForUpdate, team.ID).Error; err != nil {
-		tx.Rollback()
-		if err == gorm.ErrRecordNotFound {
-			return nil, githubLoginDeniedError{reason: githubLoginDeniedAutoSignupTeam}
-		}
-		return nil, err
-	}
-
-	user := models.User{
-		Email: strings.TrimSpace(githubUser.Email),
-	}
-	if err := tx.Create(&user).Error; err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-
-	githubUserRecord := models.GithubUser{
-		GithubID:          githubUser.ID,
-		GithubAccessToken: accessToken,
-		GithubAvatarURL:   githubUser.AvatarURL,
-		UserID:            user.ID,
-	}
-	if err := tx.Create(&githubUserRecord).Error; err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-
-	teamUser := models.TeamUser{
-		UserID: user.ID,
-		TeamID: teamForUpdate.ID,
-		Role:   models.RoleMember,
-	}
-	if err := tx.Create(&teamUser).Error; err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		return nil, err
-	}
-
 	return &githubLoginResult{
-		User:             user,
-		RedirectTeamSlug: teamForUpdate.Slug,
+		User:             provisioned.User,
+		RedirectTeamSlug: provisioned.Team.Slug,
 	}, nil
 }
 

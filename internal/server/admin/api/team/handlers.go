@@ -308,6 +308,7 @@ func (h *Handler) AddUser(c *fiber.Ctx) error {
 			"error": "Invalid input",
 		})
 	}
+	input.Email = models.NormalizeEmail(input.Email)
 
 	// Validate input
 	if input.Email == "" {

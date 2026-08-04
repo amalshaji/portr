@@ -174,7 +174,7 @@ func TestAddUser_AsAdminSucceeds(t *testing.T) {
 
 	// Add a new user to the team via API
 	reqBody := map[string]interface{}{
-		"email": "newuser@example.com",
+		"email": "NewUser@Example.com",
 		"role":  "member",
 	}
 	bodyBytes, _ := json.Marshal(reqBody)
