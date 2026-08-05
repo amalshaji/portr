@@ -48,6 +48,9 @@ jobs:
       - name: Build client
         run: bun run --cwd internal/client/dashboard/ui-v2 build
 
+      - name: Build Docker web assets
+        run: docker build --target web-builder .
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:

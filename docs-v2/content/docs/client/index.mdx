@@ -3,7 +3,6 @@ title: Client Documentation
 description: Overview of the Portr client CLI for creating HTTP, TCP, and WebSocket tunnels that expose your local services to the public internet.
 ---
 
-import { Card, Cards } from 'fumadocs-ui/components/card';
 
 The Portr client is a command-line tool that allows you to create secure tunnels from your local machine to the public internet.
 
@@ -12,6 +11,9 @@ The Portr client is a command-line tool that allows you to create secure tunnels
 <Cards>
   <Card title="Installation" href="/docs/client/installation">
     Download and set up the Portr client on your machine.
+  </Card>
+  <Card title="Team Administration" href="/docs/client/team-administration">
+    Add users to teams and assign member or admin roles from the CLI.
   </Card>
   <Card title="HTTP Tunnels" href="/docs/client/http-tunnel">
     Create HTTP tunnels with built-in request inspection.
@@ -51,6 +53,9 @@ Here are the essential commands you'll use with the Portr client:
 ```bash
 # Set up authentication
 portr auth set --token {your_token} --remote {your_domain}
+
+# Add a user to the default team
+portr admin users add user@example.com
 
 # Create an HTTP tunnel
 portr http 3000

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { baseOptions } from "@/app/layout.config";
 import { GitHubStarsLink } from "@/components/github-stars-link";
 import { source } from "@/lib/source";
+import "./docs-theme.css";
 
 const docsOptions: DocsLayoutProps = {
   ...baseOptions,
@@ -26,5 +27,9 @@ const docsOptions: DocsLayoutProps = {
 };
 
 export default function Layout({ children }: { children: ReactNode }) {
-  return <DocsLayout {...docsOptions}>{children}</DocsLayout>;
+  return (
+    <div className="portr-docs-shell">
+      <DocsLayout {...docsOptions}>{children}</DocsLayout>
+    </div>
+  );
 }

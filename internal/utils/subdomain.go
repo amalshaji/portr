@@ -3,15 +3,18 @@ package utils
 import (
 	"fmt"
 	"regexp"
+	"strings"
 )
 
+var subdomainPattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
+
+func NormalizeSubdomain(subdomain string) string {
+	return strings.ToLower(strings.TrimSpace(subdomain))
+}
+
 func ValidateSubdomain(subdomain string) error {
-	matched, err := regexp.Match(`^[a-zA-Z0-9][-a-zA-Z0-9_]{0,61}[a-zA-Z0-9]$`, []byte(subdomain))
-	if err != nil {
-		return fmt.Errorf("error validating subdomain: %v", err)
-	}
-	if !matched {
-		return fmt.Errorf("invalid subdomain '%s'. Must not contain special characters other than '-', `_`", subdomain)
+	if !subdomainPattern.MatchString(subdomain) {
+		return fmt.Errorf("invalid subdomain %q: use 1-63 lowercase letters, numbers, or internal hyphens", subdomain)
 	}
 
 	return nil

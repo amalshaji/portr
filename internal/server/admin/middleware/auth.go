@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/amalshaji/portr/internal/server/admin/models"
@@ -23,6 +24,22 @@ func (m *AuthMiddleware) RequireAuth(c *fiber.Ctx) error {
 	if err := m.checkAuth(c); err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
+	return c.Next()
+}
+
+func (m *AuthMiddleware) RequireAPIAuth(c *fiber.Ctx) error {
+	authorization := strings.Fields(c.Get("Authorization"))
+	if len(authorization) != 2 || !strings.EqualFold(authorization[0], "Bearer") || authorization[1] == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	var teamUser models.TeamUser
+	if err := m.db.Preload("User").Preload("Team").Where("secret_key = ?", authorization[1]).First(&teamUser).Error; err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	c.Locals("user", &teamUser.User)
+	c.Locals("team_user", &teamUser)
 	return c.Next()
 }
 

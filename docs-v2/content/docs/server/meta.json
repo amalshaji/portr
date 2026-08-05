@@ -3,6 +3,7 @@
   "pages": [
     "index",
     "start-the-tunnel-server",
+    "reserved-subdomains",
     "cloudflare-api-token",
     "github-oauth-app"
   ]

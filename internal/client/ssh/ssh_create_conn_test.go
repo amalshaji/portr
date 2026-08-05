@@ -79,6 +79,40 @@ func TestCreateNewConnection_Error(t *testing.T) {
 	}
 }
 
+func TestCreateNewConnection_ReservedSubdomainError(t *testing.T) {
+	newRestyClient = func() *resty.Client {
+		return resty.NewWithClient(&http.Client{
+			Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+				body, _ := json.Marshal(map[string]string{
+					"code":    "reserved_subdomain",
+					"message": "This is a reserved subdomain",
+				})
+				return &http.Response{
+					StatusCode: http.StatusConflict,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body:       io.NopCloser(strings.NewReader(string(body))),
+				}, nil
+			}),
+		})
+	}
+	defer func() { newRestyClient = resty.New }()
+
+	cfg := clientcfg.ClientConfig{
+		ServerUrl:    "localhost:8001",
+		SecretKey:    "sk",
+		UseLocalHost: true,
+		Tunnel:       clientcfg.Tunnel{Type: constants.Http, Subdomain: "reserved"},
+	}
+
+	_, err := CreateNewConnection(cfg)
+	if !errors.Is(err, ErrReservedSubdomain) {
+		t.Fatalf("expected reserved subdomain error, got %v", err)
+	}
+	if err.Error() != "This is a reserved subdomain" {
+		t.Fatalf("expected explicit error message, got %q", err.Error())
+	}
+}
+
 func TestCreateNewConnection_StubUsesHTTPPayload(t *testing.T) {
 	newRestyClient = func() *resty.Client {
 		return resty.NewWithClient(&http.Client{

@@ -8,6 +8,7 @@ import (
 
 	"github.com/amalshaji/portr/internal/server/admin/middleware"
 	"github.com/amalshaji/portr/internal/server/admin/models"
+	"github.com/amalshaji/portr/internal/server/admin/services"
 	"github.com/amalshaji/portr/internal/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
@@ -15,14 +16,16 @@ import (
 )
 
 type Handler struct {
-	db    *gorm.DB
-	store *session.Store
+	db          *gorm.DB
+	store       *session.Store
+	connections *services.ConnectionService
 }
 
 func NewHandler(db *gorm.DB, store *session.Store) *Handler {
 	return &Handler{
-		db:    db,
-		store: store,
+		db:          db,
+		store:       store,
+		connections: services.NewConnectionService(db),
 	}
 }
 
@@ -63,19 +66,6 @@ type TeamResponse struct {
 	ID   uint   `json:"id"`
 	Name string `json:"name"`
 	Slug string `json:"slug"`
-}
-
-func isDuplicateActiveSubdomainError(err error) bool {
-	if err == nil {
-		return false
-	}
-	if errors.Is(err, gorm.ErrDuplicatedKey) {
-		return true
-	}
-
-	message := strings.ToLower(err.Error())
-	return strings.Contains(message, "idx_connection_active_subdomain_unique") ||
-		strings.Contains(message, "unique constraint failed: connection.subdomain")
 }
 
 // GetConnections returns paginated list of connections for the team
@@ -204,7 +194,7 @@ func (h *Handler) CreateConnection(c *fiber.Ctx) error {
 			})
 		}
 
-		subdomain := strings.TrimSpace(*input.Subdomain)
+		subdomain := utils.NormalizeSubdomain(*input.Subdomain)
 		if err := utils.ValidateSubdomain(subdomain); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"message": "Invalid subdomain",
@@ -222,38 +212,37 @@ func (h *Handler) CreateConnection(c *fiber.Ctx) error {
 		})
 	}
 
-	// Check if subdomain is already in use for HTTP connections
-	if input.ConnectionType == models.ConnectionTypeHTTP {
-		var existingConn models.Connection
-		err := h.db.Where("subdomain = ? AND status IN (?, ?)",
-			*input.Subdomain,
-			models.ConnectionStatusReserved,
-			models.ConnectionStatusActive).First(&existingConn).Error
-
-		if err == nil {
-			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
-				"message": "Subdomain already in use",
-			})
-		}
-	}
-
-	// Create connection
-	connection := models.NewConnection(input.ConnectionType, input.Subdomain, &teamUser)
-
-	if err := h.db.Create(connection).Error; err != nil {
-		if isDuplicateActiveSubdomainError(err) {
-			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
-				"message": "Subdomain already in use",
-			})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Failed to create connection",
-		})
+	connection, err := h.connections.Create(c.UserContext(), &teamUser, input.ConnectionType, input.Subdomain)
+	if err != nil {
+		return handleCreateConnectionError(c, err)
 	}
 
 	return c.JSON(fiber.Map{
 		"connection_id": connection.ID,
 	})
+}
+
+func handleCreateConnectionError(c *fiber.Ctx, err error) error {
+	switch {
+	case errors.Is(err, services.ErrSubdomainReserved):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+			"code":    "reserved_subdomain",
+			"message": "This is a reserved subdomain",
+		})
+	case errors.Is(err, services.ErrSubdomainInUse):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+			"code":    "subdomain_in_use",
+			"message": "Subdomain already in use",
+		})
+	case errors.Is(err, services.ErrReservationUnavailable):
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"message": "Subdomain claims are busy; try again",
+		})
+	default:
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to create connection",
+		})
+	}
 }
 
 // formatDuration formats a duration in a human-readable way

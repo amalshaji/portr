@@ -49,25 +49,35 @@ export default function TeamSelector() {
 
   return (
     <Select value={currentTeamSlug} onValueChange={switchTeams}>
-      <SelectTrigger className="text-sm focus:ring-0 w-full">
-        <div className="flex items-center space-x-2">
-          <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center mr-2">
-            <span className="text-sm font-medium">
+      <SelectTrigger
+        aria-label="Switch team"
+        className="w-full rounded-xl border-sidebar-border/70 bg-white/55 px-[0.6875rem] shadow-none hover:bg-white/85 focus-visible:ring-2 data-[size=default]:h-12 group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1! group-data-[collapsible=icon]:[&>svg]:hidden"
+      >
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-[0.65rem] bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
+            <span className="text-[0.68rem] font-bold tracking-wide">
               {currentTeam?.name?.slice(0, 2).toUpperCase() || "TE"}
             </span>
           </div>
-          <span>{currentTeam?.name || "Select Team"}</span>
+          <div className="min-w-0 text-left group-data-[collapsible=icon]:hidden">
+            <span className="block truncate text-sm font-semibold leading-4">
+              {currentTeam?.name || "Select team"}
+            </span>
+            <span className="block truncate text-[0.68rem] leading-4 text-muted-foreground">
+              {currentTeamSlug || "Workspace"}
+            </span>
+          </div>
         </div>
       </SelectTrigger>
-      <SelectContent>
-        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+      <SelectContent className="rounded-xl border-border/80 p-0 shadow-xl">
+        <div className="px-2 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           Your teams
         </div>
         {teams.map((team) => (
           <SelectItem key={team.id} value={team.slug}>
-            <div className="flex items-center space-x-2">
-              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                <span className="text-sm font-medium">
+            <div className="flex items-center gap-2">
+              <div className="flex size-7 items-center justify-center rounded-lg bg-muted">
+                <span className="text-[0.65rem] font-bold tracking-wide">
                   {team.name.slice(0, 2).toUpperCase()}
                 </span>
               </div>

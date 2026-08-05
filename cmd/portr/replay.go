@@ -134,7 +134,7 @@ func replayCmd() *cli.Command {
 
 func runReplayCommand(c *cli.Context) error {
 	rawArgs := c.Args().Slice()
-	if replayWantsHelp(rawArgs) {
+	if commandWantsHelp(rawArgs) {
 		showCurrentCommandHelp(c)
 		return nil
 	}
@@ -204,7 +204,7 @@ func replayWantsJSON(args []string) bool {
 	return false
 }
 
-func replayWantsHelp(args []string) bool {
+func commandWantsHelp(args []string) bool {
 	for _, arg := range args {
 		if strings.TrimSpace(arg) == "--" {
 			return false

@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"github.com/amalshaji/portr/internal/server/admin/api/auth"
+	"github.com/amalshaji/portr/internal/server/admin/api/autosignup"
 	"github.com/amalshaji/portr/internal/server/admin/api/config"
 	"github.com/amalshaji/portr/internal/server/admin/api/connection"
+	"github.com/amalshaji/portr/internal/server/admin/api/subdomain"
 	"github.com/amalshaji/portr/internal/server/admin/api/team"
 	"github.com/amalshaji/portr/internal/server/admin/api/user"
 	"github.com/amalshaji/portr/internal/server/admin/db"
@@ -112,7 +114,10 @@ func (s *Server) setupRoutes() {
 	s.setupUserRoutes(v1)
 	s.setupTeamRoutes(v1)
 	s.setupConnectionRoutes(v1)
+	s.setupSubdomainRoutes(v1)
 	s.setupConfigRoutes(v1)
+	s.setupAutoSignupRoutes(v1)
+	s.setupAdminRoutes(v1)
 
 	s.app.Use("/static", filesystem.New(filesystem.Config{
 		Root:       http.FS(staticFS),
@@ -156,6 +161,7 @@ func (s *Server) setupTeamRoutes(v1 fiber.Router) {
 	teamHandler := team.NewHandler(s.db.DB, s.store)
 	teamGroup := v1.Group("/team")
 
+	teamGroup.Get("/", s.auth.RequireSuperuser, teamHandler.ListTeams)
 	teamGroup.Post("/", s.auth.RequireSuperuser, teamHandler.CreateTeam)
 	teamGroup.Get("/users", s.auth.RequireTeamUser, teamHandler.GetTeamUsers)
 	teamGroup.Post("/add", s.auth.RequireAdmin, teamHandler.AddUser)
@@ -171,6 +177,15 @@ func (s *Server) setupConnectionRoutes(v1 fiber.Router) {
 	connGroup.Post("/", connHandler.CreateConnection)
 }
 
+func (s *Server) setupSubdomainRoutes(v1 fiber.Router) {
+	handler := subdomain.NewHandler(s.db.DB, s.config)
+	group := v1.Group("/reserved-subdomains", s.auth.RequireTeamUser)
+
+	group.Get("/", handler.List)
+	group.Post("/", handler.Create)
+	group.Delete("/:subdomain", handler.Delete)
+}
+
 func (s *Server) setupConfigRoutes(v1 fiber.Router) {
 	configHandler := config.NewHandler(s.db.DB, s.store, s.config, s.statsCollector)
 	configGroup := v1.Group("/config")
@@ -178,6 +193,21 @@ func (s *Server) setupConfigRoutes(v1 fiber.Router) {
 	configGroup.Post("/download", configHandler.DownloadConfig)
 	configGroup.Get("/setup-script", s.auth.RequireTeamUser, configHandler.GetSetupScript)
 	configGroup.Get("/stats", s.auth.RequireTeamUser, configHandler.GetStats)
+}
+
+func (s *Server) setupAutoSignupRoutes(v1 fiber.Router) {
+	autoSignupHandler := autosignup.NewHandler(s.db.DB, s.config)
+	autoSignupGroup := v1.Group("/auto-signup")
+
+	autoSignupGroup.Get("/", s.auth.RequireSuperuser, autoSignupHandler.Get)
+	autoSignupGroup.Patch("/", s.auth.RequireSuperuser, autoSignupHandler.Update)
+}
+
+func (s *Server) setupAdminRoutes(v1 fiber.Router) {
+	teamHandler := team.NewHandler(s.db.DB, s.store)
+	adminGroup := v1.Group("/admin", s.auth.RequireAPIAuth)
+
+	adminGroup.Post("/users", teamHandler.AddUserWithAPIKey)
 }
 
 func (s *Server) handleIndex(c *fiber.Ctx) error {

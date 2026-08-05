@@ -32,6 +32,19 @@ export interface TeamUser {
   role: "admin" | "member"
 }
 
+export interface AutoSignupSettings {
+  github_auth_enabled: boolean
+  auto_signup_enabled: boolean
+  auto_signup_domains: AutoSignupDomain[]
+}
+
+export interface AutoSignupDomain {
+  id?: number
+  domain: string
+  team_id: number | null
+  team?: Team
+}
+
 export interface AuthConfig {
   is_first_signup: boolean
   github_auth_enabled: boolean
@@ -50,6 +63,21 @@ export interface Connection {
   closed_at: string | null
   status: ConnectionStatus
   created_by: TeamUser
+}
+
+export type SubdomainClaimStatus = "idle" | "starting" | "active"
+
+export interface ReservedSubdomain {
+  subdomain: string
+  created_at: string
+  claim_status: SubdomainClaimStatus
+}
+
+export interface ReservedSubdomainsResponse {
+  data: ReservedSubdomain[]
+  count: number
+  limit: number
+  base_domain: string
 }
 
 export interface DashboardStats {

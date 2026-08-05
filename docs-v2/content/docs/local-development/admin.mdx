@@ -3,7 +3,6 @@ title: Admin Development Setup
 description: Set up the Portr admin dashboard for local development, so you can run and contribute to the team management interface on your machine.
 ---
 
-import { Callout } from "fumadocs-ui/components/callout";
 
 The admin dashboard is built using Go (Fiber) for the backend and React for the frontend. The admin server is integrated into the main `portrd` binary.
 
@@ -52,6 +51,7 @@ PORTR_ADMIN_DEBUG=true
 PORTR_ADMIN_USE_VITE=true
 PORTR_ADMIN_GITHUB_CLIENT_ID=your_github_client_id  # optional
 PORTR_ADMIN_GITHUB_CLIENT_SECRET=your_github_secret  # optional
+PORTR_RESERVED_SUBDOMAIN_LIMIT=3
 PORTR_SSH_PORT=2222
 PORTR_PROXY_PORT=8001
 PORTR_AUTO_MIGRATE=true

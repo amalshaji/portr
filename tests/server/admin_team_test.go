@@ -74,6 +74,69 @@ func TestCreateTeam_SuperuserSucceeds(t *testing.T) {
 	}
 }
 
+func TestCreateTeam_NoTrailingSlashSucceeds(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	admin := CreateTestUser(t, db, "admin-team-no-slash@example.com", true)
+	adminSess := CreateSessionForUser(t, db, admin)
+
+	payload := `{"name":"No Slash Team"}`
+	req := httptest.NewRequest("POST", "/api/v1/team", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Cookie", SessionCookieValue(adminSess))
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK, got %d", resp.StatusCode)
+	}
+
+	var tr teamResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tr); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if tr.Name != "No Slash Team" {
+		t.Fatalf("expected team name 'No Slash Team', got %q", tr.Name)
+	}
+	if tr.Slug != "no-slash-team" {
+		t.Fatalf("expected slug 'no-slash-team', got %q", tr.Slug)
+	}
+}
+
+func TestListTeams_NoTrailingSlashSucceeds(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	admin := CreateTestUser(t, db, "admin-list-team-no-slash@example.com", true)
+	team, _ := CreateTeamAndTeamUser(t, db, "No Slash List Team", admin, models.RoleAdmin)
+	adminSess := CreateSessionForUser(t, db, admin)
+
+	req := httptest.NewRequest("GET", "/api/v1/team", nil)
+	req.Header.Set("Cookie", SessionCookieValue(adminSess))
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK, got %d", resp.StatusCode)
+	}
+
+	var teams []teamResponse
+	if err := json.NewDecoder(resp.Body).Decode(&teams); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if len(teams) != 1 || teams[0].Slug != team.Slug {
+		t.Fatalf("expected team list to include %q, got %v", team.Slug, teams)
+	}
+}
+
 func TestCreateTeam_NonSuperuserBlocked(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()
@@ -111,7 +174,7 @@ func TestAddUser_AsAdminSucceeds(t *testing.T) {
 
 	// Add a new user to the team via API
 	reqBody := map[string]interface{}{
-		"email": "newuser@example.com",
+		"email": "NewUser@Example.com",
 		"role":  "member",
 	}
 	bodyBytes, _ := json.Marshal(reqBody)
@@ -136,6 +199,9 @@ func TestAddUser_AsAdminSucceeds(t *testing.T) {
 	if ar.TeamUser.User.Email != "newuser@example.com" {
 		t.Fatalf("expected returned user email to be newuser@example.com, got %q", ar.TeamUser.User.Email)
 	}
+	if ar.TeamUser.SecretKey != "" {
+		t.Fatal("expected invite response not to expose the new user's secret key")
+	}
 
 	// Verify the user exists in DB
 	var user models.User
@@ -147,6 +213,78 @@ func TestAddUser_AsAdminSucceeds(t *testing.T) {
 	var teamUser models.TeamUser
 	if err := db.Where("user_id = ? AND team_id = ?", user.ID, ownerTeamUser.Team.ID).First(&teamUser).Error; err != nil {
 		t.Fatalf("expected team_user to be created linking new user to team: %v", err)
+	}
+}
+
+func TestAddUser_OmitsPasswordWhenAutoSignupEnabled(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+	owner := CreateTestUser(t, db, "owner-auto-signup@example.com", false)
+	_, ownerTeamUser := CreateTeamAndTeamUser(t, db, "Auto Signup Team", owner, models.RoleAdmin)
+	ownerSess := CreateSessionForUser(t, db, owner)
+	settings := models.DefaultAutoSignupSettings()
+	settings.ID = 1
+	settings.AutoSignupEnabled = true
+	if err := db.Create(&settings).Error; err != nil {
+		t.Fatalf("create auto signup settings: %v", err)
+	}
+
+	req := httptest.NewRequest("POST", "/api/v1/team/add", strings.NewReader(`{"email":"github-invite@example.com","role":"member"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Cookie", SessionCookieValue(ownerSess))
+	req.Header.Set("X-Team-Slug", ownerTeamUser.Team.Slug)
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	var result addUserResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if result.Password != nil {
+		t.Fatalf("expected no password, got %q", *result.Password)
+	}
+}
+
+func TestAddUser_DoesNotResetExistingUserPassword(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+	owner := CreateTestUser(t, db, "owner-existing@example.com", false)
+	_, ownerTeamUser := CreateTeamAndTeamUser(t, db, "Existing User Team", owner, models.RoleAdmin)
+	ownerSess := CreateSessionForUser(t, db, owner)
+	existing := CreateTestUser(t, db, "existing-invite@example.com", false)
+	originalHash := *existing.Password
+
+	req := httptest.NewRequest("POST", "/api/v1/team/add", strings.NewReader(`{"email":"existing-invite@example.com","role":"member"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Cookie", SessionCookieValue(ownerSess))
+	req.Header.Set("X-Team-Slug", ownerTeamUser.Team.Slug)
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	var result addUserResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if result.Password != nil {
+		t.Fatal("expected no password for existing user")
+	}
+	if err := db.First(existing, existing.ID).Error; err != nil {
+		t.Fatalf("reload existing user: %v", err)
+	}
+	if existing.Password == nil || *existing.Password != originalHash {
+		t.Fatal("expected existing password hash to remain unchanged")
 	}
 }
 
