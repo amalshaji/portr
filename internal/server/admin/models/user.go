@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"golang.org/x/crypto/argon2"
@@ -43,6 +44,12 @@ func (GithubUser) TableName() string {
 
 func NormalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
+}
+
+var emailPattern = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+
+func IsValidEmail(email string) bool {
+	return emailPattern.MatchString(NormalizeEmail(email))
 }
 
 func (u *User) BeforeSave(_ *gorm.DB) error {

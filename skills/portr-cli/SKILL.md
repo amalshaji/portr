@@ -1,11 +1,11 @@
 ---
 name: portr-cli
-description: "Use when an AI agent or harness needs to operate the Portr CLI: authenticate a Portr client, create HTTP/WebSocket/TCP/stub tunnels, run config-defined tunnels, inspect request logs, replay captured requests, or control tunnels through the local app-server API. This skill is compatible with Claude Code and Codex through vercel-labs/skills."
+description: "Use when an AI agent or harness needs to operate the Portr CLI: authenticate a client, add users to teams, create HTTP/WebSocket/TCP/stub tunnels, run config-defined tunnels, inspect request logs, replay captured requests, or control tunnels through the local app-server API. This skill is compatible with Claude Code and Codex through vercel-labs/skills."
 ---
 
 # Portr CLI
 
-Use this skill to operate an installed `portr` binary from an AI agent, test harness, or automation script. Portr exposes local services through public HTTP/WebSocket or TCP tunnels, can serve stubbed templated responses, stores local HTTP request logs, can replay stored requests, and can run a local API for programmatic tunnel lifecycle control.
+Use this skill to operate an installed `portr` binary from an AI agent, test harness, or automation script. Portr manages team membership, exposes local services through public HTTP/WebSocket or TCP tunnels, can serve stubbed templated responses, stores local HTTP request logs, can replay stored requests, and can run a local API for programmatic tunnel lifecycle control.
 
 ## Agent Rules
 
@@ -15,6 +15,8 @@ Use this skill to operate an installed `portr` binary from an AI agent, test har
 - Use `portr app-server` for programmatic lifecycle management instead of scraping TUI output.
 - Do not overwrite `~/.portr/config.yaml`, `~/.portr/db.sqlite`, or auth tokens unless the user explicitly asks.
 - Do not create public tunnels for production services or sensitive local ports unless the user explicitly asks.
+- Treat a generated user password as a secret. Show it only in the requested command output and never repeat, log, or persist it elsewhere.
+- Adding a user changes server state. Confirm the email, team slug, and role from the user's request before running the command; use `default-team` and `member` only when those values were omitted.
 - If a command's flags are uncertain, run `portr <command> --help` against the installed binary.
 
 ## Command Map
@@ -31,6 +33,7 @@ Commands:
 
 - `portr help [command]`: show general help or command-specific help.
 - `portr auth set`: configure client auth.
+- `portr admin users add`: add a user to a team.
 - `portr config edit`: open the default config in the OS editor.
 - `portr http`: expose a local HTTP/WebSocket port.
 - `portr tcp`: expose a local TCP port.
@@ -51,6 +54,22 @@ portr config edit
 - `--token`, `-t`: Portr client secret token from the server/admin UI. Required.
 - `--remote`, `-r`: Portr server domain or URL. Required. Bare domains become HTTPS; `localhost:*` becomes HTTP unless a scheme is already provided.
 - `config edit` only edits the default config path. For harnesses, write a temp config file and pass `--config`.
+
+## Team Administration
+
+```bash
+portr admin users add <email>
+portr admin users add <email> --team <team-slug>
+portr admin users add <email> --team <team-slug> --role admin
+```
+
+- Uses the `server_url` and `secret_key` in the selected config. The credential must belong to an administrator of the target team; a superuser credential can target any team.
+- `--team`: target team slug. Defaults to `default-team` when omitted.
+- `--role`: `member` or `admin`. Defaults to `member`.
+- When GitHub auto signup is disabled, a newly created user receives an initial password and the CLI prints a `Password:` line.
+- When GitHub auto signup is enabled, new users are passwordless and the CLI omits the password line.
+- Existing users keep their credentials, so adding them to another team never resets or prints their password.
+- A missing default team is an error; do not create it implicitly.
 
 Minimal automation config:
 

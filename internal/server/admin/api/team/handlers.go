@@ -1,13 +1,12 @@
 package team
 
 import (
-	"crypto/rand"
-	"encoding/hex"
-	"regexp"
+	"errors"
 	"strings"
 
 	"github.com/amalshaji/portr/internal/server/admin/middleware"
 	"github.com/amalshaji/portr/internal/server/admin/models"
+	"github.com/amalshaji/portr/internal/server/admin/services"
 	"github.com/charmbracelet/log"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
@@ -15,14 +14,16 @@ import (
 )
 
 type Handler struct {
-	db    *gorm.DB
-	store *session.Store
+	db        *gorm.DB
+	store     *session.Store
+	teamUsers *services.TeamUserService
 }
 
 func NewHandler(db *gorm.DB, store *session.Store) *Handler {
 	return &Handler{
-		db:    db,
-		store: store,
+		db:        db,
+		store:     store,
+		teamUsers: services.NewTeamUserService(db),
 	}
 }
 
@@ -36,18 +37,16 @@ type AddUserInput struct {
 	SetSuperuser bool   `json:"set_superuser"`
 }
 
+type AdminAddUserInput struct {
+	Email    string `json:"email"`
+	TeamSlug string `json:"team_slug"`
+	Role     string `json:"role"`
+}
+
 type TeamResponse struct {
 	ID   uint   `json:"id"`
 	Name string `json:"name"`
 	Slug string `json:"slug"`
-}
-
-type TeamUserForTeamResponse struct {
-	ID        uint         `json:"id"`
-	User      UserResponse `json:"user"`
-	Role      string       `json:"role"`
-	SecretKey string       `json:"secret_key"`
-	CreatedAt string       `json:"created_at"`
 }
 
 type TeamUserListResponse struct {
@@ -71,8 +70,9 @@ type GithubUserResponse struct {
 }
 
 type AddUserResponse struct {
-	TeamUser *TeamUserForTeamResponse `json:"team_user"`
-	Password *string                  `json:"password,omitempty"`
+	TeamUser TeamUserListResponse `json:"team_user"`
+	Team     TeamResponse         `json:"team"`
+	Password string               `json:"password,omitempty"`
 }
 
 type ResetPasswordResponse struct {
@@ -256,29 +256,9 @@ func (h *Handler) GetTeamUsers(c *fiber.Ctx) error {
 		})
 	}
 
-	// Build response
 	var items []TeamUserListResponse
 	for _, tu := range teamUsers {
-		userResp := UserResponse{
-			ID:          tu.User.ID,
-			Email:       tu.User.Email,
-			FirstName:   tu.User.FirstName,
-			LastName:    tu.User.LastName,
-			IsSuperuser: tu.User.IsSuperuser,
-		}
-
-		if tu.User.GithubUser != nil {
-			userResp.GithubUser = &GithubUserResponse{
-				GithubAvatarURL: tu.User.GithubUser.GithubAvatarURL,
-			}
-		}
-
-		items = append(items, TeamUserListResponse{
-			ID:        tu.ID,
-			User:      userResp,
-			Role:      tu.Role,
-			CreatedAt: tu.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		})
+		items = append(items, teamUserListResponseFor(tu))
 	}
 
 	return c.JSON(fiber.Map{
@@ -288,17 +268,10 @@ func (h *Handler) GetTeamUsers(c *fiber.Ctx) error {
 }
 
 func (h *Handler) AddUser(c *fiber.Ctx) error {
-	teamUser := middleware.GetCurrentTeamUser(c)
-	if teamUser == nil {
+	actor := middleware.GetCurrentTeamUser(c)
+	if actor == nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Team context required",
-		})
-	}
-
-	// Check permissions
-	if !teamUser.CanManageTeam() {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "Admin access required",
 		})
 	}
 
@@ -308,179 +281,87 @@ func (h *Handler) AddUser(c *fiber.Ctx) error {
 			"error": "Invalid input",
 		})
 	}
-	input.Email = models.NormalizeEmail(input.Email)
+	return h.inviteUser(c, actor.ID, services.InviteUserInput{
+		Email:        input.Email,
+		TeamSlug:     actor.Team.Slug,
+		Role:         input.Role,
+		SetSuperuser: input.SetSuperuser,
+	})
+}
 
-	// Validate input
-	if input.Email == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Email is required",
-		})
+func (h *Handler) AddUserWithAPIKey(c *fiber.Ctx) error {
+	actor := middleware.GetCurrentTeamUser(c)
+	if actor == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
-	// Basic email validation
-	emailRegex := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
-	matched, regexErr := regexp.MatchString(emailRegex, input.Email)
-	if regexErr != nil || !matched {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Please enter a valid email address",
-		})
+	var input AdminAddUserInput
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid input"})
 	}
 
-	if input.Role == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Role is required",
-		})
-	}
+	return h.inviteUser(c, actor.ID, services.InviteUserInput{
+		Email:    input.Email,
+		TeamSlug: input.TeamSlug,
+		Role:     input.Role,
+	})
+}
 
-	if input.Role != "admin" && input.Role != "member" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Role must be either 'admin' or 'member'",
-		})
-	}
-
-	// Check if setting superuser is allowed
-	if input.SetSuperuser && !teamUser.User.IsSuperuser {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "Only superuser can set superuser",
-		})
-	}
-
-	// Start transaction
-	tx := h.db.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
-
-	var user *models.User
-	var password *string
-
-	// Check if user already exists
-	err := tx.Where("email = ?", input.Email).First(&user).Error
+func (h *Handler) inviteUser(c *fiber.Ctx, actorTeamUserID uint, input services.InviteUserInput) error {
+	result, err := h.teamUsers.Invite(c.UserContext(), actorTeamUserID, input)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// Create new user - always generate password for new users
-			generatedPassword := generateRandomPassword()
-			password = &generatedPassword
-
-			user = &models.User{
-				Email:       input.Email,
-				IsSuperuser: input.SetSuperuser,
-			}
-
-			if err := user.SetPassword(generatedPassword); err != nil {
-				tx.Rollback()
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error": "Failed to hash password",
-				})
-			}
-
-			if err := tx.Create(user).Error; err != nil {
-				tx.Rollback()
-				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-					"error": "Failed to create user",
-				})
-			}
-		} else {
-			tx.Rollback()
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Database error",
-			})
-		}
-	} else {
-		// User exists - check if they're part of any other teams
-		var existingTeamCount int64
-		tx.Model(&models.TeamUser{}).Where("user_id = ?", user.ID).Count(&existingTeamCount)
-
-		// Only generate password if user is not part of any teams
-		if existingTeamCount == 0 {
-			generatedPassword := generateRandomPassword()
-			password = &generatedPassword
-
-			if err := user.SetPassword(generatedPassword); err != nil {
-				tx.Rollback()
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error": "Failed to hash password",
-				})
-			}
-		}
-
-		// Update superuser status if needed
-		if input.SetSuperuser && !user.IsSuperuser {
-			user.IsSuperuser = true
-			if err := tx.Save(user).Error; err != nil {
-				tx.Rollback()
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error": "Failed to update user",
-				})
-			}
-		}
+		return inviteUserError(c, err)
 	}
 
-	// Check if user is already in team
-	var existingTeamUser models.TeamUser
-	err = tx.Where("user_id = ? AND team_id = ?", user.ID, teamUser.TeamID).First(&existingTeamUser).Error
-	if err == nil {
-		tx.Rollback()
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "User is already in team",
-		})
+	teamUser := teamUserListResponseFor(result.TeamUser)
+	return c.JSON(AddUserResponse{
+		TeamUser: teamUser,
+		Team: TeamResponse{
+			ID:   result.TeamUser.Team.ID,
+			Name: result.TeamUser.Team.Name,
+			Slug: result.TeamUser.Team.Slug,
+		},
+		Password: result.Password,
+	})
+}
+
+func inviteUserError(c *fiber.Ctx, err error) error {
+	switch {
+	case errors.Is(err, services.ErrInvalidEmail):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Please enter a valid email address"})
+	case errors.Is(err, services.ErrInvalidRole):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Role must be either 'admin' or 'member'"})
+	case errors.Is(err, services.ErrTeamNotFound):
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Team not found"})
+	case errors.Is(err, services.ErrAdminAccessRequired):
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Admin access required"})
+	case errors.Is(err, services.ErrSuperuserAccessRequired):
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only superuser can set superuser"})
+	case errors.Is(err, services.ErrUserAlreadyInTeam):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "User is already in team"})
+	default:
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to add user to team"})
+	}
+}
+
+func teamUserListResponseFor(teamUser models.TeamUser) TeamUserListResponse {
+	user := UserResponse{
+		ID:          teamUser.User.ID,
+		Email:       teamUser.User.Email,
+		FirstName:   teamUser.User.FirstName,
+		LastName:    teamUser.User.LastName,
+		IsSuperuser: teamUser.User.IsSuperuser,
+	}
+	if teamUser.User.GithubUser != nil {
+		user.GithubUser = &GithubUserResponse{GithubAvatarURL: teamUser.User.GithubUser.GithubAvatarURL}
 	}
 
-	// Add user to team
-	newTeamUser := &models.TeamUser{
-		UserID: user.ID,
-		TeamID: teamUser.TeamID,
-		Role:   input.Role,
+	return TeamUserListResponse{
+		ID:        teamUser.ID,
+		User:      user,
+		Role:      teamUser.Role,
+		CreatedAt: teamUser.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	}
-
-	if err := tx.Create(newTeamUser).Error; err != nil {
-		tx.Rollback()
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to add user to team",
-		})
-	}
-
-	// Load full data for response
-	if err := tx.Preload("User").Preload("User.GithubUser").First(newTeamUser, newTeamUser.ID).Error; err != nil {
-		tx.Rollback()
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to load team user",
-		})
-	}
-
-	tx.Commit()
-
-	// Build response
-	userResp := UserResponse{
-		ID:          newTeamUser.User.ID,
-		Email:       newTeamUser.User.Email,
-		FirstName:   newTeamUser.User.FirstName,
-		LastName:    newTeamUser.User.LastName,
-		IsSuperuser: newTeamUser.User.IsSuperuser,
-	}
-
-	if newTeamUser.User.GithubUser != nil {
-		userResp.GithubUser = &GithubUserResponse{
-			GithubAvatarURL: newTeamUser.User.GithubUser.GithubAvatarURL,
-		}
-	}
-
-	teamUserResp := &TeamUserForTeamResponse{
-		ID:        newTeamUser.ID,
-		User:      userResp,
-		Role:      newTeamUser.Role,
-		SecretKey: newTeamUser.SecretKey,
-		CreatedAt: newTeamUser.CreatedAt.Format("2006-01-02T15:04:05Z"),
-	}
-
-	response := AddUserResponse{
-		TeamUser: teamUserResp,
-		Password: password,
-	}
-
-	return c.JSON(response)
 }
 
 func (h *Handler) RemoveUser(c *fiber.Ctx) error {
@@ -587,8 +468,12 @@ func (h *Handler) ResetUserPassword(c *fiber.Ctx) error {
 		})
 	}
 
-	// Generate new password
-	newPassword := generateRandomPassword()
+	newPassword, err := services.GenerateRandomPassword()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to generate password",
+		})
+	}
 
 	// Start transaction
 	tx := h.db.Begin()
@@ -618,12 +503,4 @@ func (h *Handler) ResetUserPassword(c *fiber.Ctx) error {
 	return c.JSON(ResetPasswordResponse{
 		Password: newPassword,
 	})
-}
-
-func generateRandomPassword() string {
-	bytes := make([]byte, 16)
-	if _, err := rand.Read(bytes); err != nil {
-		panic(err)
-	}
-	return hex.EncodeToString(bytes)[:16]
 }

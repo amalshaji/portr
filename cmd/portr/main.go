@@ -38,6 +38,7 @@ func main() {
 			replayCmd(),
 			authCmd(),
 			appServerCmd(),
+			adminCmd(),
 		},
 	}
 
@@ -98,7 +99,7 @@ func shouldSuppressUpdateNotice(args []string) bool {
 			return false
 		}
 
-		if replayWantsHelp(replayArgs) {
+		if commandWantsHelp(replayArgs) {
 			return true
 		}
 
