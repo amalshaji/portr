@@ -67,7 +67,7 @@ func TestLogin_SuccessSetsSessionCookie(t *testing.T) {
 	user := CreateTestUser(t, db, "gooduser@example.com", false)
 	// The CreateTestUser helper sets the password to "password123"
 
-	payload := `{"email":"` + user.Email + `","password":"password123"}`
+	payload := `{"email":"` + strings.ToUpper(user.Email) + `","password":"password123"}`
 	req := httptest.NewRequest("POST", "/api/v1/auth/login", bytes.NewReader([]byte(payload)))
 	req.Header.Set("Content-Type", "application/json")
 

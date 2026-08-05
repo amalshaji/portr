@@ -15,6 +15,7 @@ import {
   Home,
   LogOut,
   PlusCircle,
+  Settings,
   User,
   Users,
 } from "lucide-react"
@@ -42,13 +43,14 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { useUserStore } from "@/lib/store"
+import AutoSignupSettings from "../auto-signup/AutoSignupSettings"
+import NotFound from "../NotFound"
 import Connections from "./Connections"
 import Metrics from "./Metrics"
 import MyAccount from "./MyAccount"
 import Overview from "./Overview"
 import ReservedDomains from "./ReservedDomains"
 import UsersPage from "./UsersPage"
-import NotFound from "../NotFound"
 
 const operateNav = [
   { label: "Overview", path: "overview", icon: Home },
@@ -188,6 +190,18 @@ export default function AppPage() {
                     <span>New team</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    tooltip="GitHub auto signup"
+                    className="h-10 rounded-xl p-0 hover:bg-transparent active:bg-transparent"
+                  >
+                    <SidebarLink to={`/${team}/auto-signup`}>
+                      <Settings className="size-4" />
+                      <span>GitHub auto signup</span>
+                    </SidebarLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -300,6 +314,7 @@ export default function AppPage() {
           <Route path="/reserved-domains" element={<ReservedDomains />} />
           <Route path="/my-account" element={<MyAccount />} />
           <Route path="/users" element={<UsersPage />} />
+          <Route path="/auto-signup" element={<AutoSignupSettings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </AppLayout>

@@ -88,6 +88,66 @@ func TestGetConnections_AsTeamUser_ReturnsConnections(t *testing.T) {
 	}
 }
 
+func TestGetConnections_NoTrailingSlashSucceeds(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	user := CreateTestUser(t, db, "conn-no-slash@example.com", false)
+	team, _ := CreateTeamAndTeamUser(t, db, "Conn No Slash Team", user, "admin")
+	sess := CreateSessionForUser(t, db, user)
+
+	req := httptest.NewRequest("GET", "/api/v1/connections?type=recent", nil)
+	req.Header.Set("Cookie", SessionCookieValue(sess))
+	req.Header.Set("X-Team-Slug", team.Slug)
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK, got %d", resp.StatusCode)
+	}
+}
+
+func TestGetConnections_ClampsInvalidPagination(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	user := CreateTestUser(t, db, "connclamp@example.com", false)
+	team, teamUser := CreateTeamAndTeamUser(t, db, "Conn Clamp Team", user, "admin")
+	subdomain := "connclamp"
+	conn := models.NewConnection(models.ConnectionTypeHTTP, &subdomain, teamUser)
+	if err := db.Create(conn).Error; err != nil {
+		t.Fatalf("failed to create connection in DB: %v", err)
+	}
+	sess := CreateSessionForUser(t, db, user)
+
+	req := httptest.NewRequest("GET", "/api/v1/connections/?page=-10&page_size=-50", nil)
+	req.Header.Set("Cookie", SessionCookieValue(sess))
+	req.Header.Set("X-Team-Slug", team.Slug)
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK for clamped pagination, got %d", resp.StatusCode)
+	}
+
+	var body map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	if _, ok := body["count"].(float64); !ok {
+		t.Fatalf("expected count in response, got: %v", body)
+	}
+	if _, ok := body["data"].([]interface{}); !ok {
+		t.Fatalf("expected data array in response, got: %v", body)
+	}
+}
+
 func TestCreateConnection_HTTP_Success(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()
@@ -141,6 +201,34 @@ func TestCreateConnection_HTTP_Success(t *testing.T) {
 	}
 	if createdConn.Subdomain == nil || *createdConn.Subdomain != "uniquesubdomain" {
 		t.Fatalf("expected subdomain 'uniquesubdomain', got %v", createdConn.Subdomain)
+	}
+}
+
+func TestCreateConnection_NoTrailingSlashSucceeds(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	user := CreateTestUser(t, db, "creator-no-slash@example.com", false)
+	_, teamUser := CreateTeamAndTeamUser(t, db, "CreateConn No Slash Team", user, "admin")
+
+	payload := map[string]interface{}{
+		"secret_key":      teamUser.SecretKey,
+		"connection_type": "http",
+		"subdomain":       "uniquesubdomainnoslash",
+	}
+	payloadBytes, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest("POST", "/api/v1/connections", bytes.NewReader(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected status 200 OK, got %d: %s", resp.StatusCode, string(body))
 	}
 }
 

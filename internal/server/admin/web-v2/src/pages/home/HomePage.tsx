@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { AuthConfig } from '@/types'
+import { getResponseMessage } from './auth-errors'
 
 export default function HomePage() {
   const [isSuperUserSignup, setIsSuperUserSignup] = useState(false)
@@ -20,16 +21,6 @@ export default function HomePage() {
   const [message, setMessage] = useState('')
   
   const navigate = useNavigate()
-
-  const getResponseMessage = (code: string) => {
-    const codes: Record<string, string> = {
-      'github-oauth-error': 'There was an error authenticating with GitHub.',
-      'user-not-found': 'You are not a member of any team.',
-      'private-email': 'Failed to verify github email. Please try again later.',
-      'invalid-state': 'Broken oauth flow, please try again later.',
-    }
-    return codes[code] ?? ''
-  }
 
   // const getMessageType = (code: string) => {
   //   return ['invite-accepted'].includes(code) ? 'success' : 'error'
