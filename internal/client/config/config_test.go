@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -426,6 +427,213 @@ func TestValidateRejectsStubTunnelWithoutSubdomain(t *testing.T) {
 		t.Fatal("expected missing subdomain error")
 	}
 	if !strings.Contains(err.Error(), "subdomain is required") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func groupedTunnelsConfig() Config {
+	return Config{
+		Tunnels: []Tunnel{
+			{Name: "web", Port: 3000},
+			{Name: "api", Port: 8000},
+			{Name: "pg", Type: constants.Tcp, Port: 5432},
+		},
+		Groups: map[string][]string{"frontend": {"web", "api"}},
+	}
+}
+
+func selectedTunnelNames(tunnels []Tunnel) []string {
+	names := make([]string, 0, len(tunnels))
+	for _, tunnel := range tunnels {
+		names = append(names, tunnel.Name)
+	}
+	return names
+}
+
+func TestSelectTunnelsExpandsGroup(t *testing.T) {
+	cfg := groupedTunnelsConfig()
+
+	got := selectedTunnelNames(cfg.SelectTunnels([]string{"frontend"}))
+
+	want := []string{"web", "api"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("expected %q, got %q", want, got)
+	}
+}
+
+func TestSelectTunnelsCombinesGroupAndTunnelNames(t *testing.T) {
+	cfg := groupedTunnelsConfig()
+
+	got := selectedTunnelNames(cfg.SelectTunnels([]string{"frontend", "pg"}))
+
+	want := []string{"web", "api", "pg"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("expected %q, got %q", want, got)
+	}
+}
+
+func TestSelectTunnelsSelectsOverlappingTunnelOnce(t *testing.T) {
+	cfg := groupedTunnelsConfig()
+
+	got := selectedTunnelNames(cfg.SelectTunnels([]string{"frontend", "api"}))
+
+	want := []string{"web", "api"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("expected %q, got %q", want, got)
+	}
+}
+
+func TestSelectTunnelsWithoutServicesSelectsAll(t *testing.T) {
+	cfg := groupedTunnelsConfig()
+
+	got := selectedTunnelNames(cfg.SelectTunnels(nil))
+
+	want := []string{"web", "api", "pg"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("expected %q, got %q", want, got)
+	}
+}
+
+func TestSelectTunnelsWithUnknownNameSelectsNothing(t *testing.T) {
+	cfg := groupedTunnelsConfig()
+
+	if got := cfg.SelectTunnels([]string{"frontnd"}); len(got) != 0 {
+		t.Fatalf("expected no tunnels, got %q", selectedTunnelNames(got))
+	}
+}
+
+func TestReplaceTunnelsDropsGroups(t *testing.T) {
+	cfg := groupedTunnelsConfig()
+
+	cfg.ReplaceTunnels(Tunnel{Name: "cli", Port: 4000})
+	cfg.SetDefaults()
+
+	if cfg.Groups != nil {
+		t.Fatalf("expected groups to be dropped, got %v", cfg.Groups)
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("expected valid config after replacing tunnels, got %v", err)
+	}
+}
+
+func TestValidateRejectsGroupWithUnknownTunnel(t *testing.T) {
+	cfg := Config{
+		Tunnels: []Tunnel{{Name: "web", Port: 3000}},
+		Groups:  map[string][]string{"frontend": {"web", "missing"}},
+	}
+	cfg.SetDefaults()
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected unknown tunnel error")
+	}
+	if !strings.Contains(err.Error(), "references unknown tunnel") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestValidateRejectsGroupNameMatchingTunnelName(t *testing.T) {
+	cfg := Config{
+		Tunnels: []Tunnel{{Name: "web", Port: 3000}},
+		Groups:  map[string][]string{"web": {"web"}},
+	}
+	cfg.SetDefaults()
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected group name conflict error")
+	}
+	if !strings.Contains(err.Error(), "conflicts with a tunnel") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestValidateRejectsGroupMemberWithEmptyName(t *testing.T) {
+	cfg := Config{
+		Tunnels: []Tunnel{{Port: 3000}, {Name: "api", Port: 8000}},
+		Groups:  map[string][]string{"frontend": {""}},
+	}
+	cfg.SetDefaults()
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected unnamed tunnel to be unreferenceable")
+	}
+	if !strings.Contains(err.Error(), "references unknown tunnel") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestValidateRejectsEmptyGroup(t *testing.T) {
+	cfg := Config{
+		Tunnels: []Tunnel{{Name: "web", Port: 3000}},
+		Groups:  map[string][]string{"frontend": {}},
+	}
+	cfg.SetDefaults()
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("expected empty group error")
+	}
+	if !strings.Contains(err.Error(), "must reference at least one tunnel") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestLoadParsesTunnelGroups(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	configContent := `tunnels:
+  - name: web
+    port: 3000
+  - name: api
+    port: 8000
+groups:
+  frontend: [web, api]
+`
+	if err := os.WriteFile(path, []byte(configContent), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	want := []string{"web", "api"}
+	if !slices.Equal(cfg.Groups["frontend"], want) {
+		t.Fatalf("expected %q, got %q", want, cfg.Groups["frontend"])
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("expected valid config, got %v", err)
+	}
+}
+
+func TestNoMatchingTunnelsErrorListsTunnelsAndGroups(t *testing.T) {
+	cfg := Config{
+		Tunnels: []Tunnel{{Name: "web", Port: 3000}, {Name: "api", Port: 8000}},
+		Groups:  map[string][]string{"frontend": {"web", "api"}},
+	}
+
+	err := cfg.NoMatchingTunnelsError([]string{"frontnd"})
+	if err == nil {
+		t.Fatal("expected no matching tunnels error")
+	}
+	if !strings.Contains(err.Error(), "frontnd") {
+		t.Fatalf("expected error to name the unknown service, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "available: api, frontend (group), web") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestNoMatchingTunnelsErrorWithoutNamedTunnels(t *testing.T) {
+	cfg := Config{Tunnels: []Tunnel{{Port: 3000}}}
+
+	err := cfg.NoMatchingTunnelsError([]string{"web"})
+	if err == nil {
+		t.Fatal("expected no named tunnels error")
+	}
+	if !strings.Contains(err.Error(), "no named tunnels configured") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

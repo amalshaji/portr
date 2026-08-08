@@ -19,14 +19,14 @@ This file mirrors the CLI surface for quick lookup. The skill body contains the 
 | `portr http <port>` | Expose a local HTTP/WebSocket port. | `--subdomain`, `-s` |
 | `portr tcp <port>` | Expose a local TCP port. | none |
 | `portr stub` | Serve a templated response through an HTTP tunnel. | `--subdomain`, `-s`; `--response-format`; `--response-tmpl`; `--response-tmpl-file` |
-| `portr start [names...]` | Start config-defined tunnels. | tunnel names as positional args |
+| `portr start [names or groups...]` | Start config-defined tunnels. | tunnel or group names as positional args |
 | `portr logs <subdomain> [filter]` | Read stored local HTTP request logs. | `--count`, `-n`; `--since`; `--json` |
 | `portr replay <request-id>` | Replay a stored HTTP request. | `--latest`; `--subdomain`; `--filter`; `--since`; `--method`; `--path`; `--header`; `--drop-header`; `--body`; `--body-file`; `--stdin`; `--body-encoding`; `--json` |
 | `portr app-server` | Run a local HTTP API for tunnel lifecycle control. | `--host`; `--port`; `--token`; `PORTR_APP_SERVER_TOKEN` |
 
 ## Config Keys
 
-- Global: `server_url`, `ssh_url`, `tunnel_url`, `secret_key`, `use_localhost`, `debug`, `use_vite`, `dashboard_port`, `disable_dashboard`, `enable_request_logging`, `connection_log_retention_days`, `health_check_interval`, `health_check_max_retries`, `disable_tui`, `disable_update_check`, `insecure_skip_host_key_verification`.
+- Global: `server_url`, `ssh_url`, `tunnel_url`, `secret_key`, `use_localhost`, `debug`, `use_vite`, `dashboard_port`, `disable_dashboard`, `enable_request_logging`, `connection_log_retention_days`, `health_check_interval`, `health_check_max_retries`, `disable_tui`, `disable_update_check`, `insecure_skip_host_key_verification`, `groups`.
 - Tunnel: `name`, `type`, `host`, `port`, `subdomain`, `pool_size`, `response_format`, `response_tmpl`, `response_tmpl_file`.
 
 ## Team Administration

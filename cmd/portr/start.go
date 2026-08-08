@@ -29,7 +29,7 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 		if err := tunnelFromCli.Validate(); err != nil {
 			return err
 		}
-		cfg.Tunnels = []config.Tunnel{*tunnelFromCli}
+		cfg.ReplaceTunnels(*tunnelFromCli)
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -130,8 +130,9 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 
 func startCmd() *cli.Command {
 	return &cli.Command{
-		Name:  "start",
-		Usage: "Start the tunnels from the config file",
+		Name:      "start",
+		Usage:     "Start the tunnels from the config file",
+		ArgsUsage: "[names or groups...]",
 		Action: func(c *cli.Context) error {
 			return startTunnels(c, nil)
 		},
