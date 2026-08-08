@@ -117,6 +117,7 @@ func (s *Server) setupRoutes() {
 	s.setupSubdomainRoutes(v1)
 	s.setupConfigRoutes(v1)
 	s.setupAutoSignupRoutes(v1)
+	s.setupAdminRoutes(v1)
 
 	s.app.Use("/static", filesystem.New(filesystem.Config{
 		Root:       http.FS(staticFS),
@@ -200,6 +201,13 @@ func (s *Server) setupAutoSignupRoutes(v1 fiber.Router) {
 
 	autoSignupGroup.Get("/", s.auth.RequireSuperuser, autoSignupHandler.Get)
 	autoSignupGroup.Patch("/", s.auth.RequireSuperuser, autoSignupHandler.Update)
+}
+
+func (s *Server) setupAdminRoutes(v1 fiber.Router) {
+	teamHandler := team.NewHandler(s.db.DB, s.store)
+	adminGroup := v1.Group("/admin", s.auth.RequireAPIAuth)
+
+	adminGroup.Post("/users", teamHandler.AddUserWithAPIKey)
 }
 
 func (s *Server) handleIndex(c *fiber.Ctx) error {
