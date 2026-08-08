@@ -106,3 +106,43 @@ func testClientConfig(tunnel config.Tunnel) *config.ClientConfig {
 		UseLocalHost: false,
 	}
 }
+
+func TestViewRendersStaticTunnelWithoutLocalPort(t *testing.T) {
+	tunnel := config.Tunnel{
+		Name:      "site",
+		Type:      constants.Static,
+		Subdomain: "site",
+		Dir:       "/tmp/dist",
+		PoolSize:  1,
+	}
+	m := model{
+		tunnels: map[string]*tunnelStatus{
+			tunnelKey(&tunnel): {
+				config:       &tunnel,
+				clientConfig: testClientConfig(tunnel),
+				active:       1,
+				poolSize:     1,
+			},
+		},
+		width: 200,
+	}
+
+	view := m.View()
+	if !strings.Contains(view, "site (static → https://site.go.portr.dev)") {
+		t.Fatalf("expected static tunnel line, got %q", view)
+	}
+	if strings.Contains(view, "127.0.0.1:") || strings.Contains(view, "/tmp/dist") {
+		t.Fatalf("expected no local address or directory in the status line, got %q", view)
+	}
+}
+
+func TestTunnelKeyDistinguishesStaticTunnelsSharingLocalPort(t *testing.T) {
+	// Every static tunnel is served from one responder port, so a port-based
+	// key would collapse them into a single row with a wrong health count.
+	first := config.Tunnel{Type: constants.Static, Subdomain: "a", Port: 54321}
+	second := config.Tunnel{Type: constants.Static, Subdomain: "b", Port: 54321}
+
+	if tunnelKey(&first) == tunnelKey(&second) {
+		t.Fatalf("expected distinct keys, both were %q", tunnelKey(&first))
+	}
+}

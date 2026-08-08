@@ -637,3 +637,120 @@ func TestNoMatchingTunnelsErrorWithoutNamedTunnels(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestSetDefaultsGeneratesSubdomainForStaticTunnel(t *testing.T) {
+	tunnel := Tunnel{Type: constants.Static, Dir: "./dist"}
+	tunnel.SetDefaults()
+
+	if tunnel.Subdomain == "" {
+		t.Fatal("expected a generated subdomain for static tunnels")
+	}
+	if tunnel.PoolSize != 1 {
+		t.Fatalf("expected pool size 1, got %d", tunnel.PoolSize)
+	}
+	if tunnel.Host != "" {
+		t.Fatalf("expected the responder to assign the host, got %q", tunnel.Host)
+	}
+}
+
+func TestLoadResolvesServeDirRelativeToConfig(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "dist"), 0o755); err != nil {
+		t.Fatalf("mkdir dist: %v", err)
+	}
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("tunnels:\n  - name: site\n    type: static\n    subdomain: site\n    dir: dist\n"), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	expected, err := filepath.Abs(filepath.Join(dir, "dist"))
+	if err != nil {
+		t.Fatalf("abs: %v", err)
+	}
+	if cfg.Tunnels[0].Dir != expected {
+		t.Fatalf("expected %q, got %q", expected, cfg.Tunnels[0].Dir)
+	}
+}
+
+func TestLoadDoesNotStatServeDir(t *testing.T) {
+	// Load runs on every CLI invocation, so a stale static entry must not break
+	// unrelated commands. Validate is where the directory has to exist.
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("tunnels:\n  - name: site\n    type: static\n    subdomain: site\n    dir: gone\n"), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("expected load to succeed for a missing dir, got %v", err)
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected validate to reject the missing dir")
+	}
+}
+
+func TestValidateRejectsStaticTunnelWithoutDir(t *testing.T) {
+	tunnel := Tunnel{Type: constants.Static, Subdomain: "site"}
+	tunnel.SetDefaults()
+
+	err := tunnel.Validate()
+	if err == nil || !strings.Contains(err.Error(), "dir is required for static tunnels") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestValidateRejectsStaticTunnelWithFileAsDir(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "not-a-dir.txt")
+	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	tunnel := Tunnel{Type: constants.Static, Subdomain: "site", Dir: file}
+	tunnel.SetDefaults()
+
+	err := tunnel.Validate()
+	if err == nil || !strings.Contains(err.Error(), "is not a directory") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestGetTunnelAddrUsesHttpAddrForStatic(t *testing.T) {
+	cfg := ClientConfig{
+		TunnelUrl: "go.portr.dev",
+		Tunnel:    Tunnel{Type: constants.Static, Subdomain: "site"},
+	}
+
+	if got := cfg.GetTunnelAddr(); got != "https://site.go.portr.dev" {
+		t.Fatalf("unexpected tunnel address %q", got)
+	}
+}
+
+func TestStatusKeyDistinguishesStubAndStatic(t *testing.T) {
+	stub := Tunnel{Type: constants.Stub, Subdomain: "x"}
+	static := Tunnel{Type: constants.Static, Subdomain: "x"}
+
+	if stub.StatusKey() == static.StatusKey() {
+		t.Fatalf("expected distinct status keys, both were %q", stub.StatusKey())
+	}
+	if static.StatusKey() != "static:x" {
+		t.Fatalf("unexpected static status key %q", static.StatusKey())
+	}
+}
+
+func TestDisplayNameFallsBackToSubdomainForStatic(t *testing.T) {
+	tunnel := Tunnel{Type: constants.Static, Subdomain: "site"}
+	if got := tunnel.DisplayName(); got != "site" {
+		t.Fatalf("unexpected display name %q", got)
+	}
+
+	named := Tunnel{Type: constants.Static, Subdomain: "site", Name: "docs"}
+	if got := named.DisplayName(); got != "docs" {
+		t.Fatalf("unexpected display name %q", got)
+	}
+}

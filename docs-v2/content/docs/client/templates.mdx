@@ -288,8 +288,9 @@ Each tunnel template supports the following options:
 - **name**: A unique identifier for the tunnel
 - **subdomain**: The subdomain to use for the tunnel
 - **port**: The local port to tunnel
-- **type**: The tunnel type (`http` or `tcp`)
+- **type**: The tunnel type (`http`, `tcp`, `stub`, or `static`)
 - **host**: The local host to bind to (default: localhost)
+- **dir**: Static only. Directory to serve, resolved relative to the config file
 - **pool_size**: HTTP only. Number of SSH workers to run per HTTP tunnel (default: 2). Increases resilience and throughput.
 
 HTTP tunnels use streaming reverse proxying by default. Request and response bodies are forwarded as they arrive, while inspector captures are stored asynchronously and capped at 1 MiB per body.
