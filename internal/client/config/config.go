@@ -83,6 +83,17 @@ func (t *Tunnel) GetLocalAddr() string {
 	return t.Host + ":" + fmt.Sprint(t.Port)
 }
 
+// DisplayName is the human-readable label for a tunnel.
+func (t Tunnel) DisplayName() string {
+	if t.Name != "" {
+		return t.Name
+	}
+	if t.Type == constants.Stub && t.Subdomain != "" {
+		return t.Subdomain
+	}
+	return fmt.Sprint(t.Port)
+}
+
 func (t *Tunnel) ValidateStubTemplateSource() error {
 	if t.Type != constants.Stub {
 		return nil
