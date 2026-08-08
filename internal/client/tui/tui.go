@@ -105,8 +105,82 @@ type model struct {
 	lastUpdate             time.Time
 	selected               string
 	width                  int
+	height                 int
 	dashboardURL           string
 	dashboardDisabledLabel string
+	qrEnabled              bool
+	showQR                 bool
+	qrPanel                string
+}
+
+// applyLayout resizes the tables for the given terminal size. The QR panel is
+// rebuilt here because it competes with the request table for vertical space.
+func (m *model) applyLayout(width, height int) {
+	m.width = width
+	m.height = height
+	m.qrPanel = m.buildQRPanel()
+
+	// Calculate dynamic widths based on terminal size
+	totalWidth := max(width-6, 30) // Account for borders and terminal edges
+
+	// Adjust table heights based on terminal height
+	availableHeight := height - 15 // Account for headers and other UI elements
+	if m.qrPanel != "" {
+		availableHeight -= lipgloss.Height(m.qrPanel) + 1
+	}
+	availableHeight = max(availableHeight, 8)
+
+	if m.debug {
+		// Prioritize request logs when debug is enabled.
+		mainTableHeight := max((availableHeight*2)/3, 8)
+		debugTableHeight := max(availableHeight-mainTableHeight-1, 4)
+		m.table.SetHeight(mainTableHeight)
+		m.debugTable.SetHeight(debugTableHeight)
+	} else {
+		// Use nearly all available space for request logs when debug table is hidden.
+		m.table.SetHeight(availableHeight)
+	}
+
+	// Adjust URL column width to fill remaining space
+	timeWidth := 12
+	tunnelWidth := 15
+	methodWidth := 8
+	statusWidth := 8
+	mainCellPadding := 2 * 5 // table default style adds left/right padding to each cell
+	urlWidth := totalWidth - (timeWidth + tunnelWidth + methodWidth + statusWidth + mainCellPadding + 1)
+
+	urlWidth = max(urlWidth, 10)
+
+	// Update main table columns
+	cols := []table.Column{
+		{Title: "Time", Width: timeWidth},
+		{Title: "Tunnel", Width: tunnelWidth},
+		{Title: "Method", Width: methodWidth},
+		{Title: "Status", Width: statusWidth},
+		{Title: "URL", Width: urlWidth},
+	}
+	m.table.SetColumns(cols)
+
+	// Update debug table columns if debug is enabled
+	if m.debug {
+		debugCellPadding := 2 * 4 // four columns with left/right padding
+		debugContentWidth := totalWidth - (timeWidth + methodWidth + debugCellPadding + 1)
+		debugContentWidth = max(debugContentWidth, 24)
+
+		messageWidth := max(debugContentWidth/2, 12)
+		errorWidth := max(debugContentWidth-messageWidth, 12)
+
+		debugCols := []table.Column{
+			{Title: "Time", Width: timeWidth},
+			{Title: "Level", Width: methodWidth},
+			{Title: "Message", Width: messageWidth},
+			{Title: "Error", Width: errorWidth},
+		}
+		m.debugTable.SetColumns(debugCols)
+	}
+
+	m.table.SetWidth(totalWidth)
+	m.debugTable.SetWidth(totalWidth)
 }
 
 func tunnelKey(tunnelConfig *config.Tunnel) string {
@@ -119,7 +193,7 @@ func tunnelKey(tunnelConfig *config.Tunnel) string {
 	return fmt.Sprintf("%d", tunnelConfig.Port)
 }
 
-func New(debug bool, dashboardURL string, dashboardDisabledLabel string) *tea.Program {
+func New(debug bool, dashboardURL string, dashboardDisabledLabel string, enableQRCode bool) *tea.Program {
 	// Initial default widths
 	const (
 		timeWidth   = 12
@@ -178,6 +252,7 @@ func New(debug bool, dashboardURL string, dashboardDisabledLabel string) *tea.Pr
 			width:                  80,
 			dashboardURL:           dashboardURL,
 			dashboardDisabledLabel: dashboardDisabledLabel,
+			qrEnabled:              enableQRCode,
 		},
 		tea.WithAltScreen(),
 	)
@@ -211,6 +286,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c":
 			m.quitting = true
 			return m, tea.Quit
+		case "r":
+			if m.qrEnabled {
+				m.showQR = !m.showQR
+				m.applyLayout(m.width, m.height)
+			}
+			// Swallow the key either way so the table never scrolls on it.
+			return m, nil
 		}
 
 	case ErrorMsg:
@@ -245,6 +327,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.selected == "" {
 			m.selected = key
 		}
+		if m.showQR {
+			// The panel may have been unavailable before this tunnel connected.
+			m.applyLayout(m.width, m.height)
+		}
 
 	case UpdateHealthMsg:
 		if tunnel, exists := m.tunnels[msg.Port]; exists {
@@ -261,66 +347,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-
-		// Calculate dynamic widths based on terminal size
-		totalWidth := max(msg.Width-6, 30) // Account for borders and terminal edges
-
-		// Adjust table heights based on terminal height
-		availableHeight := msg.Height - 15 // Account for headers and other UI elements
-		availableHeight = max(availableHeight, 8)
-
-		if m.debug {
-			// Prioritize request logs when debug is enabled.
-			mainTableHeight := max((availableHeight*2)/3, 8)
-			debugTableHeight := max(availableHeight-mainTableHeight-1, 4)
-			m.table.SetHeight(mainTableHeight)
-			m.debugTable.SetHeight(debugTableHeight)
-		} else {
-			// Use nearly all available space for request logs when debug table is hidden.
-			m.table.SetHeight(availableHeight)
-		}
-
-		// Adjust URL column width to fill remaining space
-		timeWidth := 12
-		tunnelWidth := 15
-		methodWidth := 8
-		statusWidth := 8
-		mainCellPadding := 2 * 5 // table default style adds left/right padding to each cell
-		urlWidth := totalWidth - (timeWidth + tunnelWidth + methodWidth + statusWidth + mainCellPadding + 1)
-
-		urlWidth = max(urlWidth, 10)
-
-		// Update main table columns
-		cols := []table.Column{
-			{Title: "Time", Width: timeWidth},
-			{Title: "Tunnel", Width: tunnelWidth},
-			{Title: "Method", Width: methodWidth},
-			{Title: "Status", Width: statusWidth},
-			{Title: "URL", Width: urlWidth},
-		}
-		m.table.SetColumns(cols)
-
-		// Update debug table columns if debug is enabled
-		if m.debug {
-			debugCellPadding := 2 * 4 // four columns with left/right padding
-			debugContentWidth := totalWidth - (timeWidth + methodWidth + debugCellPadding + 1)
-			debugContentWidth = max(debugContentWidth, 24)
-
-			messageWidth := max(debugContentWidth/2, 12)
-			errorWidth := max(debugContentWidth-messageWidth, 12)
-
-			debugCols := []table.Column{
-				{Title: "Time", Width: timeWidth},
-				{Title: "Level", Width: methodWidth},
-				{Title: "Message", Width: messageWidth},
-				{Title: "Error", Width: errorWidth},
-			}
-			m.debugTable.SetColumns(debugCols)
-		}
-
-		m.table.SetWidth(totalWidth)
-		m.debugTable.SetWidth(totalWidth)
+		m.applyLayout(msg.Width, msg.Height)
 		return m, nil
 
 	case tickMsg:
@@ -456,6 +483,12 @@ func (m model) View() string {
 	}
 	s += "\n"
 
+	// The QR panel sits above the table because a short terminal clips the
+	// bottom of the alt screen, and the table is the right thing to lose.
+	if m.qrPanel != "" {
+		s += m.qrPanel + "\n\n"
+	}
+
 	// Add waiting message if no logs
 	if len(m.table.Rows()) == 0 {
 		// Create empty table with just headers
@@ -474,7 +507,11 @@ func (m model) View() string {
 	}
 
 	// Help and status
-	s += "\n" + subtitleStyle.Render("Ctrl+C: Quit") + "\n"
+	help := "Ctrl+C: Quit"
+	if m.qrEnabled {
+		help += " • r: QR code"
+	}
+	s += "\n" + subtitleStyle.Render(help) + "\n"
 	s += subtitleStyle.Render(fmt.Sprintf("Last updated: %s", m.lastUpdate.Format("15:04:05"))) + "\n"
 
 	return s
