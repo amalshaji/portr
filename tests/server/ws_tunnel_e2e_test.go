@@ -310,7 +310,14 @@ func TestWebSocketTunnelProxiesTCPToLocalService(t *testing.T) {
 			}
 			go func(conn net.Conn) {
 				defer conn.Close()
-				_, _ = io.Copy(conn, conn)
+				request, readErr := io.ReadAll(conn)
+				if readErr != nil || string(request) != "tcp-request" {
+					return
+				}
+				_, _ = conn.Write([]byte("tcp-response"))
+				if tcpConn, ok := conn.(*net.TCPConn); ok {
+					_ = tcpConn.CloseWrite()
+				}
 			}(conn)
 		}
 	}()
@@ -384,15 +391,22 @@ func TestWebSocketTunnelProxiesTCPToLocalService(t *testing.T) {
 		t.Fatalf("dial tcp tunnel: %v", err)
 	}
 	defer conn.Close()
-	if _, err := conn.Write([]byte("tcp-ok")); err != nil {
+	if _, err := conn.Write([]byte("tcp-request")); err != nil {
 		t.Fatalf("write tcp tunnel: %v", err)
 	}
-	buf := make([]byte, len("tcp-ok"))
-	if _, err := io.ReadFull(conn, buf); err != nil {
-		t.Fatalf("read tcp tunnel: %v", err)
+	tcpConn, ok := conn.(*net.TCPConn)
+	if !ok {
+		t.Fatalf("expected TCP connection, got %T", conn)
 	}
-	if string(buf) != "tcp-ok" {
-		t.Fatalf("expected tcp echo, got %q", string(buf))
+	if err := tcpConn.CloseWrite(); err != nil {
+		t.Fatalf("half-close tcp request: %v", err)
+	}
+	response, err := io.ReadAll(conn)
+	if err != nil {
+		t.Fatalf("read tcp tunnel response: %v", err)
+	}
+	if string(response) != "tcp-response" {
+		t.Fatalf("expected tcp response, got %q", response)
 	}
 }
 

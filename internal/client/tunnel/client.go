@@ -33,6 +33,7 @@ type Session struct {
 
 type tunnelStream struct {
 	frames    chan wsproto.Frame
+	credits   chan struct{}
 	done      chan struct{}
 	closeOnce sync.Once
 }
@@ -48,8 +49,11 @@ func Connect(ctx context.Context, cfg config.ClientConfig, connectionID string) 
 	}
 	wsConfig.Header.Set(wsproto.ConnectionIDHeader, connectionID)
 	wsConfig.Header.Set(wsproto.SecretKeyHeader, cfg.SecretKey)
-	conn, err := websocket.DialConfig(wsConfig)
+	conn, err := wsConfig.DialContext(ctx)
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
 		return nil, err
 	}
 
@@ -93,7 +97,7 @@ func Connect(ctx context.Context, cfg config.ClientConfig, connectionID string) 
 		conn:       conn,
 		writer:     wsproto.NewWriter(conn),
 		remotePort: readyFrame.Port,
-		accept:     make(chan net.Conn),
+		accept:     make(chan net.Conn, wsproto.StreamWindowSize),
 		pong:       make(chan struct{}, 1),
 		done:       make(chan struct{}),
 		streams:    make(map[string]*tunnelStream),
@@ -165,7 +169,7 @@ func (s *Session) readFrames() {
 		switch frame.Type {
 		case wsproto.TypeOpen:
 			s.openStream(frame)
-		case wsproto.TypeData, wsproto.TypeClose, wsproto.TypeError:
+		case wsproto.TypeData, wsproto.TypeWindow, wsproto.TypeCloseWrite, wsproto.TypeClose, wsproto.TypeError:
 			s.deliver(frame)
 		case wsproto.TypePong:
 			select {
@@ -180,11 +184,15 @@ func (s *Session) openStream(frame wsproto.Frame) {
 	if frame.StreamID == "" {
 		return
 	}
-	stream := &tunnelStream{frames: make(chan wsproto.Frame, 32), done: make(chan struct{})}
+	stream := &tunnelStream{
+		frames:  make(chan wsproto.Frame, wsproto.StreamWindowSize+1),
+		credits: make(chan struct{}, wsproto.StreamWindowSize),
+		done:    make(chan struct{}),
+	}
 	s.streamsMu.Lock()
 	s.streams[frame.StreamID] = stream
 	s.streamsMu.Unlock()
-	conn := newTunnelStreamConn(frame.StreamID, frame.Data, stream.frames, stream.done, s.send)
+	conn := newTunnelStreamConn(frame.StreamID, frame.Data, stream.frames, stream.credits, stream.done, s.send)
 	go func() {
 		select {
 		case <-conn.closed:
@@ -192,9 +200,19 @@ func (s *Session) openStream(frame wsproto.Frame) {
 		}
 		s.removeStream(frame.StreamID)
 	}()
+	if err := s.send(wsproto.Frame{
+		Type:     wsproto.TypeWindow,
+		StreamID: frame.StreamID,
+		Window:   wsproto.StreamWindowSize,
+	}); err != nil {
+		_ = conn.Close()
+		return
+	}
 	select {
 	case s.accept <- conn:
 	case <-s.done:
+		_ = conn.Close()
+	default:
 		_ = conn.Close()
 	}
 }
@@ -215,10 +233,22 @@ func (s *Session) deliver(frame wsproto.Frame) {
 	if stream == nil {
 		return
 	}
+	if frame.Type == wsproto.TypeWindow {
+		for range min(frame.Window, wsproto.StreamWindowSize) {
+			select {
+			case stream.credits <- struct{}{}:
+			default:
+				return
+			}
+		}
+		return
+	}
 	select {
 	case stream.frames <- frame:
 	case <-stream.done:
 	case <-s.done:
+	default:
+		s.removeStream(frame.StreamID)
 	}
 }
 

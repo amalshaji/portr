@@ -12,20 +12,25 @@ const (
 	ConnectionIDHeader = "X-Portr-Connection-ID"
 	SecretKeyHeader    = "X-Portr-Secret-Key"
 
-	TypeReady = "ready"
-	TypeOpen  = "open"
-	TypeData  = "data"
-	TypeClose = "close"
-	TypeError = "error"
-	TypePing  = "ping"
-	TypePong  = "pong"
+	TypeReady      = "ready"
+	TypeOpen       = "open"
+	TypeData       = "data"
+	TypeWindow     = "window"
+	TypeCloseWrite = "close_write"
+	TypeClose      = "close"
+	TypeError      = "error"
+	TypePing       = "ping"
+	TypePong       = "pong"
 )
+
+const StreamWindowSize = 32
 
 type Frame struct {
 	Type     string `json:"type"`
 	StreamID string `json:"stream_id,omitempty"`
 	Data     []byte `json:"data,omitempty"`
 	Port     int    `json:"port,omitempty"`
+	Window   int    `json:"window,omitempty"`
 	Message  string `json:"message,omitempty"`
 }
 

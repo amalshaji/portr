@@ -3,6 +3,7 @@ package wstunnel
 import (
 	"context"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -12,6 +13,46 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
+
+type blockingConnectionService struct {
+	mu             sync.Mutex
+	status         string
+	closedStarted  chan struct{}
+	releaseClosed  chan struct{}
+	activeCalled   chan struct{}
+	activeCallOnce sync.Once
+}
+
+func (*blockingConnectionService) GetReservedConnectionById(context.Context, string) (*serverdb.Connection, error) {
+	return nil, nil
+}
+
+func (s *blockingConnectionService) MarkConnectionAsActive(context.Context, string) error {
+	s.mu.Lock()
+	s.status = "active"
+	s.mu.Unlock()
+	s.activeCallOnce.Do(func() { close(s.activeCalled) })
+	return nil
+}
+
+func (s *blockingConnectionService) MarkTCPConnectionAsActive(context.Context, string, uint32) error {
+	return nil
+}
+
+func (s *blockingConnectionService) MarkConnectionAsClosed(context.Context, string) error {
+	close(s.closedStarted)
+	<-s.releaseClosed
+	s.mu.Lock()
+	s.status = "closed"
+	s.mu.Unlock()
+	return nil
+}
+
+func (s *blockingConnectionService) currentStatus() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.status
+}
 
 type closeRecorder struct {
 	closed chan struct{}
@@ -111,60 +152,120 @@ func TestManagerShutdownClosesActiveSessions(t *testing.T) {
 	}
 }
 
-func TestSessionDeliverBackpressuresInsteadOfDroppingFrames(t *testing.T) {
+func TestReconnectCannotBeOverwrittenByPreviousSessionClose(t *testing.T) {
+	service := &blockingConnectionService{
+		status:        "active",
+		closedStarted: make(chan struct{}),
+		releaseClosed: make(chan struct{}),
+		activeCalled:  make(chan struct{}),
+	}
+	subdomain := "reconnect"
+	connection := &serverdb.Connection{ID: "conn-1", Type: "http", Subdomain: &subdomain}
+	oldSession := &session{
+		id:         "old",
+		connection: connection,
+		streams:    make(map[string]*streamQueue),
+		closed:     make(chan struct{}),
+	}
+	manager := New(nil, service)
+	manager.bySub[subdomain] = []*session{oldSession}
+	manager.sessions[oldSession.id] = oldSession
+
+	unregistered := make(chan struct{})
+	go func() {
+		manager.unregisterSession(oldSession)
+		close(unregistered)
+	}()
+	select {
+	case <-service.closedStarted:
+	case <-time.After(time.Second):
+		t.Fatal("old session did not begin its closed transition")
+	}
+
+	newSession := &session{
+		id:         "new",
+		connection: connection,
+		streams:    make(map[string]*streamQueue),
+		closed:     make(chan struct{}),
+	}
+	registered := make(chan error, 1)
+	go func() {
+		registered <- manager.registerSession(context.Background(), newSession)
+	}()
+
+	select {
+	case <-service.activeCalled:
+		t.Fatal("new session became active before the old closed transition finished")
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(service.releaseClosed)
+
+	select {
+	case <-unregistered:
+	case <-time.After(time.Second):
+		t.Fatal("old session did not finish unregistering")
+	}
+	select {
+	case err := <-registered:
+		if err != nil {
+			t.Fatalf("register new session: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("new session did not register after the old session closed")
+	}
+	if got := service.currentStatus(); got != "active" {
+		t.Fatalf("expected reconnected status to remain active, got %q", got)
+	}
+}
+
+func TestSessionDeliverKeepsOtherStreamsResponsiveWhenOneIsFull(t *testing.T) {
 	sess := &session{
 		streams: make(map[string]*streamQueue),
 		closed:  make(chan struct{}),
 	}
-	stream := sess.addStream("slow-stream")
-	for i := 0; i < cap(stream.frames); i++ {
+	slow := sess.addStream("slow-stream")
+	fast := sess.addStream("fast-stream")
+	for i := 0; i < cap(slow.frames); i++ {
 		sess.deliver(wsproto.Frame{Type: wsproto.TypeData, StreamID: "slow-stream", Data: []byte{byte(i)}})
 	}
-
-	delivered := make(chan struct{})
-	go func() {
-		sess.deliver(wsproto.Frame{Type: wsproto.TypeData, StreamID: "slow-stream", Data: []byte("last")})
-		close(delivered)
-	}()
-
+	sess.deliver(wsproto.Frame{Type: wsproto.TypeData, StreamID: "slow-stream", Data: []byte("overflow")})
+	sess.deliver(wsproto.Frame{Type: wsproto.TypeData, StreamID: "fast-stream", Data: []byte("ready")})
 	select {
-	case <-delivered:
-		t.Fatal("deliver returned while the stream queue was full")
-	case <-time.After(25 * time.Millisecond):
-	}
-
-	<-stream.frames
-	select {
-	case <-delivered:
+	case frame := <-fast.frames:
+		if string(frame.Data) != "ready" {
+			t.Fatalf("unexpected fast-stream frame %q", frame.Data)
+		}
 	case <-time.After(time.Second):
-		t.Fatal("deliver remained blocked after stream capacity became available")
+		t.Fatal("full stream blocked delivery to another stream")
 	}
 
-	if got := len(stream.frames); got != cap(stream.frames) {
-		t.Fatalf("expected all frames to remain queued, got %d of %d", got, cap(stream.frames))
+	sess.streamMu.Lock()
+	_, slowPresent := sess.streams["slow-stream"]
+	sess.streamMu.Unlock()
+	if slowPresent {
+		t.Fatal("expected overflowing stream to be removed")
 	}
 }
 
-func TestSessionDeliverUnblocksWhenStreamCloses(t *testing.T) {
+func TestStreamCreditWaitUnblocksWhenStreamCloses(t *testing.T) {
 	sess := &session{
 		streams: make(map[string]*streamQueue),
 		closed:  make(chan struct{}),
 	}
 	stream := sess.addStream("closing-stream")
-	for i := 0; i < cap(stream.frames); i++ {
-		sess.deliver(wsproto.Frame{Type: wsproto.TypeData, StreamID: "closing-stream"})
-	}
 
-	delivered := make(chan struct{})
+	waiting := make(chan bool, 1)
 	go func() {
-		sess.deliver(wsproto.Frame{Type: wsproto.TypeData, StreamID: "closing-stream"})
-		close(delivered)
+		waiting <- stream.takeCredit(sess.closed)
 	}()
 
 	sess.removeStream("closing-stream")
 	select {
-	case <-delivered:
+	case acquired := <-waiting:
+		if acquired {
+			t.Fatal("credit wait succeeded after stream close")
+		}
 	case <-time.After(time.Second):
-		t.Fatal("deliver remained blocked after the stream closed")
+		t.Fatal("credit wait remained blocked after the stream closed")
 	}
 }

@@ -37,6 +37,7 @@ PORTR_SERVER_URL=example.com
 PORTR_TRANSPORT=ssh
 PORTR_SSH_URL=example.com:2222
 PORTR_SSH_PORT=2222
+PORTR_SSH_HOST_KEY= # PEM-encoded Ed25519 private key
 PORTR_WS_URL=tunnel.example.com
 PORTR_ADMIN_PORT=8000
 PORTR_PROXY_PORT=8001
@@ -66,6 +67,7 @@ POSTGRES_DB=postgres
 | `PORTR_TRANSPORT` | Transport to emit in generated client configs: `ssh` or `websocket` | `ssh` |
 | `PORTR_SSH_URL` | Public SSH tunnel URL for clients when `PORTR_TRANSPORT=ssh` | `localhost:2222` |
 | `PORTR_SSH_PORT` | SSH tunnel listener port | `2222` |
+| `PORTR_SSH_HOST_KEY` | Stable PEM-encoded Ed25519 host private key when `PORTR_TRANSPORT=ssh` | Required for SSH |
 | `PORTR_WS_URL` | WebSocket control hostname routed to the tunnel proxy when `PORTR_TRANSPORT=websocket` | `localhost:8001` |
 | `PORTR_ADMIN_PORT` | Admin server port | `8000` |
 | `PORTR_PROXY_PORT` | Tunnel proxy port; also the WebSocket endpoint port when `PORTR_TRANSPORT=websocket` | `8001` |
@@ -74,6 +76,29 @@ POSTGRES_DB=postgres
 | `PORTR_RESERVED_SUBDOMAIN_LIMIT` | Maximum reserved subdomains per team membership; use `0` to disable new reservations | `3` |
 | `PORTR_AUTO_MIGRATE` | Auto-run database migrations | `false` |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token for SSL | Required |
+
+### Generate an SSH host key
+
+When using the default `ssh` transport, generate the host key once and keep the
+same value across deployments. Replacing it changes the server identity and
+causes returning clients to report an SSH host-key mismatch.
+
+```bash
+ssh-keygen -t ed25519 -f /tmp/portr_host_key -N ""
+export PORTR_SSH_HOST_KEY="$(cat /tmp/portr_host_key)"
+rm /tmp/portr_host_key /tmp/portr_host_key.pub
+```
+
+You can also generate a key with Portr:
+
+```bash
+portrd generate-host-key
+```
+
+<Callout type="info">
+  Store the generated key as a persistent multi-line environment value or
+  Docker secret. Do not generate a new key each time the server starts.
+</Callout>
 
 ### Start the services
 

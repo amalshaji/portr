@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -16,7 +17,6 @@ import (
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/amalshaji/portr/internal/server/config"
 	"github.com/amalshaji/portr/internal/server/db"
-	"github.com/amalshaji/portr/internal/server/service"
 	"github.com/amalshaji/portr/internal/tunnel/wsproto"
 	"github.com/amalshaji/portr/internal/utils"
 	"github.com/charmbracelet/log"
@@ -26,7 +26,7 @@ import (
 
 type Manager struct {
 	config       *config.Config
-	service      *service.Service
+	service      connectionService
 	mu           sync.RWMutex
 	bySub        map[string][]*session
 	sessions     map[string]*session
@@ -35,6 +35,13 @@ type Manager struct {
 	shutdownOnce sync.Once
 	shutdownDone chan struct{}
 	shuttingDown bool
+}
+
+type connectionService interface {
+	GetReservedConnectionById(context.Context, string) (*db.Connection, error)
+	MarkConnectionAsActive(context.Context, string) error
+	MarkTCPConnectionAsActive(context.Context, string, uint32) error
+	MarkConnectionAsClosed(context.Context, string) error
 }
 
 type session struct {
@@ -53,11 +60,12 @@ type session struct {
 }
 
 type streamQueue struct {
-	frames chan wsproto.Frame
-	closed chan struct{}
+	frames  chan wsproto.Frame
+	credits chan struct{}
+	closed  chan struct{}
 }
 
-func New(config *config.Config, service *service.Service) *Manager {
+func New(config *config.Config, service connectionService) *Manager {
 	return &Manager{
 		config:       config,
 		service:      service,
@@ -297,13 +305,12 @@ func (m *Manager) unregisterSession(sess *session) {
 				}
 			}
 		}
-		m.mu.Unlock()
-
 		if shouldMarkClosed {
 			closeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
 			_ = m.service.MarkConnectionAsClosed(closeCtx, sess.connection.ID)
+			cancel()
 		}
+		m.mu.Unlock()
 	})
 }
 
@@ -386,23 +393,34 @@ func (m *Manager) pipeStream(sess *session, conn net.Conn, initial []byte) {
 	if err := sess.writer.Send(wsproto.Frame{Type: wsproto.TypeOpen, StreamID: streamID, Data: initial}); err != nil {
 		return
 	}
+	if err := sess.writer.Send(wsproto.Frame{
+		Type:     wsproto.TypeWindow,
+		StreamID: streamID,
+		Window:   wsproto.StreamWindowSize,
+	}); err != nil {
+		return
+	}
 
-	done := make(chan struct{})
+	readDone := make(chan error, 1)
 	if !sess.goWorker(func() {
-		defer close(done)
 		buf := make([]byte, 32*1024)
 		for {
 			n, err := conn.Read(buf)
 			if n > 0 {
+				if !stream.takeCredit(sess.closed) {
+					return
+				}
 				if sendErr := sess.writer.Send(wsproto.Frame{
 					Type:     wsproto.TypeData,
 					StreamID: streamID,
 					Data:     append([]byte(nil), buf[:n]...),
 				}); sendErr != nil {
+					readDone <- sendErr
 					return
 				}
 			}
 			if err != nil {
+				readDone <- err
 				return
 			}
 		}
@@ -410,6 +428,8 @@ func (m *Manager) pipeStream(sess *session, conn net.Conn, initial []byte) {
 		return
 	}
 
+	readClosed := false
+	writeClosed := false
 	for {
 		select {
 		case frame := <-stream.frames:
@@ -418,13 +438,41 @@ func (m *Manager) pipeStream(sess *session, conn net.Conn, initial []byte) {
 				if _, err := conn.Write(frame.Data); err != nil {
 					return
 				}
+				if err := sess.writer.Send(wsproto.Frame{
+					Type:     wsproto.TypeWindow,
+					StreamID: streamID,
+					Window:   1,
+				}); err != nil {
+					return
+				}
+			case wsproto.TypeCloseWrite:
+				closeWriter, ok := conn.(interface{ CloseWrite() error })
+				if !ok || closeWriter.CloseWrite() != nil {
+					return
+				}
+				writeClosed = true
+				if readClosed {
+					return
+				}
 			case wsproto.TypeClose, wsproto.TypeError:
 				return
 			}
-		case <-done:
-			_ = sess.writer.Send(wsproto.Frame{Type: wsproto.TypeClose, StreamID: streamID})
-			return
+		case err := <-readDone:
+			if err != nil && !errors.Is(err, io.EOF) {
+				_ = sess.writer.Send(wsproto.Frame{Type: wsproto.TypeError, StreamID: streamID, Message: err.Error()})
+				return
+			}
+			if err := sess.writer.Send(wsproto.Frame{Type: wsproto.TypeCloseWrite, StreamID: streamID}); err != nil {
+				return
+			}
+			readClosed = true
+			readDone = nil
+			if writeClosed {
+				return
+			}
 		case <-sess.closed:
+			return
+		case <-stream.closed:
 			return
 		}
 	}
@@ -432,8 +480,9 @@ func (m *Manager) pipeStream(sess *session, conn net.Conn, initial []byte) {
 
 func (s *session) addStream(streamID string) *streamQueue {
 	stream := &streamQueue{
-		frames: make(chan wsproto.Frame, 32),
-		closed: make(chan struct{}),
+		frames:  make(chan wsproto.Frame, wsproto.StreamWindowSize+1),
+		credits: make(chan struct{}, wsproto.StreamWindowSize),
+		closed:  make(chan struct{}),
 	}
 	s.streamMu.Lock()
 	s.streams[streamID] = stream
@@ -461,10 +510,37 @@ func (s *session) deliver(frame wsproto.Frame) {
 	if stream == nil {
 		return
 	}
+	if frame.Type == wsproto.TypeWindow {
+		stream.grant(frame.Window)
+		return
+	}
 	select {
 	case stream.frames <- frame:
 	case <-stream.closed:
 	case <-s.closed:
+	default:
+		s.removeStream(frame.StreamID)
+	}
+}
+
+func (s *streamQueue) grant(credits int) {
+	for range min(credits, wsproto.StreamWindowSize) {
+		select {
+		case s.credits <- struct{}{}:
+		default:
+			return
+		}
+	}
+}
+
+func (s *streamQueue) takeCredit(sessionClosed <-chan struct{}) bool {
+	select {
+	case <-s.credits:
+		return true
+	case <-s.closed:
+		return false
+	case <-sessionClosed:
+		return false
 	}
 }
 
