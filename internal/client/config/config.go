@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/amalshaji/portr/internal/constants"
@@ -142,24 +143,25 @@ var DefaultRedactHeaders = []string{
 }
 
 type Config struct {
-	ServerUrl                       string   `yaml:"server_url"`
-	SshUrl                          string   `yaml:"ssh_url"`
-	TunnelUrl                       string   `yaml:"tunnel_url"`
-	SecretKey                       string   `yaml:"secret_key"`
-	Tunnels                         []Tunnel `yaml:"tunnels"`
-	UseLocalHost                    bool     `yaml:"use_localhost"`
-	Debug                           bool     `yaml:"debug"`
-	UseVite                         bool     `yaml:"use_vite"`
-	DashboardPort                   int      `yaml:"dashboard_port"`
-	DisableDashboard                bool     `yaml:"disable_dashboard"`
-	EnableRequestLogging            *bool    `yaml:"enable_request_logging"`
-	RedactHeaders                   []string `yaml:"redact_headers"`
-	ConnectionLogRetentionDays      int      `yaml:"connection_log_retention_days"`
-	HealthCheckInterval             int      `yaml:"health_check_interval"`
-	HealthCheckMaxRetries           int      `yaml:"health_check_max_retries"`
-	DisableTUI                      bool     `yaml:"disable_tui"`
-	DisableUpdateCheck              bool     `yaml:"disable_update_check"`
-	InsecureSkipHostKeyVerification *bool    `yaml:"insecure_skip_host_key_verification"`
+	ServerUrl                       string              `yaml:"server_url"`
+	SshUrl                          string              `yaml:"ssh_url"`
+	TunnelUrl                       string              `yaml:"tunnel_url"`
+	SecretKey                       string              `yaml:"secret_key"`
+	Tunnels                         []Tunnel            `yaml:"tunnels"`
+	Groups                          map[string][]string `yaml:"groups"`
+	UseLocalHost                    bool                `yaml:"use_localhost"`
+	Debug                           bool                `yaml:"debug"`
+	UseVite                         bool                `yaml:"use_vite"`
+	DashboardPort                   int                 `yaml:"dashboard_port"`
+	DisableDashboard                bool                `yaml:"disable_dashboard"`
+	EnableRequestLogging            *bool               `yaml:"enable_request_logging"`
+	RedactHeaders                   []string            `yaml:"redact_headers"`
+	ConnectionLogRetentionDays      int                 `yaml:"connection_log_retention_days"`
+	HealthCheckInterval             int                 `yaml:"health_check_interval"`
+	HealthCheckMaxRetries           int                 `yaml:"health_check_max_retries"`
+	DisableTUI                      bool                `yaml:"disable_tui"`
+	DisableUpdateCheck              bool                `yaml:"disable_update_check"`
+	InsecureSkipHostKeyVerification *bool               `yaml:"insecure_skip_host_key_verification"`
 }
 
 func (c *Config) SetDefaults() {
@@ -215,13 +217,88 @@ func (c Config) Validate() error {
 		return fmt.Errorf("dashboard_port must be between 1 and 65535")
 	}
 
+	tunnelNames := make(map[string]bool, len(c.Tunnels))
 	for _, tunnel := range c.Tunnels {
 		if err := tunnel.Validate(); err != nil {
 			return err
 		}
+		if tunnel.Name != "" {
+			tunnelNames[tunnel.Name] = true
+		}
+	}
+
+	for group, members := range c.Groups {
+		if tunnelNames[group] {
+			return fmt.Errorf("group %q conflicts with a tunnel of the same name", group)
+		}
+		if len(members) == 0 {
+			return fmt.Errorf("group %q must reference at least one tunnel", group)
+		}
+		for _, member := range members {
+			if !tunnelNames[member] {
+				return fmt.Errorf("group %q references unknown tunnel %q", group, member)
+			}
+		}
 	}
 
 	return nil
+}
+
+// ReplaceTunnels swaps in tunnels defined outside the config file. Groups are
+// dropped because they can only reference tunnels from the config file.
+func (c *Config) ReplaceTunnels(tunnels ...Tunnel) {
+	c.Tunnels = tunnels
+	c.Groups = nil
+}
+
+// SelectTunnels returns the tunnels matching the given tunnel or group names.
+// Passing no names selects every tunnel.
+func (c Config) SelectTunnels(services []string) []Tunnel {
+	if len(services) == 0 {
+		return c.Tunnels
+	}
+
+	names := c.expandGroups(services)
+
+	var selected []Tunnel
+	for _, tunnel := range c.Tunnels {
+		if slices.Contains(names, tunnel.Name) {
+			selected = append(selected, tunnel)
+		}
+	}
+	return selected
+}
+
+func (c Config) expandGroups(services []string) []string {
+	expanded := make([]string, 0, len(services))
+	for _, service := range services {
+		if members, ok := c.Groups[service]; ok {
+			expanded = append(expanded, members...)
+			continue
+		}
+		expanded = append(expanded, service)
+	}
+	return expanded
+}
+
+func (c Config) NoMatchingTunnelsError(services []string) error {
+	var available []string
+	for _, tunnel := range c.Tunnels {
+		if tunnel.Name != "" {
+			available = append(available, tunnel.Name)
+		}
+	}
+	for group := range c.Groups {
+		available = append(available, group+" (group)")
+	}
+
+	if len(available) == 0 {
+		return fmt.Errorf("no named tunnels configured; run `portr config edit` to add one")
+	}
+	slices.Sort(available)
+
+	return fmt.Errorf("no tunnel or group matched %s; available: %s",
+		strings.Join(services, ", "), strings.Join(available, ", "))
 }
 
 func (c Config) GetAdminAddress() string {

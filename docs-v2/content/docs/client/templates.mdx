@@ -195,6 +195,31 @@ Start all configured tunnels:
 portr start
 ```
 
+### Start a group
+
+Name a set of tunnels with `groups`, then start the whole set with one word:
+
+```yaml
+tunnels:
+  - name: web
+    port: 3000
+  - name: api
+    port: 8000
+  - name: pg
+    type: tcp
+    port: 5432
+
+groups:
+  frontend: [web, api]
+```
+
+```bash
+portr start frontend
+portr start frontend pg
+```
+
+A group name must not match a tunnel name, and every member must be the name of an existing tunnel.
+
 <Callout type="info">
   For more details about available commands and options, run `portr --help`.
 </Callout>
@@ -208,6 +233,7 @@ These options apply to the entire client configuration:
 - **server_url**: The Portr server URL
 - **ssh_url**: The SSH server URL for tunnel connections
 - **secret_key**: Your authentication secret key
+- **groups**: Named sets of tunnel names; `portr start <group>` starts every tunnel in the set
 - **disable_tui**: Disable the interactive terminal interface (default: false)
 - **dashboard_port**: Local port for the inspector dashboard (default: 7777)
 - **disable_dashboard**: Disable the local inspector dashboard completely (default: false)

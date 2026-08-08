@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"sync"
 	"time"
 
@@ -124,10 +123,12 @@ func (c *Client) runFatalWorker(name string, fn func() error) {
 func (c *Client) Start(ctx context.Context, services ...string) error {
 	var clientConfigs []config.ClientConfig
 
-	for _, tunnel := range c.config.Tunnels {
-		if len(services) > 0 && !slices.Contains(services, tunnel.Name) {
-			continue
-		}
+	tunnels := c.config.SelectTunnels(services)
+	if len(tunnels) == 0 {
+		return c.config.NoMatchingTunnelsError(services)
+	}
+
+	for _, tunnel := range tunnels {
 		clientConfigs = append(clientConfigs, config.ClientConfig{
 			ServerUrl:                       c.config.ServerUrl,
 			SshUrl:                          c.config.SshUrl,
@@ -143,10 +144,6 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			DisableTUI:                      c.config.DisableTUI,
 			InsecureSkipHostKeyVerification: *c.config.InsecureSkipHostKeyVerification,
 		})
-	}
-
-	if len(clientConfigs) == 0 {
-		return fmt.Errorf("please enter a valid service name")
 	}
 
 	var err error
