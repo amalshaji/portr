@@ -637,3 +637,56 @@ func TestNoMatchingTunnelsErrorWithoutNamedTunnels(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestResolvedHostHeaderRewriteUsesLocalAddr(t *testing.T) {
+	for _, value := range []string{"rewrite", "  Rewrite  ", "REWRITE"} {
+		tunnel := Tunnel{HostHeader: value}
+		if got := tunnel.ResolvedHostHeader("localhost:3000"); got != "localhost:3000" {
+			t.Fatalf("host_header %q resolved to %q", value, got)
+		}
+	}
+}
+
+func TestResolvedHostHeaderReturnsLiteralValue(t *testing.T) {
+	tunnel := Tunnel{HostHeader: "myapp.local"}
+	if got := tunnel.ResolvedHostHeader("localhost:3000"); got != "myapp.local" {
+		t.Fatalf("expected literal host header, got %q", got)
+	}
+}
+
+func TestResolvedHostHeaderEmptyPassesThrough(t *testing.T) {
+	tunnel := Tunnel{}
+	if got := tunnel.ResolvedHostHeader("localhost:3000"); got != "" {
+		t.Fatalf("expected pass-through, got %q", got)
+	}
+}
+
+func TestValidateRejectsHostHeaderOnNonHTTPTunnel(t *testing.T) {
+	tcp := Tunnel{Type: constants.Tcp, Port: 5432, HostHeader: "rewrite"}
+	tcp.SetDefaults()
+	err := tcp.Validate()
+	if err == nil || !strings.Contains(err.Error(), "host_header is only supported for http tunnels") {
+		t.Fatalf("expected tcp rejection, got %v", err)
+	}
+
+	// Stub tunnels reach the same reverse proxy but route by Host, so a rewrite
+	// would silently serve the wrong stub when more than one is registered.
+	stub := Tunnel{
+		Type:             constants.Stub,
+		Subdomain:        "stubby",
+		ResponseFormat:   "application/json",
+		ResponseTemplate: "{}",
+		HostHeader:       "rewrite",
+	}
+	stub.SetDefaults()
+	err = stub.Validate()
+	if err == nil || !strings.Contains(err.Error(), "host_header is only supported for http tunnels") {
+		t.Fatalf("expected stub rejection, got %v", err)
+	}
+
+	http := Tunnel{Type: constants.Http, Subdomain: "web", Port: 3000, HostHeader: "rewrite"}
+	http.SetDefaults()
+	if err := http.Validate(); err != nil {
+		t.Fatalf("http tunnel should accept host_header: %v", err)
+	}
+}

@@ -269,9 +269,14 @@ func (s *SshClient) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = transport
 
+	hostHeader := s.config.Tunnel.ResolvedHostHeader(localEndpoint)
+
 	defaultDirector := proxy.Director
 	proxy.Director = func(request *http.Request) {
 		host := request.Host
+		if hostHeader != "" {
+			host = hostHeader
+		}
 		defaultDirector(request)
 		request.Host = host
 	}
