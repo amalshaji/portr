@@ -2,16 +2,28 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUserStore } from "@/lib/store";
-import { LoaderCircle, User, KeySquare, KeyRound, Copy } from "lucide-react";
+import {
+  Copy,
+  Eye,
+  EyeOff,
+  KeyRound,
+  KeySquare,
+  LoaderCircle,
+  User,
+} from "lucide-react";
 import { toast } from "sonner";
 import { copyCodeToClipboard } from "@/lib/utils";
 
@@ -46,6 +58,7 @@ export default function MyAccount() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isRotatingSecretKey, setIsRotatingSecretKey] = useState(false);
+  const [secretKeyVisible, setSecretKeyVisible] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -151,180 +164,203 @@ export default function MyAccount() {
     }
   };
 
+  const secretKey = currentUser?.secret_key ? String(currentUser.secret_key) : "";
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">
-          Account & Settings
-        </h1>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Profile Information</CardTitle>
-          <CardDescription>Update your personal details</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-muted/50 rounded-lg p-6 border space-y-4">
-            <div className="flex items-center gap-3">
-              <User className="h-5 w-5 text-primary" />
-              <div>
-                <h3 className="text-sm font-medium">Personal Details</h3>
-                <p className="text-xs text-muted-foreground">
-                  Your name as it appears across the platform
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="first_name">First Name</Label>
-                <Input
-                  type="text"
-                  id="first_name"
-                  placeholder="John"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  className="bg-background"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="last_name">Last Name</Label>
-                <Input
-                  type="text"
-                  id="last_name"
-                  placeholder="Doe"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  className="bg-background"
-                />
-              </div>
-            </div>
-
-            <Button
-              onClick={updateProfile}
-              disabled={isUpdating}
-              className="mt-2"
-            >
-              {isUpdating && (
-                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Save Profile
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Security</CardTitle>
-          <CardDescription>
-            Manage your security settings and credentials
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="bg-muted/50 rounded-lg p-6 border space-y-4">
-            <div className="flex items-center gap-3">
-              <KeySquare className="h-5 w-5 text-primary" />
-              <div>
-                <h3 className="text-sm font-medium">Change Password</h3>
-                <p className="text-xs text-muted-foreground">
-                  Update your login credentials
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="password">New Password</Label>
-                <Input
-                  type="password"
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="bg-background"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirm_password">Confirm Password</Label>
-                <Input
-                  type="password"
-                  id="confirm_password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={`bg-background ${
-                    passwordError ? "border-destructive" : ""
-                  }`}
-                />
-                {passwordError && (
-                  <p className="text-destructive text-xs mt-1">
-                    {passwordError}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <Button
-              onClick={changePassword}
-              disabled={isChangingPassword || !password}
-              className="mt-2"
-            >
-              {isChangingPassword && (
-                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Update Password
-            </Button>
+    <div className="mx-auto w-full max-w-3xl space-y-6">
+      <Section
+        Icon={User}
+        title="Profile"
+        description="Your name as it appears to the rest of the team."
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="first_name">First name</Label>
+            <Input
+              type="text"
+              id="first_name"
+              autoComplete="given-name"
+              placeholder="Ada"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+            />
           </div>
 
-          <div className="bg-muted/50 rounded-lg p-6 border space-y-4">
-            <div className="flex items-center gap-3">
-              <KeyRound className="h-5 w-5 text-primary" />
-              <div>
-                <h3 className="text-sm font-medium">API Secret Key</h3>
-                <p className="text-xs text-muted-foreground">
-                  Used to authenticate client connections for team:{" "}
-                  <span className="font-medium">{team}</span>
-                </p>
-              </div>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="last_name">Last name</Label>
+            <Input
+              type="text"
+              id="last_name"
+              autoComplete="family-name"
+              placeholder="Lovelace"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+            />
+          </div>
+        </div>
 
-            <div className="relative">
-              <Input
-                type="text"
-                readOnly
-                value={currentUser?.secret_key || ""}
-                className="pr-10 font-mono text-sm bg-background"
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
-                onClick={copySecretKey}
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
-            </div>
+        <Button onClick={updateProfile} disabled={isUpdating} size="sm">
+          {isUpdating && <LoaderCircle className="size-4 animate-spin" />}
+          Save profile
+        </Button>
+      </Section>
 
-            <div>
-              <Button
-                variant="outline"
-                onClick={rotateSecretKey}
-                disabled={isRotatingSecretKey}
+      <Section
+        Icon={KeySquare}
+        title="Password"
+        description="Used to sign in to this console."
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="password">New password</Label>
+            <Input
+              type="password"
+              id="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirm_password">Confirm password</Label>
+            <Input
+              type="password"
+              id="confirm_password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              aria-invalid={passwordError ? true : undefined}
+              aria-describedby={passwordError ? "confirm-password-error" : undefined}
+            />
+            {passwordError && (
+              <p
+                id="confirm-password-error"
+                role="alert"
+                className="text-xs text-destructive"
               >
-                {isRotatingSecretKey && (
-                  <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Rotate Key
-              </Button>
-              <p className="text-xs text-muted-foreground mt-2">
-                Rotating your key will invalidate your previous key immediately
+                {passwordError}
               </p>
-            </div>
+            )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        <Button
+          onClick={changePassword}
+          disabled={isChangingPassword || !password}
+          size="sm"
+        >
+          {isChangingPassword && (
+            <LoaderCircle className="size-4 animate-spin" />
+          )}
+          Update password
+        </Button>
+      </Section>
+
+      <Section
+        Icon={KeyRound}
+        title="Client secret key"
+        description={
+          <>
+            Authenticates the Portr client against{" "}
+            <span className="data">{team}</span>.
+          </>
+        }
+      >
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            {/* Masked by default: this is a live credential and the console is
+                often open on a shared screen. */}
+            <Input
+              type={secretKeyVisible ? "text" : "password"}
+              readOnly
+              aria-label="Client secret key"
+              value={secretKey}
+              className="data pr-10 text-sm"
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={secretKeyVisible ? "Hide secret key" : "Show secret key"}
+              aria-pressed={secretKeyVisible}
+              className="absolute top-1/2 right-1 size-7 -translate-y-1/2 p-0"
+              onClick={() => setSecretKeyVisible((visible) => !visible)}
+            >
+              {secretKeyVisible ? (
+                <EyeOff className="size-4" />
+              ) : (
+                <Eye className="size-4" />
+              )}
+            </Button>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9"
+            onClick={copySecretKey}
+          >
+            <Copy className="size-4" />
+            Copy
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm" disabled={isRotatingSecretKey}>
+                {isRotatingSecretKey && (
+                  <LoaderCircle className="size-4 animate-spin" />
+                )}
+                Rotate key
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Rotate your secret key?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  The current key stops working immediately. Every machine using
+                  it has to be re-authenticated with the new key before it can
+                  open a tunnel.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={rotateSecretKey}>
+                  Rotate key
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <p className="text-xs text-muted-foreground">
+            Rotating invalidates the previous key immediately.
+          </p>
+        </div>
+      </Section>
     </div>
+  );
+}
+
+function Section({
+  Icon,
+  title,
+  description,
+  children,
+}: {
+  Icon: typeof User;
+  title: string;
+  description: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="overflow-hidden rounded-md border border-border bg-card">
+      <header className="flex items-start gap-3 border-b border-border px-4 py-3">
+        <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+        <div>
+          <h2 className="text-sm font-semibold">{title}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+        </div>
+      </header>
+      <div className="space-y-4 p-4">{children}</div>
+    </section>
   );
 }

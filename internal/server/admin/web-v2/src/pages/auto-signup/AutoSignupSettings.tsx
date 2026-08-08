@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Plus, Save, Trash2, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -130,53 +130,44 @@ export default function AutoSignupSettings() {
 
   if (loading) {
     return (
-      <div className="min-h-screen p-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">Loading auto signup settings...</p>
-          </div>
-        </div>
+      <div className="mx-auto w-full max-w-3xl space-y-3">
+        <Skeleton className="h-4 w-72" />
+        <Skeleton className="h-56 w-full rounded-md" />
       </div>
     )
   }
 
   if (loadError) {
     return (
-      <div className="min-h-screen p-8">
-        <div className="max-w-4xl mx-auto space-y-4 text-center py-8">
-          <p className="font-medium">Auto signup settings could not be loaded.</p>
-          <p className="text-sm text-muted-foreground">
-            Your saved configuration has not been changed.
-          </p>
-          <Button type="button" variant="outline" onClick={fetchSettings}>
-            Retry
-          </Button>
-        </div>
+      <div className="mx-auto w-full max-w-3xl space-y-3 py-12 text-center">
+        <p className="font-medium">Auto signup settings could not be loaded.</p>
+        <p className="text-sm text-muted-foreground">
+          Your saved configuration has not been changed.
+        </p>
+        <Button type="button" variant="outline" size="sm" onClick={fetchSettings}>
+          Retry
+        </Button>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">GitHub Auto Signup</h1>
-          <p className="text-muted-foreground">
-            Allow GitHub users from trusted domains to join selected teams.
-          </p>
-        </div>
+      <div className="mx-auto w-full max-w-3xl space-y-5">
+        <p className="text-sm text-muted-foreground">
+          Allow GitHub users from trusted domains to join selected teams.
+        </p>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserPlus className="h-5 w-5" />
-              Trusted domain mappings
-            </CardTitle>
-            <CardDescription>
-              Each domain maps new GitHub signups to the team they should join.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <section className="overflow-hidden rounded-md border border-border bg-card">
+          <header className="flex items-start gap-3 border-b border-border px-4 py-3">
+            <UserPlus className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <div>
+              <h2 className="text-sm font-semibold">Trusted domain mappings</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Each domain maps new GitHub signups to the team they should join.
+              </p>
+            </div>
+          </header>
+          <div className="space-y-4 p-4">
             <div className="flex items-center space-x-2">
               <Switch
                 id="auto-signup-enabled"
@@ -265,16 +256,15 @@ export default function AutoSignupSettings() {
                 </div>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
         <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={saving}>
-            <Save className="h-4 w-4 mr-2" />
+          <Button onClick={handleSave} disabled={saving} size="sm">
+            <Save className="size-4" />
             {saving ? 'Saving...' : 'Save Settings'}
           </Button>
         </div>
       </div>
-    </div>
   )
 }

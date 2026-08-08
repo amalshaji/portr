@@ -13,6 +13,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { ChartData } from "@/types";
 
 interface MetricsChartProps {
@@ -68,67 +69,56 @@ function MetricChart({
   isLoading: boolean;
   isPercentage?: boolean;
 }) {
+  // Every state renders the same card, only the body changes.
+  const Shell = ({ children }: { children: React.ReactNode }) => (
+    <Card className="gap-0 rounded-md border-border py-0 shadow-none">
+      <CardHeader className="border-b border-border px-4 py-3">
+        <CardTitle className="text-sm font-semibold">{title}</CardTitle>
+        <CardDescription className="text-xs">{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="p-3">{children}</CardContent>
+    </Card>
+  );
+
+  const Placeholder = ({ message }: { message: string }) => (
+    <div className="flex h-[220px] items-center justify-center text-xs text-muted-foreground">
+      {message}
+    </div>
+  );
+
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">{title}</CardTitle>
-          <CardDescription className="text-xs">{description}</CardDescription>
-        </CardHeader>
-        <CardContent className="p-4">
-          <div className="h-[220px] flex items-center justify-center text-muted-foreground">
-            Loading...
-          </div>
-        </CardContent>
-      </Card>
+      <Shell>
+        <Skeleton className="h-[220px] w-full rounded-sm" />
+      </Shell>
     );
   }
 
   if (!data || data.length === 0) {
     return (
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">{title}</CardTitle>
-          <CardDescription className="text-xs">{description}</CardDescription>
-        </CardHeader>
-        <CardContent className="p-4">
-          <div className="h-[220px] flex items-center justify-center text-muted-foreground">
-            No data available
-          </div>
-        </CardContent>
-      </Card>
+      <Shell>
+        <Placeholder message="No data yet" />
+      </Shell>
     );
   }
 
-  // Check if all values are 0 (which might make the line invisible)
+  // An all-zero series draws an invisible line, so say so rather than showing
+  // an empty chart.
   const hasNonZeroValues = data.some(
     (point) =>
       point.value !== 0 && point.value !== null && point.value !== undefined
   );
-  if (!hasNonZeroValues && data.length > 0) {
+  if (!hasNonZeroValues) {
     return (
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">{title}</CardTitle>
-          <CardDescription className="text-xs">{description}</CardDescription>
-        </CardHeader>
-        <CardContent className="p-4">
-          <div className="h-[220px] flex items-center justify-center text-muted-foreground">
-            Data available but all values are 0
-          </div>
-        </CardContent>
-      </Card>
+      <Shell>
+        <Placeholder message="Reporting zero across the window" />
+      </Shell>
     );
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">{title}</CardTitle>
-        <CardDescription className="text-xs">{description}</CardDescription>
-      </CardHeader>
-      <CardContent className="p-4">
-        <ChartContainer config={config} className="h-[220px] w-full">
+    <Shell>
+      <ChartContainer config={config} className="h-[220px] w-full">
           <LineChart
             accessibilityLayer
             data={data}
@@ -193,21 +183,20 @@ function MetricChart({
             <Line
               dataKey={dataKey}
               type="linear"
-              stroke="#3b82f6"
+              stroke="var(--color-chart-1)"
               strokeWidth={2}
               dot={false}
               activeDot={{
-                r: 6,
-                stroke: "#3b82f6",
+                r: 5,
+                stroke: "var(--color-chart-1)",
                 strokeWidth: 2,
-                fill: "#fff",
+                fill: "var(--color-card)",
               }}
               animationDuration={0}
             />
           </LineChart>
-        </ChartContainer>
-      </CardContent>
-    </Card>
+      </ChartContainer>
+    </Shell>
   );
 }
 
@@ -248,21 +237,10 @@ export function MetricsChart({ chartData, isLoading }: MetricsChartProps) {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight mb-2">
-          System Metrics
-        </h2>
-        <p className="text-muted-foreground">
-          Real-time monitoring of system performance and connections
-        </p>
-      </div>
-
-      {/* Charts Grid */}
-      <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid gap-3 md:grid-cols-2">
         <MetricChart
-          title="CPU Usage"
-          description="CPU utilization percentage"
+          title="CPU usage"
+          description="Percentage of available CPU in use"
           data={processMetricData(chartData.cpu_usage)}
           dataKey="value"
           config={cpuUsageConfig}
@@ -271,8 +249,8 @@ export function MetricsChart({ chartData, isLoading }: MetricsChartProps) {
         />
 
         <MetricChart
-          title="Memory Usage"
-          description="System memory usage"
+          title="Memory usage"
+          description="System memory held by the server"
           data={processMetricData(chartData.memory_usage)?.map((item) => ({
             ...item,
             value: item.value / (1024 * 1024), // Convert bytes to MB
@@ -282,7 +260,6 @@ export function MetricsChart({ chartData, isLoading }: MetricsChartProps) {
           isLoading={isLoading}
           isPercentage={false}
         />
-      </div>
     </div>
   );
 }

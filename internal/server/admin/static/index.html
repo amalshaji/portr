@@ -16,8 +16,27 @@
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Portr Admin</title>
-    <script type="module" crossorigin src="/static/assets/index-jEZunJPa.js"></script>
-    <link rel="stylesheet" crossorigin href="/static/assets/index-3MOktbMH.css">
+    <script>
+      // Applied before first paint so a dark-mode reload never flashes light.
+      // Mirrors resolveTheme() in src/lib/theme.ts.
+      (function () {
+        try {
+          var stored = localStorage.getItem("portr-admin-theme");
+          var preference =
+            stored === "light" || stored === "dark" || stored === "system"
+              ? stored
+              : "system";
+          var dark =
+            preference === "dark" ||
+            (preference === "system" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.classList.toggle("dark", dark);
+          document.documentElement.style.colorScheme = dark ? "dark" : "light";
+        } catch (e) {}
+      })();
+    </script>
+    <script type="module" crossorigin src="/static/assets/index-ziy9gdzA.js"></script>
+    <link rel="stylesheet" crossorigin href="/static/assets/index-Bx2-682y.css">
   </head>
   <body>
     <div id="root"></div>

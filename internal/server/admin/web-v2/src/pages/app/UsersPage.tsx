@@ -2,13 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Plus, Mail, MoreHorizontal, Trash2, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -135,40 +129,61 @@ export default function UsersPage() {
         setIsOpen={setInviteDialogOpen}
         onSuccess={() => getUsers(currentPage)}
       />
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Users</h1>
-            <p className="text-muted-foreground">
-              Manage team members and permissions
-            </p>
-          </div>
+      <div className="space-y-5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            People with access to <span className="data">{team}</span> and what
+            they can do.
+          </p>
           <Button
             onClick={handleInviteUser}
             disabled={currentUser?.role === "member"}
+            size="sm"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            Add User
+            <Plus className="size-4" />
+            Invite user
           </Button>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Team Members</CardTitle>
-            <CardDescription>
-              People with access to this team and their roles
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        <div className="overflow-hidden rounded-md border border-border bg-card">
             {usersLoading ? (
-              <div className="text-center py-6">
-                <p className="text-muted-foreground">Loading users...</p>
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Joined</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <TableRow key={index}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="size-8 rounded-sm" />
+                          <div className="space-y-1.5">
+                            <Skeleton className="h-3.5 w-32" />
+                            <Skeleton className="h-3 w-44" />
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-5 w-16" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-3.5 w-28" />
+                      </TableCell>
+                      <TableCell />
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             ) : users.length === 0 ? (
-              <div className="text-center py-6">
-                <p className="text-muted-foreground">No users found</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Invite team members to get started
+              <div className="px-6 py-12 text-center">
+                <p className="text-sm font-medium">No users yet</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Invite a teammate to give them access to this team.
                 </p>
               </div>
             ) : (
@@ -186,20 +201,17 @@ export default function UsersPage() {
                     <TableRow key={teamUser.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                          <div className="flex size-8 items-center justify-center overflow-hidden rounded-sm bg-muted">
                             {teamUser.user.github_user?.github_avatar_url ? (
                               <img
                                 src={
                                   teamUser.user.github_user.github_avatar_url
                                 }
-                                alt={
-                                  teamUser.user.first_name ||
-                                  teamUser.user.email
-                                }
-                                className="h-8 w-8 rounded-full object-cover"
+                                alt=""
+                                className="size-8 object-cover"
                               />
                             ) : (
-                              <span className="text-sm font-medium">
+                              <span className="data text-xs font-semibold">
                                 {teamUser.user.first_name
                                   ? teamUser.user.first_name
                                       .charAt(0)
@@ -208,16 +220,16 @@ export default function UsersPage() {
                               </span>
                             )}
                           </div>
-                          <div>
-                            <p className="text-sm font-medium">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">
                               {teamUser.user.first_name
                                 ? `${teamUser.user.first_name} ${
                                     teamUser.user.last_name || ""
                                   }`
                                 : teamUser.user.email}
                             </p>
-                            <p className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Mail className="h-3 w-3" />
+                            <p className="data flex items-center gap-1 truncate text-xs text-muted-foreground">
+                              <Mail className="size-3 shrink-0" />
                               {teamUser.user.email}
                             </p>
                           </div>
@@ -232,6 +244,7 @@ export default function UsersPage() {
                               ? "default"
                               : "secondary"
                           }
+                          className="capitalize"
                         >
                           {teamUser.user.is_superuser
                             ? "Superuser"
@@ -256,20 +269,19 @@ export default function UsersPage() {
                                     className="text-destructive cursor-pointer"
                                     onSelect={(e) => e.preventDefault()}
                                   >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Remove from Team
+                                    <Trash2 className="mr-2 size-4" />
+                                    Remove from team
                                   </DropdownMenuItem>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>
-                                      Are you absolutely sure?
+                                      Remove {teamUser.user.email} from {team}?
                                     </AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      You are about to remove{" "}
-                                      <strong>{teamUser.user.email}</strong>{" "}
-                                      from the team. This action cannot be
-                                      undone.
+                                      They lose access to this team immediately.
+                                      Their tunnels stop working and this cannot
+                                      be undone.
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
@@ -303,11 +315,10 @@ export default function UsersPage() {
                 </TableBody>
               </Table>
             )}
-          </CardContent>
-        </Card>
+        </div>
 
         {totalUsers > usersPerPage && (
-          <div className="flex justify-center mt-6">
+          <div className="flex justify-center">
             <Pagination
               count={totalUsers}
               perPage={usersPerPage}
