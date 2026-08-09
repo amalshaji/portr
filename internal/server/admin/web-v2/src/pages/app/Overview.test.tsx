@@ -83,7 +83,7 @@ describe("Overview", () => {
     renderPage()
 
     expect(
-      await screen.findByRole("heading", { name: "Bring this workspace online" }),
+      await screen.findByRole("heading", { name: "Bring your first tunnel online" }),
     ).toBeInTheDocument()
     expect(
       screen.getByText("curl -sSf https://install.portr.dev | sh"),
