@@ -246,6 +246,7 @@ type Config struct {
 	HealthCheckInterval             int                 `yaml:"health_check_interval"`
 	HealthCheckMaxRetries           int                 `yaml:"health_check_max_retries"`
 	DisableTUI                      bool                `yaml:"disable_tui"`
+	EnableQRCode                    *bool               `yaml:"enable_qr_code"`
 	DisableUpdateCheck              bool                `yaml:"disable_update_check"`
 	InsecureSkipHostKeyVerification *bool               `yaml:"insecure_skip_host_key_verification"`
 }
@@ -278,6 +279,11 @@ func (c *Config) SetDefaults() {
 	if c.EnableRequestLogging == nil {
 		defaultValue := true
 		c.EnableRequestLogging = &defaultValue
+	}
+
+	if c.EnableQRCode == nil {
+		defaultValue := true
+		c.EnableQRCode = &defaultValue
 	}
 
 	if len(c.RedactHeaders) == 0 {

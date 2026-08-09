@@ -827,3 +827,18 @@ func TestDisplayNameFallsBackToSubdomainForStub(t *testing.T) {
 		t.Fatalf("unexpected display name %q", got)
 	}
 }
+
+func TestSetDefaultsEnablesQRCodeUnlessDisabled(t *testing.T) {
+	var cfg Config
+	cfg.SetDefaults()
+	if cfg.EnableQRCode == nil || !*cfg.EnableQRCode {
+		t.Fatal("expected the qr code to be enabled by default")
+	}
+
+	disabled := false
+	cfg = Config{EnableQRCode: &disabled}
+	cfg.SetDefaults()
+	if cfg.EnableQRCode == nil || *cfg.EnableQRCode {
+		t.Fatal("expected an explicit false to be respected")
+	}
+}

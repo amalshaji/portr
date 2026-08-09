@@ -60,6 +60,29 @@ When TUI is disabled, the client will:
 - Show tunnel status updates and health check results
 - Exit gracefully on errors
 
+### QR Code for the Tunnel URL
+
+The terminal interface can show a QR code for the tunnel URL, so you can open it on a phone without typing it. Press `r` to show or hide it. This is on by default; nothing is rendered until you press the key.
+
+Set `enable_qr_code: false` to remove the toggle and its footer hint:
+
+```yaml
+server_url: example.com
+ssh_url: example.com:2222
+secret_key: { your-secret-key }
+enable_qr_code: false
+tunnels:
+  - name: portr
+    subdomain: portr
+    port: 4321
+```
+
+The panel renders only when exactly one HTTP or stub tunnel is running, since there is no way to pick between several. TCP tunnels have no browsable URL and are ignored. The panel takes vertical space from the request table while visible, and is replaced by a note if the terminal is too narrow to render a scannable code.
+
+<Callout type="info">
+  This option has no effect when `disable_tui: true`, because there is no terminal interface to render the code into.
+</Callout>
+
 ### Configure or Disable the Local Dashboard
 
 You can change the inspector port or disable it permanently in the client config:
@@ -235,6 +258,7 @@ These options apply to the entire client configuration:
 - **secret_key**: Your authentication secret key
 - **groups**: Named sets of tunnel names; `portr start <group>` starts every tunnel in the set
 - **disable_tui**: Disable the interactive terminal interface (default: false)
+- **enable_qr_code**: Offer a QR code toggle (press `r`) in the terminal interface for the tunnel URL (default: true). The code is only rendered once the key is pressed. Ignored when `disable_tui` is true.
 - **dashboard_port**: Local port for the inspector dashboard (default: 7777)
 - **disable_dashboard**: Disable the local inspector dashboard completely (default: false)
 - **disable_update_check**: Disable automatic update checks and notifications (default: false)
