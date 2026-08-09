@@ -1,8 +1,8 @@
 package service
 
 import (
-	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
+	config "github.com/amalshaji/portr/internal/clientconfig"
 )
 
 type Service struct {

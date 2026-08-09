@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	clientcfg "github.com/amalshaji/portr/internal/client/config"
+	clientcfg "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
 )
 

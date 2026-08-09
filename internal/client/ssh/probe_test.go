@@ -13,7 +13,7 @@ import (
 	gssh "github.com/gliderlabs/ssh"
 	"golang.org/x/crypto/ssh"
 
-	clientcfg "github.com/amalshaji/portr/internal/client/config"
+	clientcfg "github.com/amalshaji/portr/internal/clientconfig"
 )
 
 type probeServer struct {

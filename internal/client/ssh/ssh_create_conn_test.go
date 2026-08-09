@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	clientcfg "github.com/amalshaji/portr/internal/client/config"
+	clientcfg "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/go-resty/resty/v2"
 )

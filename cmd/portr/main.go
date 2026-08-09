@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/amalshaji/portr/internal/client/config"
 	requestlogs "github.com/amalshaji/portr/internal/client/logs"
+	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/utils"
 	"github.com/labstack/gommon/color"
 	"github.com/urfave/cli/v2"

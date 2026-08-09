@@ -7,12 +7,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/amalshaji/portr/internal/client/fileresponder"
 	sshclient "github.com/amalshaji/portr/internal/client/ssh"
 	"github.com/amalshaji/portr/internal/client/stubresponder"
 	"github.com/amalshaji/portr/internal/client/tui"
+	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"

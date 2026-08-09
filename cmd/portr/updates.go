@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
-	"github.com/amalshaji/portr/internal/client/config"
+	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/go-resty/resty/v2"
 )
 

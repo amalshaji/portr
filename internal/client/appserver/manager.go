@@ -14,10 +14,10 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
-	clientcfg "github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
 	sshclient "github.com/amalshaji/portr/internal/client/ssh"
 	"github.com/amalshaji/portr/internal/client/stubresponder"
+	clientcfg "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/charmbracelet/log"
 	"github.com/oklog/ulid/v2"

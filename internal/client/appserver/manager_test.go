@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	clientcfg "github.com/amalshaji/portr/internal/client/config"
 	sshclient "github.com/amalshaji/portr/internal/client/ssh"
+	clientcfg "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/charmbracelet/log"
 )
