@@ -16,6 +16,7 @@ This file mirrors the CLI surface for quick lookup. The skill body contains the 
 | `portr auth set` | Configure client auth from a Portr server/admin UI token. | `--token`, `-t`; `--remote`, `-r` |
 | `portr admin users add <email>` | Add a user to a team. | `--team <slug>` defaults to `default-team`; `--role member\|admin` defaults to `member` |
 | `portr config edit` | Open the default config file in the OS editor. | none |
+| `portr config pull` | Replace the local `tunnels` and `groups` with the team template. | none |
 | `portr http <port>` | Expose a local HTTP/WebSocket port. | `--subdomain`, `-s` |
 | `portr tcp <port>` | Expose a local TCP port. | none |
 | `portr stub` | Serve a templated response through an HTTP tunnel. | `--subdomain`, `-s`; `--response-format`; `--response-tmpl`; `--response-tmpl-file` |

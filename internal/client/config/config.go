@@ -1,24 +1,18 @@
 package config
 
 import (
-	"bytes"
+	"errors"
 	"fmt"
-	"net/http"
+	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/amalshaji/portr/internal/utils"
-	"github.com/go-resty/resty/v2"
-	"github.com/labstack/gommon/color"
 	"gopkg.in/yaml.v3"
 )
-
-var UNABLE_TO_OPEN_EDITOR = color.Yellow("Unable to open editor. Please edit the config file manually at " + DefaultConfigPath)
 
 type Tunnel struct {
 	Name                 string                   `yaml:"name"`
@@ -336,6 +330,95 @@ func (c Config) Validate() error {
 	return nil
 }
 
+// templateKeys are the only top-level keys a team template may set. Everything
+// else is a connection setting owned by the server or a machine-local
+// preference, and would be overwritten on the next `portr config pull`.
+var templateKeys = []string{"tunnels", "groups"}
+
+// documentMapping returns the top-level mapping of a single YAML document, or
+// nil when the input is blank or only comments.
+func documentMapping(raw string) (*yaml.Node, error) {
+	decoder := yaml.NewDecoder(strings.NewReader(raw))
+
+	var document yaml.Node
+	if err := decoder.Decode(&document); err != nil {
+		if errors.Is(err, io.EOF) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if err := decoder.Decode(new(yaml.Node)); err == nil {
+		return nil, fmt.Errorf("expected a single YAML document")
+	} else if !errors.Is(err, io.EOF) {
+		return nil, err
+	}
+
+	if document.Kind != yaml.DocumentNode || len(document.Content) == 0 || document.Content[0].Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("expected a YAML mapping")
+	}
+
+	return document.Content[0], nil
+}
+
+// ValidateTemplate checks a team-managed config fragment. An empty template is
+// valid and means the team has not configured one.
+func ValidateTemplate(raw string) error {
+	mapping, err := documentMapping(raw)
+	if err != nil {
+		return fmt.Errorf("invalid template: %w", err)
+	}
+	if mapping == nil {
+		return nil
+	}
+
+	for i := 0; i < len(mapping.Content)-1; i += 2 {
+		key := mapping.Content[i].Value
+		if !slices.Contains(templateKeys, key) {
+			return fmt.Errorf("%q is not allowed in a team template; only %s can be set",
+				key, strings.Join(templateKeys, " and "))
+		}
+	}
+
+	var config Config
+	if err := mapping.Decode(&config); err != nil {
+		return err
+	}
+
+	names := make(map[string]bool, len(config.Tunnels))
+	for _, tunnel := range config.Tunnels {
+		if strings.TrimSpace(tunnel.Name) == "" {
+			return fmt.Errorf("every tunnel in a team template needs a name")
+		}
+		if names[tunnel.Name] {
+			return fmt.Errorf("duplicate tunnel name %q", tunnel.Name)
+		}
+		names[tunnel.Name] = true
+
+		if err := validateTemplateTunnel(tunnel); err != nil {
+			return err
+		}
+	}
+
+	config.SetDefaults()
+	return config.Validate()
+}
+
+// validateTemplateTunnel rejects tunnel settings that name a path on the
+// author's machine. A team template is shared verbatim, so such a path means
+// nothing on a teammate's machine, and the server validating the template has
+// no business resolving it either.
+func validateTemplateTunnel(tunnel Tunnel) error {
+	switch {
+	case tunnel.Type == constants.Static:
+		return fmt.Errorf("tunnel %q: static tunnels serve a directory on your machine and cannot be shared in a team template", tunnel.Name)
+	case strings.TrimSpace(tunnel.ResponseTemplateFile) != "":
+		return fmt.Errorf("tunnel %q: response_tmpl_file points at a path on your machine; inline the body with response_tmpl instead", tunnel.Name)
+	}
+
+	return nil
+}
+
 // ReplaceTunnels swaps in tunnels defined outside the config file. Groups are
 // dropped because they can only reference tunnels from the config file.
 func (c *Config) ReplaceTunnels(tunnels ...Tunnel) {
@@ -498,200 +581,4 @@ func Load(configFile string) (Config, error) {
 	}
 
 	return config, nil
-}
-
-var homedir, _ = os.UserHomeDir()
-var DefaultConfigDir = homedir + "/.portr"
-var DefaultConfigPath = DefaultConfigDir + "/config.yaml"
-
-func checkDefaultConfigFileExists() bool {
-	_, err := os.Stat(DefaultConfigPath)
-	return !os.IsNotExist(err)
-}
-
-func initConfig() error {
-	if checkDefaultConfigFileExists() {
-		return nil
-	}
-
-	f, err := os.OpenFile(DefaultConfigPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
-	if err != nil {
-		return err
-	}
-	if err := f.Close(); err != nil {
-		return err
-	}
-
-	return os.Chmod(DefaultConfigPath, 0o600)
-}
-
-func EditConfig() error {
-	if !checkDefaultConfigFileExists() {
-		err := initConfig()
-		if err != nil {
-			return err
-		}
-	}
-
-	var editorCmd string
-
-	switch os := runtime.GOOS; os {
-	case "darwin":
-		editorCmd = "open"
-	case "linux":
-		editorCmd = "xdg-open"
-	case "windows":
-		editorCmd = "start"
-	default:
-		fmt.Println(UNABLE_TO_OPEN_EDITOR)
-		return nil
-	}
-
-	cmd := exec.Command(editorCmd, DefaultConfigPath)
-	if err := cmd.Run(); err != nil {
-		fmt.Println(UNABLE_TO_OPEN_EDITOR)
-		return nil
-	}
-
-	return nil
-}
-
-func writeDefaultConfigFile(data []byte) error {
-	if err := os.WriteFile(DefaultConfigPath, data, 0o600); err != nil {
-		return err
-	}
-
-	return os.Chmod(DefaultConfigPath, 0o600)
-}
-
-func SetConfig(config string) error {
-	if !checkDefaultConfigFileExists() {
-		err := initConfig()
-		if err != nil {
-			return err
-		}
-	}
-
-	return writeDefaultConfigFile([]byte(config))
-}
-
-func writeConfigNode(configNode *yaml.Node) error {
-	var buf bytes.Buffer
-	encoder := yaml.NewEncoder(&buf)
-	encoder.SetIndent(2)
-	if err := encoder.Encode(configNode); err != nil {
-		_ = encoder.Close()
-		return err
-	}
-	if err := encoder.Close(); err != nil {
-		return err
-	}
-
-	return writeDefaultConfigFile(buf.Bytes())
-}
-
-func setConfigMapValue(mappingNode *yaml.Node, key, value string) {
-	for i := 0; i < len(mappingNode.Content)-1; i += 2 {
-		if mappingNode.Content[i].Value == key {
-			mappingNode.Content[i+1] = &yaml.Node{
-				Kind:  yaml.ScalarNode,
-				Tag:   "!!str",
-				Value: value,
-			}
-			return
-		}
-	}
-
-	mappingNode.Content = append(mappingNode.Content,
-		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key},
-		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: value},
-	)
-}
-
-func updateConfigValues(entries [][2]string) error {
-	configBytes, err := os.ReadFile(DefaultConfigPath)
-	if err != nil {
-		return err
-	}
-
-	var configNode yaml.Node
-	if err := yaml.Unmarshal(configBytes, &configNode); err != nil {
-		return err
-	}
-
-	if configNode.Kind == 0 || len(configNode.Content) == 0 {
-		configNode.Kind = yaml.DocumentNode
-		configNode.Content = []*yaml.Node{{Kind: yaml.MappingNode, Tag: "!!map"}}
-	}
-
-	if configNode.Kind != yaml.DocumentNode || len(configNode.Content) == 0 || configNode.Content[0].Kind != yaml.MappingNode {
-		return fmt.Errorf("config file must contain a YAML mapping")
-	}
-
-	mappingNode := configNode.Content[0]
-	for _, entry := range entries {
-		setConfigMapValue(mappingNode, entry[0], entry[1])
-	}
-
-	return writeConfigNode(&configNode)
-}
-
-func updateAuthValues(token string, downloadedConfig string) error {
-	var downloaded struct {
-		ServerUrl string `yaml:"server_url"`
-		SshUrl    string `yaml:"ssh_url"`
-	}
-	if err := yaml.Unmarshal([]byte(downloadedConfig), &downloaded); err != nil {
-		return err
-	}
-
-	entries := [][2]string{{"secret_key", token}}
-	if downloaded.ServerUrl != "" {
-		// the server doesn't send tunnel_url; tunnels are served on the server_url domain
-		entries = append(entries,
-			[2]string{"server_url", downloaded.ServerUrl},
-			[2]string{"tunnel_url", downloaded.ServerUrl},
-		)
-	}
-	if downloaded.SshUrl != "" {
-		entries = append(entries, [2]string{"ssh_url", downloaded.SshUrl})
-	}
-
-	return updateConfigValues(entries)
-}
-
-func GetConfig(token string, remote string) error {
-	configFileExists := checkDefaultConfigFileExists()
-	payloadMap := map[string]string{
-		"secret_key": token,
-	}
-
-	client := resty.New()
-
-	if !(strings.HasPrefix(remote, "http://") || strings.HasPrefix(remote, "https://")) {
-		if strings.HasPrefix(remote, "localhost:") {
-			remote = "http://" + remote
-		} else {
-			remote = "https://" + remote
-		}
-	}
-
-	var response struct {
-		Message string `json:"message"`
-	}
-
-	resp, err := client.R().SetError(&response).SetResult(&response).SetBody(payloadMap).Post(remote + "/api/v1/config/download")
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("%s", response.Message)
-	}
-
-	if configFileExists {
-		return updateAuthValues(token, response.Message)
-	}
-
-	return SetConfig(response.Message)
 }

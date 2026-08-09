@@ -247,6 +247,45 @@ A group name must not match a tunnel name, and every member must be the name of 
   For more details about available commands and options, run `portr --help`.
 </Callout>
 
+## Team Templates
+
+Instead of every member writing the same tunnels by hand, a team admin can publish one template from the admin dashboard under **Client template**. It holds the same `tunnels` and `groups` you would write locally:
+
+```yaml
+tunnels:
+  - name: web
+    subdomain: acme-web
+    port: 3000
+  - name: api
+    subdomain: acme-api
+    port: 8000
+
+groups:
+  frontend: [web, api]
+```
+
+Only `tunnels` and `groups` can be set in a team template. `server_url`, `ssh_url`, `secret_key` and machine-local settings such as `dashboard_port` stay yours; the server rejects them at save time.
+
+Anything that names a path on one machine is rejected too, since a template is shared verbatim: static tunnels (`type: static`, which serves a local `dir`) and `response_tmpl_file`. Use an inline `response_tmpl` for stub tunnels.
+
+New members get the template on a fresh setup:
+
+```bash
+portr auth set --token {your_token} --remote {your_domain}
+```
+
+If you already have a config file, `portr auth set` only refreshes the token and urls. Pull the template explicitly:
+
+```bash
+portr config pull
+```
+
+`portr config pull` replaces the local `tunnels` and `groups` with the team template and leaves everything else in the file — including your comments and secret key — untouched.
+
+<Callout type="warn">
+  `portr config pull` overwrites tunnels you added by hand. Copy anything you want to keep into the team template first, or re-add it after pulling.
+</Callout>
+
 ## Configuration Options
 
 ### Global Configuration Options

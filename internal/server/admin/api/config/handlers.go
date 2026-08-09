@@ -86,6 +86,12 @@ func NewHandler(db *gorm.DB, store *session.Store, cfg *serverConfig.AdminConfig
 	}
 }
 
+// defaultClientTemplate is served to teams that have not configured one.
+const defaultClientTemplate = `tunnels:
+  - name: portr
+    subdomain: portr
+    port: 4321`
+
 type DownloadConfigInput struct {
 	SecretKey string `json:"secret_key" validate:"required"`
 }
@@ -99,7 +105,7 @@ func (h *Handler) DownloadConfig(c *fiber.Ctx) error {
 	}
 
 	var teamUser models.TeamUser
-	err := h.db.Where("secret_key = ?", input.SecretKey).First(&teamUser).Error
+	err := h.db.Preload("Team").Where("secret_key = ?", input.SecretKey).First(&teamUser).Error
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Invalid secret key",
@@ -114,14 +120,16 @@ secret_key: %s`, stripScheme(h.config.ServerURL), h.config.SshURL, teamUser.Secr
 		configContent += "\ninsecure_skip_host_key_verification: false"
 	}
 
-	configContent += `
-tunnels:
-  - name: portr
-    subdomain: portr
-    port: 4321`
+	template := strings.TrimSpace(teamUser.Team.ClientTemplate)
+	hasTemplate := template != ""
+	if !hasTemplate {
+		template = defaultClientTemplate
+	}
+	configContent += "\n" + template + "\n"
 
 	return c.JSON(fiber.Map{
-		"message": configContent,
+		"message":      configContent,
+		"has_template": hasTemplate,
 	})
 }
 

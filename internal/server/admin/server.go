@@ -193,6 +193,8 @@ func (s *Server) setupConfigRoutes(v1 fiber.Router) {
 	configGroup.Post("/download", configHandler.DownloadConfig)
 	configGroup.Get("/setup-script", s.auth.RequireTeamUser, configHandler.GetSetupScript)
 	configGroup.Get("/stats", s.auth.RequireTeamUser, configHandler.GetStats)
+	configGroup.Get("/template", s.auth.RequireTeamUser, configHandler.GetClientTemplate)
+	configGroup.Put("/template", s.auth.RequireAdmin, configHandler.UpdateClientTemplate)
 }
 
 func (s *Server) setupAutoSignupRoutes(v1 fiber.Router) {

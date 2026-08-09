@@ -1,9 +1,6 @@
 package config
 
 import (
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
@@ -129,68 +126,6 @@ func TestLoadAcceptsDeprecatedHTTPReverseProxyOption(t *testing.T) {
 	}
 	if cfg.ServerUrl != "example.test" {
 		t.Fatalf("expected remaining config to load, got server_url=%q", cfg.ServerUrl)
-	}
-}
-
-func TestGetConfigUpdatesAuthValuesWhenDefaultConfigExists(t *testing.T) {
-	configPath := filepath.Join(t.TempDir(), "config.yaml")
-	useDefaultConfigPath(t, configPath)
-
-	existingConfig := `server_url: existing.example.com
-ssh_url: existing.example.com:2222
-secret_key: old-token
-tunnels:
-  - name: api
-    subdomain: api-dev
-    port: 3000
-    type: http
-`
-	if err := os.WriteFile(configPath, []byte(existingConfig), 0o600); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
-
-	requestPath := ""
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestPath = r.URL.Path
-		if r.URL.Path != "/api/v1/config/download" {
-			http.Error(w, "unexpected path", http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"message":"server_url: downloaded.example.com\nssh_url: downloaded.example.com:2222\nsecret_key: new-token\ntunnels:\n  - name: downloaded\n    subdomain: downloaded\n    port: 4321"}`)
-	}))
-	defer server.Close()
-
-	if err := GetConfig("new-token", server.URL); err != nil {
-		t.Fatalf("get config: %v", err)
-	}
-	if requestPath != "/api/v1/config/download" {
-		t.Fatalf("expected config download endpoint to be called, got %q", requestPath)
-	}
-
-	configBytes, err := os.ReadFile(configPath)
-	if err != nil {
-		t.Fatalf("read config: %v", err)
-	}
-	configContent := string(configBytes)
-
-	if !strings.Contains(configContent, "secret_key: new-token") {
-		t.Fatalf("expected token to be updated, got: %s", configContent)
-	}
-	if !strings.Contains(configContent, "server_url: downloaded.example.com") {
-		t.Fatalf("expected server_url to be updated, got: %s", configContent)
-	}
-	if !strings.Contains(configContent, "ssh_url: downloaded.example.com:2222") {
-		t.Fatalf("expected ssh_url to be updated, got: %s", configContent)
-	}
-	if !strings.Contains(configContent, "tunnel_url: downloaded.example.com") {
-		t.Fatalf("expected tunnel_url to be updated, got: %s", configContent)
-	}
-	if !strings.Contains(configContent, "name: api") || !strings.Contains(configContent, "subdomain: api-dev") {
-		t.Fatalf("expected existing tunnel to be preserved, got: %s", configContent)
-	}
-	if strings.Contains(configContent, "name: downloaded") {
-		t.Fatalf("expected downloaded tunnels not to overwrite existing config, got: %s", configContent)
 	}
 }
 
