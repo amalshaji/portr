@@ -58,7 +58,7 @@ export function ReservationForm({
             Only your current team credential can use a name reserved here.
           </p>
         </div>
-        <p className="shrink-0 font-mono text-xs text-muted-foreground">
+        <p className="data shrink-0 text-xs text-muted-foreground">
           {count} / {limit}
         </p>
       </div>

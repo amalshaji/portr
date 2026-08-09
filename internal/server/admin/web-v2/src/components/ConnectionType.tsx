@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge'
 import type { ConnectionType } from '@/types'
 
 interface ConnectionTypeProps {
@@ -7,8 +6,8 @@ interface ConnectionTypeProps {
 
 export default function ConnectionType({ type }: ConnectionTypeProps) {
   return (
-    <Badge variant="outline" className="uppercase font-mono text-xs">
+    <span className="data inline-flex items-center rounded-sm border border-border px-1.5 py-0.5 text-[0.65rem] uppercase text-muted-foreground">
       {type}
-    </Badge>
+    </span>
   )
 }

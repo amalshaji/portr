@@ -125,7 +125,7 @@ export default function NewTeamDialog({ isOpen, setIsOpen }: NewTeamDialogProps)
               className="font-mono"
               readOnly
             />
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-muted-foreground">
               The slug will be used in URLs and is automatically generated from the team name
             </p>
           </div>
