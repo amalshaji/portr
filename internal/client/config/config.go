@@ -31,8 +31,12 @@ type Tunnel struct {
 	ResponseTemplate     string                   `yaml:"response_tmpl"`
 	ResponseTemplateFile string                   `yaml:"response_tmpl_file"`
 	RemotePort           int
-	PoolSize             int `yaml:"pool_size"`
+	PoolSize             int    `yaml:"pool_size"`
+	HostHeader           string `yaml:"host_header"`
 }
+
+// HostHeaderRewrite sets the outbound Host header to the local address.
+const HostHeaderRewrite = "rewrite"
 
 func (t *Tunnel) SetDefaults() {
 	if t.Type == "" {
@@ -60,6 +64,10 @@ func (t *Tunnel) SetDefaults() {
 }
 
 func (t *Tunnel) Validate() error {
+	if strings.TrimSpace(t.HostHeader) != "" && t.Type != constants.Http {
+		return fmt.Errorf("host_header is only supported for http tunnels")
+	}
+
 	if t.Type == constants.Stub && strings.TrimSpace(t.Subdomain) == "" {
 		return fmt.Errorf("subdomain is required for stub tunnels")
 	}
@@ -97,6 +105,20 @@ func (t *Tunnel) Validate() error {
 
 func (t *Tunnel) GetLocalAddr() string {
 	return t.Host + ":" + fmt.Sprint(t.Port)
+}
+
+// ResolvedHostHeader returns the Host header to send to the local service, or
+// an empty string when the public Host should be passed through unchanged.
+func (t *Tunnel) ResolvedHostHeader(localAddr string) string {
+	value := strings.TrimSpace(t.HostHeader)
+	switch {
+	case value == "":
+		return ""
+	case strings.EqualFold(value, HostHeaderRewrite):
+		return localAddr
+	default:
+		return value
+	}
 }
 
 // ResolveServeDir makes a static tunnel's directory absolute, relative to

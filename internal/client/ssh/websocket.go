@@ -426,7 +426,16 @@ func (s *SshClient) handleWebSocketRequest(
 		defer request.Body.Close()
 	}
 
-	if err := request.Write(dstWriter); err != nil {
+	// The capture goroutine reads request.Host after this point, so the host
+	// rewrite goes on a shallow copy that still shares the captured body.
+	outbound := request
+	if hostHeader := s.config.Tunnel.ResolvedHostHeader(localEndpoint); hostHeader != "" {
+		clone := *request
+		clone.Host = hostHeader
+		outbound = &clone
+	}
+
+	if err := outbound.Write(dstWriter); err != nil {
 		_ = writeLocalServerUnavailable(srcWriter, localEndpoint)
 		_ = srcWriter.Flush()
 		return err
