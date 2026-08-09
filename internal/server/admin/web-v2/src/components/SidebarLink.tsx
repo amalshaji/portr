@@ -27,15 +27,6 @@ export default function SidebarLink({
         className
       )}
     >
-      {/* The active marker is a rule, not a filled pill — it reads as a
-          selected row in a console rather than a tapped button. */}
-      <span
-        aria-hidden="true"
-        className={cn(
-          "-ml-2.5 h-5 w-0.5 shrink-0 rounded-full transition-colors duration-(--portr-duration-micro)",
-          isActive ? "bg-signal-live" : "bg-transparent"
-        )}
-      />
       {children}
     </Link>
   );

@@ -19,34 +19,21 @@ import {
 import { Button } from "@/components/ui/button";
 import ConnectionType from "@/components/ConnectionType";
 import DateField from "@/components/DateField";
-import RouteLine, { type RouteState } from "@/components/RouteLine";
+import Panel from "@/components/Panel";
+import RouteLine, { connectionRouteState } from "@/components/RouteLine";
+import SegmentedControl from "@/components/SegmentedControl";
 import { Pagination } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn, updateQueryParam } from "@/lib/utils";
+import { formatDuration } from "@/lib/humanize";
+import { updateQueryParam } from "@/lib/utils";
 import type { Connection } from "@/types";
 
-const humanizeTimeMs = (ms: number): string => {
-  const seconds = Math.floor(ms / 1000) % 60;
-  const minutes = Math.floor(ms / (1000 * 60)) % 60;
-  const hours = Math.floor(ms / (1000 * 60 * 60)) % 24;
-  const days = Math.floor(ms / (1000 * 60 * 60 * 24));
-
-  if (days > 0) return `${days}d ${hours}h ${minutes}m ${seconds}s`;
-  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
-  if (minutes > 0) return `${minutes}m ${seconds}s`;
-  return `${seconds}s`;
-};
-
-const routeState = (connection: Connection): RouteState => {
-  if (connection.status === "active") return "live";
-  if (connection.status === "reserved") return "unbound";
-  return "closed";
-};
-
 const filters = [
-  { value: "recent", label: "All" },
-  { value: "active", label: "Active" },
-] as const;
+  { value: "recent" as const, label: "All" },
+  { value: "active" as const, label: "Active" },
+];
+
+type ConnectionFilter = (typeof filters)[number]["value"];
 
 export default function Connections() {
   const { team } = useParams<{ team: string }>();
@@ -54,7 +41,7 @@ export default function Connections() {
   const [connectionsLoading, setConnectionsLoading] = useState(true);
 
   const urlParams = new URLSearchParams(window.location.search);
-  const [connectionType, setConnectionType] = useState(
+  const [connectionType, setConnectionType] = useState<ConnectionFilter>(
     urlParams.get("type") === "active" ? "active" : "recent"
   );
   const [pageNo, setPageNo] = useState(
@@ -109,31 +96,15 @@ export default function Connections() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div
-          role="group"
-          aria-label="Filter connections"
-          className="flex w-fit rounded-md border border-border bg-muted/60 p-0.5"
-        >
-          {filters.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={connectionType === value}
-              onClick={() => {
-                setConnectionType(value);
-                setPageNo(1);
-              }}
-              className={cn(
-                "rounded-sm px-3 py-1 text-xs font-medium outline-none transition-colors duration-(--portr-duration-micro) ease-portr focus-visible:ring-2 focus-visible:ring-ring",
-                connectionType === value
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl<ConnectionFilter>
+          ariaLabel="Filter connections"
+          options={filters}
+          value={connectionType}
+          onChange={(value) => {
+            setConnectionType(value);
+            setPageNo(1);
+          }}
+        />
 
         <div className="flex items-center gap-2">
           <Label htmlFor="page-size" className="text-xs text-muted-foreground">
@@ -159,7 +130,7 @@ export default function Connections() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-md border border-border bg-card">
+      <Panel flush>
         {connectionsLoading ? (
           <Table>
             <TableHeader>
@@ -214,7 +185,7 @@ export default function Connections() {
                   connection.status === "active"
                     ? "—"
                     : connection.started_at && connection.closed_at
-                    ? humanizeTimeMs(
+                    ? formatDuration(
                         new Date(connection.closed_at).getTime() -
                           new Date(connection.started_at).getTime()
                       )
@@ -231,7 +202,7 @@ export default function Connections() {
                       <RouteLine
                         name={connection.subdomain || `${connection.type} tunnel`}
                         port={connection.port}
-                        state={routeState(connection)}
+                        state={connectionRouteState(connection)}
                       />
                     </TableCell>
                     <TableCell>
@@ -251,7 +222,7 @@ export default function Connections() {
             </TableBody>
           </Table>
         )}
-      </div>
+      </Panel>
 
       {totalItems > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3">

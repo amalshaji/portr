@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Panel from "@/components/Panel";
 import { useUserStore } from "@/lib/store";
 import {
   Copy,
@@ -168,8 +169,8 @@ export default function MyAccount() {
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6">
-      <Section
-        Icon={User}
+      <Panel
+        icon={<User className="size-4" />}
         title="Profile"
         description="Your name as it appears to the rest of the team."
       >
@@ -203,10 +204,10 @@ export default function MyAccount() {
           {isUpdating && <LoaderCircle className="size-4 animate-spin" />}
           Save profile
         </Button>
-      </Section>
+      </Panel>
 
-      <Section
-        Icon={KeySquare}
+      <Panel
+        icon={<KeySquare className="size-4" />}
         title="Password"
         description="Used to sign in to this console."
       >
@@ -255,10 +256,10 @@ export default function MyAccount() {
           )}
           Update password
         </Button>
-      </Section>
+      </Panel>
 
-      <Section
-        Icon={KeyRound}
+      <Panel
+        icon={<KeyRound className="size-4" />}
         title="Client secret key"
         description={
           <>
@@ -335,32 +336,8 @@ export default function MyAccount() {
             Rotating invalidates the previous key immediately.
           </p>
         </div>
-      </Section>
+      </Panel>
     </div>
   );
 }
 
-function Section({
-  Icon,
-  title,
-  description,
-  children,
-}: {
-  Icon: typeof User;
-  title: string;
-  description: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="overflow-hidden rounded-md border border-border bg-card">
-      <header className="flex items-start gap-3 border-b border-border px-4 py-3">
-        <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-        <div>
-          <h2 className="text-sm font-semibold">{title}</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
-        </div>
-      </header>
-      <div className="space-y-4 p-4">{children}</div>
-    </section>
-  );
-}

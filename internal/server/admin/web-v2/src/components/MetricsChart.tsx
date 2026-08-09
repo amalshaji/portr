@@ -1,12 +1,6 @@
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import Panel from "@/components/Panel";
 import {
   ChartContainer,
   ChartTooltip,
@@ -51,6 +45,32 @@ const humanizeNumber = (
   }
 };
 
+/** Declared at module scope: a component defined inside MetricChart would get a
+ *  new identity on every poll, remounting the chart each time. */
+function ChartPanel({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Panel title={title} description={description} flush>
+      <div className="p-3">{children}</div>
+    </Panel>
+  );
+}
+
+function Placeholder({ message }: { message: string }) {
+  return (
+    <div className="flex h-[220px] items-center justify-center text-xs text-muted-foreground">
+      {message}
+    </div>
+  );
+}
+
 // Individual chart component for each metric
 function MetricChart({
   title,
@@ -69,55 +89,31 @@ function MetricChart({
   isLoading: boolean;
   isPercentage?: boolean;
 }) {
-  // Every state renders the same card, only the body changes.
-  const Shell = ({ children }: { children: React.ReactNode }) => (
-    <Card className="gap-0 rounded-md border-border py-0 shadow-none">
-      <CardHeader className="border-b border-border px-4 py-3">
-        <CardTitle className="text-sm font-semibold">{title}</CardTitle>
-        <CardDescription className="text-xs">{description}</CardDescription>
-      </CardHeader>
-      <CardContent className="p-3">{children}</CardContent>
-    </Card>
-  );
-
-  const Placeholder = ({ message }: { message: string }) => (
-    <div className="flex h-[220px] items-center justify-center text-xs text-muted-foreground">
-      {message}
-    </div>
-  );
-
-  if (isLoading) {
-    return (
-      <Shell>
-        <Skeleton className="h-[220px] w-full rounded-sm" />
-      </Shell>
-    );
-  }
-
-  if (!data || data.length === 0) {
-    return (
-      <Shell>
-        <Placeholder message="No data yet" />
-      </Shell>
-    );
-  }
-
   // An all-zero series draws an invisible line, so say so rather than showing
   // an empty chart.
-  const hasNonZeroValues = data.some(
+  const hasNonZeroValues = data?.some(
     (point) =>
       point.value !== 0 && point.value !== null && point.value !== undefined
   );
-  if (!hasNonZeroValues) {
+
+  const body = isLoading ? (
+    <Skeleton className="h-[220px] w-full rounded-sm" />
+  ) : !data || data.length === 0 ? (
+    <Placeholder message="No data yet" />
+  ) : !hasNonZeroValues ? (
+    <Placeholder message="Reporting zero across the window" />
+  ) : null;
+
+  if (body) {
     return (
-      <Shell>
-        <Placeholder message="Reporting zero across the window" />
-      </Shell>
+      <ChartPanel title={title} description={description}>
+        {body}
+      </ChartPanel>
     );
   }
 
   return (
-    <Shell>
+    <ChartPanel title={title} description={description}>
       <ChartContainer config={config} className="h-[220px] w-full">
           <LineChart
             accessibilityLayer
@@ -196,7 +192,7 @@ function MetricChart({
             />
           </LineChart>
       </ChartContainer>
-    </Shell>
+    </ChartPanel>
   );
 }
 

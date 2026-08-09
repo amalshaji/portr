@@ -35,6 +35,13 @@
   --portr-focus: oklch(55% 0.205 27);
   --portr-shadow: oklch(10% 0.025 245 / 0.28);
 
+  --portr-space-3xs: 0.125rem;
+  --portr-space-2xs: 0.25rem;
+  --portr-space-xs: 0.5rem;
+  --portr-space-sm: 0.75rem;
+  --portr-space-md: 1rem;
+  --portr-space-lg: 1.5rem;
+
   --portr-radius-sm: 0.25rem;
   --portr-radius-md: 0.5rem;
   --portr-radius-frame: 1.5rem;

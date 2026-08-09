@@ -3,7 +3,9 @@ import { useParams } from "react-router-dom";
 import { Globe, Shield, Users } from "lucide-react";
 import type { DashboardStats, SystemStats, ChartData } from "@/types";
 import { MetricsChart } from "@/components/MetricsChart";
+import Panel from "@/components/Panel";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatDuration } from "@/lib/humanize";
 
 export default function Metrics() {
   const { team } = useParams<{ team: string }>();
@@ -34,25 +36,6 @@ export default function Metrics() {
     memory_usage: [],
     cpu_usage: [],
   });
-
-  const formatUptime = (startTimeStr: string) => {
-    const startTime = new Date(startTimeStr);
-    const now = new Date();
-    const uptimeMs = now.getTime() - startTime.getTime();
-
-    const seconds = Math.floor(uptimeMs / 1000) % 60;
-    const minutes = Math.floor(uptimeMs / (1000 * 60)) % 60;
-    const hours = Math.floor(uptimeMs / (1000 * 60 * 60)) % 24;
-    const days = Math.floor(uptimeMs / (1000 * 60 * 60 * 24));
-
-    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
-  };
-
-  const updateUptime = () => {
-    if (serverStartTime) {
-      setUptimeDisplay(formatUptime(serverStartTime));
-    }
-  };
 
   const getDashboardStats = async (showLoading = true) => {
     if (!team) return;
@@ -99,9 +82,8 @@ export default function Metrics() {
           });
         }
 
-        if (sysStats && sysStats.server_start_time && !serverStartTime) {
+        if (sysStats?.server_start_time) {
           setServerStartTime(sysStats.server_start_time);
-          setUptimeDisplay(formatUptime(sysStats.server_start_time));
         }
       }
     } catch (error) {
@@ -145,14 +127,22 @@ export default function Metrics() {
       getDashboardStats(false);
     }, 5000);
 
-    // Set up uptime interval to update every second
-    const uptimeInterval = setInterval(updateUptime, 1000);
-
-    return () => {
-      clearInterval(statsPollingInterval);
-      clearInterval(uptimeInterval);
-    };
+    return () => clearInterval(statsPollingInterval);
   }, [team]);
+
+  // Ticks the uptime once a second. Keyed on serverStartTime so the interval is
+  // rebuilt when it arrives — previously the effect only depended on `team`, so
+  // the tick closed over a null start time and the display never advanced.
+  useEffect(() => {
+    if (!serverStartTime) return;
+
+    const start = new Date(serverStartTime).getTime();
+    const tick = () => setUptimeDisplay(formatDuration(Date.now() - start));
+
+    tick();
+    const uptimeInterval = setInterval(tick, 1000);
+    return () => clearInterval(uptimeInterval);
+  }, [serverStartTime]);
 
   const readouts = [
     {
@@ -214,13 +204,11 @@ export default function Metrics() {
 
       <MetricsChart chartData={chartData} isLoading={statsLoading} />
 
-      <section className="overflow-hidden rounded-md border border-border bg-card">
-        <header className="border-b border-border px-4 py-3">
-          <h2 className="text-sm font-semibold">System information</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Hardware and runtime details for the machine running Portr.
-          </p>
-        </header>
+      <Panel
+        title="System information"
+        description="Hardware and runtime details for the machine running Portr."
+        flush
+      >
         <dl className="grid gap-x-8 gap-y-0 p-2 sm:grid-cols-2 lg:grid-cols-3">
           {systemInfo.map(({ label, value }) => (
             <div
@@ -238,7 +226,7 @@ export default function Metrics() {
             </div>
           ))}
         </dl>
-      </section>
+      </Panel>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Save, Trash2, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import Panel from '@/components/Panel'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Label } from '@/components/ui/label'
 import {
@@ -55,8 +56,20 @@ export default function AutoSignupSettings() {
         settingsResponse.json(),
         teamsResponse.json(),
       ])
-      setSettings(settingsData)
-      setTeams(teamsData)
+      // A partial payload used to blank the page on the first render that read
+      // auto_signup_domains. Treat a bad shape as a load failure so the retry
+      // path below handles it.
+      if (!settingsData || typeof settingsData !== 'object') {
+        throw new Error('Malformed auto signup settings')
+      }
+      setSettings({
+        github_auth_enabled: Boolean(settingsData.github_auth_enabled),
+        auto_signup_enabled: Boolean(settingsData.auto_signup_enabled),
+        auto_signup_domains: Array.isArray(settingsData.auto_signup_domains)
+          ? settingsData.auto_signup_domains
+          : [],
+      })
+      setTeams(Array.isArray(teamsData) ? teamsData : [])
     } catch (error) {
       console.error('Error fetching auto signup settings:', error)
       setLoadError(true)
@@ -157,17 +170,11 @@ export default function AutoSignupSettings() {
           Allow GitHub users from trusted domains to join selected teams.
         </p>
 
-        <section className="overflow-hidden rounded-md border border-border bg-card">
-          <header className="flex items-start gap-3 border-b border-border px-4 py-3">
-            <UserPlus className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-            <div>
-              <h2 className="text-sm font-semibold">Trusted domain mappings</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Each domain maps new GitHub signups to the team they should join.
-              </p>
-            </div>
-          </header>
-          <div className="space-y-4 p-4">
+        <Panel
+          icon={<UserPlus className="size-4" />}
+          title="Trusted domain mappings"
+          description="Each domain maps new GitHub signups to the team they should join."
+        >
             <div className="flex items-center space-x-2">
               <Switch
                 id="auto-signup-enabled"
@@ -256,8 +263,7 @@ export default function AutoSignupSettings() {
                 </div>
               )}
             </div>
-          </div>
-        </section>
+        </Panel>
 
         <div className="flex justify-end">
           <Button onClick={handleSave} disabled={saving} size="sm">

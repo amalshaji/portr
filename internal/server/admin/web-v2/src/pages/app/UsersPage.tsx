@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Plus, Mail, MoreHorizontal, Trash2, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Panel from "@/components/Panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -145,7 +146,7 @@ export default function UsersPage() {
           </Button>
         </div>
 
-        <div className="overflow-hidden rounded-md border border-border bg-card">
+        <Panel flush>
             {usersLoading ? (
               <Table>
                 <TableHeader>
@@ -315,7 +316,7 @@ export default function UsersPage() {
                 </TableBody>
               </Table>
             )}
-        </div>
+        </Panel>
 
         {totalUsers > usersPerPage && (
           <div className="flex justify-center">

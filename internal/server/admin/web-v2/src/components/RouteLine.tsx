@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils"
+import type { Connection } from "@/types"
 
 /**
  * A Portr route: a public name bound to a local port.
@@ -13,25 +14,42 @@ import { cn } from "@/lib/utils"
 
 export type RouteState = "live" | "idle" | "closed" | "unbound"
 
-const stateLabel: Record<RouteState, string> = {
-  live: "live",
-  idle: "idle",
-  closed: "closed",
-  unbound: "not running",
+const ROUTE_STATES: Record<
+  RouteState,
+  { label: string; rule: string; node: string; dashed: boolean }
+> = {
+  live: {
+    label: "live",
+    rule: "border-signal-live",
+    node: "bg-signal-live",
+    dashed: false,
+  },
+  idle: {
+    label: "idle",
+    rule: "border-signal-idle",
+    node: "bg-signal-idle",
+    dashed: true,
+  },
+  closed: {
+    label: "closed",
+    rule: "border-signal-closed",
+    node: "bg-signal-closed",
+    dashed: false,
+  },
+  unbound: {
+    label: "not running",
+    rule: "border-signal-unbound",
+    // An unbound name gets an open jack rather than a filled node.
+    node: "bg-transparent border-2 border-signal-unbound",
+    dashed: true,
+  },
 }
 
-const ruleColor: Record<RouteState, string> = {
-  live: "border-signal-live",
-  idle: "border-signal-idle",
-  closed: "border-signal-closed",
-  unbound: "border-signal-unbound",
-}
-
-const nodeColor: Record<RouteState, string> = {
-  live: "bg-signal-live",
-  idle: "bg-signal-idle",
-  closed: "bg-signal-closed",
-  unbound: "bg-transparent",
+/** Maps a connection onto the state its route line should show. */
+export const connectionRouteState = (connection: Connection): RouteState => {
+  if (connection.status === "active") return "live"
+  if (connection.status === "reserved") return "unbound"
+  return "closed"
 }
 
 interface RouteLineProps {
@@ -58,7 +76,7 @@ export default function RouteLine({
   className,
 }: RouteLineProps) {
   const large = size === "lg"
-  const dashed = state === "idle" || state === "unbound"
+  const { label, rule, node, dashed } = ROUTE_STATES[state]
 
   return (
     <div
@@ -74,7 +92,7 @@ export default function RouteLine({
           className={cn(
             "shrink-0 rounded-full",
             large ? "size-2.5" : "size-1.5",
-            nodeColor[state],
+            node,
             state === "live" && "animate-route-pulse",
           )}
         />
@@ -87,9 +105,7 @@ export default function RouteLine({
           >
             {name}
           </span>
-          {protocol && large && (
-            <span className="eyebrow block">{protocol}</span>
-          )}
+          {protocol && large && <span className="eyebrow block">{protocol}</span>}
         </span>
       </div>
 
@@ -97,14 +113,19 @@ export default function RouteLine({
         aria-hidden="true"
         className={cn(
           "min-w-6 flex-1 border-t",
-          large ? "border-t-2" : "border-t",
+          large && "border-t-2",
           dashed && "border-dashed",
-          ruleColor[state],
+          rule,
           animate && "animate-route-draw origin-left",
         )}
       />
 
-      <div className={cn("flex shrink-0 items-center gap-2", animate && "animate-route-node")}>
+      <div
+        className={cn(
+          "flex shrink-0 items-center gap-2",
+          animate && "animate-route-node",
+        )}
+      >
         <span className="text-right">
           <span
             className={cn(
@@ -115,26 +136,18 @@ export default function RouteLine({
           >
             {port ? `:${port}` : "—"}
           </span>
-          {large && (
-            <span className="eyebrow block">{stateLabel[state]}</span>
-          )}
+          {large && <span className="eyebrow block">{label}</span>}
         </span>
         <span
           aria-hidden="true"
-          className={cn(
-            "shrink-0 rounded-full",
-            large ? "size-2.5" : "size-1.5",
-            nodeColor[state],
-            // An unbound name gets an open jack rather than a filled node.
-            state === "unbound" && "border-2 border-signal-unbound",
-          )}
+          className={cn("shrink-0 rounded-full", large ? "size-2.5" : "size-1.5", node)}
         />
       </div>
 
       <span className="sr-only">
         {port
-          ? `${name} bound to port ${port}, ${stateLabel[state]}`
-          : `${name} reserved, ${stateLabel[state]}`}
+          ? `${name} bound to port ${port}, ${label}`
+          : `${name} reserved, ${label}`}
       </span>
     </div>
   )

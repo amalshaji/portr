@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import RouteLine from '@/components/RouteLine'
 import ThemeToggle from '@/components/ThemeToggle'
+import TunnelMap from '@/components/TunnelMap'
 import type { AuthConfig } from '@/types'
 import { getResponseMessage } from './auth-errors'
 
@@ -122,25 +122,23 @@ export default function HomePage() {
           <span className="sr-only">Portr home</span>
         </a>
 
-        <div className="hidden max-w-lg lg:block">
-          <h1 className="text-4xl leading-[1.08] font-semibold">
-            One name, pointed at one port.
-          </h1>
-          <p className="mt-4 text-sm leading-6 text-muted-foreground">
-            Portr binds a public address to a service running on your machine.
-            This console is where you decide which names exist and who gets to
-            use them.
-          </p>
+        {/* The diagram is portrait, so it sits beside the copy rather than
+            under it — otherwise the panel is one narrow column with dead space
+            either side. */}
+        <div className="hidden flex-1 items-center py-10 lg:flex">
+          <div className="grid w-full items-center gap-10 xl:grid-cols-[minmax(0,26rem)_auto]">
+            <div>
+              <h1 className="text-4xl leading-[1.08] font-semibold text-balance">
+                One name, pointed at one port.
+              </h1>
+              <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                Portr gives a service on your machine a public URL. Use this
+                console to invite teammates, reserve subdomains, review tunnel
+                activity, and check server health.
+              </p>
+            </div>
 
-          <div className="mt-10 rounded-lg border border-border bg-card p-5">
-            <RouteLine
-              name="api-dev.portr.dev"
-              port={3000}
-              protocol="http"
-              state="live"
-              size="lg"
-              animate
-            />
+            <TunnelMap className="justify-self-center xl:justify-self-end" />
           </div>
         </div>
 
@@ -159,11 +157,12 @@ export default function HomePage() {
               <h2 className="mt-1.5 text-2xl font-semibold">
                 {isSuperUserSignup ? 'Create the admin account' : 'Welcome back'}
               </h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {isSuperUserSignup
-                  ? 'This server has no admin yet. The account you create here becomes the superuser.'
-                  : 'Sign in to manage tunnels, names, and team access.'}
-              </p>
+              {isSuperUserSignup && (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  This server has no admin yet. The account you create here
+                  becomes the superuser.
+                </p>
+              )}
             </div>
             <ThemeToggle className="mt-0.5 shrink-0" />
           </div>

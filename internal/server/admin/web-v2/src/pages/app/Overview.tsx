@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import {
   ArrowRight,
@@ -11,11 +11,13 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import RouteLine, { type RouteState } from "@/components/RouteLine"
+import Panel from "@/components/Panel"
+import SegmentedControl from "@/components/SegmentedControl"
+import RouteLine, { connectionRouteState } from "@/components/RouteLine"
+import { useSetupScript, useTeamOverview, type SetupState } from "@/hooks/use-team-overview"
+import { relativeTime } from "@/lib/humanize"
 import { cn, copyCodeToClipboard } from "@/lib/utils"
-import type { Connection } from "@/types"
 
-type SetupState = "loading" | "ready" | "error"
 type InstallMethod = "script" | "homebrew"
 
 const installCommands: Record<InstallMethod, string> = {
@@ -23,22 +25,10 @@ const installCommands: Record<InstallMethod, string> = {
   homebrew: "brew install amalshaji/taps/portr",
 }
 
-const routeState = (connection: Connection): RouteState => {
-  if (connection.status === "active") return "live"
-  if (connection.status === "reserved") return "unbound"
-  return "closed"
-}
-
-const relativeTime = (value: string | null) => {
-  if (!value) return "—"
-  const elapsed = Date.now() - new Date(value).getTime()
-  const minutes = Math.floor(elapsed / 60000)
-  if (minutes < 1) return "just now"
-  if (minutes < 60) return `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
-  return `${Math.floor(hours / 24)}d ago`
-}
+const installOptions = [
+  { value: "script" as const, label: "Install script" },
+  { value: "homebrew" as const, label: "Homebrew" },
+]
 
 function CommandBlock({
   command,
@@ -48,7 +38,7 @@ function CommandBlock({
   copyLabel: string
 }) {
   return (
-    <div className="dark group relative overflow-hidden rounded-md border border-border bg-[var(--portr-night-deep)]">
+    <div className="dark relative overflow-hidden rounded-md border border-border bg-[var(--portr-night-deep)]">
       <div className="flex min-h-12 items-center gap-3 px-3.5 py-3 pr-12">
         <span className="data shrink-0 select-none text-xs text-signal-live">
           $
@@ -96,28 +86,12 @@ function ClientSetup({
               Pick the method that matches the machine you develop on.
             </p>
           </div>
-          <div
-            role="group"
-            aria-label="Install method"
-            className="flex w-fit rounded-md border border-border bg-muted/60 p-0.5"
-          >
-            {(["script", "homebrew"] as const).map((method) => (
-              <button
-                key={method}
-                type="button"
-                aria-pressed={installMethod === method}
-                onClick={() => setInstallMethod(method)}
-                className={cn(
-                  "rounded-sm px-2.5 py-1 text-xs font-medium outline-none transition-colors duration-(--portr-duration-micro) ease-portr focus-visible:ring-2 focus-visible:ring-ring",
-                  installMethod === method
-                    ? "bg-background text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {method === "script" ? "Install script" : "Homebrew"}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl<InstallMethod>
+            ariaLabel="Install method"
+            options={installOptions}
+            value={installMethod}
+            onChange={setInstallMethod}
+          />
         </div>
 
         <div className="mt-3">
@@ -190,106 +164,19 @@ function ClientSetup({
 
 export default function Overview() {
   const { team } = useParams<{ team: string }>()
-  const [setupScript, setSetupScript] = useState("")
-  const [setupState, setSetupState] = useState<SetupState>("loading")
-  const [retryCount, setRetryCount] = useState(0)
-
-  const [connections, setConnections] = useState<Connection[]>([])
-  const [totalConnections, setTotalConnections] = useState(0)
-  const [activeConnections, setActiveConnections] = useState(0)
-  const [teamMembers, setTeamMembers] = useState(0)
-  const [routesLoading, setRoutesLoading] = useState(true)
+  const { script, state: setupState, retry } = useSetupScript(team)
+  const {
+    connections,
+    totalConnections,
+    activeConnections,
+    teamMembers,
+    loading,
+  } = useTeamOverview(team)
   const [setupOpen, setSetupOpen] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-
-    const getSetupScript = async () => {
-      if (!team) {
-        setSetupState("error")
-        return
-      }
-
-      setSetupState("loading")
-      try {
-        const res = await fetch("/api/v1/config/setup-script", {
-          headers: { "x-team-slug": team },
-        })
-        if (!res.ok) throw new Error("setup command request failed")
-
-        const data: unknown = await res.json()
-        const command =
-          typeof data === "object" &&
-          data !== null &&
-          "message" in data &&
-          typeof data.message === "string"
-            ? data.message.trim()
-            : ""
-        if (!command) throw new Error("setup command was empty")
-
-        if (!cancelled) {
-          setSetupScript(command)
-          setSetupState("ready")
-        }
-      } catch {
-        if (!cancelled) {
-          setSetupScript("")
-          setSetupState("error")
-        }
-      }
-    }
-
-    getSetupScript()
-    return () => {
-      cancelled = true
-    }
-  }, [retryCount, team])
-
-  useEffect(() => {
-    if (!team) return
-    let cancelled = false
-
-    const load = async () => {
-      setRoutesLoading(true)
-      try {
-        const [connectionsRes, statsRes] = await Promise.all([
-          fetch("/api/v1/connections/?type=recent&page=1&page_size=5", {
-            headers: { "x-team-slug": team },
-          }),
-          fetch("/api/v1/config/stats", { headers: { "x-team-slug": team } }),
-        ])
-
-        if (cancelled) return
-
-        if (connectionsRes.ok) {
-          const data = await connectionsRes.json()
-          setConnections(Array.isArray(data?.data) ? data.data : [])
-          setTotalConnections(typeof data?.count === "number" ? data.count : 0)
-        }
-
-        if (statsRes.ok) {
-          const stats = await statsRes.json()
-          setActiveConnections(stats?.team_stats?.active_connections ?? 0)
-          setTeamMembers(stats?.team_stats?.team_members ?? 0)
-        }
-      } catch (error) {
-        console.error("Failed to load overview:", error)
-      } finally {
-        if (!cancelled) setRoutesLoading(false)
-      }
-    }
-
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [team])
-
-  const hasConnected = totalConnections > 0
 
   // Which page this is depends on whether the team has ever connected, so hold
   // a neutral frame rather than flashing the wrong one.
-  if (routesLoading) {
+  if (loading) {
     return (
       <div className="space-y-6">
         <div className="grid gap-3 sm:grid-cols-3">
@@ -303,7 +190,7 @@ export default function Overview() {
   }
 
   // First run: the whole page is the setup path, because nothing else exists yet.
-  if (!hasConnected) {
+  if (totalConnections === 0) {
     return (
       <div className="mx-auto w-full max-w-3xl space-y-8">
         <header>
@@ -317,23 +204,17 @@ export default function Overview() {
           </p>
         </header>
 
-        <section className="rounded-md border border-border bg-card p-5 sm:p-6">
+        <Panel>
           <ClientSetup
             team={team}
             setupState={setupState}
-            setupScript={setupScript}
-            onRetry={() => setRetryCount((count) => count + 1)}
+            setupScript={script}
+            onRetry={retry}
           />
-        </section>
+        </Panel>
 
         <div className="rounded-md border border-border bg-muted/40 p-4">
-          <div className="flex items-center gap-3">
-            <RouteLine
-              name={`your-service.${team ?? "team"}`}
-              state="unbound"
-              className="flex-1"
-            />
-          </div>
+          <RouteLine name={`your-service.${team ?? "team"}`} state="unbound" />
           <p className="mt-3 text-xs text-muted-foreground">
             Once a tunnel is running, its public name and local port appear here
             as a live route.
@@ -365,17 +246,18 @@ export default function Overview() {
         ))}
       </section>
 
-      <section className="overflow-hidden rounded-md border border-border bg-card">
-        <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <h2 className="text-sm font-semibold">Recent routes</h2>
+      <Panel
+        title="Recent routes"
+        flush
+        action={
           <Button asChild variant="ghost" size="sm">
             <Link to={`/${team}/connections`}>
               All connections
               <ArrowRight className="size-3.5" />
             </Link>
           </Button>
-        </header>
-
+        }
+      >
         {connections.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-muted-foreground">
             No connections yet. Start a tunnel to see it here.
@@ -390,7 +272,7 @@ export default function Overview() {
                 <RouteLine
                   name={connection.subdomain || `${connection.type} tunnel`}
                   port={connection.port}
-                  state={routeState(connection)}
+                  state={connectionRouteState(connection)}
                   className="min-w-0 max-w-2xl flex-1"
                 />
                 <span className="data w-20 shrink-0 text-right text-xs text-muted-foreground">
@@ -400,9 +282,9 @@ export default function Overview() {
             ))}
           </ul>
         )}
-      </section>
+      </Panel>
 
-      <section className="overflow-hidden rounded-md border border-border bg-card">
+      <Panel flush>
         <button
           type="button"
           aria-expanded={setupOpen}
@@ -438,12 +320,12 @@ export default function Overview() {
             <ClientSetup
               team={team}
               setupState={setupState}
-              setupScript={setupScript}
-              onRetry={() => setRetryCount((count) => count + 1)}
+              setupScript={script}
+              onRetry={retry}
             />
           </div>
         )}
-      </section>
+      </Panel>
     </div>
   )
 }

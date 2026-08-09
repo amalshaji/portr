@@ -89,15 +89,12 @@ describe("Overview", () => {
       screen.getByText("curl -sSf https://install.portr.dev | sh"),
     ).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("button", { name: "Homebrew" }))
+    fireEvent.click(screen.getByRole("radio", { name: "Homebrew" }))
 
     expect(
       screen.getByText("brew install amalshaji/taps/portr"),
     ).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Homebrew" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    )
+    expect(screen.getByRole("radio", { name: "Homebrew" })).toBeChecked()
   })
 
   it("offers recovery when the setup command cannot be loaded", async () => {

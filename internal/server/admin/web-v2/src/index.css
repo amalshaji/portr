@@ -204,6 +204,201 @@
     color: var(--muted-foreground);
   }
 
+  /* Tunnel diagram, ported from the landing page. Cut-paper nodes sit light on
+   * the login panel's night ground; the packet runs the route continuously. */
+  .tunnel-map {
+    position: relative;
+    aspect-ratio: 440 / 510;
+    width: 100%;
+    max-width: 22rem;
+    margin: 0;
+  }
+
+  .tunnel-map__route {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .tunnel-map__path {
+    fill: none;
+    stroke: var(--portr-light-ink);
+    stroke-dasharray: var(--portr-space-sm) var(--portr-space-xs);
+    stroke-linecap: round;
+    stroke-width: 3;
+  }
+
+  .tunnel-map__path--under {
+    opacity: 0.12;
+    stroke-dasharray: none;
+    stroke-width: 9;
+  }
+
+  .tunnel-map__packet {
+    fill: var(--portr-coral);
+    stroke: var(--portr-night);
+    stroke-width: 3;
+    offset-path: path(
+      "M 214 86 C 214 150 332 132 332 222 C 332 302 218 286 218 412"
+    );
+    offset-rotate: 0deg;
+    animation: tunnel-packet 4.4s linear infinite;
+  }
+
+  .tunnel-map__node {
+    position: absolute;
+    inset-inline-start: 48%;
+    isolation: isolate;
+    display: grid;
+    width: 7rem;
+    min-height: 6.5rem;
+    place-items: center;
+    color: var(--portr-ink);
+  }
+
+  .tunnel-map__node::before {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--portr-paper-raised);
+    /* Torn-paper edge — the landing page's signature cut. */
+    clip-path: polygon(
+      2% 3%,
+      20% 1%,
+      35% 4%,
+      51% 1%,
+      70% 3%,
+      86% 0,
+      98% 4%,
+      97% 94%,
+      83% 98%,
+      66% 95%,
+      49% 99%,
+      31% 96%,
+      15% 99%,
+      2% 96%
+    );
+    content: "";
+    filter: drop-shadow(0 var(--portr-space-2xs) var(--portr-space-xs) var(--portr-shadow));
+  }
+
+  .tunnel-map__node svg {
+    width: 3rem;
+  }
+
+  .tunnel-map__node--public {
+    inset-block-start: 0;
+    transform: translateX(-50%) rotate(-1.5deg);
+  }
+
+  .tunnel-map__node--local {
+    inset-block-end: 0;
+    transform: translateX(-50%) rotate(1deg);
+  }
+
+  .tunnel-map__label {
+    position: absolute;
+    inset-inline-start: 50%;
+    display: inline-flex;
+    min-height: 1.75rem;
+    align-items: center;
+    padding: var(--portr-space-2xs) var(--portr-space-md);
+    clip-path: polygon(
+      1% 7%,
+      13% 2%,
+      28% 5%,
+      43% 1%,
+      58% 5%,
+      73% 2%,
+      88% 6%,
+      99% 2%,
+      98% 92%,
+      84% 98%,
+      69% 94%,
+      52% 99%,
+      36% 95%,
+      19% 98%,
+      2% 93%
+    );
+    color: var(--portr-accent-ink);
+    font-size: 0.75rem;
+    font-weight: 750;
+    letter-spacing: 0.12em;
+    line-height: 1;
+    text-transform: uppercase;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+
+  .tunnel-map__node--public .tunnel-map__label {
+    inset-block-start: calc(var(--portr-space-md) * -1);
+  }
+
+  .tunnel-map__node--local .tunnel-map__label {
+    inset-block-end: calc(var(--portr-space-md) * -1);
+  }
+
+  .tunnel-map__label--cyan {
+    background: var(--portr-cyan);
+  }
+
+  .tunnel-map__label--lime {
+    background: var(--portr-lime);
+  }
+
+  .tunnel-map__request {
+    position: absolute;
+    inset-block-start: 38%;
+    inset-inline-end: 0;
+    width: min(13.5rem, 68%);
+    padding: var(--portr-space-lg) var(--portr-space-md);
+    background: var(--portr-paper-raised);
+    box-shadow: var(--portr-space-xs) var(--portr-space-xs) 0 var(--portr-cyan-muted);
+    clip-path: polygon(
+      1% 4%,
+      11% 1%,
+      24% 3%,
+      39% 1%,
+      52% 4%,
+      66% 1%,
+      82% 4%,
+      98% 1%,
+      99% 95%,
+      86% 98%,
+      72% 95%,
+      56% 99%,
+      40% 96%,
+      24% 99%,
+      9% 96%,
+      1% 98%
+    );
+    color: var(--portr-ink);
+    font-family: var(--portr-font-code);
+    font-size: 0.6rem;
+    line-height: 1.65;
+    transform: rotate(-1deg);
+  }
+
+  .tunnel-map__request p {
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  .tunnel-map__request-rule {
+    display: block;
+    width: 62%;
+    height: var(--portr-rule);
+    margin-block-start: var(--portr-space-xs);
+    background: var(--portr-cyan-muted);
+  }
+
+  .tunnel-map__request-rule:last-child {
+    width: 42%;
+    margin-block-start: var(--portr-space-2xs);
+  }
+
   /* Route line: the rule draws left to right, then the local-port node lands.
    * One-shot, used on the login hero only. The live node keeps a slow opacity
    * pulse — opacity, not motion, so it stays comfortable to sit next to. */
@@ -254,6 +449,15 @@
   }
 }
 
+@keyframes tunnel-packet {
+  from {
+    offset-distance: 0%;
+  }
+  to {
+    offset-distance: 100%;
+  }
+}
+
 @keyframes route-pulse {
   0%,
   100% {
@@ -283,6 +487,11 @@
     animation: none !important;
     opacity: 1;
     transform: none;
+  }
+
+  /* Park the packet at the public end rather than leaving it mid-route. */
+  .tunnel-map__packet {
+    offset-distance: 0%;
   }
 
   [data-slot="button"]:active,
