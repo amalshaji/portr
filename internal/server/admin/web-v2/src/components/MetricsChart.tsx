@@ -130,7 +130,13 @@ function MetricChart({
               dataKey="timestamp"
               tickLine={false}
               axisLine={false}
-              tickMargin={4}
+              tickMargin={8}
+              // One sample every 5s fills the axis with overlapping timestamps;
+              // let recharts drop ticks that cannot fit and always keep the
+              // ends so the window stays readable.
+              interval="preserveStartEnd"
+              minTickGap={56}
+              tick={{ fontSize: 10 }}
               tickFormatter={(value) => {
                 // Find the corresponding data point and return its formatted time
                 if (data && typeof value === "number") {
@@ -148,7 +154,8 @@ function MetricChart({
               tickLine={false}
               axisLine={false}
               tickMargin={4}
-              width={50}
+              tick={{ fontSize: 10 }}
+              width={52}
               domain={["dataMin - 1", "dataMax + 1"]}
               tickFormatter={(value) => humanizeNumber(value, isPercentage)}
             />
