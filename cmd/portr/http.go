@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/amalshaji/portr/internal/client/config"
+	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/urfave/cli/v2"
 )
@@ -19,6 +19,10 @@ func httpCmd() *cli.Command {
 				Name:    "subdomain",
 				Aliases: []string{"s"},
 				Usage:   "Subdomain to tunnel to",
+			},
+			&cli.StringFlag{
+				Name:  "host-header",
+				Usage: "Host header to send to the local server ('rewrite' to use the local address)",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -41,9 +45,10 @@ func httpTunnelFromContext(c *cli.Context) (*config.Tunnel, error) {
 	}
 
 	return &config.Tunnel{
-		Port:      port,
-		Subdomain: httpSubdomainFromContext(c),
-		Type:      constants.Http,
+		Port:       port,
+		Subdomain:  httpSubdomainFromContext(c),
+		Type:       constants.Http,
+		HostHeader: c.String("host-header"),
 	}, nil
 }
 

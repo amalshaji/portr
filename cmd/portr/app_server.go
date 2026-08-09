@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/amalshaji/portr/internal/client/appserver"
-	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
+	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/urfave/cli/v2"
 )
 

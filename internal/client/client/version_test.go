@@ -3,7 +3,7 @@ package client
 import (
 	"testing"
 
-	clientcfg "github.com/amalshaji/portr/internal/client/config"
+	clientcfg "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
 )
 
@@ -93,5 +93,16 @@ func TestDesiredWorkers(t *testing.T) {
 
 	if got := desiredWorkers(stubCfg, true); got != 1 {
 		t.Fatalf("expected stub tunnels to use a single worker, got %d", got)
+	}
+
+	staticCfg := clientcfg.ClientConfig{
+		Tunnel: clientcfg.Tunnel{
+			Type:     constants.Static,
+			PoolSize: 4,
+		},
+	}
+
+	if got := desiredWorkers(staticCfg, true); got != 1 {
+		t.Fatalf("expected static tunnels to use a single worker, got %d", got)
 	}
 }

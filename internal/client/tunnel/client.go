@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/amalshaji/portr/internal/client/config"
+	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/tunnel/wsproto"
 	"golang.org/x/net/websocket"
 )

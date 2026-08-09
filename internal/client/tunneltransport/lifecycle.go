@@ -8,9 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/tui"
-	"github.com/amalshaji/portr/internal/constants"
 	"github.com/charmbracelet/log"
 )
 
@@ -59,17 +57,7 @@ func reconnectBackoff(attempt int) time.Duration {
 }
 
 func (s *Client) startError(err error) error {
-	return fmt.Errorf("failed to start tunnel '%s': %w", tunnelDisplayName(s.config.Tunnel), err)
-}
-
-func tunnelDisplayName(tunnel config.Tunnel) string {
-	if tunnel.Name != "" {
-		return tunnel.Name
-	}
-	if tunnel.Type == constants.Stub && tunnel.Subdomain != "" {
-		return tunnel.Subdomain
-	}
-	return fmt.Sprintf("%d", tunnel.Port)
+	return fmt.Errorf("failed to start tunnel '%s': %w", s.config.Tunnel.DisplayName(), err)
 }
 
 func (s *Client) Start(ctx context.Context) error {
@@ -139,7 +127,7 @@ func (s *Client) Start(ctx context.Context) error {
 				s.logDebug(fmt.Sprintf("Failed to reconnect tunnel transport (attempt %d)", attempt), err)
 			}
 			if attempt >= maxRetries {
-				return fmt.Errorf("failed to reconnect tunnel '%s' after %d attempts: %w", tunnelDisplayName(s.config.Tunnel), attempt, err)
+				return fmt.Errorf("failed to reconnect tunnel '%s' after %d attempts: %w", s.config.Tunnel.DisplayName(), attempt, err)
 			}
 			if !waitForReconnect(lifecycleCtx, reconnectBackoff(attempt)) {
 				return nil
@@ -197,7 +185,7 @@ func (s *Client) monitorTransport(ctx context.Context, transport tunnelSession) 
 				return err
 			}
 			if s.tui != nil {
-				s.tui.Send(tui.UpdateHealthMsg{Port: tunnelStatusKey(s.config.Tunnel), Healthy: true})
+				s.tui.Send(tui.UpdateHealthMsg{Port: s.config.Tunnel.StatusKey(), Healthy: true})
 			}
 		}
 	}
@@ -214,7 +202,7 @@ func (s *Client) announceTransportReady(initial bool) {
 		s.emitEvent(EventStarted, nil)
 	} else {
 		if s.tui != nil {
-			s.tui.Send(tui.UpdateHealthMsg{Port: tunnelStatusKey(cfg.Tunnel), Healthy: true})
+			s.tui.Send(tui.UpdateHealthMsg{Port: cfg.Tunnel.StatusKey(), Healthy: true})
 		} else if !cfg.DisableTerminalLogs {
 			fmt.Printf("🔄 Tunnel reconnected: %s\n", cfg.GetTunnelAddr())
 		}
@@ -230,7 +218,7 @@ func (s *Client) announceTransportLost(err error) {
 	}
 	if s.tui != nil {
 		s.setTUIActive(false)
-		s.tui.Send(tui.UpdateHealthMsg{Port: tunnelStatusKey(cfg.Tunnel), Healthy: false})
+		s.tui.Send(tui.UpdateHealthMsg{Port: cfg.Tunnel.StatusKey(), Healthy: false})
 	} else if !cfg.DisableTerminalLogs {
 		fmt.Printf("❌ Tunnel unhealthy: %s (attempting reconnect)\n", cfg.GetTunnelAddr())
 	}

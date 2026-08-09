@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	clientcfg "github.com/amalshaji/portr/internal/client/config"
+	clientcfg "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/go-resty/resty/v2"
 )
@@ -253,4 +253,56 @@ type roundTripperFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 	return f(r)
+}
+
+func TestCreateNewConnection_StaticUsesHTTPPayload(t *testing.T) {
+	// The server's connection API only accepts http and tcp, and its ssh
+	// handler rejects anything else outright, so this translation must hold.
+	newRestyClient = func() *resty.Client {
+		return resty.NewWithClient(&http.Client{
+			Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+				var payload map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+					t.Fatalf("decode request body: %v", err)
+				}
+
+				if payload["connection_type"] != "http" {
+					t.Fatalf("expected static tunnel to register as http, got %v", payload["connection_type"])
+				}
+				if payload["subdomain"] != "site" {
+					t.Fatalf("expected site subdomain, got %v", payload["subdomain"])
+				}
+				if _, ok := payload["dir"]; ok {
+					t.Fatalf("did not expect dir in server payload")
+				}
+
+				body, _ := json.Marshal(map[string]string{"connection_id": "static123"})
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body:       io.NopCloser(strings.NewReader(string(body))),
+				}, nil
+			}),
+		})
+	}
+	defer func() { newRestyClient = resty.New }()
+
+	cfg := clientcfg.ClientConfig{
+		ServerUrl:    "localhost:8001",
+		SecretKey:    "sk",
+		UseLocalHost: true,
+		Tunnel: clientcfg.Tunnel{
+			Type:      constants.Static,
+			Subdomain: "site",
+			Dir:       "/tmp/dist",
+		},
+	}
+
+	id, err := CreateNewConnection(cfg)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if id != "static123" {
+		t.Fatalf("expected static connection id, got %q", id)
+	}
 }

@@ -10,6 +10,7 @@ import {
   Activity,
   ArrowUpDown,
   EllipsisVertical,
+  FileCode,
   Globe,
   HelpCircle,
   Home,
@@ -23,6 +24,7 @@ import AppLayout from "@/components/AppLayout"
 import NewTeamDialog from "@/components/NewTeamDialog"
 import SidebarLink from "@/components/SidebarLink"
 import TeamSelector from "@/components/TeamSelector"
+import ThemeToggle from "@/components/ThemeToggle"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -45,6 +47,7 @@ import {
 import { useUserStore } from "@/lib/store"
 import AutoSignupSettings from "../auto-signup/AutoSignupSettings"
 import NotFound from "../NotFound"
+import ClientTemplate from "./ClientTemplate"
 import Connections from "./Connections"
 import Metrics from "./Metrics"
 import MyAccount from "./MyAccount"
@@ -61,6 +64,7 @@ const operateNav = [
 
 const manageNav = [
   { label: "Users", path: "users", icon: Users },
+  { label: "Client template", path: "client-template", icon: FileCode },
   { label: "Account & settings", path: "my-account", icon: User },
 ]
 
@@ -117,8 +121,8 @@ export default function AppPage() {
     label: string,
     items: typeof operateNav,
   ) => (
-    <SidebarGroup className="pt-1 first:pt-3">
-      <SidebarGroupLabel className="px-3 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-sidebar-foreground/45">
+    <SidebarGroup className="pt-1 first:pt-2">
+      <SidebarGroupLabel className="eyebrow h-6 px-2.5">
         {label}
       </SidebarGroupLabel>
       <SidebarGroupContent>
@@ -128,7 +132,7 @@ export default function AppPage() {
               <SidebarMenuButton
                 asChild
                 tooltip={itemLabel}
-                className="h-10 rounded-xl p-0 hover:bg-transparent active:bg-transparent"
+                className="h-9 rounded-md p-0 hover:bg-transparent active:bg-transparent"
               >
                 <SidebarLink to={`/${team}/${path}`}>
                   <Icon className="size-4" />
@@ -144,38 +148,35 @@ export default function AppPage() {
 
   const sidebar = (
     <>
-      <SidebarHeader className="gap-2.5 p-3 pb-2">
+      <SidebarHeader className="gap-2.5 p-2.5 pb-2">
         <Link
           to={`/${team}/overview`}
           aria-label="Portr overview"
-          className="flex h-10 items-center gap-3 rounded-xl px-3 outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+          className="flex h-9 items-center gap-2.5 rounded-md px-2 outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-[0.7rem] bg-[#17211e] shadow-sm">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-sm bg-[var(--portr-night-deep)]">
             <img
               src={`${import.meta.env.BASE_URL}portr-mark.svg`}
               alt=""
-              className="size-6"
+              className="size-5"
             />
           </span>
           <span className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <span className="block text-[0.7rem] font-extrabold uppercase tracking-[0.18em] text-foreground">
+            <span className="block text-sm font-semibold tracking-tight text-foreground">
               Portr
-            </span>
-            <span className="block text-[0.68rem] text-muted-foreground">
-              Admin console
             </span>
           </span>
         </Link>
         <TeamSelector />
       </SidebarHeader>
 
-      <SidebarContent className="px-1 pb-2">
+      <SidebarContent className="px-1.5 pb-2">
         {renderNavGroup("Operate", operateNav)}
         {renderNavGroup("Manage", manageNav)}
 
         {currentUser?.user?.is_superuser && (
           <SidebarGroup className="pt-1">
-            <SidebarGroupLabel className="px-3 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-sidebar-foreground/45">
+            <SidebarGroupLabel className="eyebrow h-6 px-2.5">
               Admin
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -184,7 +185,7 @@ export default function AppPage() {
                   <SidebarMenuButton
                     onClick={() => setNewTeamDialogOpen(true)}
                     tooltip="New team"
-                    className="h-10 rounded-xl px-3"
+                    className="h-9 gap-2.5 rounded-md px-2.5 text-sidebar-foreground/75"
                   >
                     <PlusCircle className="size-4" />
                     <span>New team</span>
@@ -194,7 +195,7 @@ export default function AppPage() {
                   <SidebarMenuButton
                     asChild
                     tooltip="GitHub auto signup"
-                    className="h-10 rounded-xl p-0 hover:bg-transparent active:bg-transparent"
+                    className="h-9 rounded-md p-0 hover:bg-transparent active:bg-transparent"
                   >
                     <SidebarLink to={`/${team}/auto-signup`}>
                       <Settings className="size-4" />
@@ -214,31 +215,27 @@ export default function AppPage() {
             <Button
               variant="ghost"
               asChild
-              className="h-auto w-full justify-start rounded-xl px-3 py-2.5 text-left"
+              className="h-9 w-full justify-start gap-2.5 rounded-md px-2.5 text-sm font-normal text-sidebar-foreground/75"
             >
               <a
                 href="https://portr.dev/docs"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white/70 text-muted-foreground shadow-sm">
-                  <HelpCircle className="size-4" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-xs font-semibold text-foreground">
-                    Documentation
-                  </span>
-                  <span className="block text-[0.68rem] font-normal text-muted-foreground">
-                    Guides and troubleshooting
-                  </span>
-                </span>
+                <HelpCircle className="size-4" />
+                <span>Documentation</span>
               </a>
             </Button>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border/70 p-3">
+      <SidebarFooter className="gap-2 border-t border-sidebar-border p-2.5">
+        <div className="flex items-center justify-between gap-2 group-data-[collapsible=icon]:hidden">
+          <span className="eyebrow">Theme</span>
+          <ThemeToggle />
+        </div>
+
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
@@ -246,18 +243,18 @@ export default function AppPage() {
                 <SidebarMenuButton
                   size="lg"
                   tooltip={currentUser?.user?.email || "Account"}
-                  className="h-12 w-full rounded-xl px-3 hover:bg-white/60 data-[state=open]:bg-white/70"
+                  className="h-11 w-full rounded-md px-2 hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent"
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                    <div className="relative size-8 shrink-0">
-                      <div className="flex size-8 items-center justify-center rounded-[0.65rem] bg-sidebar-primary text-sidebar-primary-foreground">
-                        <span className="text-xs font-semibold">
+                    <div className="relative size-7 shrink-0">
+                      <div className="flex size-7 items-center justify-center rounded-sm bg-sidebar-primary text-sidebar-primary-foreground">
+                        <span className="data text-[0.65rem] font-semibold">
                           {avatarInitial}
                         </span>
                       </div>
                       {currentUser?.user?.github_user?.github_avatar_url && (
                         <img
-                          className="absolute inset-0 size-8 rounded-[0.65rem] border object-cover bg-muted"
+                          className="absolute inset-0 size-7 rounded-sm border object-cover bg-muted"
                           src={
                             currentUser.user.github_user.github_avatar_url
                           }
@@ -267,13 +264,12 @@ export default function AppPage() {
                           }}
                         />
                       )}
-                      <span className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-sidebar bg-[#39cbd1]" />
                     </div>
                     <div className="min-w-0 flex-1 text-left group-data-[collapsible=icon]:hidden">
-                      <span className="block truncate text-xs font-semibold">
+                      <span className="block truncate text-xs font-medium">
                         {displayName}
                       </span>
-                      <span className="block truncate text-[0.65rem] font-normal text-muted-foreground">
+                      <span className="data block truncate text-[0.65rem] font-normal text-muted-foreground">
                         {currentUser?.user?.email || "Account"}
                       </span>
                     </div>
@@ -281,13 +277,10 @@ export default function AppPage() {
                   <EllipsisVertical className="size-4 group-data-[collapsible=icon]:hidden" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="w-52 rounded-xl border-border/80 p-1 shadow-xl"
-              >
+              <DropdownMenuContent align="end" className="w-52 p-1">
                 <DropdownMenuItem
                   onClick={handleLogout}
-                  className="rounded-lg text-destructive focus:text-destructive"
+                  className="text-destructive focus:text-destructive"
                 >
                   <LogOut className="mr-2 size-4" />
                   <span>Log out</span>
@@ -312,6 +305,7 @@ export default function AppPage() {
           <Route path="/metrics" element={<Metrics />} />
           <Route path="/connections" element={<Connections />} />
           <Route path="/reserved-domains" element={<ReservedDomains />} />
+          <Route path="/client-template" element={<ClientTemplate />} />
           <Route path="/my-account" element={<MyAccount />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/auto-signup" element={<AutoSignupSettings />} />

@@ -4,15 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"sync"
 	"time"
 
-	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
+	"github.com/amalshaji/portr/internal/client/fileresponder"
 	"github.com/amalshaji/portr/internal/client/stubresponder"
 	"github.com/amalshaji/portr/internal/client/tui"
 	"github.com/amalshaji/portr/internal/client/tunneltransport"
+	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
@@ -31,6 +31,7 @@ type Client struct {
 	tuiDone         chan struct{}
 	tuiStopOnce     sync.Once
 	stubResponder   *stubresponder.Responder
+	fileResponder   *fileresponder.Responder
 }
 
 func NewClient(config *config.Config, db *db.Db) *Client {
@@ -43,7 +44,7 @@ func NewClient(config *config.Config, db *db.Db) *Client {
 	}
 
 	if !config.DisableTUI {
-		p = tui.New(config.Debug, config.GetDashboardAddress(), config.GetDashboardDisableLabel())
+		p = tui.New(config.Debug, config.GetDashboardAddress(), config.GetDashboardDisableLabel(), *config.EnableQRCode)
 		c.tui = p
 		c.tuiStart = make(chan struct{})
 		c.tuiDone = make(chan struct{})
@@ -124,19 +125,22 @@ func (c *Client) runFatalWorker(name string, fn func() error) {
 func (c *Client) Start(ctx context.Context, services ...string) error {
 	var clientConfigs []config.ClientConfig
 
-	for _, tunnel := range c.config.Tunnels {
-		if len(services) > 0 && !slices.Contains(services, tunnel.Name) {
-			continue
-		}
-		clientConfigs = append(clientConfigs, c.clientConfigForTunnel(tunnel))
+	tunnels := c.config.SelectTunnels(services)
+	if len(tunnels) == 0 {
+		return c.config.NoMatchingTunnelsError(services)
 	}
 
-	if len(clientConfigs) == 0 {
-		return fmt.Errorf("please enter a valid service name")
+	for _, tunnel := range tunnels {
+		clientConfigs = append(clientConfigs, c.clientConfigForTunnel(tunnel))
 	}
 
 	var err error
 	clientConfigs, err = c.prepareStubTunnels(clientConfigs)
+	if err != nil {
+		return err
+	}
+
+	clientConfigs, err = c.prepareStaticTunnels(clientConfigs)
 	if err != nil {
 		return err
 	}
@@ -150,19 +154,15 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 	}
 
 	for _, clientConfig := range clientConfigs {
-		tunnelName := clientConfig.Tunnel.Name
-		if tunnelName == "" {
-			if clientConfig.Tunnel.Type == constants.Stub {
-				tunnelName = clientConfig.Tunnel.Subdomain
-			} else {
-				tunnelName = fmt.Sprintf("%d", clientConfig.Tunnel.Port)
-			}
-		}
+		tunnelName := clientConfig.Tunnel.DisplayName()
 
 		if c.config.DisableTUI {
-			if clientConfig.Tunnel.Type == constants.Stub {
+			switch clientConfig.Tunnel.Type {
+			case constants.Stub:
 				fmt.Printf("🚀 Starting stub tunnel: %s (%s)\n", tunnelName, clientConfig.GetTunnelAddr())
-			} else {
+			case constants.Static:
+				fmt.Printf("🚀 Starting static tunnel: %s (%s → %s)\n", tunnelName, clientConfig.Tunnel.Dir, clientConfig.GetTunnelAddr())
+			default:
 				fmt.Printf("🚀 Starting tunnel: %s (%s:%d)\n", tunnelName, clientConfig.Tunnel.Host, clientConfig.Tunnel.Port)
 			}
 		}
@@ -260,6 +260,45 @@ func (c *Client) newTunnelWorker(cfg config.ClientConfig) tunneltransport.Worker
 	return tunneltransport.NewWorker(cfg, c.db, c.tui, c.reportFatal, nil)
 }
 
+func (c *Client) prepareStaticTunnels(clientConfigs []config.ClientConfig) ([]config.ClientConfig, error) {
+	hasStatic := false
+	for _, clientConfig := range clientConfigs {
+		if clientConfig.Tunnel.Type == constants.Static {
+			hasStatic = true
+			break
+		}
+	}
+	if !hasStatic {
+		return clientConfigs, nil
+	}
+
+	if c.fileResponder == nil {
+		c.fileResponder = fileresponder.New()
+		if err := c.fileResponder.Start(); err != nil {
+			return nil, err
+		}
+	}
+
+	for i := range clientConfigs {
+		if clientConfigs[i].Tunnel.Type != constants.Static {
+			continue
+		}
+
+		if err := c.fileResponder.Register(fileresponder.Route{
+			Subdomain: clientConfigs[i].Tunnel.Subdomain,
+			Dir:       clientConfigs[i].Tunnel.Dir,
+		}); err != nil {
+			return nil, err
+		}
+
+		clientConfigs[i].Tunnel.Host = "127.0.0.1"
+		clientConfigs[i].Tunnel.Port = c.fileResponder.Port()
+		clientConfigs[i].Tunnel.PoolSize = 1
+	}
+
+	return clientConfigs, nil
+}
+
 func (c *Client) Add(tunnelClient tunneltransport.Worker) {
 	c.tunnelClients = append(c.tunnelClients, tunnelClient)
 }
@@ -289,6 +328,11 @@ func (c *Client) Shutdown(ctx context.Context) {
 		}()
 	}
 	shutdowns.Wait()
+
+	if c.fileResponder != nil {
+		_ = c.fileResponder.Shutdown(ctx)
+		c.fileResponder = nil
+	}
 
 	if c.stubResponder != nil {
 		_ = c.stubResponder.Shutdown(ctx)

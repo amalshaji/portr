@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/amalshaji/portr/internal/client/config"
+	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/labstack/gommon/color"
 
 	"github.com/urfave/cli/v2"

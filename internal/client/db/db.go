@@ -6,7 +6,7 @@ import (
 
 	"github.com/charmbracelet/log"
 
-	"github.com/amalshaji/portr/internal/client/config"
+	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/glebarez/sqlite"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"

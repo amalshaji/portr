@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	clientconfig "github.com/amalshaji/portr/internal/client/config"
 	dashboardservice "github.com/amalshaji/portr/internal/client/dashboard/service"
 	"github.com/amalshaji/portr/internal/client/db"
+	clientconfig "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/glebarez/sqlite"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/datatypes"

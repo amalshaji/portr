@@ -114,3 +114,8 @@ export interface SystemStats {
   architecture: string
   server_start_time?: string
 }
+
+export interface ClientTemplate {
+  template: string
+  updated_at: string | null
+}

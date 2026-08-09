@@ -16,9 +16,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
-	"github.com/amalshaji/portr/internal/constants"
+	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/utils"
 	"github.com/charmbracelet/log"
 	"github.com/go-resty/resty/v2"
@@ -70,7 +69,7 @@ func (s *Client) setTUIActive(active bool) {
 	}
 
 	cfg := s.ConfigSnapshot()
-	s.tui.Send(tui.UpdateConnCountMsg{Port: tunnelStatusKey(cfg.Tunnel), Delta: delta})
+	s.tui.Send(tui.UpdateConnCountMsg{Port: cfg.Tunnel.StatusKey(), Delta: delta})
 }
 
 type EventType string
@@ -196,13 +195,8 @@ func CreateNewConnectionWithContext(ctx context.Context, cfg config.ClientConfig
 		ConnectionId string `json:"connection_id"`
 	}
 
-	connectionType := cfg.Tunnel.Type
-	if connectionType == constants.Stub {
-		connectionType = constants.Http
-	}
-
 	payload := map[string]any{
-		"connection_type": string(connectionType),
+		"connection_type": string(cfg.Tunnel.Type.WireType()),
 		"secret_key":      cfg.SecretKey,
 		"subdomain":       nil,
 	}
@@ -210,7 +204,7 @@ func CreateNewConnectionWithContext(ctx context.Context, cfg config.ClientConfig
 		SetError(&reqErr).
 		SetResult(&response)
 
-	if cfg.Tunnel.Type == constants.Http || cfg.Tunnel.Type == constants.Stub {
+	if cfg.Tunnel.Type.IsHTTPLike() {
 		payload["subdomain"] = cfg.Tunnel.Subdomain
 	}
 
@@ -237,13 +231,6 @@ func (s *Client) createNewConnection(ctx context.Context) (string, error) {
 		return s.config.ConnectionID, nil
 	}
 	return CreateNewConnectionWithContext(ctx, s.config)
-}
-
-func tunnelStatusKey(tunnel config.Tunnel) string {
-	if tunnel.Type == constants.Stub {
-		return "stub:" + tunnel.Subdomain
-	}
-	return fmt.Sprintf("%d", tunnel.Port)
 }
 
 func (s *Client) httpTunnel(src net.Conn, localEndpoint string) {
@@ -292,9 +279,14 @@ func (s *Client) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = transport
 
+	hostHeader := s.config.Tunnel.ResolvedHostHeader(localEndpoint)
+
 	defaultDirector := proxy.Director
 	proxy.Director = func(request *http.Request) {
 		host := request.Host
+		if hostHeader != "" {
+			host = hostHeader
+		}
 		defaultDirector(request)
 		request.Host = host
 	}
@@ -532,14 +524,7 @@ func (s *Client) logHttpRequestSized(
 		return
 	}
 
-	tunnelName := s.config.Tunnel.Name
-	if tunnelName == "" {
-		if s.config.Tunnel.Type == constants.Stub && s.config.Tunnel.Subdomain != "" {
-			tunnelName = s.config.Tunnel.Subdomain
-		} else {
-			tunnelName = fmt.Sprintf("%d", s.config.Tunnel.Port)
-		}
-	}
+	tunnelName := s.config.Tunnel.DisplayName()
 
 	if s.tui != nil {
 		s.tui.Send(tui.AddLogMsg{

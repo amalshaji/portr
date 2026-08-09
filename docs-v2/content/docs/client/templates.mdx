@@ -66,6 +66,29 @@ When TUI is disabled, the client will:
 - Show tunnel status updates and health check results
 - Exit gracefully on errors
 
+### QR Code for the Tunnel URL
+
+The terminal interface can show a QR code for the tunnel URL, so you can open it on a phone without typing it. Press `r` to show or hide it. This is on by default; nothing is rendered until you press the key.
+
+Set `enable_qr_code: false` to remove the toggle and its footer hint:
+
+```yaml
+server_url: example.com
+ssh_url: example.com:2222
+secret_key: { your-secret-key }
+enable_qr_code: false
+tunnels:
+  - name: portr
+    subdomain: portr
+    port: 4321
+```
+
+The panel renders only when exactly one HTTP or stub tunnel is running, since there is no way to pick between several. TCP tunnels have no browsable URL and are ignored. The panel takes vertical space from the request table while visible, and is replaced by a note if the terminal is too narrow to render a scannable code.
+
+<Callout type="info">
+  This option has no effect when `disable_tui: true`, because there is no terminal interface to render the code into.
+</Callout>
+
 ### Configure or Disable the Local Dashboard
 
 You can change the inspector port or disable it permanently in the client config:
@@ -205,8 +228,72 @@ Start all configured tunnels:
 portr start
 ```
 
+### Start a group
+
+Name a set of tunnels with `groups`, then start the whole set with one word:
+
+```yaml
+tunnels:
+  - name: web
+    port: 3000
+  - name: api
+    port: 8000
+  - name: pg
+    type: tcp
+    port: 5432
+
+groups:
+  frontend: [web, api]
+```
+
+```bash
+portr start frontend
+portr start frontend pg
+```
+
+A group name must not match a tunnel name, and every member must be the name of an existing tunnel.
+
 <Callout type="info">
   For more details about available commands and options, run `portr --help`.
+</Callout>
+
+## Team Templates
+
+Instead of every member writing the same tunnels by hand, a team admin can publish one template from the admin dashboard under **Client template**. It holds the same `tunnels` and `groups` you would write locally:
+
+```yaml
+tunnels:
+  - name: web
+    subdomain: acme-web
+    port: 3000
+  - name: api
+    subdomain: acme-api
+    port: 8000
+
+groups:
+  frontend: [web, api]
+```
+
+Only `tunnels` and `groups` can be set in a team template. `server_url`, `ssh_url`, `secret_key` and machine-local settings such as `dashboard_port` stay yours; the server rejects them at save time.
+
+Anything that names a path on one machine is rejected too, since a template is shared verbatim: static tunnels (`type: static`, which serves a local `dir`) and `response_tmpl_file`. Use an inline `response_tmpl` for stub tunnels.
+
+New members get the template on a fresh setup:
+
+```bash
+portr auth set --token {your_token} --remote {your_domain}
+```
+
+If you already have a config file, `portr auth set` only refreshes the token and urls. Pull the template explicitly:
+
+```bash
+portr config pull
+```
+
+`portr config pull` replaces the local `tunnels` and `groups` with the team template and leaves everything else in the file — including your comments and secret key — untouched.
+
+<Callout type="warn">
+  `portr config pull` overwrites tunnels you added by hand. Copy anything you want to keep into the team template first, or re-add it after pulling.
 </Callout>
 
 ## Configuration Options
@@ -220,7 +307,9 @@ These options apply to the entire client configuration:
 - **ssh_url**: SSH tunnel endpoint URL when `transport: ssh`.
 - **ws_url**: WebSocket tunnel endpoint URL when `transport: websocket`.
 - **secret_key**: Your authentication secret key
+- **groups**: Named sets of tunnel names; `portr start <group>` starts every tunnel in the set
 - **disable_tui**: Disable the interactive terminal interface (default: false)
+- **enable_qr_code**: Offer a QR code toggle (press `r`) in the terminal interface for the tunnel URL (default: true). The code is only rendered once the key is pressed. Ignored when `disable_tui` is true.
 - **dashboard_port**: Local port for the inspector dashboard (default: 7777)
 - **disable_dashboard**: Disable the local inspector dashboard completely (default: false)
 - **disable_update_check**: Disable automatic update checks and notifications (default: false)
@@ -248,9 +337,11 @@ Each tunnel template supports the following options:
 - **name**: A unique identifier for the tunnel
 - **subdomain**: The subdomain to use for the tunnel
 - **port**: The local port to tunnel
-- **type**: The tunnel type (`http`, `tcp`, or `stub`)
+- **type**: The tunnel type (`http`, `tcp`, `stub`, or `static`)
 - **host**: The local host to bind to (default: localhost)
+- **dir**: Static only. Directory to serve, resolved relative to the config file
 - **pool_size**: HTTP only. Number of tunnel workers to run per HTTP tunnel (default: 2). Increases resilience and throughput.
+- **host_header**: HTTP only. Host header sent to the local server. Use `rewrite` for the local address, or any literal hostname (default: pass the public host through)
 
 <Callout type="info">
   The admin dashboard generates `transport` plus either `ssh_url` or `ws_url`

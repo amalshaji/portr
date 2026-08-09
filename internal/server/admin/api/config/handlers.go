@@ -86,6 +86,12 @@ func NewHandler(db *gorm.DB, store *session.Store, cfg *serverConfig.AdminConfig
 	}
 }
 
+// defaultClientTemplate is served to teams that have not configured one.
+const defaultClientTemplate = `tunnels:
+  - name: portr
+    subdomain: portr
+    port: 4321`
+
 type DownloadConfigInput struct {
 	SecretKey string `json:"secret_key" validate:"required"`
 }
@@ -99,18 +105,27 @@ func (h *Handler) DownloadConfig(c *fiber.Ctx) error {
 	}
 
 	var teamUser models.TeamUser
-	err := h.db.Where("secret_key = ?", input.SecretKey).First(&teamUser).Error
+	err := h.db.Preload("Team").Where("secret_key = ?", input.SecretKey).First(&teamUser).Error
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Invalid secret key",
 		})
 	}
 
+	template := strings.TrimSpace(teamUser.Team.ClientTemplate)
+	hasTemplate := template != ""
+	if !hasTemplate {
+		template = defaultClientTemplate
+	}
+
 	return c.JSON(fiber.Map{
-		"message": h.clientConfigTemplate(teamUser.SecretKey),
+		"message":      h.clientConfigTemplate(teamUser.SecretKey) + "\n" + template + "\n",
+		"has_template": hasTemplate,
 	})
 }
 
+// clientConfigTemplate renders the connection settings the server owns. The
+// team's tunnel template is appended by the caller.
 func (h *Handler) clientConfigTemplate(secretKey string) string {
 	transport := h.config.Transport
 	if transport == "" {
@@ -132,15 +147,7 @@ func (h *Handler) clientConfigTemplate(secretKey string) string {
 		}
 	}
 
-	configContent += fmt.Sprintf(`secret_key: %s
-enable_request_logging: true
-dashboard_port: 7777
-tunnels:
-  - name: portr
-    subdomain: portr
-    port: 4321
-    type: http
-    pool_size: 2`, secretKey)
+	configContent += fmt.Sprintf("secret_key: %s", secretKey)
 
 	return configContent
 }

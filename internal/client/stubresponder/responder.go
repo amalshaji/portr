@@ -1,19 +1,17 @@
 package stubresponder
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"mime"
-	"net"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
-	"time"
+
+	"github.com/amalshaji/portr/internal/client/localserver"
 )
 
 var (
@@ -28,67 +26,16 @@ type Route struct {
 	ResponseTemplate string
 }
 
+// Responder serves templated stub responses over the shared local server.
 type Responder struct {
-	server   *http.Server
-	listener net.Listener
-	mu       sync.RWMutex
-	routes   map[string]Route
+	*localserver.Server
 }
 
 func New() *Responder {
-	responder := &Responder{
-		routes: make(map[string]Route),
-	}
-	responder.server = &http.Server{
-		Handler:           responder,
-		ReadHeaderTimeout: 15 * time.Second,
-	}
-	return responder
-}
-
-func (r *Responder) Start() error {
-	if r.listener != nil {
-		return nil
-	}
-
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return fmt.Errorf("start stub responder: %w", err)
-	}
-	r.listener = listener
-
-	go func() {
-		if err := r.server.Serve(listener); err != nil && err != http.ErrServerClosed {
-			// The tunnel worker health checks surface unreachable local endpoints;
-			// there is no caller to return this asynchronous server error to.
-		}
-	}()
-
-	return nil
-}
-
-func (r *Responder) Addr() string {
-	if r.listener == nil {
-		return ""
-	}
-	return r.listener.Addr().String()
-}
-
-func (r *Responder) Port() int {
-	if r.listener == nil {
-		return 0
-	}
-	if addr, ok := r.listener.Addr().(*net.TCPAddr); ok {
-		return addr.Port
-	}
-	return 0
+	return &Responder{Server: localserver.New("stub responder")}
 }
 
 func (r *Responder) Register(route Route) error {
-	subdomain := strings.ToLower(strings.TrimSpace(route.Subdomain))
-	if subdomain == "" {
-		return fmt.Errorf("subdomain is required")
-	}
 	if strings.TrimSpace(route.ResponseFormat) == "" {
 		return fmt.Errorf("response format is required")
 	}
@@ -96,90 +43,22 @@ func (r *Responder) Register(route Route) error {
 		return fmt.Errorf("response template is required")
 	}
 
-	route.Subdomain = subdomain
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if _, exists := r.routes[subdomain]; exists {
-		return fmt.Errorf("stub route for subdomain %q already exists", subdomain)
-	}
-	r.routes[subdomain] = route
-	return nil
+	return r.Server.Register(route.Subdomain, newStubHandler(route))
 }
 
-func (r *Responder) Unregister(subdomain string) {
-	subdomain = strings.ToLower(strings.TrimSpace(subdomain))
-	if subdomain == "" {
-		return
-	}
+func newStubHandler(route Route) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		bodyValues, err := requestBodyValues(req)
+		if err != nil {
+			http.Error(w, "Bad Request", http.StatusBadRequest)
+			return
+		}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	delete(r.routes, subdomain)
-}
-
-func (r *Responder) Shutdown(ctx context.Context) error {
-	if r.server == nil {
-		return nil
-	}
-	return r.server.Shutdown(ctx)
-}
-
-func (r *Responder) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if req.Header.Get("X-Portr-Ping-Request") == "true" {
+		rendered := renderTemplate(route.ResponseTemplate, req.URL.Query(), bodyValues, isJSONResponse(route.ResponseFormat))
+		w.Header().Set("Content-Type", route.ResponseFormat)
 		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	route, ok := r.routeForHost(req.Host)
-	if !ok {
-		http.NotFound(w, req)
-		return
-	}
-
-	bodyValues, err := requestBodyValues(req)
-	if err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
-		return
-	}
-
-	rendered := renderTemplate(route.ResponseTemplate, req.URL.Query(), bodyValues, isJSONResponse(route.ResponseFormat))
-	w.Header().Set("Content-Type", route.ResponseFormat)
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(rendered))
-}
-
-func (r *Responder) routeForHost(host string) (Route, bool) {
-	hostname := strings.ToLower(strings.TrimSpace(stripPort(host)))
-
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	if route, ok := r.routes[hostname]; ok {
-		return route, true
-	}
-	for subdomain, route := range r.routes {
-		if strings.HasPrefix(hostname, subdomain+".") {
-			return route, true
-		}
-	}
-	if len(r.routes) == 1 {
-		for _, route := range r.routes {
-			return route, true
-		}
-	}
-	return Route{}, false
-}
-
-func stripPort(host string) string {
-	if hostname, _, err := net.SplitHostPort(host); err == nil {
-		return hostname
-	}
-	if strings.Count(host, ":") == 1 {
-		if idx := strings.LastIndex(host, ":"); idx > -1 {
-			return host[:idx]
-		}
-	}
-	return host
+		_, _ = w.Write([]byte(rendered))
+	})
 }
 
 func requestBodyValues(req *http.Request) (map[string]string, error) {

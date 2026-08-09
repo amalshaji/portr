@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	clientcfg "github.com/amalshaji/portr/internal/client/config"
+	clientcfg "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/tunnel/wsproto"
 	"golang.org/x/net/websocket"
 )

@@ -16,6 +16,9 @@ type Team struct {
 	Slug      string     `gorm:"uniqueIndex;not null" json:"slug"`
 	Users     []User     `gorm:"many2many:team_users;" json:"users,omitempty"`
 	TeamUsers []TeamUser `json:"team_users,omitempty"`
+	// ClientTemplate is the team-managed tunnels/groups fragment served to the
+	// cli. Served only by the config template endpoint, never in team payloads.
+	ClientTemplate string `gorm:"type:text;not null;default:''" json:"-"`
 }
 
 func (Team) TableName() string {

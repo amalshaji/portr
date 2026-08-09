@@ -5,10 +5,10 @@ import (
 	"net"
 	"time"
 
-	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
 	sshclient "github.com/amalshaji/portr/internal/client/ssh"
 	wsclient "github.com/amalshaji/portr/internal/client/tunnel"
+	config "github.com/amalshaji/portr/internal/clientconfig"
 	tea "github.com/charmbracelet/bubbletea"
 )
 

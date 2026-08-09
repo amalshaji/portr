@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/dashboard/service"
+	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/gofiber/fiber/v2"
 )
 

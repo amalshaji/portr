@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amalshaji/portr/internal/client/config"
+	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/urfave/cli/v2"
 )
 

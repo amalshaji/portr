@@ -61,15 +61,11 @@ func TestDownloadConfig_ValidSecretKeyReturnsConfig(t *testing.T) {
 	if !strings.Contains(message, teamUser.SecretKey) {
 		t.Fatalf("expected config content to include secret key, got: %s", message)
 	}
-	for _, expected := range []string{
-		"enable_request_logging: true",
-		"dashboard_port: 7777",
-		"type: http",
-		"pool_size: 2",
-	} {
-		if !strings.Contains(message, expected) {
-			t.Fatalf("expected downloaded config to include %q, got: %s", expected, message)
-		}
+	if !strings.Contains(message, "name: portr") {
+		t.Fatalf("expected default tunnel template without a team template, got: %s", message)
+	}
+	if hasTemplate, _ := body["has_template"].(bool); hasTemplate {
+		t.Fatalf("expected has_template to be false without a team template, got: %v", body)
 	}
 }
 
@@ -113,6 +109,176 @@ func TestDownloadConfig_WebSocketTransportReturnsWebSocketConfig(t *testing.T) {
 	}
 	if strings.Contains(message, "ssh_url:") {
 		t.Fatalf("expected websocket config not to include ssh_url, got: %s", message)
+	}
+}
+
+func TestDownloadConfig_UsesTeamClientTemplate(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	user := CreateTestUser(t, db, "tmpluser@example.com", false)
+	team, teamUser := CreateTeamAndTeamUser(t, db, "Tmpl Team", user, "admin")
+
+	template := "tunnels:\n  - name: web\n    subdomain: tmpl-web\n    port: 3000\ngroups:\n  frontend: [web]"
+	if err := db.Model(team).Update("client_template", template).Error; err != nil {
+		t.Fatalf("failed to set client template: %v", err)
+	}
+
+	payloadBytes, _ := json.Marshal(map[string]string{"secret_key": teamUser.SecretKey})
+
+	req := httptest.NewRequest("POST", "/api/v1/config/download", bytes.NewReader(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK, got %d", resp.StatusCode)
+	}
+
+	var body map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	message, _ := body["message"].(string)
+	if !strings.Contains(message, "subdomain: tmpl-web") || !strings.Contains(message, "frontend: [web]") {
+		t.Fatalf("expected downloaded config to contain the team template, got: %s", message)
+	}
+	if strings.Contains(message, "name: portr") {
+		t.Fatalf("expected the team template to replace the default tunnel, got: %s", message)
+	}
+	if hasTemplate, _ := body["has_template"].(bool); !hasTemplate {
+		t.Fatalf("expected has_template to be true, got: %v", body)
+	}
+}
+
+func TestClientTemplate_AdminCanReadAndUpdate(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	user := CreateTestUser(t, db, "tmpladmin@example.com", false)
+	_, teamUser := CreateTeamAndTeamUser(t, db, "Tmpl Admin Team", user, "admin")
+	sess := CreateSessionForUser(t, db, user)
+
+	template := "tunnels:\n  - name: web\n    subdomain: admin-web\n    port: 3000\n"
+	payloadBytes, _ := json.Marshal(map[string]string{"template": template})
+
+	req := httptest.NewRequest("PUT", "/api/v1/config/template", bytes.NewReader(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Cookie", SessionCookieValue(sess))
+	req.Header.Set("X-Team-Slug", teamUser.Team.Slug)
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK for template update, got %d", resp.StatusCode)
+	}
+
+	req = httptest.NewRequest("GET", "/api/v1/config/template", nil)
+	req.Header.Set("Cookie", SessionCookieValue(sess))
+	req.Header.Set("X-Team-Slug", teamUser.Team.Slug)
+
+	getResp := DoRequest(t, srv, req)
+	defer getResp.Body.Close()
+
+	if getResp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK for template read, got %d", getResp.StatusCode)
+	}
+
+	var body map[string]interface{}
+	if err := json.NewDecoder(getResp.Body).Decode(&body); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	if got, _ := body["template"].(string); got != strings.TrimSpace(template) {
+		t.Fatalf("expected saved template to round-trip, got: %q", got)
+	}
+}
+
+func TestClientTemplate_RejectsInvalidTemplate(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	user := CreateTestUser(t, db, "tmplbad@example.com", false)
+	team, teamUser := CreateTeamAndTeamUser(t, db, "Tmpl Bad Team", user, "admin")
+	sess := CreateSessionForUser(t, db, user)
+
+	payloadBytes, _ := json.Marshal(map[string]string{
+		"template": "server_url: evil.example.com\ntunnels:\n  - name: web\n    port: 3000\n",
+	})
+
+	req := httptest.NewRequest("PUT", "/api/v1/config/template", bytes.NewReader(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Cookie", SessionCookieValue(sess))
+	req.Header.Set("X-Team-Slug", teamUser.Team.Slug)
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected status 400 Bad Request for invalid template, got %d", resp.StatusCode)
+	}
+
+	var reloaded models.Team
+	if err := db.First(&reloaded, team.ID).Error; err != nil {
+		t.Fatalf("failed to reload team: %v", err)
+	}
+	if reloaded.ClientTemplate != "" {
+		t.Fatalf("expected invalid template not to be persisted, got: %q", reloaded.ClientTemplate)
+	}
+}
+
+func TestClientTemplate_MemberCannotUpdate(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	srv := NewTestServer(t, db)
+
+	admin := CreateTestUser(t, db, "tmplowner@example.com", false)
+	_, adminTeamUser := CreateTeamAndTeamUser(t, db, "Tmpl Member Team", admin, "admin")
+
+	member := CreateTestUser(t, db, "tmplmember@example.com", false)
+	if err := db.Create(&models.TeamUser{
+		UserID: member.ID,
+		TeamID: adminTeamUser.TeamID,
+		Role:   models.RoleMember,
+	}).Error; err != nil {
+		t.Fatalf("failed to create team member: %v", err)
+	}
+	sess := CreateSessionForUser(t, db, member)
+
+	payloadBytes, _ := json.Marshal(map[string]string{
+		"template": "tunnels:\n  - name: web\n    port: 3000\n",
+	})
+
+	req := httptest.NewRequest("PUT", "/api/v1/config/template", bytes.NewReader(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Cookie", SessionCookieValue(sess))
+	req.Header.Set("X-Team-Slug", adminTeamUser.Team.Slug)
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected status 403 Forbidden for a member update, got %d", resp.StatusCode)
+	}
+
+	req = httptest.NewRequest("GET", "/api/v1/config/template", nil)
+	req.Header.Set("Cookie", SessionCookieValue(sess))
+	req.Header.Set("X-Team-Slug", adminTeamUser.Team.Slug)
+
+	getResp := DoRequest(t, srv, req)
+	defer getResp.Body.Close()
+
+	if getResp.StatusCode != http.StatusOK {
+		t.Fatalf("expected members to be able to read the template, got %d", getResp.StatusCode)
 	}
 }
 

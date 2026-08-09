@@ -47,11 +47,7 @@ func (s *Client) clearTransport(transport tunnelSession) {
 }
 
 func (s *Client) tunnelType() constants.ConnectionType {
-	tunnelType := s.config.Tunnel.Type
-	if tunnelType == constants.Stub {
-		return constants.Http
-	}
-	return tunnelType
+	return s.config.Tunnel.Type.WireType()
 }
 
 func (s *Client) serveTransport(ctx context.Context, transport tunnelSession) error {

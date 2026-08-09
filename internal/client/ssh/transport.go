@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/amalshaji/portr/internal/client/config"
+	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/amalshaji/portr/internal/utils"
 	gossh "golang.org/x/crypto/ssh"
@@ -149,10 +149,7 @@ func (s *Session) Close() error {
 }
 
 func tunnelType(cfg config.ClientConfig) constants.ConnectionType {
-	if cfg.Tunnel.Type == constants.Stub {
-		return constants.Http
-	}
-	return cfg.Tunnel.Type
+	return cfg.Tunnel.Type.WireType()
 }
 
 func remotePortCandidates(connectionType constants.ConnectionType) []int {

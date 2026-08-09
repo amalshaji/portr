@@ -1,21 +1,18 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./tokens.css";
 
-@font-face {
-  font-family: "Manrope";
-  src: url("/Manrope-VariableFont_wght.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 200 800;
-  font-display: swap;
-}
+@import "@fontsource-variable/sora";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-sm: var(--portr-radius-sm);
+  --radius-md: var(--portr-radius-md);
+  --radius-lg: var(--portr-radius-md);
+  --radius-xl: var(--portr-radius-frame);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -47,76 +44,89 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --font-sans: "Manrope", system-ui, sans-serif;
+  --color-signal-live: var(--signal-live);
+  --color-signal-idle: var(--signal-idle);
+  --color-signal-closed: var(--signal-closed);
+  --color-signal-unbound: var(--signal-unbound);
+  --font-sans: var(--portr-font-body);
+  --font-display: var(--portr-font-display);
+  --font-mono: var(--portr-font-code);
+  --ease-portr: var(--portr-ease-out);
 }
 
 :root {
-  --radius: 0.75rem;
-  --background: #f4f7f5;
-  --foreground: #17211e;
-  --card: #ffffff;
-  --card-foreground: #17211e;
-  --popover: #ffffff;
-  --popover-foreground: #17211e;
-  --primary: #17211e;
-  --primary-foreground: #f8fbf9;
-  --secondary: #e8efeb;
-  --secondary-foreground: #24312d;
-  --muted: #edf2ef;
-  --muted-foreground: #66736e;
-  --accent: #e3ebe7;
-  --accent-foreground: #17211e;
-  --destructive: #bd3f3a;
-  --border: #dce4e0;
-  --input: #d2dcd7;
-  --ring: #2f7d67;
-  --chart-1: #2f7d67;
-  --chart-2: #659d8d;
-  --chart-3: #9eb8ae;
-  --chart-4: #3e5d54;
-  --chart-5: #c5d7d0;
-  --sidebar: #eef3f0;
-  --sidebar-foreground: #24312d;
-  --sidebar-primary: #17211e;
-  --sidebar-primary-foreground: #f8fbf9;
-  --sidebar-accent: #e1e9e5;
-  --sidebar-accent-foreground: #17211e;
-  --sidebar-border: #d8e1dc;
-  --sidebar-ring: #2f7d67;
+  --radius: var(--portr-radius-md);
+  --background: var(--portr-paper);
+  --foreground: var(--portr-ink);
+  --card: var(--portr-paper-raised);
+  --card-foreground: var(--portr-ink);
+  --popover: var(--portr-paper-raised);
+  --popover-foreground: var(--portr-ink);
+  --primary: var(--portr-ink);
+  --primary-foreground: var(--portr-paper-raised);
+  --secondary: var(--portr-paper-muted);
+  --secondary-foreground: var(--portr-ink);
+  --muted: var(--portr-paper-muted);
+  --muted-foreground: var(--portr-ink-muted);
+  --accent: var(--portr-paper-muted);
+  --accent-foreground: var(--portr-ink);
+  --destructive: var(--portr-coral);
+  --border: var(--portr-paper-rule);
+  --input: var(--portr-paper-rule);
+  --ring: var(--portr-focus);
+  --chart-1: var(--portr-cyan);
+  --chart-2: var(--portr-coral);
+  --chart-3: var(--portr-success);
+  --chart-4: var(--portr-cyan-muted);
+  --chart-5: var(--portr-lime);
+  --sidebar: var(--portr-paper-raised);
+  --sidebar-foreground: var(--portr-ink);
+  --sidebar-primary: var(--portr-ink);
+  --sidebar-primary-foreground: var(--portr-paper-raised);
+  --sidebar-accent: var(--portr-paper-muted);
+  --sidebar-accent-foreground: var(--portr-ink);
+  --sidebar-border: var(--portr-paper-rule);
+  --sidebar-ring: var(--portr-focus);
+
+  /* The translucent header sits directly on the page ground, so it needs the
+   * ground colour as a literal to mix against. */
+  --chrome-base: var(--portr-paper);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: var(--portr-night);
+  --foreground: var(--portr-light-ink);
+  --card: var(--portr-night-raised);
+  --card-foreground: var(--portr-light-ink);
+  --popover: var(--portr-night-raised);
+  --popover-foreground: var(--portr-light-ink);
+  --primary: var(--portr-light-ink);
+  --primary-foreground: var(--portr-night);
+  --secondary: var(--portr-night-raised);
+  --secondary-foreground: var(--portr-light-ink);
+  --muted: var(--portr-night-raised);
+  --muted-foreground: var(--portr-light-muted);
+  --accent: var(--portr-night-raised);
+  --accent-foreground: var(--portr-light-ink);
+  --destructive: var(--portr-coral-hover);
+  --border: var(--portr-night-rule);
+  --input: var(--portr-night-rule);
+  --ring: var(--portr-coral-hover);
+  --chart-1: var(--portr-cyan);
+  --chart-2: var(--portr-coral-hover);
+  --chart-3: var(--portr-success);
+  --chart-4: var(--portr-cyan-muted);
+  --chart-5: var(--portr-lime);
+  --sidebar: var(--portr-night-raised);
+  --sidebar-foreground: var(--portr-light-ink);
+  --sidebar-primary: var(--portr-light-ink);
+  --sidebar-primary-foreground: var(--portr-night);
+  --sidebar-accent: var(--portr-night-deep);
+  --sidebar-accent-foreground: var(--portr-light-ink);
+  --sidebar-border: var(--portr-night-rule);
+  --sidebar-ring: var(--portr-coral-hover);
+
+  --chrome-base: var(--portr-night);
 }
 
 @layer base {
@@ -124,14 +134,14 @@
     @apply border-border outline-ring/50;
   }
   html {
-    font-family: "Manrope", system-ui, -apple-system, BlinkMacSystemFont,
-      "Segoe UI", sans-serif;
+    font-family: var(--portr-font-body);
     font-optical-sizing: auto;
     text-rendering: optimizeLegibility;
   }
   body {
     @apply min-w-80 bg-background text-foreground antialiased;
     min-height: 100vh;
+    line-height: 1.6;
   }
   button,
   a {
@@ -140,41 +150,323 @@
   h1,
   h2,
   h3 {
+    font-family: var(--portr-font-display);
     text-wrap: balance;
   }
-  h1,
+  /* Tracking is size-specific: display sizes read too loose without it, body
+   * sizes read too tight with it. */
+  h1 {
+    letter-spacing: -0.022em;
+  }
   h2 {
-    letter-spacing: -0.025em;
+    letter-spacing: -0.016em;
+  }
+  h3 {
+    letter-spacing: -0.008em;
   }
   code,
-  pre {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-      "Liberation Mono", monospace;
+  pre,
+  kbd,
+  samp {
+    font-family: var(--portr-font-code);
     font-variant-ligatures: none;
   }
+  /* Machine values line up column to column only with tabular figures. */
+  table,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
   ::selection {
-    background: color-mix(in srgb, #2f7d67 22%, transparent);
+    background: color-mix(in oklch, var(--portr-cyan) 30%, transparent);
   }
 }
 
 @layer components {
   .app-chrome {
-    background: color-mix(in srgb, #f4f7f5 82%, transparent);
+    background: color-mix(in oklch, var(--chrome-base) 78%, transparent);
     backdrop-filter: blur(20px) saturate(150%);
     -webkit-backdrop-filter: blur(20px) saturate(150%);
+  }
+
+  /* Every machine-generated value in the console — port, subdomain, hostname,
+   * key, uptime, byte count — carries this. Prose never does. */
+  .data {
+    font-family: var(--portr-font-code);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  .eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  /* Tunnel diagram, ported from the landing page. Cut-paper nodes sit light on
+   * the login panel's night ground; the packet runs the route continuously. */
+  .tunnel-map {
+    position: relative;
+    aspect-ratio: 440 / 510;
+    width: 100%;
+    max-width: 22rem;
+    margin: 0;
+  }
+
+  .tunnel-map__route {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .tunnel-map__path {
+    fill: none;
+    stroke: var(--portr-light-ink);
+    stroke-dasharray: var(--portr-space-sm) var(--portr-space-xs);
+    stroke-linecap: round;
+    stroke-width: 3;
+  }
+
+  .tunnel-map__path--under {
+    opacity: 0.12;
+    stroke-dasharray: none;
+    stroke-width: 9;
+  }
+
+  .tunnel-map__packet {
+    fill: var(--portr-coral);
+    stroke: var(--portr-night);
+    stroke-width: 3;
+    offset-path: path(
+      "M 214 86 C 214 150 332 132 332 222 C 332 302 218 286 218 412"
+    );
+    offset-rotate: 0deg;
+    animation: tunnel-packet 4.4s linear infinite;
+  }
+
+  .tunnel-map__node {
+    position: absolute;
+    inset-inline-start: 48%;
+    isolation: isolate;
+    display: grid;
+    width: 7rem;
+    min-height: 6.5rem;
+    place-items: center;
+    color: var(--portr-ink);
+  }
+
+  .tunnel-map__node::before {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--portr-paper-raised);
+    /* Torn-paper edge — the landing page's signature cut. */
+    clip-path: polygon(
+      2% 3%,
+      20% 1%,
+      35% 4%,
+      51% 1%,
+      70% 3%,
+      86% 0,
+      98% 4%,
+      97% 94%,
+      83% 98%,
+      66% 95%,
+      49% 99%,
+      31% 96%,
+      15% 99%,
+      2% 96%
+    );
+    content: "";
+    filter: drop-shadow(0 var(--portr-space-2xs) var(--portr-space-xs) var(--portr-shadow));
+  }
+
+  .tunnel-map__node svg {
+    width: 3rem;
+  }
+
+  .tunnel-map__node--public {
+    inset-block-start: 0;
+    transform: translateX(-50%) rotate(-1.5deg);
+  }
+
+  .tunnel-map__node--local {
+    inset-block-end: 0;
+    transform: translateX(-50%) rotate(1deg);
+  }
+
+  .tunnel-map__label {
+    position: absolute;
+    inset-inline-start: 50%;
+    display: inline-flex;
+    min-height: 1.75rem;
+    align-items: center;
+    padding: var(--portr-space-2xs) var(--portr-space-md);
+    clip-path: polygon(
+      1% 7%,
+      13% 2%,
+      28% 5%,
+      43% 1%,
+      58% 5%,
+      73% 2%,
+      88% 6%,
+      99% 2%,
+      98% 92%,
+      84% 98%,
+      69% 94%,
+      52% 99%,
+      36% 95%,
+      19% 98%,
+      2% 93%
+    );
+    color: var(--portr-accent-ink);
+    font-size: 0.75rem;
+    font-weight: 750;
+    letter-spacing: 0.12em;
+    line-height: 1;
+    text-transform: uppercase;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+
+  .tunnel-map__node--public .tunnel-map__label {
+    inset-block-start: calc(var(--portr-space-md) * -1);
+  }
+
+  .tunnel-map__node--local .tunnel-map__label {
+    inset-block-end: calc(var(--portr-space-md) * -1);
+  }
+
+  .tunnel-map__label--cyan {
+    background: var(--portr-cyan);
+  }
+
+  .tunnel-map__label--lime {
+    background: var(--portr-lime);
+  }
+
+  .tunnel-map__request {
+    position: absolute;
+    /* Centred between the two nodes rather than pinned to a percentage, so the
+       clearance above and below stays equal at any map height. */
+    inset-block-start: 50%;
+    inset-inline-end: 0;
+    width: min(13.5rem, 68%);
+    padding: var(--portr-space-md);
+    background: var(--portr-paper-raised);
+    box-shadow: var(--portr-space-xs) var(--portr-space-xs) 0 var(--portr-cyan-muted);
+    clip-path: polygon(
+      1% 4%,
+      11% 1%,
+      24% 3%,
+      39% 1%,
+      52% 4%,
+      66% 1%,
+      82% 4%,
+      98% 1%,
+      99% 95%,
+      86% 98%,
+      72% 95%,
+      56% 99%,
+      40% 96%,
+      24% 99%,
+      9% 96%,
+      1% 98%
+    );
+    color: var(--portr-ink);
+    font-family: var(--portr-font-code);
+    font-size: 0.6rem;
+    line-height: 1.65;
+    transform: translateY(-50%) rotate(-1deg);
+  }
+
+  .tunnel-map__request p {
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  .tunnel-map__request-rule {
+    display: block;
+    width: 62%;
+    height: var(--portr-rule);
+    margin-block-start: var(--portr-space-xs);
+    background: var(--portr-cyan-muted);
+  }
+
+  .tunnel-map__request-rule:last-child {
+    width: 42%;
+    margin-block-start: var(--portr-space-2xs);
+  }
+
+  /* Route line: the rule draws left to right, then the local-port node lands.
+   * One-shot, used on the login hero only. The live node keeps a slow opacity
+   * pulse — opacity, not motion, so it stays comfortable to sit next to. */
+  .animate-route-draw {
+    animation: route-draw var(--portr-duration-long) var(--portr-ease-out) both;
+  }
+
+  .animate-route-node {
+    animation: route-node var(--portr-duration-short) var(--portr-ease-out)
+      var(--portr-duration-long) both;
+  }
+
+  .animate-route-pulse {
+    animation: route-pulse 2s var(--portr-ease-out) infinite;
   }
 
   [data-slot="button"],
   [data-sidebar="menu-button"],
   [data-slot="select-trigger"] {
-    transition-duration: 160ms;
-    transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition-duration: var(--portr-duration-micro);
+    transition-timing-function: var(--portr-ease-out);
   }
 
   [data-slot="button"]:active,
   [data-sidebar="menu-button"]:active,
   [data-slot="select-trigger"]:active {
     transform: scale(0.98);
+  }
+}
+
+@keyframes route-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes route-node {
+  from {
+    opacity: 0;
+    transform: translateX(-0.375rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes tunnel-packet {
+  from {
+    offset-distance: 0%;
+  }
+  to {
+    offset-distance: 100%;
+  }
+}
+
+@keyframes route-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
   }
 }
 
@@ -188,6 +480,22 @@
     transition-duration: 0.01ms !important;
   }
 
+  /* The line still has to end up drawn, and the live dot still has to be
+   * visible — the global rule above collapses the animation, these pin the
+   * final frame. */
+  .animate-route-draw,
+  .animate-route-node,
+  .animate-route-pulse {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Park the packet at the public end rather than leaving it mid-route. */
+  .tunnel-map__packet {
+    offset-distance: 0%;
+  }
+
   [data-slot="button"]:active,
   [data-sidebar="menu-button"]:active,
   [data-slot="select-trigger"]:active {
@@ -197,15 +505,26 @@
 
 @media (prefers-reduced-transparency: reduce) {
   .app-chrome {
-    background: #f4f7f5;
+    background: var(--background);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
 }
 
 @media (prefers-contrast: more) {
+  :root {
+    --border: var(--portr-ink-muted);
+    --muted-foreground: var(--portr-ink);
+  }
+
+  .dark {
+    --border: var(--portr-light-muted);
+    --muted-foreground: var(--portr-light-ink);
+  }
+
   .app-chrome {
-    background: #f4f7f5;
-    border-color: #74817c;
+    background: var(--background);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }

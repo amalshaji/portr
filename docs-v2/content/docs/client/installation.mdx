@@ -37,6 +37,7 @@ configs. SSH is the default:
 server_url: example.com
 transport: ssh
 ssh_url: example.com:2222
+tunnel_url: example.com
 secret_key: portr_xxx
 ```
 
@@ -53,6 +54,10 @@ secret_key: portr_xxx
 
 Use `server_url` for admin API calls. Use `ssh_url` or `ws_url` for
 client-to-server tunnel connections, depending on the generated `transport`.
+
+The server appends your [team's client template](/docs/client/team-administration)
+below these connection settings, so the downloaded config also contains the
+`tunnels` (and any `groups`) your team publishes.
 
 ### Verify installation
 

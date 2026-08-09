@@ -35,6 +35,7 @@ Commands:
 - `portr auth set`: configure client auth.
 - `portr admin users add`: add a user to a team.
 - `portr config edit`: open the default config in the OS editor.
+- `portr config pull`: replace the local tunnels and groups with the team template.
 - `portr http`: expose a local HTTP/WebSocket port.
 - `portr tcp`: expose a local TCP port.
 - `portr stub`: serve a templated response through a public HTTP tunnel without a local server.
@@ -49,11 +50,13 @@ Commands:
 portr auth set --token <token> --remote <domain-or-url>
 portr auth set -t <token> -r <domain-or-url>
 portr config edit
+portr config pull
 ```
 
 - `--token`, `-t`: Portr client secret token from the server/admin UI. Required.
 - `--remote`, `-r`: Portr server domain or URL. Required. Bare domains become HTTPS; `localhost:*` becomes HTTP unless a scheme is already provided.
 - `config edit` only edits the default config path. For harnesses, write a temp config file and pass `--config`.
+- `config pull` overwrites the default config's `tunnels` and `groups` with the team template configured in the admin dashboard, and fails if the team has no template. Everything else in the file, including `secret_key` and comments, is left alone. It also only acts on the default config path.
 
 ## Team Administration
 
@@ -168,6 +171,9 @@ tunnels:
     subdomain: mock-dev
     response_format: application/json
     response_tmpl_file: ./response.json
+
+groups:
+  frontend: [app, mock]
 ```
 
 - `name`: identifier used by `portr start`.
@@ -178,16 +184,21 @@ tunnels:
 - `pool_size`: worker count for non-stub tunnels. Defaults to `2`; stubs use `1`.
 - `response_format`, `response_tmpl`, `response_tmpl_file`: stub response settings.
 
+Top-level `groups` maps a group name to tunnel names. A group name must not match a tunnel name, and every member must be an existing tunnel name.
+
 Start configured tunnels:
 
 ```bash
 portr start
 portr start app
 portr start app pg mock
+portr start frontend
+portr start frontend pg
 ```
 
 - No names starts all configured tunnels.
 - Passing names starts only those tunnel entries.
+- A group name expands to its tunnel names, and can be mixed with tunnel names.
 
 ## Request Logs
 

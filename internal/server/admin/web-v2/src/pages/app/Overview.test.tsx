@@ -19,39 +19,96 @@ function renderPage() {
   )
 }
 
+/** Overview calls three endpoints; route by URL so each test can describe the
+ *  server state it cares about. */
+function stubFetch({
+  setupScript = "portr auth set test-token",
+  setupStatus = 200,
+  connections = [] as unknown[],
+  count = 0,
+}) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url.includes("/config/setup-script")) {
+        return Promise.resolve(
+          setupStatus === 200
+            ? new Response(JSON.stringify({ message: setupScript }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              })
+            : new Response(null, { status: setupStatus }),
+        )
+      }
+
+      if (url.includes("/connections/")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ data: connections, count }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        )
+      }
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            team_stats: { active_connections: 1, team_members: 4 },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+    }),
+  )
+}
+
+// The server records a port only for TCP tunnels; HTTP connections carry a
+// subdomain and no port at all.
+const httpConnection = {
+  id: 1,
+  type: "http",
+  port: null,
+  subdomain: "api-dev",
+  created_at: new Date().toISOString(),
+  started_at: new Date().toISOString(),
+  closed_at: null,
+  status: "active",
+  created_by: { user: { email: "ada@example.com" } },
+}
+
+const tcpConnection = {
+  ...httpConnection,
+  id: 2,
+  type: "tcp",
+  port: 5432,
+  subdomain: "",
+}
+
 describe("Overview", () => {
-  it("lets operators choose their install method", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ message: "portr auth set test-token" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      ),
-    )
+  it("lets operators choose their install method on first run", async () => {
+    stubFetch({ count: 0 })
 
     renderPage()
 
     expect(
-      screen.getByRole("heading", { name: "Bring your first tunnel online" }),
+      await screen.findByRole("heading", { name: "Bring your first tunnel online" }),
     ).toBeInTheDocument()
-    expect(screen.getByText("curl -sSf https://install.portr.dev | sh")).toBeInTheDocument()
+    expect(
+      screen.getByText("curl -sSf https://install.portr.dev | sh"),
+    ).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("button", { name: "Homebrew" }))
+    fireEvent.click(screen.getByRole("radio", { name: "Homebrew" }))
 
-    expect(screen.getByText("brew install amalshaji/taps/portr")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Homebrew" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    )
+    expect(
+      screen.getByText("brew install amalshaji/taps/portr"),
+    ).toBeInTheDocument()
+    expect(screen.getByRole("radio", { name: "Homebrew" })).toBeChecked()
   })
 
   it("offers recovery when the setup command cannot be loaded", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(new Response(null, { status: 503 })),
-    )
+    stubFetch({ setupStatus: 503, count: 0 })
 
     renderPage()
 
@@ -60,6 +117,30 @@ describe("Overview", () => {
     ).toBeInTheDocument()
     expect(
       screen.getByRole("button", { name: "Retry setup command" }),
+    ).toBeInTheDocument()
+  })
+
+  it("shows recent routes once the team has connected", async () => {
+    stubFetch({ connections: [httpConnection, tcpConnection], count: 12 })
+
+    renderPage()
+
+    expect(
+      await screen.findByRole("heading", { name: "Recent routes" }),
+    ).toBeInTheDocument()
+    // An HTTP tunnel is named by its subdomain, a TCP one by its port.
+    expect(screen.getByText("api-dev")).toBeInTheDocument()
+    expect(screen.getByText(":5432")).toBeInTheDocument()
+
+    // The setup path stays reachable, just collapsed.
+    expect(
+      screen.queryByText("curl -sSf https://install.portr.dev | sh"),
+    ).not.toBeInTheDocument()
+    fireEvent.click(
+      screen.getByRole("button", { name: /Connect another machine/ }),
+    )
+    expect(
+      screen.getByText("curl -sSf https://install.portr.dev | sh"),
     ).toBeInTheDocument()
   })
 })

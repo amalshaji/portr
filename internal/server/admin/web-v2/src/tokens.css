@@ -1,0 +1,75 @@
+/* Portr brand primitives.
+ *
+ * Colour, type, spacing and motion values are copied from docs-v2/tokens.css so
+ * the admin console reads as the same product as the marketing site. docs-v2 is
+ * a separate Next app with its own build, so the values are duplicated rather
+ * than imported. Keep them in sync by hand.
+ *
+ * Console-only additions live under "Console signal" at the bottom. */
+
+:root {
+  --portr-font-display: "Sora Variable", var(--portr-font-body);
+  --portr-font-body: "Geist Variable", system-ui, -apple-system, sans-serif;
+  --portr-font-code: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo,
+    monospace;
+
+  --portr-paper: oklch(94% 0.018 78);
+  --portr-paper-raised: oklch(97% 0.014 78);
+  --portr-paper-muted: oklch(89% 0.022 78);
+  --portr-paper-rule: oklch(79% 0.022 78);
+  --portr-ink: oklch(18% 0.03 245);
+  --portr-ink-muted: oklch(42% 0.025 245);
+  --portr-night: oklch(17% 0.032 245);
+  --portr-night-raised: oklch(21% 0.032 245);
+  --portr-night-deep: oklch(13% 0.028 245);
+  --portr-night-rule: oklch(35% 0.028 245);
+  --portr-light-ink: oklch(94% 0.016 78);
+  --portr-light-muted: oklch(73% 0.02 245);
+  --portr-coral: oklch(69% 0.205 27);
+  --portr-coral-hover: oklch(74% 0.18 27);
+  --portr-accent-ink: var(--portr-night-deep);
+  --portr-cyan: oklch(79% 0.125 202);
+  --portr-cyan-muted: oklch(68% 0.095 202);
+  --portr-lime: oklch(84% 0.17 111);
+  --portr-success: oklch(75% 0.15 142);
+  --portr-focus: oklch(55% 0.205 27);
+  --portr-shadow: oklch(10% 0.025 245 / 0.28);
+
+  --portr-space-3xs: 0.125rem;
+  --portr-space-2xs: 0.25rem;
+  --portr-space-xs: 0.5rem;
+  --portr-space-sm: 0.75rem;
+  --portr-space-md: 1rem;
+  --portr-space-lg: 1.5rem;
+
+  --portr-radius-sm: 0.25rem;
+  --portr-radius-md: 0.5rem;
+  --portr-radius-frame: 1.5rem;
+  --portr-rule: 0.0625rem;
+
+  --portr-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --portr-duration-micro: 120ms;
+  --portr-duration-short: 220ms;
+  --portr-duration-long: 420ms;
+
+  /* Console signal — admin only.
+   *
+   * A connection is either carrying traffic, sitting open, finished, or a name
+   * with nothing bound to it. Those four states mean the same thing on every
+   * page, so they get their own tokens rather than being re-derived per view. */
+  --signal-live: var(--portr-cyan);
+  --signal-idle: var(--portr-ink-muted);
+  --signal-closed: color-mix(in oklch, var(--portr-ink-muted) 40%, transparent);
+  --signal-unbound: var(--portr-paper-rule);
+}
+
+.dark {
+  --signal-live: var(--portr-cyan);
+  --signal-idle: var(--portr-light-muted);
+  --signal-closed: color-mix(
+    in oklch,
+    var(--portr-light-muted) 40%,
+    transparent
+  );
+  --signal-unbound: var(--portr-night-rule);
+}

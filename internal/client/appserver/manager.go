@@ -14,10 +14,10 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
-	clientcfg "github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/amalshaji/portr/internal/client/stubresponder"
 	"github.com/amalshaji/portr/internal/client/tunneltransport"
+	clientcfg "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/charmbracelet/log"
 	"github.com/oklog/ulid/v2"
@@ -547,11 +547,13 @@ func (m *Manager) dispatchCallbacks(callbackURLs []string, event TunnelEvent) {
 }
 
 func validateTunnelRequest(tunnel clientcfg.Tunnel, callbackURL string, callbackURLs []string) error {
-	if tunnel.Type != constants.Stub && (tunnel.Port <= 0 || tunnel.Port > 65535) {
-		return fmt.Errorf("port must be between 1 and 65535")
-	}
+	// Check the type first so an unsupported type reports that, rather than a
+	// misleading port error.
 	if tunnel.Type != constants.Http && tunnel.Type != constants.Tcp && tunnel.Type != constants.Stub {
 		return fmt.Errorf("type must be http, tcp, or stub")
+	}
+	if tunnel.Type != constants.Stub && (tunnel.Port <= 0 || tunnel.Port > 65535) {
+		return fmt.Errorf("port must be between 1 and 65535")
 	}
 	if err := tunnel.Validate(); err != nil {
 		return err

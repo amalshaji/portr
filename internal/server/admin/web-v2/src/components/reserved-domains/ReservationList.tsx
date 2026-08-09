@@ -1,5 +1,7 @@
 import { AlertCircle, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+import RouteLine from "@/components/RouteLine"
 import type { ReservedSubdomain, SubdomainClaimStatus } from "@/types"
 
 interface ReservationListProps {
@@ -24,9 +26,9 @@ function statusLabel(status: SubdomainClaimStatus) {
 }
 
 function statusClasses(status: SubdomainClaimStatus) {
-  if (status === "active") return "bg-emerald-500"
-  if (status === "starting") return "bg-amber-500"
-  return "bg-muted-foreground/45"
+  if (status === "active") return "bg-signal-live"
+  if (status === "starting") return "bg-signal-idle"
+  return "bg-signal-unbound"
 }
 
 export function ReservationList({
@@ -51,14 +53,11 @@ export function ReservationList({
       </div>
 
       {loading ? (
-        <div className="space-y-px border-t bg-border">
+        <div className="divide-y border-t">
           {[0, 1].map((item) => (
-            <div
-              key={item}
-              className="flex items-center gap-4 bg-background px-5 py-4 sm:px-6"
-            >
-              <div className="h-4 w-44 animate-pulse rounded bg-muted" />
-              <div className="ml-auto h-4 w-20 animate-pulse rounded bg-muted" />
+            <div key={item} className="flex items-center gap-4 px-5 py-4 sm:px-6">
+              <Skeleton className="h-4 w-44" />
+              <Skeleton className="ml-auto h-4 w-20" />
             </div>
           ))}
         </div>
@@ -71,11 +70,21 @@ export function ReservationList({
           </Button>
         </div>
       ) : reservations.length === 0 ? (
-        <div className="border-t px-5 py-10 text-center sm:px-6">
-          <p className="text-sm font-medium">No reserved domains yet</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Reserve a name above to keep it between tunnel runs.
-          </p>
+        <div className="border-t px-5 py-10 sm:px-6">
+          {/* A reserved name with nothing running is literally an unplugged
+              route — the empty state shows the shape it will take. */}
+          <div className="mx-auto max-w-sm">
+            <RouteLine
+              name={`your-name.${baseDomain || "example.com"}`}
+              state="unbound"
+            />
+            <p className="mt-4 text-center text-sm font-medium">
+              No reserved domains yet
+            </p>
+            <p className="mt-1 text-center text-sm text-muted-foreground">
+              Reserve a name above to keep it between tunnel runs.
+            </p>
+          </div>
         </div>
       ) : (
         <ul className="divide-y border-t">
@@ -85,7 +94,7 @@ export function ReservationList({
               className="animate-in fade-in slide-in-from-top-1 flex flex-col gap-3 px-5 py-4 duration-200 motion-reduce:animate-none sm:flex-row sm:items-center sm:px-6"
             >
               <div className="min-w-0 flex-1">
-                <p className="truncate font-mono text-sm font-medium">
+                <p className="data truncate text-sm font-medium">
                   {reservation.subdomain}.{baseDomain}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">

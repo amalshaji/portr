@@ -16,9 +16,9 @@ import (
 	"testing"
 	"time"
 
-	clientconfig "github.com/amalshaji/portr/internal/client/config"
 	clientdb "github.com/amalshaji/portr/internal/client/db"
 	"github.com/amalshaji/portr/internal/client/tunneltransport"
+	clientconfig "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
 	serverconfig "github.com/amalshaji/portr/internal/server/config"
 	serverdb "github.com/amalshaji/portr/internal/server/db"
