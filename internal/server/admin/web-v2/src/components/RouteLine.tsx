@@ -52,6 +52,18 @@ export const connectionRouteState = (connection: Connection): RouteState => {
   return "closed"
 }
 
+/**
+ * The public endpoint the server actually exposes: a subdomain for HTTP
+ * tunnels, a port for TCP ones. HTTP connections carry no port — the local
+ * port stays on the client and is never reported.
+ */
+export const connectionRouteName = (connection: Connection) =>
+  connection.type === "tcp"
+    ? connection.port
+      ? `:${connection.port}`
+      : "tcp tunnel"
+    : connection.subdomain || "http tunnel"
+
 interface RouteLineProps {
   /** Public name, e.g. api-dev.example.com */
   name: string
@@ -77,6 +89,48 @@ export default function RouteLine({
 }: RouteLineProps) {
   const large = size === "lg"
   const { label, rule, node, dashed } = ROUTE_STATES[state]
+
+  // The server only records a port for TCP tunnels — for HTTP the local port
+  // stays on the client and is never reported. Rendering the binding without it
+  // would put a dash where the local end should be, so show just the public
+  // endpoint. "unbound" is different: there the missing end is the whole point.
+  if (!port && state !== "unbound") {
+    return (
+      <div
+        className={cn(
+          "flex min-w-0 items-center",
+          large ? "gap-3" : "gap-2",
+          className,
+        )}
+      >
+        <span
+          aria-hidden="true"
+          className={cn(
+            "shrink-0 rounded-full",
+            large ? "size-2.5" : "size-1.5",
+            node,
+            state === "live" && "animate-route-pulse",
+          )}
+        />
+        <span className="min-w-0">
+          <span
+            className={cn(
+              "data block truncate",
+              large ? "text-base font-medium" : "text-xs",
+            )}
+          >
+            {name}
+          </span>
+          {large && (
+            <span className="eyebrow block">
+              {protocol ? `${protocol} · ${label}` : label}
+            </span>
+          )}
+        </span>
+        <span className="sr-only">{`${name}, ${label}`}</span>
+      </div>
+    )
+  }
 
   return (
     <div

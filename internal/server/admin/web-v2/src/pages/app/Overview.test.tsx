@@ -64,16 +64,26 @@ function stubFetch({
   )
 }
 
-const connection = {
+// The server records a port only for TCP tunnels; HTTP connections carry a
+// subdomain and no port at all.
+const httpConnection = {
   id: 1,
   type: "http",
-  port: 8000,
+  port: null,
   subdomain: "api-dev",
   created_at: new Date().toISOString(),
   started_at: new Date().toISOString(),
   closed_at: null,
   status: "active",
   created_by: { user: { email: "ada@example.com" } },
+}
+
+const tcpConnection = {
+  ...httpConnection,
+  id: 2,
+  type: "tcp",
+  port: 5432,
+  subdomain: "",
 }
 
 describe("Overview", () => {
@@ -111,15 +121,16 @@ describe("Overview", () => {
   })
 
   it("shows recent routes once the team has connected", async () => {
-    stubFetch({ connections: [connection], count: 12 })
+    stubFetch({ connections: [httpConnection, tcpConnection], count: 12 })
 
     renderPage()
 
     expect(
       await screen.findByRole("heading", { name: "Recent routes" }),
     ).toBeInTheDocument()
+    // An HTTP tunnel is named by its subdomain, a TCP one by its port.
     expect(screen.getByText("api-dev")).toBeInTheDocument()
-    expect(screen.getByText(":8000")).toBeInTheDocument()
+    expect(screen.getByText(":5432")).toBeInTheDocument()
 
     // The setup path stays reachable, just collapsed.
     expect(

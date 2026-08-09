@@ -20,7 +20,10 @@ import { Button } from "@/components/ui/button";
 import ConnectionType from "@/components/ConnectionType";
 import DateField from "@/components/DateField";
 import Panel from "@/components/Panel";
-import RouteLine, { connectionRouteState } from "@/components/RouteLine";
+import RouteLine, {
+  connectionRouteName,
+  connectionRouteState,
+} from "@/components/RouteLine";
 import SegmentedControl from "@/components/SegmentedControl";
 import { Pagination } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -196,12 +199,11 @@ export default function Connections() {
                     <TableCell>
                       <ConnectionType type={connection.type} />
                     </TableCell>
-                    {/* Name, port and state are one binding, not three
-                        independent facts — they read as one cell. */}
+                    {/* Endpoint and state read as one cell rather than two
+                        columns the eye has to join up. */}
                     <TableCell className="min-w-64">
                       <RouteLine
-                        name={connection.subdomain || `${connection.type} tunnel`}
-                        port={connection.port}
+                        name={connectionRouteName(connection)}
                         state={connectionRouteState(connection)}
                       />
                     </TableCell>
