@@ -1,0 +1,84 @@
+---
+title: Static Tunnel
+description: Serve a local directory on a public URL with the Portr CLI, without running a separate local web server.
+---
+
+
+Static tunnels serve files straight from a directory on your machine. Portr runs
+the file server inside its own process, so there is no separate local web server
+to start.
+
+```bash
+portr serve ./dist
+```
+
+That prints a public URL serving the contents of `./dist`. Pin it to a subdomain
+with `--subdomain`:
+
+```bash
+portr serve ./dist --subdomain docs
+```
+
+<Callout type="info">
+  Static tunnels use the existing HTTP tunnel protocol, so they work with
+  existing Portr servers and do not require a server migration.
+</Callout>
+
+## Common Use Cases
+
+- Sharing a production build with a teammate or client before deploying it
+- Opening a static site on a phone or tablet for testing
+- Handing over a folder of screenshots, PDFs, or reports
+
+## Directory Listings
+
+Requesting a directory serves its `index.html` when one exists. When it does
+not, Portr renders a listing of the directory contents.
+
+<Callout type="warn">
+  Everything under the directory you pass is publicly reachable, including files
+  a listing makes easy to discover. Serve a build output directory, not a source
+  tree or a home directory.
+</Callout>
+
+## Symlinks
+
+Symlinks inside the served directory are followed as long as they stay inside
+it. A symlink pointing anywhere outside returns `404`, so a stray link cannot
+expose the rest of your filesystem.
+
+## Rebuilds
+
+Portr reads files on each request, so a build tool that rewrites files in place
+(Vite, Hugo, esbuild, `tsc`) is picked up immediately with no restart.
+
+If you delete and recreate the directory itself — `rm -rf dist && npm run build`
+— restart `portr serve`. Portr holds a handle to the original directory, and
+after it is removed every request returns `404`.
+
+## Single-page Apps
+
+Deep links into a single-page app return `404` today, because there is no file
+at that path. Only the entry route is served. Use `portr http` in front of your
+dev server if you need client-side routing.
+
+## Config File
+
+Static tunnels can live in the client config alongside other tunnels:
+
+```yaml
+tunnels:
+  - name: site
+    type: static
+    subdomain: site
+    dir: ./dist
+```
+
+`dir` in the config file is resolved relative to the config file. On the command
+line it is resolved relative to your current directory. A subdomain is generated
+when you do not set one.
+
+<Callout type="info">
+  Static tunnels are available from the CLI and the config file. The
+  [app server](/docs/client/app-server) API does not accept `type: static`.
+</Callout>
