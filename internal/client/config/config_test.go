@@ -572,3 +572,208 @@ func TestNoMatchingTunnelsErrorWithoutNamedTunnels(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestResolvedHostHeaderRewriteUsesLocalAddr(t *testing.T) {
+	for _, value := range []string{"rewrite", "  Rewrite  ", "REWRITE"} {
+		tunnel := Tunnel{HostHeader: value}
+		if got := tunnel.ResolvedHostHeader("localhost:3000"); got != "localhost:3000" {
+			t.Fatalf("host_header %q resolved to %q", value, got)
+		}
+	}
+}
+
+func TestResolvedHostHeaderReturnsLiteralValue(t *testing.T) {
+	tunnel := Tunnel{HostHeader: "myapp.local"}
+	if got := tunnel.ResolvedHostHeader("localhost:3000"); got != "myapp.local" {
+		t.Fatalf("expected literal host header, got %q", got)
+	}
+}
+
+func TestResolvedHostHeaderEmptyPassesThrough(t *testing.T) {
+	tunnel := Tunnel{}
+	if got := tunnel.ResolvedHostHeader("localhost:3000"); got != "" {
+		t.Fatalf("expected pass-through, got %q", got)
+	}
+}
+
+func TestValidateRejectsHostHeaderOnNonHTTPTunnel(t *testing.T) {
+	tcp := Tunnel{Type: constants.Tcp, Port: 5432, HostHeader: "rewrite"}
+	tcp.SetDefaults()
+	err := tcp.Validate()
+	if err == nil || !strings.Contains(err.Error(), "host_header is only supported for http tunnels") {
+		t.Fatalf("expected tcp rejection, got %v", err)
+	}
+
+	// Stub tunnels reach the same reverse proxy but route by Host, so a rewrite
+	// would silently serve the wrong stub when more than one is registered.
+	stub := Tunnel{
+		Type:             constants.Stub,
+		Subdomain:        "stubby",
+		ResponseFormat:   "application/json",
+		ResponseTemplate: "{}",
+		HostHeader:       "rewrite",
+	}
+	stub.SetDefaults()
+	err = stub.Validate()
+	if err == nil || !strings.Contains(err.Error(), "host_header is only supported for http tunnels") {
+		t.Fatalf("expected stub rejection, got %v", err)
+	}
+
+	// Static tunnels share the same Host-routed local responder as stub ones.
+	static := Tunnel{Type: constants.Static, Subdomain: "site", Dir: t.TempDir(), HostHeader: "rewrite"}
+	static.SetDefaults()
+	err = static.Validate()
+	if err == nil || !strings.Contains(err.Error(), "host_header is only supported for http tunnels") {
+		t.Fatalf("expected static rejection, got %v", err)
+	}
+
+	http := Tunnel{Type: constants.Http, Subdomain: "web", Port: 3000, HostHeader: "rewrite"}
+	http.SetDefaults()
+	if err := http.Validate(); err != nil {
+		t.Fatalf("http tunnel should accept host_header: %v", err)
+	}
+}
+
+func TestSetDefaultsGeneratesSubdomainForStaticTunnel(t *testing.T) {
+	tunnel := Tunnel{Type: constants.Static, Dir: "./dist"}
+	tunnel.SetDefaults()
+
+	if tunnel.Subdomain == "" {
+		t.Fatal("expected a generated subdomain for static tunnels")
+	}
+	if tunnel.PoolSize != 1 {
+		t.Fatalf("expected pool size 1, got %d", tunnel.PoolSize)
+	}
+	if tunnel.Host != "" {
+		t.Fatalf("expected the responder to assign the host, got %q", tunnel.Host)
+	}
+}
+
+func TestLoadResolvesServeDirRelativeToConfig(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "dist"), 0o755); err != nil {
+		t.Fatalf("mkdir dist: %v", err)
+	}
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("tunnels:\n  - name: site\n    type: static\n    subdomain: site\n    dir: dist\n"), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	expected, err := filepath.Abs(filepath.Join(dir, "dist"))
+	if err != nil {
+		t.Fatalf("abs: %v", err)
+	}
+	if cfg.Tunnels[0].Dir != expected {
+		t.Fatalf("expected %q, got %q", expected, cfg.Tunnels[0].Dir)
+	}
+}
+
+func TestLoadDoesNotStatServeDir(t *testing.T) {
+	// Load runs on every CLI invocation, so a stale static entry must not break
+	// unrelated commands. Validate is where the directory has to exist.
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("tunnels:\n  - name: site\n    type: static\n    subdomain: site\n    dir: gone\n"), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("expected load to succeed for a missing dir, got %v", err)
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected validate to reject the missing dir")
+	}
+}
+
+func TestValidateRejectsStaticTunnelWithoutDir(t *testing.T) {
+	tunnel := Tunnel{Type: constants.Static, Subdomain: "site"}
+	tunnel.SetDefaults()
+
+	err := tunnel.Validate()
+	if err == nil || !strings.Contains(err.Error(), "dir is required for static tunnels") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestValidateRejectsStaticTunnelWithFileAsDir(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "not-a-dir.txt")
+	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	tunnel := Tunnel{Type: constants.Static, Subdomain: "site", Dir: file}
+	tunnel.SetDefaults()
+
+	err := tunnel.Validate()
+	if err == nil || !strings.Contains(err.Error(), "is not a directory") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestGetTunnelAddrUsesHttpAddrForStatic(t *testing.T) {
+	cfg := ClientConfig{
+		TunnelUrl: "go.portr.dev",
+		Tunnel:    Tunnel{Type: constants.Static, Subdomain: "site"},
+	}
+
+	if got := cfg.GetTunnelAddr(); got != "https://site.go.portr.dev" {
+		t.Fatalf("unexpected tunnel address %q", got)
+	}
+}
+
+func TestStatusKeyDistinguishesStubAndStatic(t *testing.T) {
+	stub := Tunnel{Type: constants.Stub, Subdomain: "x"}
+	static := Tunnel{Type: constants.Static, Subdomain: "x"}
+
+	if stub.StatusKey() == static.StatusKey() {
+		t.Fatalf("expected distinct status keys, both were %q", stub.StatusKey())
+	}
+	if static.StatusKey() != "static:x" {
+		t.Fatalf("unexpected static status key %q", static.StatusKey())
+	}
+}
+
+func TestDisplayNameFallsBackToSubdomainForStatic(t *testing.T) {
+	tunnel := Tunnel{Type: constants.Static, Subdomain: "site"}
+	if got := tunnel.DisplayName(); got != "site" {
+		t.Fatalf("unexpected display name %q", got)
+	}
+
+	named := Tunnel{Type: constants.Static, Subdomain: "site", Name: "docs"}
+	if got := named.DisplayName(); got != "docs" {
+		t.Fatalf("unexpected display name %q", got)
+	}
+}
+
+func TestDisplayNameFallsBackToSubdomainForStub(t *testing.T) {
+	if got := (Tunnel{Type: constants.Stub, Subdomain: "yaml"}).DisplayName(); got != "yaml" {
+		t.Fatalf("unexpected display name %q", got)
+	}
+	if got := (Tunnel{Type: constants.Http, Port: 3000}).DisplayName(); got != "3000" {
+		t.Fatalf("unexpected display name %q", got)
+	}
+	if got := (Tunnel{Type: constants.Http, Port: 3000, Name: "api"}).DisplayName(); got != "api" {
+		t.Fatalf("unexpected display name %q", got)
+	}
+}
+
+func TestSetDefaultsEnablesQRCodeUnlessDisabled(t *testing.T) {
+	var cfg Config
+	cfg.SetDefaults()
+	if cfg.EnableQRCode == nil || !*cfg.EnableQRCode {
+		t.Fatal("expected the qr code to be enabled by default")
+	}
+
+	disabled := false
+	cfg = Config{EnableQRCode: &disabled}
+	cfg.SetDefaults()
+	if cfg.EnableQRCode == nil || *cfg.EnableQRCode {
+		t.Fatal("expected an explicit false to be respected")
+	}
+}

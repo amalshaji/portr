@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { Globe, Shield, Terminal, Users } from "lucide-react";
+import { Globe, Shield, Users } from "lucide-react";
 import type { DashboardStats, SystemStats, ChartData } from "@/types";
 import { MetricsChart } from "@/components/MetricsChart";
+import Panel from "@/components/Panel";
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatDuration } from "@/lib/humanize";
 
 export default function Metrics() {
   const { team } = useParams<{ team: string }>();
@@ -33,25 +36,6 @@ export default function Metrics() {
     memory_usage: [],
     cpu_usage: [],
   });
-
-  const formatUptime = (startTimeStr: string) => {
-    const startTime = new Date(startTimeStr);
-    const now = new Date();
-    const uptimeMs = now.getTime() - startTime.getTime();
-
-    const seconds = Math.floor(uptimeMs / 1000) % 60;
-    const minutes = Math.floor(uptimeMs / (1000 * 60)) % 60;
-    const hours = Math.floor(uptimeMs / (1000 * 60 * 60)) % 24;
-    const days = Math.floor(uptimeMs / (1000 * 60 * 60 * 24));
-
-    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
-  };
-
-  const updateUptime = () => {
-    if (serverStartTime) {
-      setUptimeDisplay(formatUptime(serverStartTime));
-    }
-  };
 
   const getDashboardStats = async (showLoading = true) => {
     if (!team) return;
@@ -98,9 +82,8 @@ export default function Metrics() {
           });
         }
 
-        if (sysStats && sysStats.server_start_time && !serverStartTime) {
+        if (sysStats?.server_start_time) {
           setServerStartTime(sysStats.server_start_time);
-          setUptimeDisplay(formatUptime(sysStats.server_start_time));
         }
       }
     } catch (error) {
@@ -144,155 +127,106 @@ export default function Metrics() {
       getDashboardStats(false);
     }, 5000);
 
-    // Set up uptime interval to update every second
-    const uptimeInterval = setInterval(updateUptime, 1000);
-
-    return () => {
-      clearInterval(statsPollingInterval);
-      clearInterval(uptimeInterval);
-    };
+    return () => clearInterval(statsPollingInterval);
   }, [team]);
 
+  // Ticks the uptime once a second. Keyed on serverStartTime so the interval is
+  // rebuilt when it arrives — previously the effect only depended on `team`, so
+  // the tick closed over a null start time and the display never advanced.
+  useEffect(() => {
+    if (!serverStartTime) return;
+
+    const start = new Date(serverStartTime).getTime();
+    const tick = () => setUptimeDisplay(formatDuration(Date.now() - start));
+
+    tick();
+    const uptimeInterval = setInterval(tick, 1000);
+    return () => clearInterval(uptimeInterval);
+  }, [serverStartTime]);
+
+  const readouts = [
+    {
+      label: "Active tunnels",
+      value: dashboardStats.activeConnections.toString(),
+      Icon: Globe,
+    },
+    {
+      label: "Team members",
+      value: dashboardStats.totalUsers.toString(),
+      Icon: Users,
+    },
+    { label: "Server uptime", value: uptimeDisplay, Icon: Shield },
+  ];
+
+  const systemInfo = [
+    { label: "Hostname", value: systemStats.hostname || "unknown" },
+    { label: "Operating system", value: systemStats.os || "unknown" },
+    { label: "Architecture", value: systemStats.architecture || "unknown" },
+    { label: "CPU cores", value: `${systemStats.numCpu}` },
+    { label: "CPU usage", value: `${systemStats.cpuUsagePercent.toFixed(2)}%` },
+    {
+      label: "System memory",
+      value: `${systemStats.systemMemoryTotalGB.toFixed(2)} GB`,
+    },
+    {
+      label: "App memory in use",
+      value: `${systemStats.memoryUsedMB.toFixed(1)} MB`,
+    },
+    {
+      label: "App memory pool",
+      value: `${systemStats.memoryTotalMB.toFixed(1)} MB`,
+    },
+    { label: "Goroutines", value: systemStats.goroutines.toLocaleString() },
+  ];
+
   return (
-    <div className="space-y-8">
-      {/* Metrics Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-black">
-            System Metrics
-          </h1>
-          <p className="text-gray-600">
-            Monitor system performance and connections in real-time.
-          </p>
-        </div>
-        <Terminal className="h-8 w-8 text-muted-foreground" />
+    <div className="space-y-6">
+      <div className="grid gap-3 sm:grid-cols-3">
+        {readouts.map(({ label, value, Icon }) => (
+          <div
+            key={label}
+            className="rounded-md border border-border bg-card p-4"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <p className="eyebrow">{label}</p>
+              <Icon className="size-3.5 text-muted-foreground" />
+            </div>
+            {statsLoading ? (
+              <Skeleton className="mt-2 h-8 w-24" />
+            ) : (
+              <p className="tabular mt-1 font-display text-2xl font-semibold">
+                {value}
+              </p>
+            )}
+          </div>
+        ))}
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-lg border bg-card p-6">
-          <div className="flex items-center justify-between space-y-0 pb-2">
-            <p className="text-sm font-medium">Active Connections</p>
-            <Globe className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="text-2xl font-bold">
-            {statsLoading ? "..." : dashboardStats.activeConnections}
-          </div>
-        </div>
-
-        <div className="rounded-lg border bg-card p-6">
-          <div className="flex items-center justify-between space-y-0 pb-2">
-            <p className="text-sm font-medium">Team Members</p>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="text-2xl font-bold">
-            {statsLoading ? "..." : dashboardStats.totalUsers}
-          </div>
-        </div>
-
-        <div className="rounded-lg border bg-card p-6">
-          <div className="flex items-center justify-between space-y-0 pb-2">
-            <p className="text-sm font-medium">Server Uptime</p>
-            <Shield className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="text-2xl font-bold">{uptimeDisplay}</div>
-        </div>
-      </div>
-
-      {/* Metrics Charts */}
       <MetricsChart chartData={chartData} isLoading={statsLoading} />
 
-      {/* System Information */}
-      <div className="rounded-lg border bg-card p-6">
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold">System Information</h2>
-          <p className="text-muted-foreground mt-1">
-            Server hardware and runtime details
-          </p>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">
-              Hostname
-            </p>
-            <p className="text-sm">
-              {statsLoading ? "..." : systemStats.hostname || "Unknown"}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">
-              Operating System
-            </p>
-            <p className="text-sm">
-              {statsLoading ? "..." : systemStats.os || "Unknown"}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">
-              Architecture
-            </p>
-            <p className="text-sm">
-              {statsLoading ? "..." : systemStats.architecture || "Unknown"}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">
-              CPU Cores
-            </p>
-            <p className="text-sm">
-              {statsLoading ? "..." : `${systemStats.numCpu} cores`}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">
-              CPU Usage
-            </p>
-            <p className="text-sm">
-              {statsLoading
-                ? "..."
-                : `${systemStats.cpuUsagePercent.toFixed(2)}%`}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">
-              Total System Memory
-            </p>
-            <p className="text-sm">
-              {statsLoading
-                ? "..."
-                : `${systemStats.systemMemoryTotalGB.toFixed(2)} GB`}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">
-              Application Memory Usage
-            </p>
-            <p className="text-sm">
-              {statsLoading
-                ? "..."
-                : `${systemStats.memoryUsedMB.toFixed(1)} MB`}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">
-              Application Memory Pool
-            </p>
-            <p className="text-sm">
-              {statsLoading
-                ? "..."
-                : `${systemStats.memoryTotalMB.toFixed(1)} MB`}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">
-              Active Go Routines
-            </p>
-            <p className="text-sm">
-              {statsLoading ? "..." : systemStats.goroutines.toLocaleString()}
-            </p>
-          </div>
-        </div>
-      </div>
+      <Panel
+        title="System information"
+        description="Hardware and runtime details for the machine running Portr."
+        flush
+      >
+        <dl className="grid gap-x-8 gap-y-0 p-2 sm:grid-cols-2 lg:grid-cols-3">
+          {systemInfo.map(({ label, value }) => (
+            <div
+              key={label}
+              className="flex items-baseline justify-between gap-4 border-b border-border/60 px-2 py-2.5 last:border-b-0"
+            >
+              <dt className="text-xs text-muted-foreground">{label}</dt>
+              <dd className="data min-w-0 truncate text-xs font-medium">
+                {statsLoading ? (
+                  <Skeleton className="h-3.5 w-16" />
+                ) : (
+                  value
+                )}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </Panel>
     </div>
   );
 }

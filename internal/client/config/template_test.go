@@ -110,6 +110,16 @@ groups:
 			contains: "response_tmpl_file",
 		},
 		{
+			name: "static tunnel",
+			template: `tunnels:
+  - name: site
+    type: static
+    subdomain: acme-site
+    dir: ./public
+`,
+			contains: "static tunnels serve a directory on your machine",
+		},
+		{
 			name: "group referencing unknown tunnel",
 			template: `tunnels:
   - name: web

@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { ReleaseReservationDialog } from "@/components/reserved-domains/ReleaseReservationDialog"
 import { ReservationForm } from "@/components/reserved-domains/ReservationForm"
 import { ReservationList } from "@/components/reserved-domains/ReservationList"
+import Panel from "@/components/Panel"
 import { useReservedDomains } from "@/hooks/use-reserved-domains"
 import type { ReservedSubdomain } from "@/types"
 
@@ -49,21 +50,20 @@ export default function ReservedDomains() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-7">
-      <header className="flex items-start gap-4">
-        <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg border bg-muted/45">
-          <Globe className="size-5" aria-hidden="true" />
+      <header className="flex items-start gap-3">
+        <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-muted/50">
+          <Globe className="size-4" aria-hidden="true" />
         </div>
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Reserved domains
-          </h1>
+          <h2 className="text-xl font-semibold">Reserved domains</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Keep stable subdomains for this membership, even between tunnel runs.
+            Reserve a subdomain so your tunnel keeps the same URL every time you
+            start it.
           </p>
         </div>
       </header>
 
-      <section className="overflow-hidden rounded-xl border bg-background shadow-xs">
+      <Panel flush>
         <ReservationForm
           baseDomain={baseDomain}
           count={reservations.length}
@@ -80,7 +80,7 @@ export default function ReservedDomains() {
           onRetry={() => void loadReservations()}
           onRelease={setReleaseTarget}
         />
-      </section>
+      </Panel>
 
       <div className="flex items-start gap-2 text-xs text-muted-foreground">
         <Check className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />

@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Github, LoaderCircle, Eye, EyeOff, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import ThemeToggle from '@/components/ThemeToggle'
+import TunnelMap from '@/components/TunnelMap'
 import type { AuthConfig } from '@/types'
 import { getResponseMessage } from './auth-errors'
 
@@ -17,14 +19,10 @@ export default function HomePage() {
   const [passwordError, setPasswordError] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [rememberMe] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
   const [message, setMessage] = useState('')
-  
-  const navigate = useNavigate()
 
-  // const getMessageType = (code: string) => {
-  //   return ['invite-accepted'].includes(code) ? 'success' : 'error'
-  // }
+  const navigate = useNavigate()
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
@@ -74,7 +72,7 @@ export default function HomePage() {
           remember_me: rememberMe,
         }),
       })
-      
+
       if (res.ok) {
         const { redirect_to } = await res.json()
         navigate(redirect_to)
@@ -85,182 +83,241 @@ export default function HomePage() {
       }
     } catch (err) {
       console.error(err)
+      setPasswordError('Could not reach the server. Check that it is running.')
     } finally {
       setLoginLoading(false)
     }
   }
 
+  const nextParam = new URLSearchParams(window.location.search).get('next')
+  const githubHref = `/api/v1/auth/github${
+    nextParam ? `?next=${encodeURIComponent(nextParam)}` : ''
+  }`
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        {/* Logo/Brand */}
-        <div className="text-center">
+    <div className="min-h-screen lg:grid lg:grid-cols-[1.05fr_1fr]">
+      {/* Always night: this side is the public internet, the form side is the
+          console. Scoping `dark` here resolves every token inside to the night
+          palette regardless of the active theme. */}
+      <aside className="dark relative flex flex-col justify-between overflow-hidden border-b border-border bg-[var(--portr-night-deep)] px-6 py-6 text-foreground lg:border-r lg:border-b-0 lg:px-12 lg:py-10">
+        <a
+          href="https://portr.dev"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex w-fit items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
           <img
             src={`${import.meta.env.BASE_URL}portr-mark.svg`}
-            alt="Portr"
-            className="mx-auto mb-6 h-8 w-8"
+            alt=""
+            className="size-8 lg:size-9"
           />
-          <h1 className="text-2xl font-bold text-black">
-            {isSuperUserSignup ? 'Create Account' : 'Welcome Back'}
-          </h1>
-          <p className="mt-2 text-sm text-gray-600">
-            {isSuperUserSignup
-              ? 'Set up your admin account to get started'
-              : 'Sign in to access your admin dashboard'}
-          </p>
+          <span className="leading-tight">
+            <span className="block text-sm font-semibold tracking-tight">
+              Portr
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              Admin console
+            </span>
+          </span>
+          <span className="sr-only">Portr home</span>
+        </a>
+
+        {/* The diagram is portrait, so it sits beside the copy rather than
+            under it — otherwise the panel is one narrow column with dead space
+            either side. */}
+        <div className="hidden flex-1 items-center py-10 lg:flex">
+          <div className="grid w-full items-center gap-10 xl:grid-cols-[minmax(0,26rem)_auto]">
+            <div>
+              <h1 className="text-4xl leading-[1.08] font-semibold text-balance">
+                One name, pointed at one port.
+              </h1>
+              <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                Portr gives a service on your machine a public URL. Use this
+                console to invite teammates, reserve subdomains, review tunnel
+                activity, and check server health.
+              </p>
+            </div>
+
+            <TunnelMap className="justify-self-center xl:justify-self-end" />
+          </div>
         </div>
 
-        {message && (
-          <div className="border border-red-600 bg-red-50 p-4" id="error-message-box">
-            <div className="flex">
-              <div className="flex-1">
-                <h3 className="text-sm font-medium text-red-800">Error</h3>
-                <p className="text-sm mt-1 text-red-700">{message}</p>
-              </div>
+        <p className="hidden text-xs text-muted-foreground lg:block">
+          Self-hosted · {new Date().getFullYear()}
+        </p>
+      </aside>
+
+      <main className="flex items-center justify-center px-4 py-10 sm:px-6 lg:px-10">
+        <div className="w-full max-w-sm">
+          <div className="mb-8 flex items-start justify-between gap-4">
+            <div>
+              <p className="eyebrow">
+                {isSuperUserSignup ? 'First run' : 'Sign in'}
+              </p>
+              <h2 className="mt-1.5 text-2xl font-semibold">
+                {isSuperUserSignup ? 'Create the admin account' : 'Welcome back'}
+              </h2>
+              {isSuperUserSignup && (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  This server has no admin yet. The account you create here
+                  becomes the superuser.
+                </p>
+              )}
+            </div>
+            <ThemeToggle className="mt-0.5 shrink-0" />
+          </div>
+
+          {message && (
+            <div
+              id="error-message-box"
+              role="alert"
+              className="mb-6 flex items-start gap-3 rounded-md border border-destructive/30 bg-destructive/10 p-3"
+            >
+              <p className="flex-1 text-sm text-foreground">{message}</p>
               <button
-                className="text-red-400 hover:text-red-600"
+                type="button"
+                aria-label="Dismiss"
+                className="text-muted-foreground transition-colors hover:text-foreground"
                 onClick={() => setMessage('')}
               >
-                <X className="h-5 w-5" />
+                <X className="size-4" />
               </button>
             </div>
-          </div>
-        )}
+          )}
 
-        <Card className="border border-gray-200 bg-white">
-          <div className="p-6">
-            <form className="space-y-6" onSubmit={handleLogin}>
-              <div>
-                <Label htmlFor="email" className="block text-sm font-medium text-black mb-1">
-                  Email address
-                </Label>
+          <form className="space-y-5" onSubmit={handleLogin} noValidate>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email address</Label>
+              <Input
+                id="email"
+                type="email"
+                name="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@company.com"
+                aria-invalid={emailError ? true : undefined}
+                aria-describedby={emailError ? 'email-error' : undefined}
+                required
+              />
+              {emailError && (
+                <p id="email-error" role="alert" className="text-sm text-destructive">
+                  {emailError}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
                 <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@company.com"
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete={
+                    isSuperUserSignup ? 'new-password' : 'current-password'
+                  }
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pr-10"
+                  aria-invalid={passwordError ? true : undefined}
+                  aria-describedby={passwordError ? 'password-error' : undefined}
                   required
-                  className={emailError ? 'border-destructive' : ''}
                 />
-                {emailError && (
-                  <p className="mt-1 text-sm text-red-600">{emailError}</p>
-                )}
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <Label htmlFor="password" className="block text-sm font-medium text-black">
-                    Password
-                  </Label>
-                  {!isSuperUserSignup && (
-                    <button type="button" className="text-sm text-gray-600 hover:text-black">
-                      Forgot password?
-                    </button>
-                  )}
-                </div>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className={passwordError ? 'border-destructive pr-10' : 'pr-10'}
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-black"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-                {passwordError && (
-                  <p className="mt-1 text-sm text-red-600">{passwordError}</p>
-                )}
-              </div>
-
-              <div>
-                <Button
-                  type="submit"
-                  disabled={loginLoading}
-                  className="w-full"
+                <button
+                  type="button"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                  onClick={() => setShowPassword(!showPassword)}
                 >
-                  {loginLoading ? (
-                    <>
-                      <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                      {isSuperUserSignup ? 'Creating...' : 'Signing In...'}
-                    </>
+                  {showPassword ? (
+                    <EyeOff className="size-4" />
                   ) : (
-                    isSuperUserSignup ? 'Create Account' : 'Sign In'
+                    <Eye className="size-4" />
                   )}
+                </button>
+              </div>
+              {passwordError && (
+                <p
+                  id="password-error"
+                  role="alert"
+                  className="text-sm text-destructive"
+                >
+                  {passwordError}
+                </p>
+              )}
+            </div>
+
+            {!isSuperUserSignup && (
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="remember-me"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked === true)}
+                />
+                <Label htmlFor="remember-me" className="font-normal">
+                  Keep me signed in
+                </Label>
+              </div>
+            )}
+
+            <Button type="submit" disabled={loginLoading} className="w-full">
+              {loginLoading && <LoaderCircle className="size-4 animate-spin" />}
+              {loginLoading
+                ? isSuperUserSignup
+                  ? 'Creating account'
+                  : 'Signing in'
+                : isSuperUserSignup
+                  ? 'Create account'
+                  : 'Sign in'}
+            </Button>
+          </form>
+
+          {!isSuperUserSignup && (
+            <>
+              <div className="my-6 flex items-center gap-3">
+                <span className="h-px flex-1 bg-border" />
+                <span className="eyebrow">or</span>
+                <span className="h-px flex-1 bg-border" />
+              </div>
+
+              {githubAuthEnabled ? (
+                <Button variant="outline" asChild className="w-full">
+                  <a href={githubHref}>
+                    <Github className="size-4" />
+                    Continue with GitHub
+                  </a>
                 </Button>
-              </div>
-            </form>
-
-            {githubAuthEnabled && !isSuperUserSignup ? (
-              <div className="mt-6">
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-300"></div>
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-white text-gray-600">Or</span>
-                  </div>
-                </div>
-
-                <div className="mt-4">
-                  <Button
-                    variant="outline"
-                    asChild
-                    className="w-full"
-                  >
-                    <a
-                      href={`/api/v1/auth/github${new URLSearchParams(window.location.search).get('next') ? `?next=${encodeURIComponent(new URLSearchParams(window.location.search).get('next')!)}` : ''}`}
-                    >
-                      <Github className="mr-2 h-4 w-4" />
-                      GitHub
-                    </a>
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-6">
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-300"></div>
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-white text-gray-600">Or</span>
-                  </div>
-                </div>
-
-                <div className="mt-4">
+              ) : (
+                <>
                   <Button
                     variant="outline"
                     disabled
                     className="w-full"
+                    aria-describedby="github-disabled-hint"
                   >
-                    <Github className="mr-2 h-4 w-4" />
-                    GitHub
+                    <Github className="size-4" />
+                    Continue with GitHub
                   </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </Card>
+                  <p
+                    id="github-disabled-hint"
+                    className="mt-2 text-center text-xs text-muted-foreground"
+                  >
+                    GitHub sign-in is turned off for this server.
+                  </p>
+                </>
+              )}
 
-        <div className="text-center mt-6">
-          <p className="text-xs text-gray-500">
-            &copy; {new Date().getFullYear()} Portr. All rights reserved.
-          </p>
+              {/* There is no self-serve reset: the only reset endpoint is
+                  POST /team/users/:id/reset-password, behind RequireAdmin. */}
+              <p className="mt-6 text-center text-xs text-muted-foreground">
+                Lost your password? A team admin can reset it for you.
+              </p>
+            </>
+          )}
         </div>
-      </div>
+      </main>
     </div>
   )
 }

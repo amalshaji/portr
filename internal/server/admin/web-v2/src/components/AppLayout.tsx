@@ -25,14 +25,15 @@ export default function AppLayout({ sidebar, children }: AppLayoutProps) {
       ["/reserved-domains", "Reserved domains"],
       ["/users", "Users"],
       ["/my-account", "Account & settings"],
+      ["/auto-signup", "GitHub auto signup"],
     ].find(([path]) => location.pathname.endsWith(path))?.[1] ?? "Admin";
 
   return (
     <SidebarProvider
       style={
         {
-          "--sidebar-width": "17.5rem",
-          "--sidebar-width-icon": "4rem",
+          "--sidebar-width": "17rem",
+          "--sidebar-width-icon": "3.75rem",
         } as React.CSSProperties
       }
       className="bg-background"
@@ -40,26 +41,27 @@ export default function AppLayout({ sidebar, children }: AppLayoutProps) {
       <Sidebar
         variant="inset"
         collapsible="icon"
-        className="[&_[data-sidebar=sidebar]]:border [&_[data-sidebar=sidebar]]:border-sidebar-border/80 [&_[data-sidebar=sidebar]]:bg-sidebar/90 [&_[data-sidebar=sidebar]]:shadow-[0_12px_35px_rgba(23,33,30,0.06)]"
+        className="[&_[data-sidebar=sidebar]]:border [&_[data-sidebar=sidebar]]:border-sidebar-border [&_[data-sidebar=sidebar]]:bg-sidebar"
       >
         {sidebar}
         <SidebarRail />
       </Sidebar>
-      <SidebarInset className="min-w-0 overflow-hidden border border-border/70 bg-background shadow-[0_12px_40px_rgba(23,33,30,0.05)] md:my-2 md:mr-2">
-        <header className="app-chrome sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-border/70 px-4 lg:px-6">
-          <SidebarTrigger className="-ml-1 size-9 rounded-full" />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              {team ?? "Workspace"}
-            </p>
-            <p className="truncate text-sm font-semibold text-foreground">
-              {pageName}
-            </p>
+      <SidebarInset className="min-w-0 overflow-hidden border border-border bg-background md:my-2 md:mr-2">
+        <header className="app-chrome sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border px-4 lg:px-6">
+          <SidebarTrigger className="-ml-1 size-8" />
+          <div className="flex min-w-0 flex-1 items-baseline gap-2">
+            <span className="data truncate text-xs text-muted-foreground">
+              {team ?? "workspace"}
+            </span>
+            <span aria-hidden="true" className="text-muted-foreground">
+              /
+            </span>
+            <h1 className="truncate text-sm font-semibold">{pageName}</h1>
           </div>
           <IssueLink />
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto flex w-full max-w-[90rem] flex-col gap-5 p-4 sm:p-6 lg:gap-7 lg:p-8 xl:p-10">
+          <div className="mx-auto flex w-full max-w-[88rem] flex-col gap-6 p-4 sm:p-6 lg:p-8">
             {children}
           </div>
         </main>

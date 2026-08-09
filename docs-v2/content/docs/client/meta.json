@@ -3,6 +3,7 @@
   "pages": [
     "index",
     "installation",
+    "doctor",
     "team-administration",
     "http-tunnel",
     "request-logs",
@@ -10,6 +11,7 @@
     "app-server",
     "tcp-tunnel",
     "stub-tunnel",
+    "static-tunnel",
     "websocket-tunnel",
     "templates"
   ]

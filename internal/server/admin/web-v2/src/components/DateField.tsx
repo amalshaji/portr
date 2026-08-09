@@ -5,14 +5,14 @@ interface DateFieldProps {
   format?: string
 }
 
-export default function DateField({ date, format = 'MMM DD, YYYY HH:mm' }: DateFieldProps) {
+export default function DateField({ date, format = 'DD MMM YYYY HH:mm' }: DateFieldProps) {
   if (!date) {
-    return <span className="text-gray-400">-</span>
+    return <span className="data text-xs text-muted-foreground">—</span>
   }
 
   return (
-    <span className="text-sm text-gray-700">
+    <time dateTime={date} className="data text-xs text-muted-foreground">
       {moment(date).format(format)}
-    </span>
+    </time>
   )
 }

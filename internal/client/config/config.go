@@ -19,31 +19,38 @@ type Tunnel struct {
 	Subdomain            string                   `yaml:"subdomain"`
 	Port                 int                      `yaml:"port"`
 	Host                 string                   `yaml:"host"`
+	Dir                  string                   `yaml:"dir"`
 	Type                 constants.ConnectionType `yaml:"type"`
 	ResponseFormat       string                   `yaml:"response_format"`
 	ResponseTemplate     string                   `yaml:"response_tmpl"`
 	ResponseTemplateFile string                   `yaml:"response_tmpl_file"`
 	RemotePort           int
-	PoolSize             int `yaml:"pool_size"`
+	PoolSize             int    `yaml:"pool_size"`
+	HostHeader           string `yaml:"host_header"`
 }
+
+// HostHeaderRewrite sets the outbound Host header to the local address.
+const HostHeaderRewrite = "rewrite"
 
 func (t *Tunnel) SetDefaults() {
 	if t.Type == "" {
 		t.Type = constants.Http
 	}
 
-	if t.Type == constants.Http && t.Subdomain == "" {
+	if (t.Type == constants.Http || t.Type == constants.Static) && t.Subdomain == "" {
 		t.Subdomain = utils.GenerateTunnelSubdomain()
 	}
-	if t.Type == constants.Http || t.Type == constants.Stub {
+	if t.Type.IsHTTPLike() {
 		t.Subdomain = utils.NormalizeSubdomain(t.Subdomain)
 	}
 
-	if t.Host == "" && t.Type != constants.Stub {
+	// Stub and static tunnels are served by an in-process responder, so their
+	// local address is assigned when that responder starts.
+	if t.Host == "" && t.Type != constants.Stub && t.Type != constants.Static {
 		t.Host = "localhost"
 	}
 
-	if t.Type == constants.Stub {
+	if t.Type == constants.Stub || t.Type == constants.Static {
 		t.PoolSize = 1
 	} else if t.PoolSize <= 0 {
 		t.PoolSize = 2
@@ -51,11 +58,15 @@ func (t *Tunnel) SetDefaults() {
 }
 
 func (t *Tunnel) Validate() error {
+	if strings.TrimSpace(t.HostHeader) != "" && t.Type != constants.Http {
+		return fmt.Errorf("host_header is only supported for http tunnels")
+	}
+
 	if t.Type == constants.Stub && strings.TrimSpace(t.Subdomain) == "" {
 		return fmt.Errorf("subdomain is required for stub tunnels")
 	}
 
-	if t.Type == constants.Http || t.Type == constants.Stub {
+	if t.Type.IsHTTPLike() {
 		if err := utils.ValidateSubdomain(t.Subdomain); err != nil {
 			return err
 		}
@@ -70,11 +81,86 @@ func (t *Tunnel) Validate() error {
 		}
 	}
 
+	if t.Type == constants.Static {
+		if strings.TrimSpace(t.Dir) == "" {
+			return fmt.Errorf("dir is required for static tunnels")
+		}
+		info, err := os.Stat(t.Dir)
+		if err != nil {
+			return fmt.Errorf("failed to read dir %q: %w", t.Dir, err)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("dir %q is not a directory", t.Dir)
+		}
+	}
+
 	return nil
 }
 
 func (t *Tunnel) GetLocalAddr() string {
 	return t.Host + ":" + fmt.Sprint(t.Port)
+}
+
+// ResolvedHostHeader returns the Host header to send to the local service, or
+// an empty string when the public Host should be passed through unchanged.
+func (t *Tunnel) ResolvedHostHeader(localAddr string) string {
+	value := strings.TrimSpace(t.HostHeader)
+	switch {
+	case value == "":
+		return ""
+	case strings.EqualFold(value, HostHeaderRewrite):
+		return localAddr
+	default:
+		return value
+	}
+}
+
+// ResolveServeDir makes a static tunnel's directory absolute, relative to
+// baseDir. It deliberately does not touch the filesystem: Load runs on every
+// CLI invocation, so a stale static entry must not break unrelated commands.
+// Validate is where the directory is checked to exist.
+func (t *Tunnel) ResolveServeDir(baseDir string) error {
+	if t.Type != constants.Static {
+		return nil
+	}
+
+	dir := strings.TrimSpace(t.Dir)
+	if dir == "" {
+		return fmt.Errorf("dir is required for static tunnels")
+	}
+	if !filepath.IsAbs(dir) {
+		if baseDir == "" {
+			baseDir = "."
+		}
+		dir = filepath.Join(baseDir, dir)
+	}
+
+	resolved, err := filepath.Abs(dir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve dir %q: %w", t.Dir, err)
+	}
+	t.Dir = resolved
+	return nil
+}
+
+// StatusKey identifies a tunnel in TUI messages. Stub and static tunnels share
+// one local responder port, so they key on subdomain instead.
+func (t Tunnel) StatusKey() string {
+	if t.Type == constants.Stub || t.Type == constants.Static {
+		return string(t.Type) + ":" + t.Subdomain
+	}
+	return fmt.Sprint(t.Port)
+}
+
+// DisplayName is the human-readable label for a tunnel.
+func (t Tunnel) DisplayName() string {
+	if t.Name != "" {
+		return t.Name
+	}
+	if (t.Type == constants.Stub || t.Type == constants.Static) && t.Subdomain != "" {
+		return t.Subdomain
+	}
+	return fmt.Sprint(t.Port)
 }
 
 func (t *Tunnel) ValidateStubTemplateSource() error {
@@ -154,6 +240,7 @@ type Config struct {
 	HealthCheckInterval             int                 `yaml:"health_check_interval"`
 	HealthCheckMaxRetries           int                 `yaml:"health_check_max_retries"`
 	DisableTUI                      bool                `yaml:"disable_tui"`
+	EnableQRCode                    *bool               `yaml:"enable_qr_code"`
 	DisableUpdateCheck              bool                `yaml:"disable_update_check"`
 	InsecureSkipHostKeyVerification *bool               `yaml:"insecure_skip_host_key_verification"`
 }
@@ -186,6 +273,11 @@ func (c *Config) SetDefaults() {
 	if c.EnableRequestLogging == nil {
 		defaultValue := true
 		c.EnableRequestLogging = &defaultValue
+	}
+
+	if c.EnableQRCode == nil {
+		defaultValue := true
+		c.EnableQRCode = &defaultValue
 	}
 
 	if len(c.RedactHeaders) == 0 {
@@ -303,13 +395,28 @@ func ValidateTemplate(raw string) error {
 		}
 		names[tunnel.Name] = true
 
-		if strings.TrimSpace(tunnel.ResponseTemplateFile) != "" {
-			return fmt.Errorf("tunnel %q: response_tmpl_file points at a path on your machine; inline the body with response_tmpl instead", tunnel.Name)
+		if err := validateTemplateTunnel(tunnel); err != nil {
+			return err
 		}
 	}
 
 	config.SetDefaults()
 	return config.Validate()
+}
+
+// validateTemplateTunnel rejects tunnel settings that name a path on the
+// author's machine. A team template is shared verbatim, so such a path means
+// nothing on a teammate's machine, and the server validating the template has
+// no business resolving it either.
+func validateTemplateTunnel(tunnel Tunnel) error {
+	switch {
+	case tunnel.Type == constants.Static:
+		return fmt.Errorf("tunnel %q: static tunnels serve a directory on your machine and cannot be shared in a team template", tunnel.Name)
+	case strings.TrimSpace(tunnel.ResponseTemplateFile) != "":
+		return fmt.Errorf("tunnel %q: response_tmpl_file points at a path on your machine; inline the body with response_tmpl instead", tunnel.Name)
+	}
+
+	return nil
 }
 
 // ReplaceTunnels swaps in tunnels defined outside the config file. Groups are
@@ -433,7 +540,7 @@ func (c *ClientConfig) GetTcpTunnelAddr() string {
 }
 
 func (c *ClientConfig) GetTunnelAddr() string {
-	if c.Tunnel.Type == constants.Http || c.Tunnel.Type == constants.Stub {
+	if c.Tunnel.Type.IsHTTPLike() {
 		return c.GetHttpTunnelAddr()
 	}
 	return c.GetTcpTunnelAddr()
@@ -466,6 +573,9 @@ func Load(configFile string) (Config, error) {
 	baseDir := filepath.Dir(configFile)
 	for i := range config.Tunnels {
 		if err := config.Tunnels[i].ResolveStubTemplate(baseDir); err != nil {
+			return Config{}, err
+		}
+		if err := config.Tunnels[i].ResolveServeDir(baseDir); err != nil {
 			return Config{}, err
 		}
 	}

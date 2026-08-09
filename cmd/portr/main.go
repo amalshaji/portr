@@ -33,12 +33,14 @@ func main() {
 			configCmd(),
 			httpCmd(),
 			stubCmd(),
+			serveCmd(),
 			tcpCmd(),
 			logsCmd(),
 			replayCmd(),
 			authCmd(),
 			appServerCmd(),
 			adminCmd(),
+			doctorCmd(),
 		},
 	}
 

@@ -19,6 +19,10 @@ func httpCmd() *cli.Command {
 				Aliases: []string{"s"},
 				Usage:   "Subdomain to tunnel to",
 			},
+			&cli.StringFlag{
+				Name:  "host-header",
+				Usage: "Host header to send to the local server ('rewrite' to use the local address)",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			portStr := c.Args().First()
@@ -29,9 +33,10 @@ func httpCmd() *cli.Command {
 			}
 
 			return startTunnels(c, &config.Tunnel{
-				Port:      port,
-				Subdomain: c.String("subdomain"),
-				Type:      constants.Http,
+				Port:       port,
+				Subdomain:  c.String("subdomain"),
+				Type:       constants.Http,
+				HostHeader: c.String("host-header"),
 			})
 		},
 	}

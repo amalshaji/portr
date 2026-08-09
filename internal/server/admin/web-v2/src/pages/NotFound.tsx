@@ -3,12 +3,15 @@ import { Button } from '@/components/ui/button'
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
+    <div className="flex min-h-[60vh] items-center justify-center px-4">
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-black mb-4">404</h1>
-        <p className="text-gray-600 mb-8">Page not found</p>
-        <Button asChild>
-          <Link to="/">Go Home</Link>
+        <p className="eyebrow">Error 404</p>
+        <h2 className="mt-2 text-2xl font-semibold">This page does not exist</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Check the address, or head back to the console.
+        </p>
+        <Button asChild size="sm" className="mt-6">
+          <Link to="/">Go to sign in</Link>
         </Button>
       </div>
     </div>

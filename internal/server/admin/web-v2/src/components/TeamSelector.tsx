@@ -51,33 +51,31 @@ export default function TeamSelector() {
     <Select value={currentTeamSlug} onValueChange={switchTeams}>
       <SelectTrigger
         aria-label="Switch team"
-        className="w-full rounded-xl border-sidebar-border/70 bg-white/55 px-[0.6875rem] shadow-none hover:bg-white/85 focus-visible:ring-2 data-[size=default]:h-12 group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1! group-data-[collapsible=icon]:[&>svg]:hidden"
+        className="w-full rounded-md border-sidebar-border bg-background px-2.5 shadow-none hover:bg-sidebar-accent focus-visible:ring-2 data-[size=default]:h-11 group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1! group-data-[collapsible=icon]:[&>svg]:hidden"
       >
         <div className="flex min-w-0 items-center gap-2.5">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-[0.65rem] bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
-            <span className="text-[0.68rem] font-bold tracking-wide">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-sm bg-sidebar-primary text-sidebar-primary-foreground">
+            <span className="data text-[0.65rem] font-semibold">
               {currentTeam?.name?.slice(0, 2).toUpperCase() || "TE"}
             </span>
           </div>
           <div className="min-w-0 text-left group-data-[collapsible=icon]:hidden">
-            <span className="block truncate text-sm font-semibold leading-4">
+            <span className="block truncate text-sm font-medium leading-4">
               {currentTeam?.name || "Select team"}
             </span>
-            <span className="block truncate text-[0.68rem] leading-4 text-muted-foreground">
-              {currentTeamSlug || "Workspace"}
+            <span className="data block truncate text-[0.68rem] leading-4 text-muted-foreground">
+              {currentTeamSlug || "workspace"}
             </span>
           </div>
         </div>
       </SelectTrigger>
-      <SelectContent className="rounded-xl border-border/80 p-0 shadow-xl">
-        <div className="px-2 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          Your teams
-        </div>
+      <SelectContent className="p-0">
+        <div className="eyebrow px-2 py-1.5">Your teams</div>
         {teams.map((team) => (
           <SelectItem key={team.id} value={team.slug}>
             <div className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-lg bg-muted">
-                <span className="text-[0.65rem] font-bold tracking-wide">
+              <div className="flex size-6 items-center justify-center rounded-sm bg-muted">
+                <span className="data text-[0.62rem] font-semibold">
                   {team.name.slice(0, 2).toUpperCase()}
                 </span>
               </div>
