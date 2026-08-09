@@ -243,6 +243,13 @@ curl -X POST http://127.0.0.1:7778/api/v1/tunnels \
   }'
 ```
 
+<Callout type="info">
+  `type` accepts `http`, `tcp`, and `stub`. [Static tunnels](/docs/client/static-tunnel)
+  are available from the CLI and the config file only, because a `dir` sent over
+  this API would resolve against the app-server process's working directory
+  rather than the caller's.
+</Callout>
+
 ## Request fields
 
 | Field | Type | Required | Description |

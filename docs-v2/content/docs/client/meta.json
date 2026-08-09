@@ -11,6 +11,7 @@
     "app-server",
     "tcp-tunnel",
     "stub-tunnel",
+    "static-tunnel",
     "websocket-tunnel",
     "templates"
   ]

@@ -25,6 +25,7 @@ type Tunnel struct {
 	Subdomain            string                   `yaml:"subdomain"`
 	Port                 int                      `yaml:"port"`
 	Host                 string                   `yaml:"host"`
+	Dir                  string                   `yaml:"dir"`
 	Type                 constants.ConnectionType `yaml:"type"`
 	ResponseFormat       string                   `yaml:"response_format"`
 	ResponseTemplate     string                   `yaml:"response_tmpl"`
@@ -38,18 +39,20 @@ func (t *Tunnel) SetDefaults() {
 		t.Type = constants.Http
 	}
 
-	if t.Type == constants.Http && t.Subdomain == "" {
+	if (t.Type == constants.Http || t.Type == constants.Static) && t.Subdomain == "" {
 		t.Subdomain = utils.GenerateTunnelSubdomain()
 	}
-	if t.Type == constants.Http || t.Type == constants.Stub {
+	if t.Type.IsHTTPLike() {
 		t.Subdomain = utils.NormalizeSubdomain(t.Subdomain)
 	}
 
-	if t.Host == "" && t.Type != constants.Stub {
+	// Stub and static tunnels are served by an in-process responder, so their
+	// local address is assigned when that responder starts.
+	if t.Host == "" && t.Type != constants.Stub && t.Type != constants.Static {
 		t.Host = "localhost"
 	}
 
-	if t.Type == constants.Stub {
+	if t.Type == constants.Stub || t.Type == constants.Static {
 		t.PoolSize = 1
 	} else if t.PoolSize <= 0 {
 		t.PoolSize = 2
@@ -61,7 +64,7 @@ func (t *Tunnel) Validate() error {
 		return fmt.Errorf("subdomain is required for stub tunnels")
 	}
 
-	if t.Type == constants.Http || t.Type == constants.Stub {
+	if t.Type.IsHTTPLike() {
 		if err := utils.ValidateSubdomain(t.Subdomain); err != nil {
 			return err
 		}
@@ -76,6 +79,19 @@ func (t *Tunnel) Validate() error {
 		}
 	}
 
+	if t.Type == constants.Static {
+		if strings.TrimSpace(t.Dir) == "" {
+			return fmt.Errorf("dir is required for static tunnels")
+		}
+		info, err := os.Stat(t.Dir)
+		if err != nil {
+			return fmt.Errorf("failed to read dir %q: %w", t.Dir, err)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("dir %q is not a directory", t.Dir)
+		}
+	}
+
 	return nil
 }
 
@@ -83,12 +99,49 @@ func (t *Tunnel) GetLocalAddr() string {
 	return t.Host + ":" + fmt.Sprint(t.Port)
 }
 
+// ResolveServeDir makes a static tunnel's directory absolute, relative to
+// baseDir. It deliberately does not touch the filesystem: Load runs on every
+// CLI invocation, so a stale static entry must not break unrelated commands.
+// Validate is where the directory is checked to exist.
+func (t *Tunnel) ResolveServeDir(baseDir string) error {
+	if t.Type != constants.Static {
+		return nil
+	}
+
+	dir := strings.TrimSpace(t.Dir)
+	if dir == "" {
+		return fmt.Errorf("dir is required for static tunnels")
+	}
+	if !filepath.IsAbs(dir) {
+		if baseDir == "" {
+			baseDir = "."
+		}
+		dir = filepath.Join(baseDir, dir)
+	}
+
+	resolved, err := filepath.Abs(dir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve dir %q: %w", t.Dir, err)
+	}
+	t.Dir = resolved
+	return nil
+}
+
+// StatusKey identifies a tunnel in TUI messages. Stub and static tunnels share
+// one local responder port, so they key on subdomain instead.
+func (t Tunnel) StatusKey() string {
+	if t.Type == constants.Stub || t.Type == constants.Static {
+		return string(t.Type) + ":" + t.Subdomain
+	}
+	return fmt.Sprint(t.Port)
+}
+
 // DisplayName is the human-readable label for a tunnel.
 func (t Tunnel) DisplayName() string {
 	if t.Name != "" {
 		return t.Name
 	}
-	if t.Type == constants.Stub && t.Subdomain != "" {
+	if (t.Type == constants.Stub || t.Type == constants.Static) && t.Subdomain != "" {
 		return t.Subdomain
 	}
 	return fmt.Sprint(t.Port)
@@ -376,7 +429,7 @@ func (c *ClientConfig) GetTcpTunnelAddr() string {
 }
 
 func (c *ClientConfig) GetTunnelAddr() string {
-	if c.Tunnel.Type == constants.Http || c.Tunnel.Type == constants.Stub {
+	if c.Tunnel.Type.IsHTTPLike() {
 		return c.GetHttpTunnelAddr()
 	}
 	return c.GetTcpTunnelAddr()
@@ -409,6 +462,9 @@ func Load(configFile string) (Config, error) {
 	baseDir := filepath.Dir(configFile)
 	for i := range config.Tunnels {
 		if err := config.Tunnels[i].ResolveStubTemplate(baseDir); err != nil {
+			return Config{}, err
+		}
+		if err := config.Tunnels[i].ResolveServeDir(baseDir); err != nil {
 			return Config{}, err
 		}
 	}
