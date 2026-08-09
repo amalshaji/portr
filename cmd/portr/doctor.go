@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amalshaji/portr/internal/client/config"
 	requestlogs "github.com/amalshaji/portr/internal/client/logs"
 	sshclient "github.com/amalshaji/portr/internal/client/ssh"
+	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/urfave/cli/v2"
 )

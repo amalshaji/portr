@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/db"
+	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/utils"
 	"github.com/charmbracelet/log"
 	"github.com/go-resty/resty/v2"

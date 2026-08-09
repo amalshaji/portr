@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	clientcfg "github.com/amalshaji/portr/internal/client/config"
 	clientdb "github.com/amalshaji/portr/internal/client/db"
+	clientcfg "github.com/amalshaji/portr/internal/clientconfig"
 )
 
 func startClosingTCPServer(t *testing.T) string {

@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	clientcfg "github.com/amalshaji/portr/internal/client/config"
 	clientdb "github.com/amalshaji/portr/internal/client/db"
+	clientcfg "github.com/amalshaji/portr/internal/clientconfig"
 )
 
 // hostSeenByBackend runs one request through the HTTP tunnel and returns the

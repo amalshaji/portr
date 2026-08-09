@@ -48,8 +48,10 @@ jobs:
       - name: Build client
         run: bun run --cwd internal/client/dashboard/ui-v2 build
 
-      - name: Build Docker web assets
-        run: docker build --target web-builder .
+      # Builds the server the way releases do. The host `go build` below cannot
+      # catch a server package importing something .dockerignore excludes.
+      - name: Build Docker image
+        run: docker build .
 
       - name: Set up Go
         uses: actions/setup-go@v5

@@ -9,12 +9,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/dashboard/handler"
 	"github.com/amalshaji/portr/internal/client/dashboard/service"
 	"github.com/amalshaji/portr/internal/client/dashboard/ui-v2/dist"
 	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/amalshaji/portr/internal/client/vite"
+	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/charmbracelet/log"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"

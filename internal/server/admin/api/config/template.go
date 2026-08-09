@@ -3,7 +3,7 @@ package config
 import (
 	"strings"
 
-	clientConfig "github.com/amalshaji/portr/internal/client/config"
+	clientConfig "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/server/admin/middleware"
 	"github.com/amalshaji/portr/internal/server/admin/models"
 	"github.com/gofiber/fiber/v2"

@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/amalshaji/portr/internal/client/config"
+	config "github.com/amalshaji/portr/internal/clientconfig"
 	"golang.org/x/crypto/ssh"
 )
 

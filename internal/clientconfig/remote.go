@@ -1,4 +1,4 @@
-package config
+package clientconfig
 
 import (
 	"fmt"
