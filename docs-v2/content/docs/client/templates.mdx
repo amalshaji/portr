@@ -60,15 +60,17 @@ When TUI is disabled, the client will:
 - Show tunnel status updates and health check results
 - Exit gracefully on errors
 
-### Show a QR Code for the Tunnel URL
+### QR Code for the Tunnel URL
 
-Set `enable_qr_code: true` to add a QR code toggle to the terminal interface. Press `r` to show or hide it, then scan the code to open the tunnel on a phone:
+The terminal interface can show a QR code for the tunnel URL, so you can open it on a phone without typing it. Press `r` to show or hide it. This is on by default; nothing is rendered until you press the key.
+
+Set `enable_qr_code: false` to remove the toggle and its footer hint:
 
 ```yaml
 server_url: example.com
 ssh_url: example.com:2222
 secret_key: { your-secret-key }
-enable_qr_code: true
+enable_qr_code: false
 tunnels:
   - name: portr
     subdomain: portr
@@ -256,7 +258,7 @@ These options apply to the entire client configuration:
 - **secret_key**: Your authentication secret key
 - **groups**: Named sets of tunnel names; `portr start <group>` starts every tunnel in the set
 - **disable_tui**: Disable the interactive terminal interface (default: false)
-- **enable_qr_code**: Add a QR code toggle (press `r`) to the terminal interface for the tunnel URL (default: false). Ignored when `disable_tui` is true.
+- **enable_qr_code**: Offer a QR code toggle (press `r`) in the terminal interface for the tunnel URL (default: true). The code is only rendered once the key is pressed. Ignored when `disable_tui` is true.
 - **dashboard_port**: Local port for the inspector dashboard (default: 7777)
 - **disable_dashboard**: Disable the local inspector dashboard completely (default: false)
 - **disable_update_check**: Disable automatic update checks and notifications (default: false)
