@@ -40,6 +40,7 @@ func main() {
 			authCmd(),
 			appServerCmd(),
 			adminCmd(),
+			doctorCmd(),
 		},
 	}
 

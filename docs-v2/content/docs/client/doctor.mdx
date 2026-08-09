@@ -1,0 +1,77 @@
+---
+title: Doctor
+description: Diagnose Portr client connection and configuration problems with a single command that checks each link in the chain.
+---
+
+
+`portr doctor` checks every step between your machine and the tunnel server and
+reports what is wrong, one line per check.
+
+```bash
+portr doctor
+```
+
+```text
+portr doctor (client 1.0.15)
+config: /Users/amal/.portr/config.yaml
+
+✅ config file          parsed, 2 tunnels configured
+⚠️  config permissions   mode 0644 is readable by other users
+   → chmod 600 /Users/amal/.portr/config.yaml
+✅ request log db       /Users/amal/.portr/db.sqlite
+✅ server               https://portr.example.com (version 1.0.15)
+❌ secret key           server rejected the secret key
+   → run: portr auth set --token <your token> --remote portr.example.com
+✅ ssh endpoint         reachable at portr.example.com:2222
+⏭️  ssh handshake        skipped (secret key not accepted)
+⚠️  local service (api)  nothing is listening on localhost:3000
+   → requests will return 503 until it starts
+✅ dashboard port       port 7777 is free
+
+9 checks: 5 passed, 2 warnings, 1 failed, 1 skipped
+```
+
+The command exits with status `1` when any check fails, so it can be used as a
+preflight step in scripts. Warnings and skipped checks do not affect the exit
+status.
+
+## What gets checked
+
+| Check | What it means |
+| --- | --- |
+| config file | The config parses and passes validation. If this fails, nothing else runs. |
+| config permissions | The config holds your secret key, so it should not be readable by other users. |
+| request log db | The local SQLite request log at `~/.portr/db.sqlite` opens. |
+| server | The tunnel server answers, and at what version. |
+| secret key | The server accepts your `secret_key`. |
+| ssh endpoint | The SSH port is reachable over TCP. Separate from the handshake so a firewall looks different from an auth problem. |
+| ssh handshake | SSH authentication succeeds, and which host key the server presented. |
+| local service | Something is listening on each configured tunnel's local port. A warning, not a failure — starting Portr before your app is fine. |
+| dashboard port | The inspector port is free, already owned by another Portr, or taken by an unrelated program. |
+
+Checks that depend on an earlier failure are reported as skipped rather than
+repeating the same error.
+
+## Machine-readable output
+
+```bash
+portr doctor --json
+```
+
+Returns the same report as JSON, with an `ok` field and the full list of checks.
+
+## What the output contains
+
+The report is meant to be pasted into a bug report. It includes your server and
+SSH URLs, the config file path, tunnel names and local ports, and the server's
+host key fingerprint.
+
+Your `secret_key` is never printed, and any server message that happens to
+contain it is redacted before the report is rendered.
+
+<Callout type="info">
+  The secret key and handshake checks reserve a short-lived TCP connection on
+  the server to authenticate with. It claims no subdomain and no port, so it
+  cannot collide with a tunnel you are about to start, and the server discards
+  unclaimed reservations after five minutes.
+</Callout>

@@ -3,6 +3,7 @@
   "pages": [
     "index",
     "installation",
+    "doctor",
     "team-administration",
     "http-tunnel",
     "request-logs",
