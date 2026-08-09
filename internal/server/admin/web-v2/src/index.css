@@ -350,10 +350,12 @@
 
   .tunnel-map__request {
     position: absolute;
-    inset-block-start: 38%;
+    /* Centred between the two nodes rather than pinned to a percentage, so the
+       clearance above and below stays equal at any map height. */
+    inset-block-start: 50%;
     inset-inline-end: 0;
     width: min(13.5rem, 68%);
-    padding: var(--portr-space-lg) var(--portr-space-md);
+    padding: var(--portr-space-md);
     background: var(--portr-paper-raised);
     box-shadow: var(--portr-space-xs) var(--portr-space-xs) 0 var(--portr-cyan-muted);
     clip-path: polygon(
@@ -378,7 +380,7 @@
     font-family: var(--portr-font-code);
     font-size: 0.6rem;
     line-height: 1.65;
-    transform: rotate(-1deg);
+    transform: translateY(-50%) rotate(-1deg);
   }
 
   .tunnel-map__request p {
