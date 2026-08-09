@@ -80,7 +80,15 @@ export default function AutoSignupSettings() {
   }
 
   const handleAutoSignupEnabledChange = (enabled: boolean) => {
-    setSettings((prev) => ({ ...prev, auto_signup_enabled: enabled }))
+    setSettings((prev) => ({
+      ...prev,
+      auto_signup_enabled: enabled,
+      // Auto signup needs at least one domain mapping, so start one for the admin.
+      auto_signup_domains:
+        enabled && prev.auto_signup_domains.length === 0
+          ? [{ domain: '', team_id: null }]
+          : prev.auto_signup_domains,
+    }))
   }
 
   const handleDomainMappingChange = (index: number, patch: Partial<AutoSignupDomain>) => {
@@ -105,6 +113,12 @@ export default function AutoSignupSettings() {
       auto_signup_domains: prev.auto_signup_domains.filter((_, mappingIndex) => mappingIndex !== index),
     }))
   }
+
+  const completeDomainMappings = settings.auto_signup_domains.filter(
+    (mapping) => mapping.domain.trim() !== '' && Boolean(mapping.team_id)
+  )
+  const missingDomainMapping =
+    settings.auto_signup_enabled && completeDomainMappings.length === 0
 
   const handleSave = async () => {
     setSaving(true)
@@ -265,8 +279,13 @@ export default function AutoSignupSettings() {
             </div>
         </Panel>
 
-        <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={saving} size="sm">
+        <div className="flex items-center justify-end gap-3">
+          {missingDomainMapping && (
+            <p className="text-sm text-muted-foreground">
+              Add at least one domain mapping to enable auto signup.
+            </p>
+          )}
+          <Button onClick={handleSave} disabled={saving || missingDomainMapping} size="sm">
             <Save className="size-4" />
             {saving ? 'Saving...' : 'Save Settings'}
           </Button>
