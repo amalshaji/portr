@@ -754,3 +754,15 @@ func TestDisplayNameFallsBackToSubdomainForStatic(t *testing.T) {
 		t.Fatalf("unexpected display name %q", got)
 	}
 }
+
+func TestDisplayNameFallsBackToSubdomainForStub(t *testing.T) {
+	if got := (Tunnel{Type: constants.Stub, Subdomain: "yaml"}).DisplayName(); got != "yaml" {
+		t.Fatalf("unexpected display name %q", got)
+	}
+	if got := (Tunnel{Type: constants.Http, Port: 3000}).DisplayName(); got != "3000" {
+		t.Fatalf("unexpected display name %q", got)
+	}
+	if got := (Tunnel{Type: constants.Http, Port: 3000, Name: "api"}).DisplayName(); got != "api" {
+		t.Fatalf("unexpected display name %q", got)
+	}
+}
