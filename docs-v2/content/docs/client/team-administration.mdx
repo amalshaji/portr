@@ -27,6 +27,10 @@ Share the password through a secure channel. It is not returned again.
 
 When GitHub auto signup is enabled, Portr creates new users without a password and omits the password line. Existing users keep their current credentials, so their password is never reset or printed when they are added to another team.
 
+## Client template
+
+A team admin can also publish a shared set of tunnels and groups from the admin dashboard, under **Client template**. Members pick it up with `portr auth set` on a fresh machine, or `portr config pull` on an existing one. See [Tunnel Templates](/docs/client/templates#team-templates).
+
 ## Use another config
 
 Use the global `--config` flag to select the server and credential:

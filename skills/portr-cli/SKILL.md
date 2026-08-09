@@ -35,6 +35,7 @@ Commands:
 - `portr auth set`: configure client auth.
 - `portr admin users add`: add a user to a team.
 - `portr config edit`: open the default config in the OS editor.
+- `portr config pull`: replace the local tunnels and groups with the team template.
 - `portr http`: expose a local HTTP/WebSocket port.
 - `portr tcp`: expose a local TCP port.
 - `portr stub`: serve a templated response through a public HTTP tunnel without a local server.
@@ -49,11 +50,13 @@ Commands:
 portr auth set --token <token> --remote <domain-or-url>
 portr auth set -t <token> -r <domain-or-url>
 portr config edit
+portr config pull
 ```
 
 - `--token`, `-t`: Portr client secret token from the server/admin UI. Required.
 - `--remote`, `-r`: Portr server domain or URL. Required. Bare domains become HTTPS; `localhost:*` becomes HTTP unless a scheme is already provided.
 - `config edit` only edits the default config path. For harnesses, write a temp config file and pass `--config`.
+- `config pull` overwrites the default config's `tunnels` and `groups` with the team template configured in the admin dashboard, and fails if the team has no template. Everything else in the file, including `secret_key` and comments, is left alone. It also only acts on the default config path.
 
 ## Team Administration
 

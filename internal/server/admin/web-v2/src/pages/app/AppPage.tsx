@@ -10,6 +10,7 @@ import {
   Activity,
   ArrowUpDown,
   EllipsisVertical,
+  FileCode,
   Globe,
   HelpCircle,
   Home,
@@ -45,6 +46,7 @@ import {
 import { useUserStore } from "@/lib/store"
 import AutoSignupSettings from "../auto-signup/AutoSignupSettings"
 import NotFound from "../NotFound"
+import ClientTemplate from "./ClientTemplate"
 import Connections from "./Connections"
 import Metrics from "./Metrics"
 import MyAccount from "./MyAccount"
@@ -61,6 +63,7 @@ const operateNav = [
 
 const manageNav = [
   { label: "Users", path: "users", icon: Users },
+  { label: "Client template", path: "client-template", icon: FileCode },
   { label: "Account & settings", path: "my-account", icon: User },
 ]
 
@@ -312,6 +315,7 @@ export default function AppPage() {
           <Route path="/metrics" element={<Metrics />} />
           <Route path="/connections" element={<Connections />} />
           <Route path="/reserved-domains" element={<ReservedDomains />} />
+          <Route path="/client-template" element={<ClientTemplate />} />
           <Route path="/my-account" element={<MyAccount />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/auto-signup" element={<AutoSignupSettings />} />
