@@ -8,9 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/amalshaji/portr/internal/client/config"
 	"github.com/amalshaji/portr/internal/client/tui"
-	"github.com/amalshaji/portr/internal/constants"
 	"github.com/charmbracelet/log"
 )
 
@@ -42,7 +40,7 @@ func (s *SshClient) Shutdown(ctx context.Context) error {
 	}
 	cfg := s.ConfigSnapshot()
 	if s.tui != nil {
-		s.tui.Send(tui.UpdateConnCountMsg{Port: tunnelStatusKey(cfg.Tunnel), Delta: -1})
+		s.tui.Send(tui.UpdateConnCountMsg{Port: cfg.Tunnel.StatusKey(), Delta: -1})
 	}
 	s.emitEvent(EventStopped, nil)
 	log.Info("Stopped tunnel connection", "address", cfg.GetTunnelAddr())
@@ -61,17 +59,7 @@ func reconnectBackoff(attempt int) time.Duration {
 }
 
 func (s *SshClient) startError(err error) error {
-	return fmt.Errorf("failed to start tunnel '%s': %w", tunnelDisplayName(s.config.Tunnel), err)
-}
-
-func tunnelDisplayName(tunnel config.Tunnel) string {
-	if tunnel.Name != "" {
-		return tunnel.Name
-	}
-	if tunnel.Type == constants.Stub && tunnel.Subdomain != "" {
-		return tunnel.Subdomain
-	}
-	return fmt.Sprintf("%d", tunnel.Port)
+	return fmt.Errorf("failed to start tunnel '%s': %w", s.config.Tunnel.DisplayName(), err)
 }
 
 func (s *SshClient) Start(ctx context.Context) error {
@@ -141,7 +129,7 @@ func (s *SshClient) Start(ctx context.Context) error {
 				s.logDebug(fmt.Sprintf("Failed to reconnect to ssh tunnel (attempt %d)", attempt), err)
 			}
 			if attempt >= maxRetries {
-				return fmt.Errorf("failed to reconnect tunnel '%s' after %d attempts: %w", tunnelDisplayName(s.config.Tunnel), attempt, err)
+				return fmt.Errorf("failed to reconnect tunnel '%s' after %d attempts: %w", s.config.Tunnel.DisplayName(), attempt, err)
 			}
 			if !waitForReconnect(lifecycleCtx, reconnectBackoff(attempt)) {
 				return nil
@@ -199,7 +187,7 @@ func (s *SshClient) monitorTransport(ctx context.Context, transport *tunnelTrans
 				return err
 			}
 			if s.tui != nil {
-				s.tui.Send(tui.UpdateHealthMsg{Port: tunnelStatusKey(s.config.Tunnel), Healthy: true})
+				s.tui.Send(tui.UpdateHealthMsg{Port: s.config.Tunnel.StatusKey(), Healthy: true})
 			}
 		}
 	}
@@ -216,14 +204,14 @@ func (s *SshClient) announceTransportReady(initial bool) {
 		s.emitEvent(EventStarted, nil)
 	} else {
 		if s.tui != nil {
-			s.tui.Send(tui.UpdateHealthMsg{Port: tunnelStatusKey(cfg.Tunnel), Healthy: true})
+			s.tui.Send(tui.UpdateHealthMsg{Port: cfg.Tunnel.StatusKey(), Healthy: true})
 		} else if !cfg.DisableTerminalLogs {
 			fmt.Printf("🔄 Tunnel reconnected: %s\n", cfg.GetTunnelAddr())
 		}
 		s.emitEvent(EventReconnected, nil)
 	}
 	if s.tui != nil {
-		s.tui.Send(tui.UpdateConnCountMsg{Port: tunnelStatusKey(cfg.Tunnel), Delta: 1})
+		s.tui.Send(tui.UpdateConnCountMsg{Port: cfg.Tunnel.StatusKey(), Delta: 1})
 	}
 }
 
@@ -233,8 +221,8 @@ func (s *SshClient) announceTransportLost(err error) {
 		s.logDebug("Tunnel transport failed", err)
 	}
 	if s.tui != nil {
-		s.tui.Send(tui.UpdateConnCountMsg{Port: tunnelStatusKey(cfg.Tunnel), Delta: -1})
-		s.tui.Send(tui.UpdateHealthMsg{Port: tunnelStatusKey(cfg.Tunnel), Healthy: false})
+		s.tui.Send(tui.UpdateConnCountMsg{Port: cfg.Tunnel.StatusKey(), Delta: -1})
+		s.tui.Send(tui.UpdateHealthMsg{Port: cfg.Tunnel.StatusKey(), Healthy: false})
 	} else if !cfg.DisableTerminalLogs {
 		fmt.Printf("❌ Tunnel unhealthy: %s (attempting reconnect)\n", cfg.GetTunnelAddr())
 	}
