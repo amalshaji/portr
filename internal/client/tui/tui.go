@@ -113,10 +113,7 @@ func tunnelKey(tunnelConfig *config.Tunnel) string {
 	if tunnelConfig == nil {
 		return ""
 	}
-	if tunnelConfig.Type == constants.Stub {
-		return "stub:" + tunnelConfig.Subdomain
-	}
-	return fmt.Sprintf("%d", tunnelConfig.Port)
+	return tunnelConfig.StatusKey()
 }
 
 func New(debug bool, dashboardURL string, dashboardDisabledLabel string) *tea.Program {
@@ -421,23 +418,19 @@ func (m model) View() string {
 			statusText = "🟢 Healthy (" + fmt.Sprint(tunnel.active) + "/" + fmt.Sprint(max(1, tunnel.poolSize)) + ")"
 		}
 
-		tunnelName := tunnel.config.Name
-		if tunnelName == "" {
-			if tunnel.config.Type == constants.Stub {
-				tunnelName = tunnel.config.Subdomain
-			} else {
-				tunnelName = fmt.Sprintf("%d", tunnel.config.Port)
-			}
-		}
+		tunnelName := tunnel.config.DisplayName()
 		tunnelAddr := ""
 		if tunnel.clientConfig != nil {
 			tunnelAddr = tunnel.clientConfig.GetTunnelAddr()
 		}
 
 		var tunnelInfo string
-		if tunnel.config.Type == constants.Stub {
-			tunnelInfo = fmt.Sprintf("%s (stub → %s) [%s] %s",
+		if tunnel.config.Type == constants.Stub || tunnel.config.Type == constants.Static {
+			// The served directory is absolute and would push the public URL off
+			// the end of this width-clamped line; it is printed at startup instead.
+			tunnelInfo = fmt.Sprintf("%s (%s → %s) [%s] %s",
 				tunnelName,
+				tunnel.config.Type,
 				tunnelAddr,
 				tunnel.config.Subdomain,
 				statusText,
