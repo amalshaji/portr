@@ -1,0 +1,53 @@
+# Railway config for a single portr server service (websocket transport).
+#
+# One service listens on two internal ports:
+#   8000 -> admin dashboard + API
+#   8001 -> public proxy, and the client tunnel transport at /_portr/tunnel/connect
+#
+# Ports are mapped to domains in the dashboard (Settings -> Networking); Railway
+# config-as-code only covers the build and deploy sections, so domains, target
+# ports and variables must be set there or via the CLI/API.
+#
+#   example.com          -> target port 8000
+#   *.example.com        -> target port 8001
+#
+# The wildcard has to be a custom domain; Railway-provided *.up.railway.app
+# domains cannot be wildcarded. PORTR_DOMAIN is both the tunnel base domain and
+# the admin domain (admin CORS and the GitHub OAuth callback derive from it), so
+# the admin dashboard is served at the apex rather than on its own subdomain.
+#
+# Required variables:
+#   PORTR_DB_URL=${{Postgres.DATABASE_URL}}
+#   PORTR_DOMAIN=example.com
+#   PORTR_SERVER_URL=https://example.com
+#   PORTR_TRANSPORT=websocket
+#   PORTR_WS_URL=tunnel.example.com   # any subdomain under the wildcard -> 8001
+#   PORTR_ADMIN_PORT=8000
+#   PORTR_PROXY_PORT=8001
+#   PORTR_ADMIN_GITHUB_CLIENT_ID / PORTR_ADMIN_GITHUB_CLIENT_SECRET (optional)
+#
+# TCP tunnels do not work on Railway: the server allocates a random public port
+# per tunnel, and Railway only exposes ports through manually created TCP proxies.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Overrides the image ENTRYPOINT in exec form, so pass the full binary path.
+startCommand = "./portrd start all"
+
+# Runs before the new deployment takes traffic; drop this if you would rather
+# set PORTR_AUTO_MIGRATE=true and let the server migrate on boot.
+preDeployCommand = ["./portrd migrate --dialect postgres"]
+
+# Tunnel sessions and proxy routes are held in memory per replica, so a second
+# replica would receive requests for subdomains it has no session for.
+numReplicas = 1
+
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+# No healthcheckPath: Railway probes a single port, and 8001 answers unknown
+# hosts with 404. Add healthcheckPath = "/api/v1/healthcheck" only if the
+# service's healthcheck port is 8000.
