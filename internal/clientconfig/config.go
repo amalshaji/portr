@@ -27,6 +27,7 @@ type Tunnel struct {
 	RemotePort           int
 	PoolSize             int    `yaml:"pool_size"`
 	HostHeader           string `yaml:"host_header"`
+	BasicAuth            string `yaml:"basic_auth"`
 }
 
 // HostHeaderRewrite sets the outbound Host header to the local address.
@@ -60,6 +61,10 @@ func (t *Tunnel) SetDefaults() {
 func (t *Tunnel) Validate() error {
 	if strings.TrimSpace(t.HostHeader) != "" && t.Type != constants.Http {
 		return fmt.Errorf("host_header is only supported for http tunnels")
+	}
+
+	if err := t.validateBasicAuth(); err != nil {
+		return err
 	}
 
 	if t.Type == constants.Stub && strings.TrimSpace(t.Subdomain) == "" {
@@ -113,6 +118,41 @@ func (t *Tunnel) ResolvedHostHeader(localAddr string) string {
 	default:
 		return value
 	}
+}
+
+// ResolvedBasicAuth returns the user:password credential required to reach the
+// tunnel, or an empty string when the tunnel is unprotected. The credential
+// stays opaque here: only validateBasicAuth needs to look inside it, and the
+// gate compares it whole. Only the outer value is trimmed, so whitespace inside
+// either half survives ("user: pass" is a password with a leading space).
+func (t *Tunnel) ResolvedBasicAuth() string {
+	return strings.TrimSpace(t.BasicAuth)
+}
+
+// validateBasicAuth rejects credentials that look like protection but are not.
+// The split is on the first colon only, matching RFC 7617: a userid cannot
+// contain a colon, a password can.
+func (t *Tunnel) validateBasicAuth() error {
+	value := strings.TrimSpace(t.BasicAuth)
+	if value == "" {
+		return nil
+	}
+
+	if !t.Type.IsHTTPLike() {
+		return fmt.Errorf("basic_auth is not supported for %s tunnels", t.Type)
+	}
+
+	username, password, found := strings.Cut(value, ":")
+	switch {
+	case !found:
+		return fmt.Errorf("basic_auth must be in user:password format")
+	case username == "":
+		return fmt.Errorf("basic_auth username cannot be empty")
+	case password == "":
+		return fmt.Errorf("basic_auth password cannot be empty")
+	}
+
+	return nil
 }
 
 // ResolveServeDir makes a static tunnel's directory absolute, relative to
@@ -404,16 +444,19 @@ func ValidateTemplate(raw string) error {
 	return config.Validate()
 }
 
-// validateTemplateTunnel rejects tunnel settings that name a path on the
-// author's machine. A team template is shared verbatim, so such a path means
-// nothing on a teammate's machine, and the server validating the template has
-// no business resolving it either.
+// validateTemplateTunnel rejects tunnel settings that are wrong when shared
+// verbatim: a path on the author's machine, which means nothing on a
+// teammate's machine and which the server validating the template has no
+// business resolving, or a credential, which a shared plaintext template
+// cannot keep secret.
 func validateTemplateTunnel(tunnel Tunnel) error {
 	switch {
 	case tunnel.Type == constants.Static:
 		return fmt.Errorf("tunnel %q: static tunnels serve a directory on your machine and cannot be shared in a team template", tunnel.Name)
 	case strings.TrimSpace(tunnel.ResponseTemplateFile) != "":
 		return fmt.Errorf("tunnel %q: response_tmpl_file points at a path on your machine; inline the body with response_tmpl instead", tunnel.Name)
+	case strings.TrimSpace(tunnel.BasicAuth) != "":
+		return fmt.Errorf("tunnel %q: basic_auth is a credential and cannot be shared in a team template; set it in your local config or pass --basic-auth", tunnel.Name)
 	}
 
 	return nil

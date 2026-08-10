@@ -143,6 +143,15 @@ groups:
 			template: "tunnels:\n  - name: web\n   port: 3000\n",
 			contains: "yaml",
 		},
+		{
+			name: "basic auth credential",
+			template: `tunnels:
+  - name: web
+    port: 3000
+    basic_auth: admin:s3cret
+`,
+			contains: "basic_auth is a credential and cannot be shared in a team template",
+		},
 	}
 
 	for _, test := range tests {

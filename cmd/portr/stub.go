@@ -30,6 +30,11 @@ func stubCmd() *cli.Command {
 				Name:  "response-tmpl-file",
 				Usage: "Path to a response template file",
 			},
+			&cli.StringFlag{
+				Name:    "basic-auth",
+				Usage:   "Protect the tunnel with HTTP basic auth, as user:password",
+				EnvVars: []string{"PORTR_BASIC_AUTH"},
+			},
 		},
 		Action: func(c *cli.Context) error {
 			return startTunnels(c, &config.Tunnel{
@@ -38,6 +43,7 @@ func stubCmd() *cli.Command {
 				ResponseFormat:       c.String("response-format"),
 				ResponseTemplate:     c.String("response-tmpl"),
 				ResponseTemplateFile: c.String("response-tmpl-file"),
+				BasicAuth:            c.String("basic-auth"),
 			})
 		},
 	}

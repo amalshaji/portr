@@ -268,6 +268,8 @@ Only `tunnels` and `groups` can be set in a team template. `server_url`, `ssh_ur
 
 Anything that names a path on one machine is rejected too, since a template is shared verbatim: static tunnels (`type: static`, which serves a local `dir`) and `response_tmpl_file`. Use an inline `response_tmpl` for stub tunnels.
 
+`basic_auth` is rejected for the same reason: a template is stored and distributed in plain text, so it cannot keep a credential secret. Set it in your local config or pass `--basic-auth` when starting the tunnel.
+
 New members get the template on a fresh setup:
 
 ```bash
@@ -356,6 +358,7 @@ Each tunnel template supports the following options:
 - **dir**: Static only. Directory to serve, resolved relative to the config file
 - **pool_size**: HTTP only. Number of SSH workers to run per HTTP tunnel (default: 2). Increases resilience and throughput.
 - **host_header**: HTTP only. Host header sent to the local server. Use `rewrite` for the local address, or any literal hostname (default: pass the public host through)
+- **basic_auth**: HTTP, stub and static only. `user:password` credential required to reach the tunnel URL. See [password-protecting a tunnel](/docs/client/http-tunnel#password-protecting-a-tunnel)
 
 HTTP tunnels use streaming reverse proxying by default. Request and response bodies are forwarded as they arrive, while inspector captures are stored asynchronously and capped at 1 MiB per body.
 The former `enable_http_reverse_proxy` option is no longer required; existing configurations containing it still load, but the option is ignored.

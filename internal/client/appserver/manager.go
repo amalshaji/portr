@@ -88,6 +88,7 @@ func (m *Manager) StartTunnel(ctx context.Context, request StartTunnelRequest) (
 		ResponseFormat:       request.ResponseFormat,
 		ResponseTemplate:     request.ResponseTemplate,
 		ResponseTemplateFile: request.ResponseTemplateFile,
+		BasicAuth:            request.BasicAuth,
 	}
 	tunnel.SetDefaults()
 	if err := tunnel.ResolveStubTemplate("."); err != nil {
