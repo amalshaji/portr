@@ -1,0 +1,117 @@
+---
+title: SQLite Backups
+description: Continuously replicate the Portr server's SQLite database to S3-compatible storage with Litestream, and restore it automatically after a lost volume.
+---
+
+
+Portr can run on SQLite instead of PostgreSQL, which removes the need for a separate database service. The trade-off is that everything lives in a single file on the host, so losing the `./data` directory means losing every user, team, API key and reserved subdomain.
+
+The server image ships with [Litestream](https://litestream.io), which streams the SQLite write-ahead log to S3-compatible object storage as changes happen, and restores the database on boot if the file is missing.
+
+<Callout type="info">
+  Litestream only applies to SQLite. If `PORTR_DB_URL` points at PostgreSQL, it is skipped entirely and you should use your database provider's backup tooling instead.
+</Callout>
+
+## Enable replication
+
+Set `PORTR_DB_URL` to a SQLite path inside the mounted data directory, then add the Litestream variables to your `.env`:
+
+```bash
+PORTR_DB_URL=sqlite:///app/data/db.sqlite3
+
+LITESTREAM_REPLICA_URL=s3://your-bucket/portr
+LITESTREAM_ACCESS_KEY_ID=<access-key>
+LITESTREAM_SECRET_ACCESS_KEY=<secret-key>
+```
+
+Replication is off unless `LITESTREAM_REPLICA_URL` is set. Leaving it empty keeps the server behaving exactly as it does without backups.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LITESTREAM_REPLICA_URL` | Replica destination, e.g. `s3://bucket/prefix`. Empty disables replication | Optional |
+| `LITESTREAM_ACCESS_KEY_ID` | Access key for the bucket | Required when replicating |
+| `LITESTREAM_SECRET_ACCESS_KEY` | Secret key for the bucket | Required when replicating |
+| `LITESTREAM_REPLICA_ENDPOINT` | Custom S3 endpoint for non-AWS providers | Optional |
+| `LITESTREAM_REPLICA_REGION` | Bucket region | Optional |
+
+### Provider examples
+
+**AWS S3** needs only the region:
+
+```bash
+LITESTREAM_REPLICA_URL=s3://portr-backups/portr
+LITESTREAM_REPLICA_REGION=us-east-1
+```
+
+**Cloudflare R2** needs the account endpoint, and uses `auto` as the region:
+
+```bash
+LITESTREAM_REPLICA_URL=s3://portr-backups/portr
+LITESTREAM_REPLICA_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+LITESTREAM_REPLICA_REGION=auto
+```
+
+**MinIO** or any self-hosted S3 gateway:
+
+```bash
+LITESTREAM_REPLICA_URL=s3://portr-backups/portr
+LITESTREAM_REPLICA_ENDPOINT=http://minio.internal:9000
+LITESTREAM_REPLICA_REGION=us-east-1
+```
+
+## Run migrations in-process
+
+When replication is enabled, set `PORTR_AUTO_MIGRATE=true` rather than running `portrd migrate` as a separate one-off container.
+
+Only `portrd start` is wrapped by Litestream. A one-off `portrd migrate` container writes to the database without replicating, so those writes reach the replica later, once the server syncs again. Running migrations in-process under `start all` keeps every write inside the replicated window.
+
+<Callout type="warn">
+  Never run a one-off container that starts its own replication against a database the server is already replicating. Litestream does not lock the replica or detect a second writer, so two daemons will interleave writes into the same replica with no error.
+</Callout>
+
+## Verify it is working
+
+Litestream logs its sync activity to the container logs:
+
+```shell
+docker compose -f docker-compose.prod.yaml logs server | grep litestream
+```
+
+You can also list what has been written to the replica:
+
+```shell
+docker compose -f docker-compose.prod.yaml exec server \
+  litestream ltx /app/data/db.sqlite3
+```
+
+<Callout type="info">
+  If you pointed `PORTR_DB_URL` at a path other than `/app/data/db.sqlite3`, pass `-e PORTR_DB_PATH=<your path>` to `exec` and `run` as well, so Litestream looks up the same database.
+</Callout>
+
+## Restore
+
+On startup the server restores the database automatically if the file does not exist, which covers a wiped volume or a move to a new host. An existing database is never overwritten, so a restore will not clobber live data.
+
+To restore manually, stop the server, restore alongside the current database, then swap it in. Litestream refuses to write over an existing file, so restoring to a separate path first also keeps the old database around if you need to go back.
+
+```shell
+docker compose -f docker-compose.prod.yaml stop server
+
+docker compose -f docker-compose.prod.yaml run --rm \
+  --entrypoint litestream server \
+  restore -o /app/data/restored.sqlite3 /app/data/db.sqlite3
+
+mv ./data/db.sqlite3 ./data/db.sqlite3.bak
+rm -f ./data/db.sqlite3-wal ./data/db.sqlite3-shm
+mv ./data/restored.sqlite3 ./data/db.sqlite3
+
+docker compose -f docker-compose.prod.yaml start server
+```
+
+<Callout type="warn">
+  Delete the old `-wal` and `-shm` files as shown. Leaving them next to a freshly restored database can corrupt it.
+</Callout>
+
+<Callout type="warn">
+  If the credentials or the replica URL are wrong, the server fails to start rather than running unreplicated. This is deliberate: a server that silently stops backing up is worse than one that refuses to boot.
+</Callout>
