@@ -30,6 +30,12 @@ portr serve ./dist --subdomain docs
 - Opening a static site on a phone or tablet for testing
 - Handing over a folder of screenshots, PDFs, or reports
 
+## Password Protection
+
+A static tunnel is public as soon as it starts. Pass `--basic-auth user:password`
+to require credentials before anyone can browse the directory. See
+[password-protecting a tunnel](/docs/client/http-tunnel#password-protecting-a-tunnel).
+
 ## Directory Listings
 
 Requesting a directory serves its `index.html` when one exists. When it does

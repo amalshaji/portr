@@ -20,6 +20,11 @@ func serveCmd() *cli.Command {
 				Aliases: []string{"s"},
 				Usage:   "Subdomain to serve the directory from",
 			},
+			&cli.StringFlag{
+				Name:    "basic-auth",
+				Usage:   "Protect the tunnel with HTTP basic auth, as user:password",
+				EnvVars: []string{"PORTR_BASIC_AUTH"},
+			},
 		},
 		Action: func(c *cli.Context) error {
 			dir := strings.TrimSpace(c.Args().First())
@@ -31,6 +36,7 @@ func serveCmd() *cli.Command {
 				Dir:       dir,
 				Subdomain: c.String("subdomain"),
 				Type:      constants.Static,
+				BasicAuth: c.String("basic-auth"),
 			})
 		},
 	}

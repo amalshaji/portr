@@ -777,3 +777,76 @@ func TestSetDefaultsEnablesQRCodeUnlessDisabled(t *testing.T) {
 		t.Fatal("expected an explicit false to be respected")
 	}
 }
+
+func TestResolvedBasicAuthEmptyWhenBlank(t *testing.T) {
+	for _, value := range []string{"", "   "} {
+		tunnel := Tunnel{Type: constants.Http, Port: 3000, BasicAuth: value}
+		if credential := tunnel.ResolvedBasicAuth(); credential != "" {
+			t.Fatalf("expected %q to leave the tunnel unprotected, got %q", value, credential)
+		}
+	}
+}
+
+func TestResolvedBasicAuthKeepsInnerWhitespace(t *testing.T) {
+	// Only the outer value is trimmed, so the config and the working credential
+	// cannot disagree about a space inside either half.
+	tunnel := Tunnel{Type: constants.Http, Port: 3000, BasicAuth: "  admin: s3 cret  "}
+	if credential := tunnel.ResolvedBasicAuth(); credential != "admin: s3 cret" {
+		t.Fatalf("expected the inner spacing to survive, got %q", credential)
+	}
+}
+
+func TestValidateRejectsBasicAuthOnTcpTunnel(t *testing.T) {
+	tcp := Tunnel{Type: constants.Tcp, Port: 5432, BasicAuth: "admin:s3cret"}
+	tcp.SetDefaults()
+	err := tcp.Validate()
+	if err == nil || !strings.Contains(err.Error(), "basic_auth is not supported for tcp tunnels") {
+		t.Fatalf("expected tcp rejection, got %v", err)
+	}
+}
+
+func TestValidateAcceptsBasicAuthOnHTTPLikeTunnels(t *testing.T) {
+	// Unlike host_header, basic auth works for every type that reaches the
+	// client's HTTP reverse proxy.
+	tunnels := map[string]Tunnel{
+		"http": {Type: constants.Http, Port: 3000, BasicAuth: "admin:s3cret"},
+		"stub": {
+			Type:             constants.Stub,
+			Subdomain:        "stubby",
+			ResponseFormat:   "application/json",
+			ResponseTemplate: "{}",
+			BasicAuth:        "admin:s3cret",
+		},
+		"static": {Type: constants.Static, Subdomain: "site", Dir: t.TempDir(), BasicAuth: "admin:s3cret"},
+	}
+
+	for name, tunnel := range tunnels {
+		t.Run(name, func(t *testing.T) {
+			tunnel.SetDefaults()
+			if err := tunnel.Validate(); err != nil {
+				t.Fatalf("expected %s to accept basic_auth, got %v", name, err)
+			}
+		})
+	}
+}
+
+func TestValidateRejectsMalformedBasicAuth(t *testing.T) {
+	tests := map[string]string{
+		"nocolon":  "must be in user:password format",
+		":s3cret":  "username cannot be empty",
+		"admin:":   "password cannot be empty",
+		"  :    ":  "username cannot be empty",
+		"admin:  ": "password cannot be empty",
+	}
+
+	for value, contains := range tests {
+		t.Run(value, func(t *testing.T) {
+			tunnel := Tunnel{Type: constants.Http, Port: 3000, BasicAuth: value}
+			tunnel.SetDefaults()
+			err := tunnel.Validate()
+			if err == nil || !strings.Contains(err.Error(), contains) {
+				t.Fatalf("expected %q to mention %q, got %v", value, contains, err)
+			}
+		})
+	}
+}

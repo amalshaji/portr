@@ -50,6 +50,46 @@ tunnels:
 
 `host_header` is only valid on `type: http` tunnels. The inspector always records the original public host, not the rewritten one.
 
+## Password-protecting a tunnel
+
+A tunnel URL is public as soon as it starts. `basic_auth` puts HTTP basic auth in front of it, so visitors get their browser's credential prompt and only authenticated requests reach your local server.
+
+```bash
+portr http 9000 --basic-auth admin:s3cret
+```
+
+The value is `user:password`, split on the first colon — your password may contain colons, the username may not. Because a credential on the command line is visible in the process table and lands in your shell history, you can pass it through the environment instead:
+
+```bash
+PORTR_BASIC_AUTH=admin:s3cret portr http 9000
+```
+
+Or per tunnel in the config file:
+
+```yaml
+tunnels:
+  - name: staging
+    subdomain: staging
+    port: 9000
+    basic_auth: admin:s3cret
+```
+
+`basic_auth` works on `http`, `stub` and `static` tunnels. It is rejected on `tcp` tunnels, which carry no HTTP requests to challenge, and on [team templates](/docs/client/templates#team-templates), which are shared verbatim in plain text and cannot keep a credential secret.
+
+Rejected requests are recorded in the inspector as `401`, with the attempted credential redacted, so you can see what is hitting the tunnel.
+
+<Callout type="warn">
+  Basic auth is base64-encoded, not encrypted. Over the default `https://` tunnel URL it is protected by TLS, but if you run with `use_localhost: true` the tunnel URL is plain `http://` and the credentials travel in the clear.
+</Callout>
+
+A few behaviours worth knowing:
+
+- **Your app still sees the header.** Portr validates `Authorization` and forwards it unchanged, so a local app checking the same credential keeps working. An app expecting a *different* `Authorization` value cannot work behind `basic_auth` — a browser only sends one.
+- **WebSocket handshakes are gated too.** Browsers replay cached credentials on the upgrade, but non-browser clients must send the header themselves (`wscat -H "Authorization: Basic ..."`). A failed upgrade shows up as `401` with no credential prompt.
+- **CORS preflights are gated.** Browsers do not send `Authorization` on an `OPTIONS` preflight, so cross-origin JavaScript cannot reach a `basic_auth` tunnel.
+- **There is no logout.** Browsers cache basic credentials per origin for the session, so changing `basic_auth` does not evict a credential a browser already has.
+- **Replaying a request returns `401`.** The inspector redacts `Authorization` when it stores a request, so a replay re-sends the redacted placeholder. Set the header explicitly in the replay dialog, or with `portr replay --header "Authorization: Basic ..."`.
+
 ## How it works
 
 When you run the HTTP tunnel command:
