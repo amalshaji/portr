@@ -89,6 +89,8 @@ server {
     location / {
         proxy_pass http://localhost:8000;
         proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-Proto https;
     }
 }
@@ -106,8 +108,11 @@ server {
         proxy_set_header Host $host;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $connection_upgrade;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-Proto https;
         proxy_buffering off;
+        proxy_request_buffering off;
         proxy_read_timeout 300s;
         client_max_body_size 0;
     }
@@ -122,7 +127,7 @@ Whatever proxy you use, on the wildcard vhost:
 - **Pass websocket upgrades through** (`Upgrade` / `Connection` headers).
 - **Don't buffer responses** — streaming responses and server-sent events depend on it.
 - **Don't intercept error responses or add proxy-level authentication.** Portr's health checks rely on its own 404 responses and `X-Portr-*` headers reaching clients unmodified, and the `Authorization` header is passed end to end to your local service.
-- **Set `X-Forwarded-Proto: https`** so tunneled applications generate correct absolute URLs.
+- **Set `X-Forwarded-Proto: https` and overwrite `X-Forwarded-For` from the real client address** so tunneled applications generate correct absolute URLs and can't be fed spoofed client IPs.
 - The tunnel proxy speaks HTTP/1.1 only.
 
 The admin dashboard must be served from the root of the apex domain — it cannot be mounted under a path prefix.
@@ -148,7 +153,7 @@ Firewall rules:
 | 80/443 | Allow (your proxy) |
 | 2222 | Allow (SSH tunnel ingress) |
 | 30001-40001 | Allow if you use TCP tunnels |
-| 8000, 8001 | Block from the internet (only your proxy needs them) |
+| 5432, 8000, 8001 | Block from the internet (postgres and portr only need local access) |
 | 20000-30000 | Block from the internet |
 
 <Callout type="warn">
