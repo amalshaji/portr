@@ -266,39 +266,60 @@ func TestWebSocketUpgradeAllowedWithCredentials(t *testing.T) {
 }
 
 func TestRejectedRequestIsLoggedWithRedactedCredential(t *testing.T) {
-	backend := newGatedBackend(t)
-
-	client := &SshClient{
-		config: clientcfg.ClientConfig{
-			EnableRequestLogging: true,
-			RedactHeaders:        clientcfg.DefaultRedactHeaders,
-			Tunnel: clientcfg.Tunnel{
-				Name: "test", Subdomain: "test", Port: 3000, BasicAuth: "admin:s3cret",
-			},
-		},
-		db: newTestRequestStore(t),
+	// The custom list omits Authorization on purpose: redact_headers must not
+	// be able to expose the credential the auth gate itself relies on.
+	tests := []struct {
+		name          string
+		redactHeaders []string
+	}{
+		{"default redact list", clientcfg.DefaultRedactHeaders},
+		{"custom redact list without Authorization", []string{"Cookie"}},
 	}
 
-	// runRawRequest rather than runGatedRequest: Shutdown must flush the
-	// capture recorder after the tunnel handler has finished.
-	runRawRequest(t, client, backend.endpoint, httpRequest(basicAuthHeader("admin:guess")))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			backend := newGatedBackend(t)
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	if err := client.Shutdown(shutdownCtx); err != nil {
-		t.Fatalf("shutdown tunnel client: %v", err)
-	}
+			client := &SshClient{
+				config: clientcfg.ClientConfig{
+					EnableRequestLogging: true,
+					RedactHeaders:        tt.redactHeaders,
+					Tunnel: clientcfg.Tunnel{
+						Name: "test", Subdomain: "test", Port: 3000, BasicAuth: "admin:s3cret",
+					},
+				},
+				db: newTestRequestStore(t),
+			}
 
-	// Without this the inspector stays empty and a working gate looks like a
-	// broken tunnel.
-	var logged clientdb.Request
-	if err := client.db.Conn.First(&logged).Error; err != nil {
-		t.Fatalf("load persisted request: %v", err)
-	}
-	if logged.ResponseStatusCode != http.StatusUnauthorized {
-		t.Fatalf("expected the rejection to be logged as 401, got %d", logged.ResponseStatusCode)
-	}
-	if strings.Contains(string(logged.Headers), "guess") {
-		t.Fatalf("the attempted credential must be redacted, got %s", logged.Headers)
+			// runRawRequest rather than runGatedRequest: Shutdown must flush the
+			// capture recorder after the tunnel handler has finished.
+			runRawRequest(t, client, backend.endpoint, httpRequest(basicAuthHeader("admin:guess")))
+
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			if err := client.Shutdown(shutdownCtx); err != nil {
+				t.Fatalf("shutdown tunnel client: %v", err)
+			}
+
+			// Without this the inspector stays empty and a working gate looks like a
+			// broken tunnel.
+			var logged clientdb.Request
+			if err := client.db.Conn.First(&logged).Error; err != nil {
+				t.Fatalf("load persisted request: %v", err)
+			}
+			if logged.ResponseStatusCode != http.StatusUnauthorized {
+				t.Fatalf("expected the rejection to be logged as 401, got %d", logged.ResponseStatusCode)
+			}
+			// Checking for the base64 token rather than the plaintext password:
+			// a verbatim header contains "Basic YWRtaW46Z3Vlc3M=", never "guess",
+			// so a plaintext check passes even when redaction is broken.
+			if !strings.Contains(string(logged.Headers), `"Authorization":["[redacted]"]`) {
+				t.Fatalf("the Authorization header must be stored as [redacted], got %s", logged.Headers)
+			}
+			encoded := base64.StdEncoding.EncodeToString([]byte("admin:guess"))
+			if strings.Contains(string(logged.Headers), encoded) {
+				t.Fatalf("the attempted credential must be redacted, got %s", logged.Headers)
+			}
+		})
 	}
 }

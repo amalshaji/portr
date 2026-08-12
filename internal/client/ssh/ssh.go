@@ -388,6 +388,27 @@ func (s *SshClient) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 	}
 }
 
+// redactHeaderNames returns the redaction list to use for this tunnel's
+// captures. When basic auth is enabled, Authorization is forced into the list
+// so a custom redact_headers list can never persist the tunnel's own
+// credential.
+func (s *SshClient) redactHeaderNames() []string {
+	names := s.config.RedactHeaders
+	// An empty list falls back to DefaultRedactHeaders inside
+	// redactHeaderValues, which already includes Authorization.
+	if len(names) == 0 || s.config.Tunnel.ResolvedBasicAuth() == "" {
+		return names
+	}
+
+	for _, name := range names {
+		if strings.EqualFold(name, "Authorization") {
+			return names
+		}
+	}
+
+	return append(append([]string(nil), names...), "Authorization")
+}
+
 func redactHeaderValues(headers http.Header, redactNames []string) map[string][]string {
 	if len(redactNames) == 0 {
 		redactNames = config.DefaultRedactHeaders
@@ -459,7 +480,7 @@ func (s *SshClient) logHttpRequestSized(
 		isReplayedRequest = true
 	}
 
-	requestHeaders := redactHeaderValues(request.Header, s.config.RedactHeaders)
+	requestHeaders := redactHeaderValues(request.Header, s.redactHeaderNames())
 	delete(requestHeaders, "X-Portr-Replayed-Request-Id")
 
 	requestHeadersBytes, err := json.Marshal(requestHeaders)
@@ -470,7 +491,7 @@ func (s *SshClient) logHttpRequestSized(
 		return
 	}
 
-	responseHeaders := redactHeaderValues(response.Header, s.config.RedactHeaders)
+	responseHeaders := redactHeaderValues(response.Header, s.redactHeaderNames())
 
 	responseHeadersBytes, err := json.Marshal(responseHeaders)
 	if err != nil {
