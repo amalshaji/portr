@@ -133,7 +133,7 @@ func (t *Tunnel) ResolvedBasicAuth() string {
 // The split is on the first colon only, matching RFC 7617: a userid cannot
 // contain a colon, a password can.
 func (t *Tunnel) validateBasicAuth() error {
-	value := strings.TrimSpace(t.BasicAuth)
+	value := t.ResolvedBasicAuth()
 	if value == "" {
 		return nil
 	}
@@ -560,6 +560,46 @@ type ClientConfig struct {
 	DisableTUI                      bool
 	DisableTerminalLogs             bool
 	InsecureSkipHostKeyVerification bool
+}
+
+// ClientConfigForTunnel builds the per-tunnel config handed to the tunnel
+// client. It expects a loaded Config, i.e. one that went through SetDefaults.
+// The redaction list is resolved here so every consumer inherits the same
+// guarantee: a tunnel that enforces basic auth always redacts Authorization,
+// even when a custom redact_headers list omits it, so captures can never
+// persist the tunnel's own credential.
+func (c *Config) ClientConfigForTunnel(tunnel Tunnel) ClientConfig {
+	return ClientConfig{
+		ServerUrl:                       c.ServerUrl,
+		SshUrl:                          c.SshUrl,
+		TunnelUrl:                       c.TunnelUrl,
+		SecretKey:                       c.SecretKey,
+		Tunnel:                          tunnel,
+		UseLocalHost:                    c.UseLocalHost,
+		Debug:                           c.Debug,
+		EnableRequestLogging:            *c.EnableRequestLogging,
+		RedactHeaders:                   c.redactHeadersForTunnel(tunnel),
+		HealthCheckInterval:             c.HealthCheckInterval,
+		HealthCheckMaxRetries:           c.HealthCheckMaxRetries,
+		DisableTUI:                      c.DisableTUI,
+		InsecureSkipHostKeyVerification: *c.InsecureSkipHostKeyVerification,
+	}
+}
+
+func (c *Config) redactHeadersForTunnel(tunnel Tunnel) []string {
+	names := append([]string(nil), c.RedactHeaders...)
+	if tunnel.ResolvedBasicAuth() == "" {
+		return names
+	}
+
+	hasAuthorization := slices.ContainsFunc(names, func(name string) bool {
+		return strings.EqualFold(name, "Authorization")
+	})
+	if hasAuthorization {
+		return names
+	}
+
+	return append(names, "Authorization")
 }
 
 const DefaultDashboardPort = 7777

@@ -316,22 +316,11 @@ func (m *Manager) Shutdown(ctx context.Context) {
 }
 
 func (m *Manager) clientConfigForTunnel(tunnel clientcfg.Tunnel) clientcfg.ClientConfig {
-	return clientcfg.ClientConfig{
-		ServerUrl:                       m.baseConfig.ServerUrl,
-		SshUrl:                          m.baseConfig.SshUrl,
-		TunnelUrl:                       m.baseConfig.TunnelUrl,
-		SecretKey:                       m.baseConfig.SecretKey,
-		Tunnel:                          tunnel,
-		UseLocalHost:                    m.baseConfig.UseLocalHost,
-		Debug:                           m.baseConfig.Debug,
-		EnableRequestLogging:            *m.baseConfig.EnableRequestLogging,
-		RedactHeaders:                   append([]string(nil), m.baseConfig.RedactHeaders...),
-		HealthCheckInterval:             m.baseConfig.HealthCheckInterval,
-		HealthCheckMaxRetries:           m.baseConfig.HealthCheckMaxRetries,
-		DisableTUI:                      true,
-		DisableTerminalLogs:             true,
-		InsecureSkipHostKeyVerification: *m.baseConfig.InsecureSkipHostKeyVerification,
-	}
+	cfg := m.baseConfig.ClientConfigForTunnel(tunnel)
+	// The app server runs headless, regardless of what the base config says.
+	cfg.DisableTUI = true
+	cfg.DisableTerminalLogs = true
+	return cfg
 }
 
 func (m *Manager) handleStartFailure(id string, err error) {

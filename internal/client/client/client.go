@@ -131,21 +131,7 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 	}
 
 	for _, tunnel := range tunnels {
-		clientConfigs = append(clientConfigs, config.ClientConfig{
-			ServerUrl:                       c.config.ServerUrl,
-			SshUrl:                          c.config.SshUrl,
-			TunnelUrl:                       c.config.TunnelUrl,
-			SecretKey:                       c.config.SecretKey,
-			Tunnel:                          tunnel,
-			UseLocalHost:                    c.config.UseLocalHost,
-			Debug:                           c.config.Debug,
-			EnableRequestLogging:            *c.config.EnableRequestLogging,
-			RedactHeaders:                   append([]string(nil), c.config.RedactHeaders...),
-			HealthCheckInterval:             c.config.HealthCheckInterval,
-			HealthCheckMaxRetries:           c.config.HealthCheckMaxRetries,
-			DisableTUI:                      c.config.DisableTUI,
-			InsecureSkipHostKeyVerification: *c.config.InsecureSkipHostKeyVerification,
-		})
+		clientConfigs = append(clientConfigs, c.config.ClientConfigForTunnel(tunnel))
 	}
 
 	var err error

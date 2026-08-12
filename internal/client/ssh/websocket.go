@@ -147,7 +147,7 @@ func (s *SshClient) logWebSocketSessionWithID(sessionID, handshakeRequestID stri
 		return ""
 	}
 
-	requestHeaders := redactHeaderValues(request.Header, s.redactHeaderNames())
+	requestHeaders := redactHeaderValues(request.Header, s.config.RedactHeaders)
 	requestHeadersBytes, err := json.Marshal(requestHeaders)
 	if err != nil {
 		if s.config.Debug {
@@ -156,7 +156,7 @@ func (s *SshClient) logWebSocketSessionWithID(sessionID, handshakeRequestID stri
 		return ""
 	}
 
-	responseHeaders := redactHeaderValues(response.Header, s.redactHeaderNames())
+	responseHeaders := redactHeaderValues(response.Header, s.config.RedactHeaders)
 	responseHeadersBytes, err := json.Marshal(responseHeaders)
 	if err != nil {
 		if s.config.Debug {
