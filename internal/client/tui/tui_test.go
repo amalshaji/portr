@@ -29,6 +29,30 @@ func TestViewRendersStatusIcons(t *testing.T) {
 	if !strings.Contains(view, "🟢 Healthy (2/2)") {
 		t.Fatalf("expected healthy icon and count, got %q", view)
 	}
+	if strings.Contains(view, "🔒") {
+		t.Fatalf("expected no auth indicator without basic auth, got %q", view)
+	}
+}
+
+func TestViewRendersAuthIndicator(t *testing.T) {
+	tunnel := testTunnel()
+	tunnel.BasicAuth = "admin:admin"
+	m := model{
+		tunnels: map[string]*tunnelStatus{
+			"8765": {
+				config:       &tunnel,
+				clientConfig: testClientConfig(tunnel),
+				active:       2,
+				poolSize:     2,
+			},
+		},
+		width: 200,
+	}
+
+	view := m.View()
+	if !strings.Contains(view, "🔒 🟢 Healthy (2/2)") {
+		t.Fatalf("expected auth indicator before status, got %q", view)
+	}
 }
 
 func TestUpdateConnCountClampsToPoolSize(t *testing.T) {
