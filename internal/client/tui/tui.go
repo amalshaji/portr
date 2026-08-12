@@ -200,6 +200,8 @@ func tunnelKey(tunnelConfig *config.Tunnel) string {
 func New(debug bool, dashboardURL string, dashboardDisabledLabel string, enableQRCode bool) *tea.Program {
 	// Resolve the terminal background now, while stdin is still ours; once
 	// bubbletea owns input the OSC query times out and defaults to dark.
+	// termenv cannot detect the background on Windows and always reports
+	// dark, so Windows keeps the dark palette — unchanged from before.
 	lipgloss.HasDarkBackground()
 
 	// Initial default widths
@@ -456,11 +458,13 @@ func (m model) View() string {
 			statusText = "🟢 Healthy (" + fmt.Sprint(tunnel.active) + "/" + fmt.Sprint(max(1, tunnel.poolSize)) + ")"
 		}
 
-		if tunnel.config.ResolvedBasicAuth() != "" {
-			statusText = "🔒 " + statusText
-		}
-
 		tunnelName := tunnel.config.DisplayName()
+		if tunnel.config.ResolvedBasicAuth() != "" {
+			// The right end of the line truncates first on narrow
+			// terminals, so the auth marker sits by the name to stay
+			// visible.
+			tunnelName += " 🔒"
+		}
 		tunnelAddr := ""
 		if tunnel.clientConfig != nil {
 			tunnelAddr = tunnel.clientConfig.GetTunnelAddr()

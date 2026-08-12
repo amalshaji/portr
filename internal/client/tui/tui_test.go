@@ -46,12 +46,14 @@ func TestViewRendersAuthIndicator(t *testing.T) {
 				poolSize:     2,
 			},
 		},
-		width: 200,
+		// Default terminal width: the right end of the line truncates,
+		// so the marker must survive next to the tunnel name.
+		width: 80,
 	}
 
 	view := m.View()
-	if !strings.Contains(view, "🔒 🟢 Healthy (2/2)") {
-		t.Fatalf("expected auth indicator before status, got %q", view)
+	if !strings.Contains(view, "audio-stream 🔒 (") {
+		t.Fatalf("expected auth indicator next to tunnel name, got %q", view)
 	}
 }
 
