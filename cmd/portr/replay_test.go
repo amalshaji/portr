@@ -125,13 +125,14 @@ func TestReplayWantsJSONAndHelp(t *testing.T) {
 }
 
 func TestShouldSuppressUpdateNoticeForReplay(t *testing.T) {
-	if !shouldSuppressUpdateNotice([]string{"portr", "replay", "req-1", "--json"}) {
+	app := buildApp()
+	if !shouldSuppressUpdateNotice(app, []string{"portr", "replay", "req-1", "--json"}) {
 		t.Fatal("expected replay json to suppress update notice")
 	}
-	if !shouldSuppressUpdateNotice([]string{"portr", "replay", "--help"}) {
+	if !shouldSuppressUpdateNotice(app, []string{"portr", "replay", "--help"}) {
 		t.Fatal("expected replay help to suppress update notice")
 	}
-	if shouldSuppressUpdateNotice([]string{"portr", "replay", "req-1"}) {
+	if shouldSuppressUpdateNotice(app, []string{"portr", "replay", "req-1"}) {
 		t.Fatal("expected plain replay not to suppress update notice")
 	}
 }

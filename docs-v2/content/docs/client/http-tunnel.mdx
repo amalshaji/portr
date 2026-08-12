@@ -58,6 +58,9 @@ A tunnel URL is public as soon as it starts. `basic_auth` puts HTTP basic auth i
 portr http 9000 --basic-auth admin:s3cret
 ```
 
+Flags can appear anywhere on the command line — before or after the port, in
+any order.
+
 The value is `user:password`, split on the first colon — your password may contain colons, the username may not. Because a credential on the command line is visible in the process table and lands in your shell history, you can pass it through the environment instead:
 
 ```bash

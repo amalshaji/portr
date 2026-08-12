@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	requestlogs "github.com/amalshaji/portr/internal/client/logs"
 	config "github.com/amalshaji/portr/internal/clientconfig"
@@ -15,8 +14,8 @@ import (
 // Set at build time
 var version = "0.0.0"
 
-func main() {
-	app := &cli.App{
+func buildApp() *cli.App {
+	return &cli.App{
 		Name:    "portr",
 		Usage:   "Expose local ports to the public internet",
 		Version: version,
@@ -43,6 +42,10 @@ func main() {
 			doctorCmd(),
 		},
 	}
+}
+
+func main() {
+	app := buildApp()
 
 	if err := utils.EnsureDirExists(config.DefaultConfigDir); err != nil {
 		fmt.Fprintln(os.Stderr, color.Red(err.Error()))
@@ -56,7 +59,7 @@ func main() {
 	// Load config to check if update checks are disabled
 	cfg, configErr := config.Load(config.DefaultConfigPath)
 	disableUpdateCheck := configErr == nil && cfg.DisableUpdateCheck
-	suppressUpdateNotice := shouldSuppressUpdateNotice(os.Args)
+	suppressUpdateNotice := shouldSuppressUpdateNotice(app, os.Args)
 
 	if !disableUpdateCheck {
 		go func() {
@@ -85,7 +88,7 @@ func main() {
 		}
 	}
 
-	if err := app.Run(os.Args); err != nil {
+	if err := app.Run(reorderArgs(app, os.Args)); err != nil {
 		if err.Error() != "" {
 			fmt.Fprintln(os.Stderr, color.Red(err.Error()))
 		}
@@ -93,51 +96,19 @@ func main() {
 	}
 }
 
-func shouldSuppressUpdateNotice(args []string) bool {
-	logsArgs, ok := commandArgs(args, "logs")
-	if !ok {
-		replayArgs, ok := commandArgs(args, "replay")
-		if !ok {
-			return false
-		}
-
-		if commandWantsHelp(replayArgs) {
-			return true
-		}
-
-		return replayWantsJSON(replayArgs)
+func shouldSuppressUpdateNotice(app *cli.App, args []string) bool {
+	idx := commandIndex(app, args)
+	if idx == -1 {
+		return false
 	}
 
-	if requestlogs.WantsHelp(logsArgs) {
-		return true
+	rest := args[idx+1:]
+	switch args[idx] {
+	case "logs":
+		return requestlogs.WantsHelp(rest) || requestlogs.WantsJSON(rest)
+	case "replay":
+		return commandWantsHelp(rest) || replayWantsJSON(rest)
 	}
 
-	return requestlogs.WantsJSON(logsArgs)
-}
-
-func commandArgs(args []string, command string) ([]string, bool) {
-	for i := 1; i < len(args); i++ {
-		arg := strings.TrimSpace(args[i])
-		if arg == "" {
-			continue
-		}
-
-		switch {
-		case arg == "--config" || arg == "-c":
-			i++
-			continue
-		case strings.HasPrefix(arg, "--config="):
-			continue
-		case strings.HasPrefix(arg, "-"):
-			continue
-		}
-
-		if arg == command {
-			return args[i+1:], true
-		}
-
-		return nil, false
-	}
-
-	return nil, false
+	return false
 }
