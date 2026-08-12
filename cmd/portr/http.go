@@ -23,11 +23,7 @@ func httpCmd() *cli.Command {
 				Name:  "host-header",
 				Usage: "Host header to send to the local server ('rewrite' to use the local address)",
 			},
-			&cli.StringFlag{
-				Name:    "basic-auth",
-				Usage:   "Protect the tunnel with HTTP basic auth, as user:password",
-				EnvVars: []string{"PORTR_BASIC_AUTH"},
-			},
+			basicAuthFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			portStr := c.Args().First()

@@ -280,14 +280,18 @@ func TestRejectedRequestIsLoggedWithRedactedCredential(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			backend := newGatedBackend(t)
 
+			// Built through ClientConfigForTunnel because that is where
+			// Authorization is forced into the redaction list.
+			enabled := true
+			base := clientcfg.Config{
+				EnableRequestLogging:            &enabled,
+				InsecureSkipHostKeyVerification: &enabled,
+				RedactHeaders:                   tt.redactHeaders,
+			}
 			client := &SshClient{
-				config: clientcfg.ClientConfig{
-					EnableRequestLogging: true,
-					RedactHeaders:        tt.redactHeaders,
-					Tunnel: clientcfg.Tunnel{
-						Name: "test", Subdomain: "test", Port: 3000, BasicAuth: "admin:s3cret",
-					},
-				},
+				config: base.ClientConfigForTunnel(clientcfg.Tunnel{
+					Name: "test", Subdomain: "test", Port: 3000, BasicAuth: "admin:s3cret",
+				}),
 				db: newTestRequestStore(t),
 			}
 

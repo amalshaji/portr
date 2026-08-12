@@ -15,6 +15,17 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// basicAuthFlag is shared by every command that serves traffic through the
+// client's HTTP reverse proxy. tcp is excluded on purpose: Tunnel.Validate
+// rejects basic_auth there.
+func basicAuthFlag() cli.Flag {
+	return &cli.StringFlag{
+		Name:    "basic-auth",
+		Usage:   "Protect the tunnel with HTTP basic auth, as user:password",
+		EnvVars: []string{"PORTR_BASIC_AUTH"},
+	}
+}
+
 func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 	cfg, err := config.Load(c.String("config"))
 	if err != nil {
