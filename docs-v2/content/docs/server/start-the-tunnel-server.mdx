@@ -68,9 +68,11 @@ POSTGRES_DB=postgres
 | `PORTR_ADMIN_GITHUB_CLIENT_SECRET` | GitHub OAuth client secret | Optional |
 | `PORTR_RESERVED_SUBDOMAIN_LIMIT` | Maximum reserved subdomains per team membership; use `0` to disable new reservations | `3` |
 | `PORTR_AUTO_MIGRATE` | Auto-run database migrations | `false` |
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API token for SSL | Required |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token for SSL | Required (bundled Caddy) |
 
 If you run on SQLite instead of PostgreSQL, see [SQLite Backups](/docs/server/sqlite-backups) for the `LITESTREAM_*` variables that replicate the database to object storage.
+
+If you already run a reverse proxy or manage TLS certificates manually, see [Custom Reverse Proxy](/docs/server/custom-reverse-proxy) — the Cloudflare token is only needed by the bundled Caddy service.
 
 ### Generate SSH Host Key
 

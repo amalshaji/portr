@@ -6,6 +6,7 @@
     "sqlite-backups",
     "reserved-subdomains",
     "cloudflare-api-token",
+    "custom-reverse-proxy",
     "github-oauth-app"
   ]
 }

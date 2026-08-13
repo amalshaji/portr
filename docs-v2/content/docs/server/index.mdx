@@ -10,7 +10,7 @@ Before setting up your Portr server, ensure you have:
 
 - **A virtual machine** with Docker installed (Hetzner 4GB 2 vCPU is recommended and cost-effective)
 - **DNS records** configured for your domain
-- **Cloudflare API token** for wildcard subdomain SSL setup (or Route53)
+- **Cloudflare API token** for wildcard subdomain SSL setup (or Route53, or [bring your own certificates](/docs/server/custom-reverse-proxy))
 - **GitHub OAuth app credentials** for admin dashboard login (optional)
 - **Required ports** open on the server
 
@@ -36,6 +36,9 @@ Configure the following DNS records for your domain:
   </Card>
   <Card title="Cloudflare API Token" href="/docs/server/cloudflare-api-token">
     Set up Cloudflare API token for SSL certificates.
+  </Card>
+  <Card title="Custom Reverse Proxy" href="/docs/server/custom-reverse-proxy">
+    Use your own reverse proxy and manually managed TLS certificates.
   </Card>
   <Card title="GitHub OAuth App" href="/docs/server/github-oauth-app">
     Configure GitHub OAuth for admin dashboard login.
