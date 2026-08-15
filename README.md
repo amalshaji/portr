@@ -81,6 +81,10 @@ portr logs amal-test --json
 
 ## Setup
 
+Deploy the server on Railway with one click (see the [Railway guide](https://portr.dev/docs/server/deploy-on-railway)):
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/portr)
+
 - [Server setup guide](https://portr.dev/docs/server)
 - [Client installation guide](https://portr.dev/docs/client/installation)
 - [HTTP tunnel guide](https://portr.dev/docs/client/http-tunnel)
