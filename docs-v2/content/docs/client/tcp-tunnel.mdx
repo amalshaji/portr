@@ -37,8 +37,13 @@ TCP tunnels work differently from HTTP tunnels:
 
 ## Configuration
 
-You can specify custom subdomains and ports just like with HTTP tunnels:
+TCP tunnels do not use subdomains — the server assigns a public port from the
+`30001-40001` range and prints the address when the tunnel starts. Define one
+in the config file like any other tunnel:
 
-```bash
-portr tcp 5432 --subdomain my-postgres
+```yaml
+tunnels:
+  - name: postgres
+    type: tcp
+    port: 5432
 ```

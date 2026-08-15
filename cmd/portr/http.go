@@ -24,6 +24,7 @@ func httpCmd() *cli.Command {
 				Name:  "host-header",
 				Usage: "Host header to send to the local server ('rewrite' to use the local address)",
 			},
+			basicAuthFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			tunnel, err := httpTunnelFromContext(c)
@@ -49,6 +50,7 @@ func httpTunnelFromContext(c *cli.Context) (*config.Tunnel, error) {
 		Subdomain:  httpSubdomainFromContext(c),
 		Type:       constants.Http,
 		HostHeader: c.String("host-header"),
+		BasicAuth:  c.String("basic-auth"),
 	}, nil
 }
 

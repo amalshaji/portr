@@ -43,6 +43,10 @@ func newLoggingTestClient(store *clientdb.Db, enabled bool) *Client {
 	return &Client{
 		config: clientcfg.ClientConfig{
 			EnableRequestLogging: enabled,
+			// In production Config.SetDefaults materializes this list before
+			// ClientConfigForTunnel copies it over; hand-built configs must do
+			// the same.
+			RedactHeaders: clientcfg.DefaultRedactHeaders,
 			Tunnel: clientcfg.Tunnel{
 				Name:      "test-server",
 				Subdomain: "test-server",

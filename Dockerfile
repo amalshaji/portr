@@ -45,8 +45,18 @@ RUN apk --no-cache add ca-certificates curl \
 
 WORKDIR /app
 
+COPY --from=litestream/litestream:0.5.16 /usr/local/bin/litestream /usr/local/bin/litestream
+
 COPY --from=builder /app/portrd /app/
 COPY --from=builder /app/migrations /app/migrations
+
+COPY litestream.yml /etc/litestream.yml
+COPY --chmod=755 docker-entrypoint.sh /app/docker-entrypoint.sh
+
+# Default database path for /etc/litestream.yml, so `docker compose exec`/`run`
+# can invoke litestream directly without re-deriving it from PORTR_DB_URL. The
+# entrypoint overrides it when PORTR_DB_URL points somewhere else.
+ENV PORTR_DB_PATH=/app/data/db.sqlite3
 
 RUN mkdir -p /app/data && chown -R portr:portr /app
 
@@ -54,4 +64,5 @@ USER portr
 
 EXPOSE 2222 8000 8001
 
-ENTRYPOINT ["./portrd"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+CMD ["start", "all"]

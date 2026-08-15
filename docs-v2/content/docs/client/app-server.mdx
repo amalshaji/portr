@@ -263,6 +263,7 @@ curl -X POST http://127.0.0.1:7778/api/v1/tunnels \
 | `response_format` | string | Stub only | Response `Content-Type`, such as `application/json` or `application/yml`. |
 | `response_tmpl` | string | Stub only | Inline stub response template. Use exactly one of `response_tmpl` or `response_tmpl_file`. |
 | `response_tmpl_file` | string | Stub only | Stub response template file path, resolved from the app-server process working directory. |
+| `basic_auth` | string | No | `user:password` credential required to reach the tunnel URL. HTTP and stub tunnels only. |
 | `callback_url` | string | No | Single webhook URL for lifecycle events. |
 | `callback_urls` | string[] | No | Additional webhook URLs for lifecycle events. Duplicate URLs are ignored. |
 

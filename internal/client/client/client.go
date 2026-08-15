@@ -131,7 +131,7 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 	}
 
 	for _, tunnel := range tunnels {
-		clientConfigs = append(clientConfigs, c.clientConfigForTunnel(tunnel))
+		clientConfigs = append(clientConfigs, c.config.ClientConfigForTunnel(tunnel))
 	}
 
 	var err error
@@ -230,26 +230,6 @@ func (c *Client) prepareStubTunnels(clientConfigs []config.ClientConfig) ([]conf
 	}
 
 	return clientConfigs, nil
-}
-
-func (c *Client) clientConfigForTunnel(tunnel config.Tunnel) config.ClientConfig {
-	return config.ClientConfig{
-		ServerUrl:                       c.config.ServerUrl,
-		SshUrl:                          c.config.SshUrl,
-		WsUrl:                           c.config.WsUrl,
-		TunnelUrl:                       c.config.TunnelUrl,
-		Transport:                       c.config.Transport,
-		SecretKey:                       c.config.SecretKey,
-		Tunnel:                          tunnel,
-		UseLocalHost:                    c.config.UseLocalHost,
-		Debug:                           c.config.Debug,
-		EnableRequestLogging:            *c.config.EnableRequestLogging,
-		RedactHeaders:                   append([]string(nil), c.config.RedactHeaders...),
-		HealthCheckInterval:             c.config.HealthCheckInterval,
-		HealthCheckMaxRetries:           c.config.HealthCheckMaxRetries,
-		DisableTUI:                      c.config.DisableTUI,
-		InsecureSkipHostKeyVerification: *c.config.InsecureSkipHostKeyVerification,
-	}
 }
 
 func (c *Client) createNewConnection(ctx context.Context, cfg config.ClientConfig) (string, error) {

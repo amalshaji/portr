@@ -88,6 +88,7 @@ func (m *Manager) StartTunnel(ctx context.Context, request StartTunnelRequest) (
 		ResponseFormat:       request.ResponseFormat,
 		ResponseTemplate:     request.ResponseTemplate,
 		ResponseTemplateFile: request.ResponseTemplateFile,
+		BasicAuth:            request.BasicAuth,
 	}
 	tunnel.SetDefaults()
 	if err := tunnel.ResolveStubTemplate("."); err != nil {
@@ -311,24 +312,11 @@ func (m *Manager) Shutdown(ctx context.Context) {
 }
 
 func (m *Manager) clientConfigForTunnel(tunnel clientcfg.Tunnel) clientcfg.ClientConfig {
-	return clientcfg.ClientConfig{
-		ServerUrl:                       m.baseConfig.ServerUrl,
-		SshUrl:                          m.baseConfig.SshUrl,
-		WsUrl:                           m.baseConfig.WsUrl,
-		TunnelUrl:                       m.baseConfig.TunnelUrl,
-		Transport:                       m.baseConfig.Transport,
-		SecretKey:                       m.baseConfig.SecretKey,
-		Tunnel:                          tunnel,
-		UseLocalHost:                    m.baseConfig.UseLocalHost,
-		Debug:                           m.baseConfig.Debug,
-		EnableRequestLogging:            *m.baseConfig.EnableRequestLogging,
-		RedactHeaders:                   append([]string(nil), m.baseConfig.RedactHeaders...),
-		HealthCheckInterval:             m.baseConfig.HealthCheckInterval,
-		HealthCheckMaxRetries:           m.baseConfig.HealthCheckMaxRetries,
-		DisableTUI:                      true,
-		DisableTerminalLogs:             true,
-		InsecureSkipHostKeyVerification: *m.baseConfig.InsecureSkipHostKeyVerification,
-	}
+	cfg := m.baseConfig.ClientConfigForTunnel(tunnel)
+	// The app server runs headless, regardless of what the base config says.
+	cfg.DisableTUI = true
+	cfg.DisableTerminalLogs = true
+	return cfg
 }
 
 func (m *Manager) createNewConnection(ctx context.Context, cfg clientcfg.ClientConfig) (string, error) {

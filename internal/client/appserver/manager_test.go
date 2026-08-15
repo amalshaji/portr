@@ -38,6 +38,19 @@ func TestValidateTunnelRequestRejectsInvalidPort(t *testing.T) {
 	}
 }
 
+func TestValidateTunnelRequestRejectsMalformedBasicAuth(t *testing.T) {
+	tunnel := clientcfg.Tunnel{
+		Type:      constants.Http,
+		Port:      3000,
+		BasicAuth: "admin:",
+	}
+	tunnel.SetDefaults()
+
+	if err := validateTunnelRequest(tunnel, "", nil); err == nil {
+		t.Fatal("expected an empty password to be rejected")
+	}
+}
+
 func TestValidateTunnelRequestRejectsInvalidCallbackURL(t *testing.T) {
 	tunnel := clientcfg.Tunnel{
 		Type: constants.Tcp,

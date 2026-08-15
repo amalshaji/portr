@@ -226,6 +226,14 @@ type queuedCaptureTask struct {
 	task   captureTask
 }
 
+// cloneRequestForLog snapshots a request for the capture pipeline, which runs
+// after the handler has moved on and must not observe later mutations such as
+// the reverse proxy rewriting Host. Request.Clone already deep-copies Header
+// and URL, so nothing else needs copying by hand.
+func cloneRequestForLog(request *http.Request) *http.Request {
+	return request.Clone(context.Background())
+}
+
 func (s *Client) requestLoggingEnabled() bool {
 	return s != nil && s.config.EnableRequestLogging
 }

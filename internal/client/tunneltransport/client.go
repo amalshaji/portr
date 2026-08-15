@@ -280,6 +280,7 @@ func (s *Client) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 	proxy.Transport = transport
 
 	hostHeader := s.config.Tunnel.ResolvedHostHeader(localEndpoint)
+	authGate := newBasicAuthGate(s.config.Tunnel.ResolvedBasicAuth())
 
 	defaultDirector := proxy.Director
 	proxy.Director = func(request *http.Request) {
@@ -341,6 +342,18 @@ func (s *Client) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 			return
 		}
 
+		// The gate sits above the websocket branch so upgrades are covered by
+		// the same check, and because writer is still an ordinary
+		// ResponseWriter here rather than a hijacked connection.
+		//
+		// Pings stay above the gate on purpose: they never reach the local
+		// server, and the portr server answers them itself whenever it has a
+		// backend, so gating them would only break the reconciliation cron.
+		if !authGate.allow(request) {
+			s.rejectUnauthorized(writer, request)
+			return
+		}
+
 		if isWebSocketUpgrade(request) {
 			hijacker, ok := writer.(http.Hijacker)
 			if !ok {
@@ -363,13 +376,7 @@ func (s *Client) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 			return
 		}
 
-		requestForLog := request.Clone(context.Background())
-		requestForLog.Header = request.Header.Clone()
-		requestForLog.Host = request.Host
-		if request.URL != nil {
-			clonedURL := *request.URL
-			requestForLog.URL = &clonedURL
-		}
+		requestForLog := cloneRequestForLog(request)
 
 		requestCapture := &bodyCapture{}
 		if request.Body != nil {
@@ -404,11 +411,9 @@ func (s *Client) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 	}
 }
 
+// redactHeaderValues expects the tunnel's resolved redaction list; see
+// Config.ClientConfigForTunnel.
 func redactHeaderValues(headers http.Header, redactNames []string) map[string][]string {
-	if len(redactNames) == 0 {
-		redactNames = config.DefaultRedactHeaders
-	}
-
 	redactSet := make(map[string]struct{}, len(redactNames))
 	for _, name := range redactNames {
 		redactSet[strings.ToLower(name)] = struct{}{}

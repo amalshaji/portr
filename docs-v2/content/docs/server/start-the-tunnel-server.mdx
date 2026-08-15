@@ -77,6 +77,8 @@ POSTGRES_DB=postgres
 | `PORTR_AUTO_MIGRATE` | Auto-run database migrations | `false` |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token for SSL | Required |
 
+If you run on SQLite instead of PostgreSQL, see [SQLite Backups](/docs/server/sqlite-backups) for the `LITESTREAM_*` variables that replicate the database to object storage.
+
 ### Generate an SSH host key
 
 When using the default `ssh` transport, generate the host key once and keep the

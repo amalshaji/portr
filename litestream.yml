@@ -1,0 +1,11 @@
+# Litestream replicates the portr server's sqlite database to S3-compatible
+# storage. Only used when LITESTREAM_REPLICA_URL is set, see docker-entrypoint.sh.
+#
+# Credentials are read from the environment by litestream itself, via
+# LITESTREAM_ACCESS_KEY_ID and LITESTREAM_SECRET_ACCESS_KEY.
+dbs:
+  - path: ${PORTR_DB_PATH}
+    replica:
+      url: ${LITESTREAM_REPLICA_URL}
+      endpoint: ${LITESTREAM_REPLICA_ENDPOINT}
+      region: ${LITESTREAM_REPLICA_REGION}

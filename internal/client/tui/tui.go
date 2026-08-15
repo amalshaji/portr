@@ -52,10 +52,17 @@ type AddDebugLogMsg struct {
 	Error   string
 }
 
+// Pure #00ff00 and ANSI yellow are unreadable on light backgrounds, so both
+// resolve per terminal theme; red and gray read fine on either.
+var (
+	green  = lipgloss.AdaptiveColor{Light: "#1a7f37", Dark: "#00ff00"}
+	yellow = lipgloss.AdaptiveColor{Light: "#9a6700", Dark: "yellow"}
+)
+
 var (
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#00ff00")).
+			Foreground(green).
 			MarginLeft(2)
 
 	subtitleStyle = lipgloss.NewStyle().
@@ -72,10 +79,10 @@ var (
 			BorderForeground(lipgloss.Color("240"))
 
 	healthyStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#00ff00"))
+			Foreground(green)
 
 	unhealthyStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("yellow")).
+			Foreground(yellow).
 			Bold(true)
 
 	// red style for fully unhealthy state (no active connections)
@@ -191,6 +198,12 @@ func tunnelKey(tunnelConfig *config.Tunnel) string {
 }
 
 func New(debug bool, dashboardURL string, dashboardDisabledLabel string, enableQRCode bool) *tea.Program {
+	// Resolve the terminal background now, while stdin is still ours; once
+	// bubbletea owns input the OSC query times out and defaults to dark.
+	// termenv cannot detect the background on Windows and always reports
+	// dark, so Windows keeps the dark palette — unchanged from before.
+	lipgloss.HasDarkBackground()
+
 	// Initial default widths
 	const (
 		timeWidth   = 12
@@ -448,6 +461,12 @@ func (m model) View() string {
 		}
 
 		tunnelName := tunnel.config.DisplayName()
+		if tunnel.config.ResolvedBasicAuth() != "" {
+			// The right end of the line truncates first on narrow
+			// terminals, so the auth marker sits by the name to stay
+			// visible.
+			tunnelName += " 🔒"
+		}
 		tunnelAddr := ""
 		if tunnel.clientConfig != nil {
 			tunnelAddr = tunnel.clientConfig.GetTunnelAddr()
