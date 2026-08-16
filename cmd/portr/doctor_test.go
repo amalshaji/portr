@@ -562,3 +562,20 @@ func TestCheckWebSocketEndpointFailsWhenUnreachable(t *testing.T) {
 		t.Fatalf("expected fail, got %s (%s)", check.Status, check.Detail)
 	}
 }
+
+func TestCheckWebSocketEndpointFailsOnUnexpectedFrame(t *testing.T) {
+	server := httptest.NewServer(websocket.Handler(func(conn *websocket.Conn) {
+		// A non-portr websocket service completes the handshake but does not
+		// answer with the anonymous-connect credential challenge.
+		_ = wsproto.NewWriter(conn).Send(wsproto.Frame{Type: "welcome", Message: "hello"})
+	}))
+	defer server.Close()
+
+	check := checkWebSocketEndpoint(context.Background(), websocketEndpointConfig(server))
+	if check.Status != doctorFail {
+		t.Fatalf("expected fail, got %s (%s)", check.Status, check.Detail)
+	}
+	if !strings.Contains(check.Detail, "unexpected") {
+		t.Fatalf("expected an unexpected-frame detail, got %q", check.Detail)
+	}
+}

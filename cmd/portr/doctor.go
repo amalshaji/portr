@@ -366,6 +366,15 @@ func checkWebSocketEndpoint(ctx context.Context, cfg config.Config) doctorCheck 
 		check.Detail = frame.Message
 		return check
 	}
+	// Only the exact anonymous-connect challenge proves this is a compatible
+	// portr tunnel endpoint. Any other frame means the URL answered the
+	// websocket handshake but is not the portr connect endpoint.
+	if frame.Type != wsproto.TypeError || !strings.Contains(frame.Message, "missing connection credentials") {
+		check.Status = doctorFail
+		check.Detail = fmt.Sprintf("endpoint answered with an unexpected %q frame instead of the portr credential challenge", frame.Type)
+		check.Hint = "check that ws_url points at the portr tunnel endpoint, not another websocket service"
+		return check
+	}
 
 	check.Status = doctorPass
 	check.Detail = "reachable at " + wsURL
