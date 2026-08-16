@@ -13,6 +13,20 @@ domains.
 This guide assumes you know the basics from
 [Server Deployment](/docs/server/start-the-tunnel-server).
 
+## Bring your own domain
+
+Neither Railway nor Portr provides the domain your tunnels are served on.
+Tunnel URLs are subdomains of `PORTR_DOMAIN` (`https://myapp.portr.example.com`),
+and Railway-generated `*.up.railway.app` domains have no wildcard support — so a
+working deployment needs:
+
+- **A domain you own**, managed at a DNS provider where you can add records.
+- **A wildcard record** (`*.portr.example.com`) pointing at Railway, set up in
+  [Add a wildcard custom domain](#add-a-wildcard-custom-domain).
+
+Without your own domain, the admin dashboard and client connections still work
+on the generated Railway domains, but every tunnel URL will fail to resolve.
+
 ## One-click template
 
 The fastest path is the official template: it deploys both services with the
@@ -20,9 +34,10 @@ variables below pre-wired, including a generated Postgres password.
 
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/portr)
 
-After it deploys, skip ahead to
-[Add a wildcard custom domain](#add-a-wildcard-custom-domain) — that part is
-manual either way. The rest of this guide sets the same thing up by hand.
+The template cannot bring the domain for you: after it deploys, continue with
+[Add a wildcard custom domain](#add-a-wildcard-custom-domain) using your own
+domain — that part is manual either way. The rest of this guide sets the same
+thing up by hand.
 
 ## Create the services
 
