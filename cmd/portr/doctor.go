@@ -14,10 +14,13 @@ import (
 
 	requestlogs "github.com/amalshaji/portr/internal/client/logs"
 	sshclient "github.com/amalshaji/portr/internal/client/ssh"
+	wstunnelclient "github.com/amalshaji/portr/internal/client/tunnel"
 	"github.com/amalshaji/portr/internal/client/tunneltransport"
 	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
+	"github.com/amalshaji/portr/internal/tunnel/wsproto"
 	"github.com/urfave/cli/v2"
+	"golang.org/x/net/websocket"
 )
 
 type doctorStatus string
@@ -153,8 +156,10 @@ func runDoctorChecks(ctx context.Context, cfg config.Config, configPath string) 
 
 	if cfg.Transport == config.TransportWebSocket {
 		// The websocket transport never dials ssh_url, so probing it would only
-		// report on an endpoint this client does not use.
+		// report on an endpoint this client does not use. Probe the websocket
+		// endpoint it does use instead.
 		checks = append(checks,
+			checkWebSocketEndpoint(ctx, cfg),
 			skippedCheck("ssh endpoint", "transport is websocket"),
 			skippedCheck("ssh handshake", "transport is websocket"),
 		)
@@ -311,6 +316,62 @@ func checkSecretKey(ctx context.Context, cfg config.Config) (string, doctorCheck
 	return connectionID, check
 }
 
+// checkWebSocketEndpoint performs the websocket connect handshake without
+// credentials. A reachable, version-compatible server answers the anonymous
+// connect with a "missing connection credentials" error frame, which is
+// exactly the proof this check needs; a protocol mismatch reports the server's
+// upgrade hint instead.
+func checkWebSocketEndpoint(ctx context.Context, cfg config.Config) doctorCheck {
+	check := doctorCheck{Name: "websocket endpoint"}
+
+	clientCfg := doctorClientConfig(cfg)
+	wsURL, err := wstunnelclient.WebSocketURL(clientCfg)
+	if err != nil {
+		check.Status = doctorFail
+		check.Detail = err.Error()
+		check.Hint = "check ws_url in the config file"
+		return check
+	}
+
+	wsConfig, err := websocket.NewConfig(wsURL, clientCfg.GetServerAddr())
+	if err != nil {
+		check.Status = doctorFail
+		check.Detail = err.Error()
+		check.Hint = "check ws_url in the config file"
+		return check
+	}
+	wsConfig.Header.Set(wsproto.ProtocolVersionHeader, fmt.Sprint(wsproto.ProtocolVersion))
+
+	dialCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	conn, err := wsConfig.DialContext(dialCtx)
+	if err != nil {
+		check.Status = doctorFail
+		check.Detail = err.Error()
+		check.Hint = "check ws_url and that outbound traffic to that endpoint is not blocked"
+		return check
+	}
+	defer conn.Close()
+
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	frame, err := wsproto.Receive(conn)
+	if err != nil {
+		check.Status = doctorFail
+		check.Detail = fmt.Sprintf("handshake succeeded but reading the first frame failed: %v", err)
+		check.Hint = "check that ws_url points at the portr tunnel endpoint, not another websocket service"
+		return check
+	}
+	if frame.Type == wsproto.TypeError && strings.Contains(frame.Message, "protocol mismatch") {
+		check.Status = doctorFail
+		check.Detail = frame.Message
+		return check
+	}
+
+	check.Status = doctorPass
+	check.Detail = "reachable at " + wsURL
+	return check
+}
+
 func checkSSHEndpoint(sshURL string) doctorCheck {
 	check := doctorCheck{Name: "ssh endpoint"}
 
@@ -430,7 +491,9 @@ func doctorClientConfig(cfg config.Config) config.ClientConfig {
 	return config.ClientConfig{
 		ServerUrl:                       cfg.ServerUrl,
 		SshUrl:                          cfg.SshUrl,
+		WsUrl:                           cfg.WsUrl,
 		TunnelUrl:                       cfg.TunnelUrl,
+		Transport:                       cfg.Transport,
 		SecretKey:                       cfg.SecretKey,
 		UseLocalHost:                    cfg.UseLocalHost,
 		Debug:                           cfg.Debug,

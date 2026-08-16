@@ -630,6 +630,7 @@ func runTunnelDataFlowTCP(t *testing.T, transport clientconfig.Transport) {
 			}
 			go func(conn net.Conn) {
 				defer conn.Close()
+				_ = conn.SetDeadline(time.Now().Add(testTimeout))
 				request, readErr := io.ReadAll(conn)
 				if readErr != nil || string(request) != "tcp-request" {
 					return
@@ -658,6 +659,9 @@ func runTunnelDataFlowTCP(t *testing.T, transport clientconfig.Transport) {
 		t.Fatalf("dial public tcp tunnel: %v", err)
 	}
 	defer conn.Close()
+	if err := conn.SetDeadline(time.Now().Add(testTimeout)); err != nil {
+		t.Fatalf("set tcp tunnel deadline: %v", err)
+	}
 	if _, err := conn.Write([]byte("tcp-request")); err != nil {
 		t.Fatalf("write through tcp tunnel: %v", err)
 	}

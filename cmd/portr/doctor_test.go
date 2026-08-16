@@ -16,7 +16,9 @@ import (
 
 	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
+	"github.com/amalshaji/portr/internal/tunnel/wsproto"
 	"github.com/urfave/cli/v2"
+	"golang.org/x/net/websocket"
 )
 
 func openListener(t *testing.T) net.Listener {
@@ -503,5 +505,60 @@ func TestRunDoctorChecksSkipsDownstreamWithTheRealReason(t *testing.T) {
 		if !strings.Contains(check.Detail, "server unreachable") {
 			t.Fatalf("expected %q to name the real reason, got %q", name, check.Detail)
 		}
+	}
+}
+
+func websocketEndpointConfig(server *httptest.Server) config.Config {
+	host := strings.TrimPrefix(server.URL, "http://")
+	return config.Config{
+		ServerUrl:    host,
+		WsUrl:        host,
+		Transport:    config.TransportWebSocket,
+		SecretKey:    "sk-doctor-test",
+		UseLocalHost: true,
+	}
+}
+
+func TestCheckWebSocketEndpointPassesOnCredentialChallenge(t *testing.T) {
+	server := httptest.NewServer(websocket.Handler(func(conn *websocket.Conn) {
+		_ = wsproto.NewWriter(conn).Send(wsproto.Frame{Type: wsproto.TypeError, Message: "missing connection credentials"})
+	}))
+	defer server.Close()
+
+	check := checkWebSocketEndpoint(context.Background(), websocketEndpointConfig(server))
+	if check.Status != doctorPass {
+		t.Fatalf("expected pass, got %s (%s)", check.Status, check.Detail)
+	}
+}
+
+func TestCheckWebSocketEndpointFailsOnProtocolMismatch(t *testing.T) {
+	server := httptest.NewServer(websocket.Handler(func(conn *websocket.Conn) {
+		_ = wsproto.NewWriter(conn).Send(wsproto.Frame{Type: wsproto.TypeError, Message: "portr websocket protocol mismatch: server speaks v2, client sent \"1\"; upgrade the portr client"})
+	}))
+	defer server.Close()
+
+	check := checkWebSocketEndpoint(context.Background(), websocketEndpointConfig(server))
+	if check.Status != doctorFail {
+		t.Fatalf("expected fail, got %s (%s)", check.Status, check.Detail)
+	}
+	if !strings.Contains(check.Detail, "protocol mismatch") {
+		t.Fatalf("expected the server's mismatch message, got %q", check.Detail)
+	}
+}
+
+func TestCheckWebSocketEndpointFailsWhenUnreachable(t *testing.T) {
+	listener := openListener(t)
+	address := listener.Addr().String()
+	_ = listener.Close()
+
+	check := checkWebSocketEndpoint(context.Background(), config.Config{
+		ServerUrl:    address,
+		WsUrl:        address,
+		Transport:    config.TransportWebSocket,
+		SecretKey:    "sk-doctor-test",
+		UseLocalHost: true,
+	})
+	if check.Status != doctorFail {
+		t.Fatalf("expected fail, got %s (%s)", check.Status, check.Detail)
 	}
 }

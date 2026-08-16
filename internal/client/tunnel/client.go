@@ -279,6 +279,12 @@ func (s *Session) closeStreams() {
 	}
 }
 
+// WebSocketURL resolves the websocket connect endpoint for the given client
+// config. Exposed for diagnostics such as `portr doctor`.
+func WebSocketURL(cfg config.ClientConfig) (string, error) {
+	return tunnelWebSocketURL(cfg)
+}
+
 func tunnelWebSocketURL(cfg config.ClientConfig) (string, error) {
 	raw := strings.TrimRight(cfg.WsUrl, "/")
 	if raw == "" {
