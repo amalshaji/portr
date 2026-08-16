@@ -262,10 +262,19 @@ var DefaultRedactHeaders = []string{
 	"Proxy-Authorization",
 }
 
+type Transport string
+
+const (
+	TransportSSH       Transport = "ssh"
+	TransportWebSocket Transport = "websocket"
+)
+
 type Config struct {
 	ServerUrl                       string              `yaml:"server_url"`
 	SshUrl                          string              `yaml:"ssh_url"`
+	WsUrl                           string              `yaml:"ws_url"`
 	TunnelUrl                       string              `yaml:"tunnel_url"`
+	Transport                       Transport           `yaml:"transport"`
 	SecretKey                       string              `yaml:"secret_key"`
 	Tunnels                         []Tunnel            `yaml:"tunnels"`
 	Groups                          map[string][]string `yaml:"groups"`
@@ -280,6 +289,7 @@ type Config struct {
 	HealthCheckInterval             int                 `yaml:"health_check_interval"`
 	HealthCheckMaxRetries           int                 `yaml:"health_check_max_retries"`
 	DisableTUI                      bool                `yaml:"disable_tui"`
+	DisableTerminalLogs             bool                `yaml:"disable_terminal_logs"`
 	EnableQRCode                    *bool               `yaml:"enable_qr_code"`
 	DisableUpdateCheck              bool                `yaml:"disable_update_check"`
 	InsecureSkipHostKeyVerification *bool               `yaml:"insecure_skip_host_key_verification"`
@@ -296,6 +306,14 @@ func (c *Config) SetDefaults() {
 
 	if c.TunnelUrl == "" {
 		c.TunnelUrl = c.ServerUrl
+	}
+
+	if c.WsUrl == "" {
+		c.WsUrl = c.TunnelUrl
+	}
+
+	if c.Transport == "" {
+		c.Transport = TransportSSH
 	}
 
 	if c.DashboardPort == 0 {
@@ -341,6 +359,12 @@ func (c Config) Validate() error {
 
 	if !c.DisableDashboard && (c.DashboardPort < 1 || c.DashboardPort > 65535) {
 		return fmt.Errorf("dashboard_port must be between 1 and 65535")
+	}
+
+	switch c.Transport {
+	case "", TransportSSH, TransportWebSocket:
+	default:
+		return fmt.Errorf("transport must be either %q or %q", TransportSSH, TransportWebSocket)
 	}
 
 	tunnelNames := make(map[string]bool, len(c.Tunnels))
@@ -547,7 +571,9 @@ func (c Config) GetDashboardDisableLabel() string {
 type ClientConfig struct {
 	ServerUrl                       string
 	SshUrl                          string
+	WsUrl                           string
 	TunnelUrl                       string
+	Transport                       Transport
 	SecretKey                       string
 	ConnectionID                    string
 	Tunnel                          Tunnel
@@ -572,7 +598,9 @@ func (c *Config) ClientConfigForTunnel(tunnel Tunnel) ClientConfig {
 	return ClientConfig{
 		ServerUrl:                       c.ServerUrl,
 		SshUrl:                          c.SshUrl,
+		WsUrl:                           c.WsUrl,
 		TunnelUrl:                       c.TunnelUrl,
+		Transport:                       c.Transport,
 		SecretKey:                       c.SecretKey,
 		Tunnel:                          tunnel,
 		UseLocalHost:                    c.UseLocalHost,

@@ -9,9 +9,9 @@ import (
 
 	"github.com/amalshaji/portr/internal/client/db"
 	"github.com/amalshaji/portr/internal/client/fileresponder"
-	sshclient "github.com/amalshaji/portr/internal/client/ssh"
 	"github.com/amalshaji/portr/internal/client/stubresponder"
 	"github.com/amalshaji/portr/internal/client/tui"
+	"github.com/amalshaji/portr/internal/client/tunneltransport"
 	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
 	tea "github.com/charmbracelet/bubbletea"
@@ -20,7 +20,7 @@ import (
 
 type Client struct {
 	config          *config.Config
-	sshcs           []*sshclient.SshClient
+	tunnelClients   []tunneltransport.Worker
 	db              *db.Db
 	tui             *tea.Program
 	retentionCancel context.CancelFunc
@@ -37,10 +37,10 @@ type Client struct {
 func NewClient(config *config.Config, db *db.Db) *Client {
 	var p *tea.Program
 	c := &Client{
-		config: config,
-		sshcs:  make([]*sshclient.SshClient, 0),
-		db:     db,
-		exitCh: make(chan error, 1),
+		config:        config,
+		tunnelClients: make([]tunneltransport.Worker, 0),
+		db:            db,
+		exitCh:        make(chan error, 1),
 	}
 
 	if !config.DisableTUI {
@@ -170,7 +170,7 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 		workers := desiredWorkers(clientConfig, poolingSupported)
 
 		if clientConfig.Tunnel.Type == constants.Http && workers > 1 && clientConfig.ConnectionID == "" {
-			connID, err := sshclient.CreateNewConnectionWithContext(ctx, clientConfig)
+			connID, err := c.createNewConnection(ctx, clientConfig)
 			if err != nil {
 				return fmt.Errorf("failed to create shared connection for pool: %w", err)
 			}
@@ -179,10 +179,10 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 
 		for i := 0; i < workers; i++ {
 			cfg := clientConfig
-			sshc := sshclient.New(cfg, c.db, c.tui, c.reportFatal)
-			c.Add(sshc)
+			tunnelClient := c.newTunnelWorker(cfg)
+			c.Add(tunnelClient)
 			c.runFatalWorker("tunnel worker", func() error {
-				return sshc.Start(ctx)
+				return tunnelClient.Start(ctx)
 			})
 		}
 	}
@@ -232,6 +232,14 @@ func (c *Client) prepareStubTunnels(clientConfigs []config.ClientConfig) ([]conf
 	return clientConfigs, nil
 }
 
+func (c *Client) createNewConnection(ctx context.Context, cfg config.ClientConfig) (string, error) {
+	return tunneltransport.CreateNewConnectionWithContext(ctx, cfg)
+}
+
+func (c *Client) newTunnelWorker(cfg config.ClientConfig) tunneltransport.Worker {
+	return tunneltransport.NewWorker(cfg, c.db, c.tui, c.reportFatal, nil)
+}
+
 func (c *Client) prepareStaticTunnels(clientConfigs []config.ClientConfig) ([]config.ClientConfig, error) {
 	hasStatic := false
 	for _, clientConfig := range clientConfigs {
@@ -271,8 +279,8 @@ func (c *Client) prepareStaticTunnels(clientConfigs []config.ClientConfig) ([]co
 	return clientConfigs, nil
 }
 
-func (c *Client) Add(sshc *sshclient.SshClient) {
-	c.sshcs = append(c.sshcs, sshc)
+func (c *Client) Add(tunnelClient tunneltransport.Worker) {
+	c.tunnelClients = append(c.tunnelClients, tunnelClient)
 }
 
 func (c *Client) Shutdown(ctx context.Context) {
@@ -292,11 +300,11 @@ func (c *Client) Shutdown(ctx context.Context) {
 	}
 
 	var shutdowns sync.WaitGroup
-	for _, sshc := range c.sshcs {
+	for _, tunnelClient := range c.tunnelClients {
 		shutdowns.Add(1)
 		go func() {
 			defer shutdowns.Done()
-			_ = sshc.Shutdown(ctx)
+			_ = tunnelClient.Shutdown(ctx)
 		}()
 	}
 	shutdowns.Wait()

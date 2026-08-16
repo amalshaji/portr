@@ -81,8 +81,11 @@ func GetConfig(token string, remote string) error {
 
 func updateAuthValues(token string, downloaded string) error {
 	var config struct {
-		ServerUrl string `yaml:"server_url"`
-		SshUrl    string `yaml:"ssh_url"`
+		ServerUrl string    `yaml:"server_url"`
+		SshUrl    string    `yaml:"ssh_url"`
+		WsUrl     string    `yaml:"ws_url"`
+		TunnelUrl string    `yaml:"tunnel_url"`
+		Transport Transport `yaml:"transport"`
 	}
 	if err := yaml.Unmarshal([]byte(downloaded), &config); err != nil {
 		return err
@@ -90,14 +93,22 @@ func updateAuthValues(token string, downloaded string) error {
 
 	entries := [][2]string{{"secret_key", token}}
 	if config.ServerUrl != "" {
-		// the server doesn't send tunnel_url; tunnels are served on the server_url domain
-		entries = append(entries,
-			[2]string{"server_url", config.ServerUrl},
-			[2]string{"tunnel_url", config.ServerUrl},
-		)
+		entries = append(entries, [2]string{"server_url", config.ServerUrl})
+	}
+	if config.Transport != "" {
+		entries = append(entries, [2]string{"transport", string(config.Transport)})
 	}
 	if config.SshUrl != "" {
 		entries = append(entries, [2]string{"ssh_url", config.SshUrl})
+	}
+	if config.WsUrl != "" {
+		entries = append(entries, [2]string{"ws_url", config.WsUrl})
+	}
+	if config.TunnelUrl != "" {
+		entries = append(entries, [2]string{"tunnel_url", config.TunnelUrl})
+	} else if config.ServerUrl != "" {
+		// the server may not send tunnel_url; tunnels are then served on the server_url domain
+		entries = append(entries, [2]string{"tunnel_url", config.ServerUrl})
 	}
 
 	return updateConfigValues(entries)

@@ -1,4 +1,4 @@
-package ssh
+package tunneltransport
 
 import (
 	"bufio"
@@ -26,7 +26,7 @@ func hostSeenByBackend(t *testing.T, hostHeader string) string {
 	}))
 	defer backend.Close()
 
-	client := &SshClient{config: clientcfg.ClientConfig{Tunnel: clientcfg.Tunnel{
+	client := &Client{config: clientcfg.ClientConfig{Tunnel: clientcfg.Tunnel{
 		Name: "test", Subdomain: "test", Port: 3000, HostHeader: hostHeader,
 	}}}
 	runRawRequest(t, client, strings.TrimPrefix(backend.URL, "http://"),
@@ -41,7 +41,7 @@ func hostSeenByBackend(t *testing.T, hostHeader string) string {
 	}
 }
 
-func runRawRequest(t *testing.T, client *SshClient, localEndpoint, rawRequest string) string {
+func runRawRequest(t *testing.T, client *Client, localEndpoint, rawRequest string) string {
 	t.Helper()
 
 	remoteConn, clientConn := net.Pipe()
@@ -84,7 +84,7 @@ func TestHTTPTunnelRewritesHostToLocalAddress(t *testing.T) {
 	defer backend.Close()
 	localEndpoint := strings.TrimPrefix(backend.URL, "http://")
 
-	client := &SshClient{config: clientcfg.ClientConfig{Tunnel: clientcfg.Tunnel{
+	client := &Client{config: clientcfg.ClientConfig{Tunnel: clientcfg.Tunnel{
 		Name: "test", Subdomain: "test", Port: 3000, HostHeader: clientcfg.HostHeaderRewrite,
 	}}}
 	runRawRequest(t, client, localEndpoint,
@@ -115,7 +115,7 @@ func TestHTTPTunnelLogsPublicHostWhenRewriting(t *testing.T) {
 	defer backend.Close()
 	localEndpoint := strings.TrimPrefix(backend.URL, "http://")
 
-	client := &SshClient{
+	client := &Client{
 		config: clientcfg.ClientConfig{
 			EnableRequestLogging: true,
 			Tunnel: clientcfg.Tunnel{
@@ -193,7 +193,7 @@ func TestWebSocketTunnelRewritesHostHeader(t *testing.T) {
 	received := make(chan string, 1)
 	localEndpoint := startWebSocketEchoServer(t, received)
 
-	client := &SshClient{
+	client := &Client{
 		config: clientcfg.ClientConfig{
 			EnableRequestLogging: true,
 			Tunnel: clientcfg.Tunnel{

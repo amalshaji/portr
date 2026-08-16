@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	sshclient "github.com/amalshaji/portr/internal/client/ssh"
+	"github.com/amalshaji/portr/internal/client/tunneltransport"
 	clientcfg "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/charmbracelet/log"
@@ -75,7 +75,7 @@ func TestSupportsHTTPPoolingVersion(t *testing.T) {
 	}
 }
 
-func TestClientConfigForTunnelDisablesSSHClientTerminalLogs(t *testing.T) {
+func TestClientConfigForTunnelDisablesTunnelClientTerminalLogs(t *testing.T) {
 	cfg := clientcfg.Config{}
 	cfg.SetDefaults()
 
@@ -165,8 +165,8 @@ func TestRecordEventLogsTerminalEvent(t *testing.T) {
 		},
 	}
 
-	manager.recordEvent(tunnel, sshclient.Event{
-		Type: sshclient.EventStarted,
+	manager.recordEvent(tunnel, tunneltransport.Event{
+		Type: tunneltransport.EventStarted,
 		At:   time.Date(2026, 5, 16, 10, 0, 0, 0, time.UTC),
 	})
 
@@ -188,7 +188,7 @@ func TestRecordEventLogsTerminalEvent(t *testing.T) {
 	}
 }
 
-func TestHandleSSHEventIgnoresLateUnhealthyAfterStopped(t *testing.T) {
+func TestHandleTunnelEventIgnoresLateUnhealthyAfterStopped(t *testing.T) {
 	cfg := clientcfg.Config{}
 	cfg.SetDefaults()
 
@@ -209,8 +209,8 @@ func TestHandleSSHEventIgnoresLateUnhealthyAfterStopped(t *testing.T) {
 		},
 	}
 
-	manager.handleSSHEvent("tun_1", sshclient.Event{
-		Type:  sshclient.EventUnhealthy,
+	manager.handleTunnelEvent("tun_1", tunneltransport.Event{
+		Type:  tunneltransport.EventUnhealthy,
 		Error: "unhealthy tunnel",
 		At:    stoppedAt.Add(time.Second),
 	})

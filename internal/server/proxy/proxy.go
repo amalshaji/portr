@@ -26,6 +26,14 @@ type Proxy struct {
 	lock      sync.RWMutex
 	server    *http.Server
 	transport *http.Transport
+	tunnel    TunnelBackend
+}
+
+type TunnelBackend interface {
+	Endpoint() string
+	Handler() http.Handler
+	HasHTTPBackend(string) bool
+	ServeHTTPStream(string, http.ResponseWriter, *http.Request)
 }
 
 func (p *Proxy) GetServerAddr() string {
@@ -61,7 +69,15 @@ func New(config *config.Config) *Proxy {
 	return p
 }
 
+func (p *Proxy) SetTunnelBackend(backend TunnelBackend) {
+	p.tunnel = backend
+}
+
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if p.tunnel != nil && r.URL.Path == p.tunnel.Endpoint() {
+		p.tunnel.Handler().ServeHTTP(w, r)
+		return
+	}
 	p.handleRequest(w, r)
 }
 
@@ -133,6 +149,21 @@ func connectionLostError(w http.ResponseWriter) {
 
 func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 	subdomain := p.config.ExtractSubdomain(r.Host)
+
+	if r.Header.Get("X-Portr-Ping-Request") == "true" {
+		if p.hasHTTPBackend(subdomain) {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		unregisteredSubdomainError(w, subdomain)
+		return
+	}
+
+	if p.tunnel != nil && p.tunnel.HasHTTPBackend(subdomain) {
+		p.tunnel.ServeHTTPStream(subdomain, w, r)
+		return
+	}
+
 	backends, err := p.nextBackends(subdomain, 3)
 	if err != nil {
 		unregisteredSubdomainError(w, subdomain)
@@ -155,6 +186,15 @@ func (p *Proxy) handleRequest(w http.ResponseWriter, r *http.Request) {
 		connectionLostError(res)
 	}
 	proxy.ServeHTTP(w, r)
+}
+
+func (p *Proxy) hasHTTPBackend(subdomain string) bool {
+	if p.tunnel != nil && p.tunnel.HasHTTPBackend(subdomain) {
+		return true
+	}
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	return len(p.routes[subdomain]) > 0
 }
 
 func (p *Proxy) nextBackends(src string, limit int) ([]string, error) {
@@ -242,10 +282,8 @@ func (p *Proxy) Start() {
 }
 
 func (p *Proxy) Shutdown(_ context.Context) {
-
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-
-	defer func() { cancel() }()
+	defer cancel()
 
 	if err := p.server.Shutdown(ctx); err != nil {
 		log.Error("Failed to stop proxy server", "error", err)

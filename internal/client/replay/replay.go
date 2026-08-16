@@ -41,6 +41,7 @@ type BodyOverride struct {
 type EditOptions struct {
 	Method         string
 	Path           string
+	Scheme         string
 	Headers        map[string]string
 	ReplaceHeaders bool
 	DropHeaders    []string
@@ -106,7 +107,15 @@ func Execute(request *db.Request, opts EditOptions) (*Result, error) {
 		}
 	}
 
-	targetURL := fmt.Sprintf("https://%s%s", request.Host, path)
+	scheme := strings.TrimSpace(strings.ToLower(opts.Scheme))
+	if scheme == "" {
+		scheme = "https"
+	}
+	if scheme != "http" && scheme != "https" {
+		return nil, fmt.Errorf("unsupported replay scheme: %s", scheme)
+	}
+
+	targetURL := fmt.Sprintf("%s://%s%s", scheme, request.Host, path)
 	response, err := execute(method, targetURL, headers, body)
 	if err != nil {
 		return nil, err

@@ -1,4 +1,4 @@
-package ssh
+package tunneltransport
 
 import (
 	"context"
@@ -25,9 +25,21 @@ type testAddr string
 func (a testAddr) Network() string { return string(a) }
 func (a testAddr) String() string  { return string(a) }
 
+type testSession struct {
+	listener   net.Listener
+	remotePort int
+}
+
+func (s *testSession) Accept() (net.Conn, error) { return s.listener.Accept() }
+func (s *testSession) RemotePort() int           { return s.remotePort }
+func (s *testSession) HealthCheck(time.Duration) error {
+	return nil
+}
+func (s *testSession) Close() error { return s.listener.Close() }
+
 func TestGoSafeReportsPanic(t *testing.T) {
 	errCh := make(chan error, 1)
-	client := &SshClient{
+	client := &Client{
 		fatal: func(err error) {
 			errCh <- err
 		},
@@ -52,8 +64,8 @@ func TestGoSafeReportsPanic(t *testing.T) {
 
 func TestInstallTransportPublishesCompleteTransport(t *testing.T) {
 	listener := &testListener{}
-	transport := &tunnelTransport{listener: listener, remotePort: 23456}
-	client := &SshClient{}
+	transport := &testSession{listener: listener, remotePort: 23456}
+	client := &Client{}
 
 	if !client.installTransport(context.Background(), transport) {
 		t.Fatal("expected transport to be installed")
@@ -74,8 +86,8 @@ func TestInstallTransportPublishesCompleteTransport(t *testing.T) {
 
 func TestInstallTransportRejectsShutdownRace(t *testing.T) {
 	listener := &testListener{}
-	transport := &tunnelTransport{listener: listener}
-	client := &SshClient{}
+	transport := &testSession{listener: listener}
+	client := &Client{}
 	atomic.StoreInt32(&client.shutdown, 1)
 
 	if client.installTransport(context.Background(), transport) {

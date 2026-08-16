@@ -1,4 +1,4 @@
-package ssh
+package tunneltransport
 
 import (
 	"bufio"
@@ -138,11 +138,11 @@ func isIgnorableWebSocketError(err error) bool {
 	return strings.Contains(strings.ToLower(err.Error()), "use of closed network connection")
 }
 
-func (s *SshClient) logWebSocketSession(handshakeRequestID string, request *http.Request, response *http.Response) string {
+func (s *Client) logWebSocketSession(handshakeRequestID string, request *http.Request, response *http.Response) string {
 	return s.logWebSocketSessionWithID(ulid.Make().String(), handshakeRequestID, request, response)
 }
 
-func (s *SshClient) logWebSocketSessionWithID(sessionID, handshakeRequestID string, request *http.Request, response *http.Response) string {
+func (s *Client) logWebSocketSessionWithID(sessionID, handshakeRequestID string, request *http.Request, response *http.Response) string {
 	if !s.requestLoggingEnabled() {
 		return ""
 	}
@@ -190,7 +190,7 @@ func (s *SshClient) logWebSocketSessionWithID(sessionID, handshakeRequestID stri
 	return session.ID
 }
 
-func (s *SshClient) recordWebSocketEvent(sessionID string, direction string, frame *webSocketFrame) {
+func (s *Client) recordWebSocketEvent(sessionID string, direction string, frame *webSocketFrame) {
 	if !s.requestLoggingEnabled() {
 		return
 	}
@@ -246,7 +246,7 @@ func (s *SshClient) recordWebSocketEvent(sessionID string, direction string, fra
 	}
 }
 
-func (s *SshClient) closeWebSocketSession(sessionID string, err error) {
+func (s *Client) closeWebSocketSession(sessionID string, err error) {
 	if !s.requestLoggingEnabled() {
 		return
 	}
@@ -269,7 +269,7 @@ func (s *SshClient) closeWebSocketSession(sessionID string, err error) {
 	}
 }
 
-func (s *SshClient) proxyWebSocketFrames(sessionID string, direction string, reader io.Reader, writer net.Conn) error {
+func (s *Client) proxyWebSocketFrames(sessionID string, direction string, reader io.Reader, writer net.Conn) error {
 	for {
 		frame, err := forwardWebSocketFrame(reader, writer)
 		if err != nil {
@@ -346,7 +346,7 @@ func writeAll(writer io.Writer, payload []byte) error {
 	return nil
 }
 
-func (s *SshClient) websocketTunnel(sessionID string, clientReader io.Reader, serverConn net.Conn, serverReader io.Reader, clientConn net.Conn) {
+func (s *Client) websocketTunnel(sessionID string, clientReader io.Reader, serverConn net.Conn, serverReader io.Reader, clientConn net.Conn) {
 	var (
 		once      sync.Once
 		firstErr  error
@@ -393,7 +393,7 @@ func (s *SshClient) websocketTunnel(sessionID string, clientReader io.Reader, se
 	}
 }
 
-func (s *SshClient) handleWebSocketRequest(
+func (s *Client) handleWebSocketRequest(
 	src net.Conn,
 	srcReader *bufio.Reader,
 	srcWriter *bufio.Writer,

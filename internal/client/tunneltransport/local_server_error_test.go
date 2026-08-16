@@ -1,4 +1,4 @@
-package ssh
+package tunneltransport
 
 import (
 	"bufio"
@@ -39,7 +39,7 @@ func runTunnelRequest(t *testing.T, localEndpoint, rawRequest string) string {
 	t.Helper()
 	remoteConn, clientConn := net.Pipe()
 	t.Cleanup(func() { _ = clientConn.Close() })
-	client := &SshClient{config: clientcfg.ClientConfig{Tunnel: clientcfg.Tunnel{
+	client := &Client{config: clientcfg.ClientConfig{Tunnel: clientcfg.Tunnel{
 		Name: "test", Subdomain: "test", Port: 3000,
 	}}}
 
@@ -104,7 +104,7 @@ func TestHTTPTunnelReusesForwardedConnection(t *testing.T) {
 	defer backend.Close()
 
 	remoteConn, clientConn := net.Pipe()
-	client := &SshClient{
+	client := &Client{
 		config: clientcfg.ClientConfig{
 			EnableRequestLogging: true,
 			Tunnel:               clientcfg.Tunnel{Name: "test", Subdomain: "test", Port: 3000},

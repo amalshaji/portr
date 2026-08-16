@@ -211,17 +211,18 @@ func (s *SshServer) Start() {
 	}
 }
 
-func (s *SshServer) Shutdown(_ context.Context) {
+func (s *SshServer) Shutdown(_ context.Context) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
 	defer func() { cancel() }()
 
 	if err := s.server.Shutdown(ctx); err != nil {
 		log.Error("Failed to stop SSH server", "error", err)
-		return
+		return err
 	}
 
 	log.Info("Stopped SSH server")
+	return nil
 }
 
 // Build constructs the ssh.Server with all handlers, without starting it.

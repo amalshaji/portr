@@ -16,7 +16,9 @@ import (
 
 	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
+	"github.com/amalshaji/portr/internal/tunnel/wsproto"
 	"github.com/urfave/cli/v2"
+	"golang.org/x/net/websocket"
 )
 
 func openListener(t *testing.T) net.Listener {
@@ -503,5 +505,120 @@ func TestRunDoctorChecksSkipsDownstreamWithTheRealReason(t *testing.T) {
 		if !strings.Contains(check.Detail, "server unreachable") {
 			t.Fatalf("expected %q to name the real reason, got %q", name, check.Detail)
 		}
+	}
+}
+
+func websocketEndpointConfig(server *httptest.Server) config.Config {
+	host := strings.TrimPrefix(server.URL, "http://")
+	return config.Config{
+		ServerUrl:    host,
+		WsUrl:        host,
+		Transport:    config.TransportWebSocket,
+		SecretKey:    "sk-doctor-test",
+		UseLocalHost: true,
+	}
+}
+
+func TestCheckWebSocketEndpointPassesOnCredentialChallenge(t *testing.T) {
+	server := httptest.NewServer(websocket.Handler(func(conn *websocket.Conn) {
+		_ = wsproto.NewWriter(conn).Send(wsproto.Frame{Type: wsproto.TypeError, Message: "missing connection credentials"})
+	}))
+	defer server.Close()
+
+	check := checkWebSocketEndpoint(context.Background(), websocketEndpointConfig(server))
+	if check.Status != doctorPass {
+		t.Fatalf("expected pass, got %s (%s)", check.Status, check.Detail)
+	}
+}
+
+func TestCheckWebSocketEndpointFailsOnProtocolMismatch(t *testing.T) {
+	server := httptest.NewServer(websocket.Handler(func(conn *websocket.Conn) {
+		_ = wsproto.NewWriter(conn).Send(wsproto.Frame{Type: wsproto.TypeError, Message: "portr websocket protocol mismatch: server speaks v2, client sent \"1\"; upgrade the portr client"})
+	}))
+	defer server.Close()
+
+	check := checkWebSocketEndpoint(context.Background(), websocketEndpointConfig(server))
+	if check.Status != doctorFail {
+		t.Fatalf("expected fail, got %s (%s)", check.Status, check.Detail)
+	}
+	if !strings.Contains(check.Detail, "protocol mismatch") {
+		t.Fatalf("expected the server's mismatch message, got %q", check.Detail)
+	}
+}
+
+func TestCheckWebSocketEndpointFailsWhenUnreachable(t *testing.T) {
+	listener := openListener(t)
+	address := listener.Addr().String()
+	_ = listener.Close()
+
+	check := checkWebSocketEndpoint(context.Background(), config.Config{
+		ServerUrl:    address,
+		WsUrl:        address,
+		Transport:    config.TransportWebSocket,
+		SecretKey:    "sk-doctor-test",
+		UseLocalHost: true,
+	})
+	if check.Status != doctorFail {
+		t.Fatalf("expected fail, got %s (%s)", check.Status, check.Detail)
+	}
+}
+
+func TestCheckWebSocketEndpointFailsOnUnexpectedFrame(t *testing.T) {
+	server := httptest.NewServer(websocket.Handler(func(conn *websocket.Conn) {
+		// A non-portr websocket service completes the handshake but does not
+		// answer with the anonymous-connect credential challenge.
+		_ = wsproto.NewWriter(conn).Send(wsproto.Frame{Type: "welcome", Message: "hello"})
+	}))
+	defer server.Close()
+
+	check := checkWebSocketEndpoint(context.Background(), websocketEndpointConfig(server))
+	if check.Status != doctorFail {
+		t.Fatalf("expected fail, got %s (%s)", check.Status, check.Detail)
+	}
+	if !strings.Contains(check.Detail, "unexpected") {
+		t.Fatalf("expected an unexpected-frame detail, got %q", check.Detail)
+	}
+}
+
+func TestCheckWebSocketHandshakePassesOnAuthenticatedReady(t *testing.T) {
+	headers := make(chan [3]string, 1)
+	server := httptest.NewServer(websocket.Handler(func(conn *websocket.Conn) {
+		request := conn.Request()
+		headers <- [3]string{
+			request.Header.Get(wsproto.ConnectionIDHeader),
+			request.Header.Get(wsproto.SecretKeyHeader),
+			request.Header.Get(wsproto.ProtocolVersionHeader),
+		}
+		_ = wsproto.NewWriter(conn).Send(wsproto.Frame{Type: wsproto.TypeReady, Version: wsproto.ProtocolVersion})
+		_, _ = wsproto.Receive(conn)
+	}))
+	defer server.Close()
+
+	check := checkWebSocketHandshake(context.Background(), websocketEndpointConfig(server), "conn-doctor")
+	if check.Status != doctorPass {
+		t.Fatalf("expected pass, got %s (%s)", check.Status, check.Detail)
+	}
+	select {
+	case got := <-headers:
+		if got[0] != "conn-doctor" || got[1] != "sk-doctor-test" || got[2] == "" {
+			t.Fatalf("expected authenticated versioned registration headers, got %v", got)
+		}
+	default:
+		t.Fatal("server did not receive the registration request")
+	}
+}
+
+func TestCheckWebSocketHandshakeFailsOnRejectedCredentials(t *testing.T) {
+	server := httptest.NewServer(websocket.Handler(func(conn *websocket.Conn) {
+		_ = wsproto.NewWriter(conn).Send(wsproto.Frame{Type: wsproto.TypeError, Message: "invalid connection credentials"})
+	}))
+	defer server.Close()
+
+	check := checkWebSocketHandshake(context.Background(), websocketEndpointConfig(server), "conn-doctor")
+	if check.Status != doctorFail {
+		t.Fatalf("expected fail, got %s (%s)", check.Status, check.Detail)
+	}
+	if !strings.Contains(check.Detail, "invalid connection credentials") {
+		t.Fatalf("expected the server rejection to surface, got %q", check.Detail)
 	}
 }

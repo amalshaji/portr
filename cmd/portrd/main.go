@@ -12,12 +12,13 @@ import (
 	"time"
 
 	"github.com/amalshaji/portr/internal/server/admin"
-	"github.com/amalshaji/portr/internal/server/config"
+	configpkg "github.com/amalshaji/portr/internal/server/config"
 	"github.com/amalshaji/portr/internal/server/cron"
 	"github.com/amalshaji/portr/internal/server/db"
 	"github.com/amalshaji/portr/internal/server/proxy"
 	"github.com/amalshaji/portr/internal/server/service"
 	sshd "github.com/amalshaji/portr/internal/server/ssh"
+	"github.com/amalshaji/portr/internal/server/wstunnel"
 	"github.com/charmbracelet/log"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
@@ -76,18 +77,6 @@ func main() {
 					return runMigrations(c.String("dialect"))
 				},
 			},
-			{
-				Name:  "generate-host-key",
-				Usage: "Generate an Ed25519 SSH host key",
-				Action: func(c *cli.Context) error {
-					key, err := sshd.GenerateHostKey()
-					if err != nil {
-						return fmt.Errorf("failed to generate host key: %w", err)
-					}
-					fmt.Print(key)
-					return nil
-				},
-			},
 		},
 	}
 
@@ -101,7 +90,7 @@ func runMigrations(dialect string) error {
 		return fmt.Errorf("unsupported dialect: %s (supported: postgres, sqlite)", dialect)
 	}
 
-	cfg := config.Load("")
+	cfg := configpkg.Load("")
 	dbUrl := cfg.Database.Url
 	driver := cfg.Database.Driver
 
@@ -162,7 +151,7 @@ func runMigrations(dialect string) error {
 }
 
 // runAutoMigrations runs migrations if AutoMigrate is enabled in config
-func runAutoMigrations(cfg *config.Config) error {
+func runAutoMigrations(cfg *configpkg.Config) error {
 	if !cfg.Database.AutoMigrate {
 		return nil
 	}
@@ -183,8 +172,22 @@ func runAutoMigrations(cfg *config.Config) error {
 	return runMigrations(dialect)
 }
 
+type tunnelTransportProcess interface {
+	Start()
+	Shutdown(context.Context) error
+}
+
+func configureTunnelTransport(cfg *configpkg.Config, svc *service.Service, proxyServer *proxy.Proxy) tunnelTransportProcess {
+	if cfg.Transport == configpkg.TransportWebSocket {
+		manager := wstunnel.New(cfg, svc)
+		proxyServer.SetTunnelBackend(manager)
+		return manager
+	}
+	return sshd.New(&cfg.Ssh, proxyServer, svc)
+}
+
 func startTunnel(configFilePath string) {
-	config := config.Load(configFilePath)
+	config := configpkg.Load(configFilePath)
 
 	// Run auto-migrations if enabled
 	if err := runAutoMigrations(config); err != nil {
@@ -194,15 +197,15 @@ func startTunnel(configFilePath string) {
 	_db := db.New(&config.Database)
 	_db.Connect()
 
-	tunnelService := service.New(_db)
-	reconcileTunnelConnections(tunnelService)
+	service := service.New(_db)
+	reconcileTunnelConnections(service)
 
 	proxyServer := proxy.New(config)
-	sshServer := sshd.New(&config.Ssh, proxyServer, tunnelService)
-	cron := cron.New(config, tunnelService)
+	transportProcess := configureTunnelTransport(config, service, proxyServer)
+	go transportProcess.Start()
+	cron := cron.New(config, service)
 
 	go proxyServer.Start()
-	go sshServer.Start()
 	go cron.Start()
 
 	done := make(chan os.Signal, 1)
@@ -215,14 +218,16 @@ func startTunnel(configFilePath string) {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	cron.Shutdown()
 	proxyServer.Shutdown(shutdownCtx)
-	sshServer.Shutdown(shutdownCtx)
+	if err := transportProcess.Shutdown(shutdownCtx); err != nil {
+		log.Error("Failed to stop tunnel transport", "error", err)
+	}
+	cron.Shutdown()
 }
 
 func startAdmin() error {
 	// Load configuration
-	fullConfig := config.Load("")
+	fullConfig := configpkg.Load("")
 	cfg := &fullConfig.Admin
 	cfg.Version = version
 
@@ -254,7 +259,7 @@ func startAdmin() error {
 
 func startAll(configFilePath string) error {
 	// Load configurations
-	tunnelConfig := config.Load(configFilePath)
+	tunnelConfig := configpkg.Load(configFilePath)
 	adminCfg := &tunnelConfig.Admin
 	adminCfg.Version = version
 
@@ -266,11 +271,11 @@ func startAll(configFilePath string) error {
 	_db := db.New(&tunnelConfig.Database)
 	_db.Connect()
 
-	tunnelService := service.New(_db)
-	reconcileTunnelConnections(tunnelService)
+	service := service.New(_db)
+	reconcileTunnelConnections(service)
 	proxyServer := proxy.New(tunnelConfig)
-	sshServer := sshd.New(&tunnelConfig.Ssh, proxyServer, tunnelService)
-	cronJob := cron.New(tunnelConfig, tunnelService)
+	transportProcess := configureTunnelTransport(tunnelConfig, service, proxyServer)
+	cronJob := cron.New(tunnelConfig, service)
 	adminServer := admin.NewServer(adminCfg, _db.Conn)
 
 	// Use WaitGroup to track all servers
@@ -278,15 +283,16 @@ func startAll(configFilePath string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Start tunnel components
-	wg.Add(3)
+	wg.Add(2)
 	go func() {
 		defer wg.Done()
 		proxyServer.Start()
 	}()
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		sshServer.Start()
+		transportProcess.Start()
 	}()
 
 	go func() {
@@ -329,9 +335,12 @@ func startAll(configFilePath string) error {
 	}
 
 	// Shutdown tunnel components
-	cronJob.Shutdown()
 	proxyServer.Shutdown(shutdownCtx)
-	sshServer.Shutdown(shutdownCtx)
+	if err := transportProcess.Shutdown(shutdownCtx); err != nil {
+		log.Error("Error shutting down tunnel transport", "error", err)
+		shutdownErr = err
+	}
+	cronJob.Shutdown()
 
 	// Wait for all goroutines to finish
 	cancel()

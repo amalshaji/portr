@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
@@ -26,20 +27,51 @@ func httpCmd() *cli.Command {
 			basicAuthFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			portStr := c.Args().First()
-
-			port, err := strconv.Atoi(portStr)
+			tunnel, err := httpTunnelFromContext(c)
 			if err != nil {
-				return fmt.Errorf("please specify a valid port")
+				return err
 			}
 
-			return startTunnels(c, &config.Tunnel{
-				Port:       port,
-				Subdomain:  c.String("subdomain"),
-				Type:       constants.Http,
-				HostHeader: c.String("host-header"),
-				BasicAuth:  c.String("basic-auth"),
-			})
+			return startTunnels(c, tunnel)
 		},
 	}
+}
+
+func httpTunnelFromContext(c *cli.Context) (*config.Tunnel, error) {
+	portStr := c.Args().First()
+
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return nil, fmt.Errorf("please specify a valid port")
+	}
+
+	return &config.Tunnel{
+		Port:       port,
+		Subdomain:  httpSubdomainFromContext(c),
+		Type:       constants.Http,
+		HostHeader: c.String("host-header"),
+		BasicAuth:  c.String("basic-auth"),
+	}, nil
+}
+
+func httpSubdomainFromContext(c *cli.Context) string {
+	if subdomain := c.String("subdomain"); subdomain != "" {
+		return subdomain
+	}
+
+	args := c.Args().Slice()
+	for i, arg := range args {
+		switch {
+		case arg == "-s" || arg == "--subdomain":
+			if i+1 < len(args) {
+				return args[i+1]
+			}
+		case strings.HasPrefix(arg, "-s="):
+			return strings.TrimPrefix(arg, "-s=")
+		case strings.HasPrefix(arg, "--subdomain="):
+			return strings.TrimPrefix(arg, "--subdomain=")
+		}
+	}
+
+	return ""
 }

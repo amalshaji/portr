@@ -6,58 +6,35 @@ import (
 	"fmt"
 	"net"
 	"sync"
-	"sync/atomic"
 	"time"
 
+	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/amalshaji/portr/internal/utils"
-	"golang.org/x/crypto/ssh"
+	gossh "golang.org/x/crypto/ssh"
 )
 
-type tunnelTransport struct {
-	client     *ssh.Client
+type Session struct {
+	client     *gossh.Client
 	listener   net.Listener
 	remotePort int
 	closeOnce  sync.Once
 	closeErr   error
 }
 
-func (t *tunnelTransport) Close() error {
-	if t == nil {
-		return nil
-	}
-	t.closeOnce.Do(func() {
-		if t.client != nil {
-			t.closeErr = t.client.Close()
-		}
-		if t.listener != nil {
-			if err := t.listener.Close(); err != nil && t.closeErr == nil {
-				t.closeErr = err
-			}
-		}
-	})
-	return t.closeErr
+type requestSender interface {
+	SendRequest(string, bool, []byte) (bool, []byte, error)
 }
 
-func (s *SshClient) establishTransport(ctx context.Context) (*tunnelTransport, error) {
-	if atomic.LoadInt32(&s.shutdown) == 1 {
-		return nil, errClientShuttingDown
-	}
-
-	connectionID, err := s.createNewConnection(ctx)
-	if err != nil {
-		return nil, err
-	}
-	sshConfig := &ssh.ClientConfig{
-		User: fmt.Sprintf("%s:%s", connectionID, s.config.SecretKey),
-		Auth: []ssh.AuthMethod{
-			ssh.Password(""),
-		},
-		HostKeyCallback: getHostKeyCallback(s.config.InsecureSkipHostKeyVerification),
+func Connect(ctx context.Context, cfg config.ClientConfig, connectionID string) (*Session, error) {
+	sshConfig := &gossh.ClientConfig{
+		User:            fmt.Sprintf("%s:%s", connectionID, cfg.SecretKey),
+		Auth:            []gossh.AuthMethod{gossh.Password("")},
+		HostKeyCallback: getHostKeyCallback(cfg.InsecureSkipHostKeyVerification),
 	}
 
 	dialer := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 15 * time.Second}
-	rawConn, err := dialer.DialContext(ctx, "tcp", s.config.SshUrl)
+	rawConn, err := dialer.DialContext(ctx, "tcp", cfg.SshUrl)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +53,7 @@ func (s *SshClient) establishTransport(ctx context.Context) (*tunnelTransport, e
 		}
 	}()
 	_ = rawConn.SetDeadline(time.Now().Add(10 * time.Second))
-	cc, channels, requests, err := ssh.NewClientConn(rawConn, s.config.SshUrl, sshConfig)
+	clientConn, channels, requests, err := gossh.NewClientConn(rawConn, cfg.SshUrl, sshConfig)
 	close(handshakeDone)
 	_ = rawConn.SetDeadline(time.Time{})
 	if err != nil {
@@ -84,7 +61,7 @@ func (s *SshClient) establishTransport(ctx context.Context) (*tunnelTransport, e
 		return nil, err
 	}
 
-	client := ssh.NewClient(cc, channels, requests)
+	client := gossh.NewClient(clientConn, channels, requests)
 	setupDone := make(chan struct{})
 	go func() {
 		select {
@@ -95,20 +72,18 @@ func (s *SshClient) establishTransport(ctx context.Context) (*tunnelTransport, e
 	}()
 	defer close(setupDone)
 
-	ports := remotePortCandidates(s.tunnelType())
-
 	var listenErr error
-	for _, port := range ports {
-		if ctx.Err() != nil || atomic.LoadInt32(&s.shutdown) == 1 {
+	for _, port := range remotePortCandidates(tunnelType(cfg)) {
+		if ctx.Err() != nil {
 			_ = client.Close()
-			return nil, errClientShuttingDown
+			return nil, ctx.Err()
 		}
 		listener, err := client.Listen("tcp", net.JoinHostPort("0.0.0.0", fmt.Sprint(port)))
 		if err != nil {
 			listenErr = err
 			continue
 		}
-		return &tunnelTransport{client: client, listener: listener, remotePort: port}, nil
+		return &Session{client: client, listener: listener, remotePort: port}, nil
 	}
 
 	_ = client.Close()
@@ -118,72 +93,68 @@ func (s *SshClient) establishTransport(ctx context.Context) (*tunnelTransport, e
 	return nil, fmt.Errorf("failed to listen on remote endpoint: %w", listenErr)
 }
 
-func remotePortCandidates(tunnelType constants.ConnectionType) []int {
-	if tunnelType == constants.Http {
-		// Keep non-zero ports for compatibility with legacy servers, whose
-		// registration callback observes the requested port before binding.
+func (s *Session) Accept() (net.Conn, error) {
+	return s.listener.Accept()
+}
+
+func (s *Session) RemotePort() int {
+	return s.remotePort
+}
+
+func (s *Session) HealthCheck(timeout time.Duration) error {
+	return checkKeepAlive(s.client, timeout)
+}
+
+func checkKeepAlive(sender requestSender, timeout time.Duration) error {
+	type result struct {
+		accepted bool
+		err      error
+	}
+	resultCh := make(chan result, 1)
+	go func() {
+		accepted, _, err := sender.SendRequest("keepalive@openssh.com", true, nil)
+		resultCh <- result{accepted: accepted, err: err}
+	}()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case response := <-resultCh:
+		if response.err != nil {
+			return response.err
+		}
+		if !response.accepted {
+			return fmt.Errorf("ssh keepalive rejected")
+		}
+		return nil
+	case <-timer.C:
+		return fmt.Errorf("ssh keepalive timed out")
+	}
+}
+
+func (s *Session) Close() error {
+	if s == nil {
+		return nil
+	}
+	s.closeOnce.Do(func() {
+		if s.client != nil {
+			s.closeErr = s.client.Close()
+		}
+		if s.listener != nil {
+			if err := s.listener.Close(); err != nil && s.closeErr == nil {
+				s.closeErr = err
+			}
+		}
+	})
+	return s.closeErr
+}
+
+func tunnelType(cfg config.ClientConfig) constants.ConnectionType {
+	return cfg.Tunnel.Type.WireType()
+}
+
+func remotePortCandidates(connectionType constants.ConnectionType) []int {
+	if connectionType == constants.Http {
 		return utils.GenerateRandomHttpPorts()
 	}
 	return utils.GenerateRandomTcpPorts()
-}
-
-func (s *SshClient) installTransport(ctx context.Context, transport *tunnelTransport) bool {
-	s.mu.Lock()
-	if ctx.Err() != nil || atomic.LoadInt32(&s.shutdown) == 1 {
-		s.mu.Unlock()
-		_ = transport.Close()
-		return false
-	}
-	previous := s.transport
-	s.transport = transport
-	s.config.Tunnel.RemotePort = transport.remotePort
-	s.mu.Unlock()
-	if previous != nil {
-		_ = previous.Close()
-	}
-	return true
-}
-
-func (s *SshClient) clearTransport(transport *tunnelTransport) {
-	s.mu.Lock()
-	if s.transport == transport {
-		s.transport = nil
-	}
-	s.mu.Unlock()
-}
-
-func (s *SshClient) tunnelType() constants.ConnectionType {
-	return s.config.Tunnel.Type.WireType()
-}
-
-func (s *SshClient) serveTransport(ctx context.Context, transport *tunnelTransport) error {
-	localEndpoint := s.config.Tunnel.GetLocalAddr()
-	tunnelType := s.tunnelType()
-	for {
-		remoteConn, err := transport.listener.Accept()
-		if err != nil {
-			if ctx.Err() != nil || atomic.LoadInt32(&s.shutdown) == 1 {
-				return errClientShuttingDown
-			}
-			return fmt.Errorf("failed to accept connection: %w", err)
-		}
-
-		if tunnelType == constants.Http {
-			s.runConnection("http tunnel", func() {
-				s.httpTunnel(remoteConn, localEndpoint)
-			})
-			continue
-		}
-
-		s.runConnection("tcp tunnel", func() {
-			dialCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			defer cancel()
-			localConn, err := (&net.Dialer{KeepAlive: 30 * time.Second}).DialContext(dialCtx, "tcp", localEndpoint)
-			if err != nil {
-				_ = remoteConn.Close()
-				return
-			}
-			s.tcpTunnel(remoteConn, localConn)
-		})
-	}
 }

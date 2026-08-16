@@ -1,4 +1,4 @@
-package ssh
+package tunneltransport
 
 import (
 	"bytes"
@@ -83,7 +83,7 @@ func (r *capturingReadCloser) Close() error {
 }
 
 type captureTask interface {
-	persist(*SshClient)
+	persist(*Client)
 }
 
 type httpCaptureTask struct {
@@ -97,7 +97,7 @@ type httpCaptureTask struct {
 	bytesOut     int64
 }
 
-func (t httpCaptureTask) persist(client *SshClient) {
+func (t httpCaptureTask) persist(client *Client) {
 	client.logHttpRequestSized(
 		t.id,
 		t.request,
@@ -123,12 +123,12 @@ type websocketOpenCaptureTask struct {
 	response  *http.Response
 }
 
-func (t websocketOpenCaptureTask) persist(client *SshClient) {
+func (t websocketOpenCaptureTask) persist(client *Client) {
 	t.handshake.persist(client)
 	client.logWebSocketSessionWithID(t.sessionID, t.handshake.id, t.request, t.response)
 }
 
-func (t websocketEventCaptureTask) persist(client *SshClient) {
+func (t websocketEventCaptureTask) persist(client *Client) {
 	client.recordWebSocketEvent(t.sessionID, t.direction, t.frame)
 }
 
@@ -137,7 +137,7 @@ type websocketCloseCaptureTask struct {
 	err       error
 }
 
-func (t websocketCloseCaptureTask) persist(client *SshClient) {
+func (t websocketCloseCaptureTask) persist(client *Client) {
 	client.closeWebSocketSession(t.sessionID, t.err)
 }
 
@@ -169,7 +169,7 @@ func newCaptureRecorder() *captureRecorder {
 	return recorder
 }
 
-func (r *captureRecorder) submit(client *SshClient, task captureTask) bool {
+func (r *captureRecorder) submit(client *Client, task captureTask) bool {
 	if r == nil || task == nil {
 		return false
 	}
@@ -186,7 +186,7 @@ func (r *captureRecorder) submit(client *SshClient, task captureTask) bool {
 	}
 }
 
-func (r *captureRecorder) submitContext(ctx context.Context, client *SshClient, task captureTask) bool {
+func (r *captureRecorder) submitContext(ctx context.Context, client *Client, task captureTask) bool {
 	if r == nil || task == nil {
 		return false
 	}
@@ -222,7 +222,7 @@ func (r *captureRecorder) close(ctx context.Context) error {
 }
 
 type queuedCaptureTask struct {
-	client *SshClient
+	client *Client
 	task   captureTask
 }
 
@@ -234,11 +234,11 @@ func cloneRequestForLog(request *http.Request) *http.Request {
 	return request.Clone(context.Background())
 }
 
-func (s *SshClient) requestLoggingEnabled() bool {
+func (s *Client) requestLoggingEnabled() bool {
 	return s != nil && s.config.EnableRequestLogging
 }
 
-func (s *SshClient) submitCapture(task captureTask) bool {
+func (s *Client) submitCapture(task captureTask) bool {
 	if !s.requestLoggingEnabled() {
 		return false
 	}
@@ -256,7 +256,7 @@ func (s *SshClient) submitCapture(task captureTask) bool {
 	return accepted
 }
 
-func (s *SshClient) submitCaptureContext(ctx context.Context, task captureTask) bool {
+func (s *Client) submitCaptureContext(ctx context.Context, task captureTask) bool {
 	if !s.requestLoggingEnabled() {
 		return false
 	}
