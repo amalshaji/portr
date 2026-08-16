@@ -157,9 +157,19 @@ func runDoctorChecks(ctx context.Context, cfg config.Config, configPath string) 
 	if cfg.Transport == config.TransportWebSocket {
 		// The websocket transport never dials ssh_url, so probing it would only
 		// report on an endpoint this client does not use. Probe the websocket
-		// endpoint it does use instead.
+		// endpoint it does use instead, then prove an authenticated tunnel
+		// registration completes against it.
+		endpointCheck := checkWebSocketEndpoint(ctx, cfg)
+		checks = append(checks, endpointCheck)
+		if blocked == "" && endpointCheck.Status == doctorFail {
+			blocked = "websocket endpoint unreachable"
+		}
+		if blocked != "" {
+			checks = append(checks, skippedCheck("websocket handshake", blocked))
+		} else {
+			checks = append(checks, checkWebSocketHandshake(ctx, cfg, connectionID))
+		}
 		checks = append(checks,
-			checkWebSocketEndpoint(ctx, cfg),
 			skippedCheck("ssh endpoint", "transport is websocket"),
 			skippedCheck("ssh handshake", "transport is websocket"),
 		)
@@ -378,6 +388,34 @@ func checkWebSocketEndpoint(ctx context.Context, cfg config.Config) doctorCheck 
 
 	check.Status = doctorPass
 	check.Detail = "reachable at " + wsURL
+	return check
+}
+
+// checkWebSocketHandshake completes an authenticated tunnel registration
+// against the websocket endpoint using the short-lived diagnostic connection
+// reserved by the secret-key check, then tears it down. This is the websocket
+// counterpart of the ssh handshake check: it proves the endpoint accepts this
+// client's credentials and finishes the ready handshake, not just that
+// something answers websocket upgrades.
+func checkWebSocketHandshake(ctx context.Context, cfg config.Config, connectionID string) doctorCheck {
+	check := doctorCheck{Name: "websocket handshake"}
+
+	clientConfig := doctorClientConfig(cfg)
+	clientConfig.ConnectionID = connectionID
+
+	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	session, err := wstunnelclient.Connect(connectCtx, clientConfig, connectionID)
+	if err != nil {
+		check.Status = doctorFail
+		check.Detail = err.Error()
+		check.Hint = "verify ws_url points at the portr tunnel endpoint and the secret key is valid"
+		return check
+	}
+	_ = session.Close()
+
+	check.Status = doctorPass
+	check.Detail = "authenticated tunnel registration succeeded"
 	return check
 }
 

@@ -579,3 +579,46 @@ func TestCheckWebSocketEndpointFailsOnUnexpectedFrame(t *testing.T) {
 		t.Fatalf("expected an unexpected-frame detail, got %q", check.Detail)
 	}
 }
+
+func TestCheckWebSocketHandshakePassesOnAuthenticatedReady(t *testing.T) {
+	headers := make(chan [3]string, 1)
+	server := httptest.NewServer(websocket.Handler(func(conn *websocket.Conn) {
+		request := conn.Request()
+		headers <- [3]string{
+			request.Header.Get(wsproto.ConnectionIDHeader),
+			request.Header.Get(wsproto.SecretKeyHeader),
+			request.Header.Get(wsproto.ProtocolVersionHeader),
+		}
+		_ = wsproto.NewWriter(conn).Send(wsproto.Frame{Type: wsproto.TypeReady, Version: wsproto.ProtocolVersion})
+		_, _ = wsproto.Receive(conn)
+	}))
+	defer server.Close()
+
+	check := checkWebSocketHandshake(context.Background(), websocketEndpointConfig(server), "conn-doctor")
+	if check.Status != doctorPass {
+		t.Fatalf("expected pass, got %s (%s)", check.Status, check.Detail)
+	}
+	select {
+	case got := <-headers:
+		if got[0] != "conn-doctor" || got[1] != "sk-doctor-test" || got[2] == "" {
+			t.Fatalf("expected authenticated versioned registration headers, got %v", got)
+		}
+	default:
+		t.Fatal("server did not receive the registration request")
+	}
+}
+
+func TestCheckWebSocketHandshakeFailsOnRejectedCredentials(t *testing.T) {
+	server := httptest.NewServer(websocket.Handler(func(conn *websocket.Conn) {
+		_ = wsproto.NewWriter(conn).Send(wsproto.Frame{Type: wsproto.TypeError, Message: "invalid connection credentials"})
+	}))
+	defer server.Close()
+
+	check := checkWebSocketHandshake(context.Background(), websocketEndpointConfig(server), "conn-doctor")
+	if check.Status != doctorFail {
+		t.Fatalf("expected fail, got %s (%s)", check.Status, check.Detail)
+	}
+	if !strings.Contains(check.Detail, "invalid connection credentials") {
+		t.Fatalf("expected the server rejection to surface, got %q", check.Detail)
+	}
+}
