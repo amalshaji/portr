@@ -24,6 +24,7 @@
 #   PORTR_WS_URL=tunnel.example.com   # any subdomain under the wildcard -> 8001
 #   PORTR_ADMIN_PORT=8000
 #   PORTR_PROXY_PORT=8001
+#   PORTR_AUTO_MIGRATE=true
 #   PORTR_ADMIN_GITHUB_CLIENT_ID / PORTR_ADMIN_GITHUB_CLIENT_SECRET (optional)
 #
 # TCP tunnels do not work on Railway: the server allocates a random public port
@@ -34,12 +35,16 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Overrides the image ENTRYPOINT in exec form, so pass the full binary path.
-startCommand = "./portrd start all"
+# No startCommand: the image ENTRYPOINT (docker-entrypoint.sh, with CMD
+# "start all") must stay in charge of startup, because it is what restores and
+# replicates SQLite databases through Litestream. A startCommand would replace
+# the ENTRYPOINT and silently disable those backups.
 
-# Runs before the new deployment takes traffic; drop this if you would rather
-# set PORTR_AUTO_MIGRATE=true and let the server migrate on boot.
-preDeployCommand = ["./portrd migrate --dialect postgres"]
+# No preDeployCommand either: set PORTR_AUTO_MIGRATE=true instead, which
+# migrates on boot using whichever database driver PORTR_DB_URL selects. A
+# PostgreSQL-only deployment that prefers migrating before taking traffic can
+# use preDeployCommand = ["./portrd migrate --dialect postgres"] instead, but
+# that command rejects SQLite databases.
 
 # Tunnel sessions and proxy routes are held in memory per replica, so a second
 # replica would receive requests for subdomains it has no session for.

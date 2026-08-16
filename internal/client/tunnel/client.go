@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -49,6 +50,7 @@ func Connect(ctx context.Context, cfg config.ClientConfig, connectionID string) 
 	}
 	wsConfig.Header.Set(wsproto.ConnectionIDHeader, connectionID)
 	wsConfig.Header.Set(wsproto.SecretKeyHeader, cfg.SecretKey)
+	wsConfig.Header.Set(wsproto.ProtocolVersionHeader, strconv.Itoa(wsproto.ProtocolVersion))
 	conn, err := wsConfig.DialContext(ctx)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -80,6 +82,11 @@ func Connect(ctx context.Context, cfg config.ClientConfig, connectionID string) 
 		if readyFrame.Type != wsproto.TypeReady {
 			_ = conn.Close()
 			return nil, fmt.Errorf("expected websocket tunnel ready frame, got %q", readyFrame.Type)
+		}
+		if readyFrame.Version != wsproto.ProtocolVersion {
+			_ = conn.Close()
+			return nil, fmt.Errorf(
+				"portr websocket protocol mismatch: client speaks v%d, server sent v%d; upgrade the portr server", wsproto.ProtocolVersion, readyFrame.Version)
 		}
 	case err := <-readyErr:
 		_ = conn.Close()

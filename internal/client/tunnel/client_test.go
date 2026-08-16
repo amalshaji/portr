@@ -78,7 +78,7 @@ func TestSessionConnectsAndCarriesStreams(t *testing.T) {
 		requestChecked <- struct{}{}
 
 		writer := wsproto.NewWriter(conn)
-		if err := writer.Send(wsproto.Frame{Type: wsproto.TypeReady, Port: 23456}); err != nil {
+		if err := writer.Send(wsproto.Frame{Type: wsproto.TypeReady, Version: wsproto.ProtocolVersion, Port: 23456}); err != nil {
 			return
 		}
 		if err := writer.Send(wsproto.Frame{Type: wsproto.TypeOpen, StreamID: "stream-1", Data: []byte("hello ")}); err != nil {
@@ -181,7 +181,7 @@ func TestSessionConnectsAndCarriesStreams(t *testing.T) {
 func TestSaturatedStreamDoesNotBlockOtherStreamsOrHealthChecks(t *testing.T) {
 	server := httptest.NewServer(websocket.Handler(func(conn *websocket.Conn) {
 		writer := wsproto.NewWriter(conn)
-		if err := writer.Send(wsproto.Frame{Type: wsproto.TypeReady}); err != nil {
+		if err := writer.Send(wsproto.Frame{Type: wsproto.TypeReady, Version: wsproto.ProtocolVersion}); err != nil {
 			return
 		}
 		if err := writer.Send(wsproto.Frame{Type: wsproto.TypeOpen, StreamID: "slow"}); err != nil {
@@ -254,5 +254,31 @@ func TestSaturatedStreamDoesNotBlockOtherStreamsOrHealthChecks(t *testing.T) {
 	}
 	if err := session.HealthCheck(time.Second); err != nil {
 		t.Fatalf("health check behind saturated stream: %v", err)
+	}
+}
+
+func TestConnectRejectsServerWithoutProtocolVersion(t *testing.T) {
+	server := httptest.NewServer(websocket.Handler(func(conn *websocket.Conn) {
+		// An older server sends a ready frame without a protocol version.
+		writer := wsproto.NewWriter(conn)
+		if err := writer.Send(wsproto.Frame{Type: wsproto.TypeReady}); err != nil {
+			return
+		}
+		_, _ = wsproto.Receive(conn)
+	}))
+	defer server.Close()
+
+	host := strings.TrimPrefix(server.URL, "http://")
+	_, err := Connect(context.Background(), clientcfg.ClientConfig{
+		ServerUrl:    host,
+		WsUrl:        host,
+		SecretKey:    "secret",
+		UseLocalHost: true,
+	}, "conn-1")
+	if err == nil {
+		t.Fatal("expected a protocol mismatch error")
+	}
+	if !strings.Contains(err.Error(), "protocol mismatch") || !strings.Contains(err.Error(), "upgrade the portr server") {
+		t.Fatalf("unexpected connect error: %v", err)
 	}
 }

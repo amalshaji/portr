@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -165,6 +166,12 @@ func (m *Manager) OpenHTTPStream(subdomain string, clientConn net.Conn, initial 
 
 func (m *Manager) handle(conn *websocket.Conn) {
 	req := conn.Request()
+	if version := req.Header.Get(wsproto.ProtocolVersionHeader); version != strconv.Itoa(wsproto.ProtocolVersion) {
+		_ = wsproto.NewWriter(conn).Send(wsproto.Frame{Type: wsproto.TypeError, Message: fmt.Sprintf(
+			"portr websocket protocol mismatch: server speaks v%d, client sent %q; upgrade the portr client", wsproto.ProtocolVersion, version)})
+		_ = conn.Close()
+		return
+	}
 	connectionID := req.Header.Get(wsproto.ConnectionIDHeader)
 	secretKey := req.Header.Get(wsproto.SecretKeyHeader)
 	if connectionID == "" || secretKey == "" {
@@ -199,7 +206,7 @@ func (m *Manager) handle(conn *websocket.Conn) {
 		sess.workers.Wait()
 	}()
 
-	ready := wsproto.Frame{Type: wsproto.TypeReady}
+	ready := wsproto.Frame{Type: wsproto.TypeReady, Version: wsproto.ProtocolVersion}
 	if reserved.Port != nil {
 		ready.Port = int(*reserved.Port)
 	}

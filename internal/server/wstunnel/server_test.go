@@ -3,9 +3,14 @@ package wstunnel
 import (
 	"context"
 	"net"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"golang.org/x/net/websocket"
 
 	serverdb "github.com/amalshaji/portr/internal/server/db"
 	"github.com/amalshaji/portr/internal/server/service"
@@ -267,5 +272,39 @@ func TestStreamCreditWaitUnblocksWhenStreamCloses(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("credit wait remained blocked after the stream closed")
+	}
+}
+
+func TestHandlerRejectsClientWithoutProtocolVersion(t *testing.T) {
+	tunnelService, _ := newTestService(t)
+	manager := New(nil, tunnelService)
+	server := httptest.NewServer(manager.Handler())
+	defer server.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + wsproto.ConnectPath
+	wsConfig, err := websocket.NewConfig(wsURL, server.URL)
+	if err != nil {
+		t.Fatalf("create websocket config: %v", err)
+	}
+	// An older client sends credentials but no protocol version header.
+	wsConfig.Header = http.Header{}
+	wsConfig.Header.Set(wsproto.ConnectionIDHeader, "conn-1")
+	wsConfig.Header.Set(wsproto.SecretKeyHeader, "secret")
+	conn, err := websocket.DialConfig(wsConfig)
+	if err != nil {
+		t.Fatalf("dial websocket handler: %v", err)
+	}
+	defer conn.Close()
+
+	_ = conn.SetReadDeadline(time.Now().Add(time.Second))
+	frame, err := wsproto.Receive(conn)
+	if err != nil {
+		t.Fatalf("receive handshake frame: %v", err)
+	}
+	if frame.Type != wsproto.TypeError {
+		t.Fatalf("expected an error frame, got %q", frame.Type)
+	}
+	if !strings.Contains(frame.Message, "protocol mismatch") || !strings.Contains(frame.Message, "upgrade the portr client") {
+		t.Fatalf("unexpected handshake error %q", frame.Message)
 	}
 }

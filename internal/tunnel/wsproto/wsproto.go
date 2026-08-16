@@ -8,9 +8,10 @@ import (
 )
 
 const (
-	ConnectPath        = "/_portr/tunnel/connect"
-	ConnectionIDHeader = "X-Portr-Connection-ID"
-	SecretKeyHeader    = "X-Portr-Secret-Key"
+	ConnectPath           = "/_portr/tunnel/connect"
+	ConnectionIDHeader    = "X-Portr-Connection-ID"
+	SecretKeyHeader       = "X-Portr-Secret-Key"
+	ProtocolVersionHeader = "X-Portr-Ws-Protocol"
 
 	TypeReady      = "ready"
 	TypeOpen       = "open"
@@ -25,12 +26,20 @@ const (
 
 const StreamWindowSize = 32
 
+// ProtocolVersion is exchanged during the connect handshake: the client sends
+// it in ProtocolVersionHeader and the server echoes it on the ready frame. The
+// framing has no compatibility mode (a peer without credit windows would
+// deadlock stream writes), so both sides require an exact match and fail the
+// handshake with a clear error instead of hanging mid-stream.
+const ProtocolVersion = 1
+
 type Frame struct {
 	Type     string `json:"type"`
 	StreamID string `json:"stream_id,omitempty"`
 	Data     []byte `json:"data,omitempty"`
 	Port     int    `json:"port,omitempty"`
 	Window   int    `json:"window,omitempty"`
+	Version  int    `json:"version,omitempty"`
 	Message  string `json:"message,omitempty"`
 }
 
