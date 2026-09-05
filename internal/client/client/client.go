@@ -163,7 +163,7 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			case constants.Static:
 				fmt.Printf("🚀 Starting static tunnel: %s (%s → %s)\n", tunnelName, clientConfig.Tunnel.Dir, clientConfig.GetTunnelAddr())
 			default:
-				fmt.Printf("🚀 Starting tunnel: %s (%s:%d)\n", tunnelName, clientConfig.Tunnel.Host, clientConfig.Tunnel.Port)
+				fmt.Printf("🚀 Starting tunnel: %s (%s)\n", tunnelName, clientConfig.Tunnel.GetLocalAddr())
 			}
 		}
 

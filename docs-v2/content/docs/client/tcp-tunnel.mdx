@@ -10,6 +10,13 @@ Use the following command to tunnel a TCP connection:
 portr tcp 9000
 ```
 
+To expose a service on another reachable machine, pass `host:port` instead of
+a bare port:
+
+```bash
+portr tcp 192.168.1.60:5432
+```
+
 <Callout type="info">
   TCP tunnels are useful for exposing services like databases, SSH servers, or any service that uses raw TCP connections.
 </Callout>

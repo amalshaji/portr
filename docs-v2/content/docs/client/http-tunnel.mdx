@@ -16,6 +16,22 @@ Or start it with a custom subdomain:
 portr http 9000 --subdomain amal-test
 ```
 
+## Tunneling another host
+
+The target can also be a `host:port` pair, for a service running on another
+machine that is reachable from the one running `portr`:
+
+```bash
+portr http 192.168.1.50:8000
+portr http '[::1]:8000'
+```
+
+The IPv6 form is quoted because zsh treats the brackets as a glob pattern.
+
+This is the same as setting `host:` on a saved tunnel. Traffic between
+`portr` and that host is plain HTTP on your network. With `--host-header
+rewrite`, the Host header becomes that address.
+
 <Callout type="info">
   This also starts the portr inspector on [http://localhost:7777](http://localhost:7777) by default, where you can inspect and replay HTTP requests. Change `dashboard_port` in the client config to move it to another local port, or set `disable_dashboard: true` to skip starting it entirely.
 </Callout>

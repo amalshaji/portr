@@ -482,10 +482,9 @@ func (m model) View() string {
 				statusText,
 			)
 		} else {
-			tunnelInfo = fmt.Sprintf("%s (%s:%d → %s) [%s] %s",
+			tunnelInfo = fmt.Sprintf("%s (%s → %s) [%s] %s",
 				tunnelName,
-				tunnel.config.Host,
-				tunnel.config.Port,
+				tunnel.config.GetLocalAddr(),
 				tunnelAddr,
 				tunnel.config.Subdomain,
 				statusText,

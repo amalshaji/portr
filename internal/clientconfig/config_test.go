@@ -850,3 +850,17 @@ func TestValidateRejectsMalformedBasicAuth(t *testing.T) {
 		})
 	}
 }
+
+func TestGetLocalAddrBracketsIPv6Hosts(t *testing.T) {
+	cases := map[string]string{
+		"localhost":    "localhost:8000",
+		"192.168.1.50": "192.168.1.50:8000",
+		"::1":          "[::1]:8000",
+	}
+	for host, want := range cases {
+		tunnel := Tunnel{Host: host, Port: 8000}
+		if got := tunnel.GetLocalAddr(); got != want {
+			t.Fatalf("GetLocalAddr() with host %q = %q, want %q", host, got, want)
+		}
+	}
+}
