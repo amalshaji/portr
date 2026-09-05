@@ -23,8 +23,10 @@ machine that is reachable from the one running `portr`:
 
 ```bash
 portr http 192.168.1.50:8000
-portr http [::1]:8000
+portr http '[::1]:8000'
 ```
+
+The IPv6 form is quoted because zsh treats the brackets as a glob pattern.
 
 This is the same as setting `host:` on a saved tunnel. Traffic between
 `portr` and that host is plain HTTP on your network. With `--host-header

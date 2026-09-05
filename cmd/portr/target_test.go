@@ -20,6 +20,14 @@ func TestParseLocalTarget(t *testing.T) {
 		{"192.168.1.50", "", 0, true},
 		{"192.168.1.50:abc", "", 0, true},
 		{"8000:", "", 0, true},
+		{"1", "", 1, false},
+		{"65535", "", 65535, false},
+		{"localhost:65535", "localhost", 65535, false},
+		{"0", "", 0, true},
+		{"65536", "", 0, true},
+		{"-1", "", 0, true},
+		{"localhost:0", "", 0, true},
+		{"localhost:70000", "", 0, true},
 	}
 
 	for _, tc := range cases {
