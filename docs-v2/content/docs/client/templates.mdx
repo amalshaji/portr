@@ -343,7 +343,7 @@ When host key verification is enabled:
 - If the key changes unexpectedly, the connection fails with a warning (potential security issue)
 
 <Callout type="warn">
-  If you enable host key verification, ensure your server persists SSH host keys across restarts using the `PORTR_SSH_KEYS_DIR` environment variable. Otherwise, clients will fail to connect after each server restart.
+  If you enable host key verification, the server must present the same host key across restarts. Set `PORTR_SSH_HOST_KEY` on the server to a persistent PEM-encoded key; see [Generate SSH Host Key](/docs/server/start-the-tunnel-server#generate-ssh-host-key). Without it the server generates a new in-memory key on every start, and clients that verify host keys will refuse to connect after a restart or redeploy.
 </Callout>
 
 ### Tunnel Template Options
