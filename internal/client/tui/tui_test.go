@@ -162,6 +162,33 @@ func TestViewRendersStaticTunnelWithoutLocalPort(t *testing.T) {
 	}
 }
 
+func TestViewRendersTcpTunnelHealthyWithSingleWorker(t *testing.T) {
+	// A TCP tunnel runs exactly one worker regardless of pool_size. The client
+	// hands the TUI the effective count, so one active connection is Healthy,
+	// not Partial (1/2).
+	tunnel := config.Tunnel{
+		Name:     "tcp-test",
+		Type:     constants.Tcp,
+		Host:     "localhost",
+		Port:     4321,
+		PoolSize: 1,
+	}
+	m := model{tunnels: map[string]*tunnelStatus{}, width: 200}
+
+	updated, _ := m.Update(AddTunnelMsg{Config: &tunnel, ClientConfig: testClientConfig(tunnel), Healthy: true})
+	m = updated.(model)
+	updated, _ = m.Update(UpdateConnCountMsg{Port: tunnel.StatusKey(), Delta: 1})
+	m = updated.(model)
+
+	view := m.View()
+	if !strings.Contains(view, "🟢 Healthy (1/1)") {
+		t.Fatalf("expected healthy 1/1 status, got %q", view)
+	}
+	if strings.Contains(view, "Partial") {
+		t.Fatalf("expected no partial status, got %q", view)
+	}
+}
+
 func TestTunnelKeyDistinguishesStaticTunnelsSharingLocalPort(t *testing.T) {
 	// Every static tunnel is served from one responder port, so a port-based
 	// key would collapse them into a single row with a wrong health count.
