@@ -167,7 +167,10 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			}
 		}
 
+		// The TUI sizes its Healthy/Partial threshold from Tunnel.PoolSize, so hand
+		// every worker the effective count rather than the configured one.
 		workers := desiredWorkers(clientConfig, poolingSupported)
+		clientConfig.Tunnel.PoolSize = workers
 
 		if clientConfig.Tunnel.Type == constants.Http && workers > 1 && clientConfig.ConnectionID == "" {
 			connID, err := sshclient.CreateNewConnectionWithContext(ctx, clientConfig)
