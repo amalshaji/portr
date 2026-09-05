@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/amalshaji/portr/internal/constants"
@@ -103,7 +105,7 @@ func (t *Tunnel) Validate() error {
 }
 
 func (t *Tunnel) GetLocalAddr() string {
-	return t.Host + ":" + fmt.Sprint(t.Port)
+	return net.JoinHostPort(t.Host, strconv.Itoa(t.Port))
 }
 
 // ResolvedHostHeader returns the Host header to send to the local service, or

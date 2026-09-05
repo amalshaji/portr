@@ -1,9 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"strconv"
-
 	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/urfave/cli/v2"
@@ -11,8 +8,9 @@ import (
 
 func httpCmd() *cli.Command {
 	return &cli.Command{
-		Name:  "http",
-		Usage: "Expose http/ws port",
+		Name:      "http",
+		Usage:     "Expose http/ws port",
+		ArgsUsage: "<port | host:port>",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "subdomain",
@@ -26,14 +24,13 @@ func httpCmd() *cli.Command {
 			basicAuthFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			portStr := c.Args().First()
-
-			port, err := strconv.Atoi(portStr)
+			host, port, err := parseLocalTarget(c.Args().First())
 			if err != nil {
-				return fmt.Errorf("please specify a valid port")
+				return err
 			}
 
 			return startTunnels(c, &config.Tunnel{
+				Host:       host,
 				Port:       port,
 				Subdomain:  c.String("subdomain"),
 				Type:       constants.Http,
