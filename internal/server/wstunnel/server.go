@@ -283,6 +283,9 @@ func (m *Manager) unregisterSession(sess *session) {
 		sess.workerMu.Unlock()
 		close(sess.closed)
 		if sess.conn != nil {
+			if conn, ok := sess.conn.(interface{ SetDeadline(time.Time) error }); ok {
+				_ = conn.SetDeadline(time.Now())
+			}
 			_ = sess.conn.Close()
 		}
 		if sess.listener != nil {
@@ -395,7 +398,20 @@ func (m *Manager) pipeStream(sess *session, conn net.Conn, initial []byte) {
 
 	streamID := ulid.Make().String()
 	stream := sess.addStream(streamID)
-	defer sess.removeStream(streamID)
+
+	closed := make(chan struct{})
+	go func() {
+		defer close(closed)
+		select {
+		case <-sess.closed:
+		case <-stream.closed:
+		}
+		_ = conn.Close()
+	}()
+	defer func() {
+		sess.removeStream(streamID)
+		<-closed
+	}()
 
 	if err := sess.writer.Send(wsproto.Frame{Type: wsproto.TypeOpen, StreamID: streamID, Data: initial}); err != nil {
 		return

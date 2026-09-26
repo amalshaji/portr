@@ -139,24 +139,34 @@ func (s *Session) HealthCheck(timeout time.Duration) error {
 	case <-s.pong:
 	default:
 	}
-	if err := s.writer.Send(wsproto.Frame{Type: wsproto.TypePing}); err != nil {
-		return err
-	}
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
-	select {
-	case <-s.pong:
-		return nil
-	case <-s.done:
-		return net.ErrClosed
-	case <-timer.C:
-		return fmt.Errorf("websocket tunnel ping timed out")
+	sent := make(chan error, 1)
+	go func() {
+		sent <- s.writer.Send(wsproto.Frame{Type: wsproto.TypePing})
+	}()
+	for {
+		select {
+		case err := <-sent:
+			if err != nil {
+				return err
+			}
+		case <-s.pong:
+			return nil
+		case <-s.done:
+			return net.ErrClosed
+		case <-timer.C:
+			_ = s.Close()
+			return fmt.Errorf("websocket tunnel ping timed out")
+		}
 	}
 }
 
 func (s *Session) Close() error {
 	s.closeOnce.Do(func() {
 		close(s.done)
+		// Abort outstanding I/O before Close attempts to write its close frame.
+		_ = s.conn.SetDeadline(time.Now())
 		_ = s.conn.Close()
 		s.closeStreams()
 	})

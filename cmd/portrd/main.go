@@ -29,12 +29,24 @@ import (
 // Set at build time
 var version = "0.0.0"
 
-func main() {
-	app := &cli.App{
+func newApp() *cli.App {
+	return &cli.App{
 		Name:    "portrd",
 		Usage:   "portr server",
 		Version: version,
 		Commands: []*cli.Command{
+			{
+				Name:  "generate-host-key",
+				Usage: "Generate an Ed25519 SSH host key",
+				Action: func(c *cli.Context) error {
+					key, err := sshd.GenerateHostKey()
+					if err != nil {
+						return fmt.Errorf("failed to generate host key: %w", err)
+					}
+					_, err = fmt.Fprint(c.App.Writer, key)
+					return err
+				},
+			},
 			{
 				Name:  "start",
 				Usage: "Start servers",
@@ -79,8 +91,10 @@ func main() {
 			},
 		},
 	}
+}
 
-	if err := app.Run(os.Args); err != nil {
+func main() {
+	if err := newApp().Run(os.Args); err != nil {
 		log.Fatal("Failed to run application", "error", err)
 	}
 }
