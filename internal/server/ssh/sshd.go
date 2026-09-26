@@ -200,6 +200,8 @@ func (s *SshServer) Start() {
 	}
 	if hostKeyOption != nil {
 		hostKeyOption(srv)
+	} else {
+		log.Warn("PORTR_SSH_HOST_KEY is not set; using an ephemeral SSH host key that changes on every restart. Clients that verify host keys will reject this server after a restart.")
 	}
 
 	s.server = srv

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"strconv"
 	"strings"
 
 	config "github.com/amalshaji/portr/internal/clientconfig"
@@ -12,8 +10,9 @@ import (
 
 func httpCmd() *cli.Command {
 	return &cli.Command{
-		Name:  "http",
-		Usage: "Expose http/ws port",
+		Name:      "http",
+		Usage:     "Expose http/ws port",
+		ArgsUsage: "<port | host:port>",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "subdomain",
@@ -38,14 +37,13 @@ func httpCmd() *cli.Command {
 }
 
 func httpTunnelFromContext(c *cli.Context) (*config.Tunnel, error) {
-	portStr := c.Args().First()
-
-	port, err := strconv.Atoi(portStr)
+	host, port, err := parseLocalTarget(c.Args().First())
 	if err != nil {
-		return nil, fmt.Errorf("please specify a valid port")
+		return nil, err
 	}
 
 	return &config.Tunnel{
+		Host:       host,
 		Port:       port,
 		Subdomain:  httpSubdomainFromContext(c),
 		Type:       constants.Http,

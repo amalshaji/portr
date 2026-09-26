@@ -163,11 +163,14 @@ func (c *Client) Start(ctx context.Context, services ...string) error {
 			case constants.Static:
 				fmt.Printf("🚀 Starting static tunnel: %s (%s → %s)\n", tunnelName, clientConfig.Tunnel.Dir, clientConfig.GetTunnelAddr())
 			default:
-				fmt.Printf("🚀 Starting tunnel: %s (%s:%d)\n", tunnelName, clientConfig.Tunnel.Host, clientConfig.Tunnel.Port)
+				fmt.Printf("🚀 Starting tunnel: %s (%s)\n", tunnelName, clientConfig.Tunnel.GetLocalAddr())
 			}
 		}
 
+		// The TUI sizes its Healthy/Partial threshold from Tunnel.PoolSize, so hand
+		// every worker the effective count rather than the configured one.
 		workers := desiredWorkers(clientConfig, poolingSupported)
+		clientConfig.Tunnel.PoolSize = workers
 
 		if clientConfig.Tunnel.Type == constants.Http && workers > 1 && clientConfig.ConnectionID == "" {
 			connID, err := c.createNewConnection(ctx, clientConfig)

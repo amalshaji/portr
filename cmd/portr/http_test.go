@@ -50,3 +50,17 @@ func TestHttpTunnelFromContextSupportsSubdomainFlagAfterPort(t *testing.T) {
 		t.Fatalf("expected subdomain demo, got %q", tunnel.Subdomain)
 	}
 }
+
+func TestHttpTunnelFromContextAcceptsHostPort(t *testing.T) {
+	set := flag.NewFlagSet("http", flag.ContinueOnError)
+	if err := set.Parse([]string{"192.168.1.50:8080", "-s", "demo"}); err != nil {
+		t.Fatal(err)
+	}
+	tunnel, err := httpTunnelFromContext(cli.NewContext(nil, set, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tunnel.Host != "192.168.1.50" || tunnel.Port != 8080 || tunnel.Subdomain != "demo" {
+		t.Fatalf("unexpected tunnel: %+v", tunnel)
+	}
+}

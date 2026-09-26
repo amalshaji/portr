@@ -1,0 +1,170 @@
+---
+title: Custom Reverse Proxy
+description: Run Portr behind your own reverse proxy such as Caddy or nginx with manually managed TLS certificates, instead of the bundled Caddy service.
+---
+
+The production compose file bundles a Caddy service that provisions wildcard certificates via DNS-01 (Cloudflare or Route53) and proxies traffic to Portr. This is a convenience, not a requirement — Portr has no dependency on Caddy and never terminates TLS itself. If you already run a reverse proxy on your server, or your DNS provider doesn't support automated DNS-01 validation, you can bring your own proxy and certificates.
+
+## How traffic is routed
+
+Portr listens on plain HTTP/TCP behind the proxy:
+
+| Port | Purpose |
+|------|---------|
+| `8000` | Admin dashboard and API, serves `example.com` |
+| `8001` | Tunnel proxy, serves `*.example.com` |
+| `2222` | SSH ingress for tunnel clients (raw TCP, never proxied) |
+
+Your reverse proxy needs exactly two HTTPS vhosts: the apex domain to port 8000 and the wildcard to port 8001. Per-subdomain routing happens inside Portr based on the `Host` header.
+
+<Callout type="info">
+  TLS must terminate at your proxy. Portr assumes it is served over HTTPS in
+  production — session cookies are marked `Secure` and tunnel URLs are
+  generated with `https://`.
+</Callout>
+
+## Remove the bundled Caddy
+
+Remove the `caddy` service, the `labels` block, and the `caddy_data` volume from `docker-compose.prod.yaml`:
+
+```diff title="docker-compose.prod.yaml"
+ services:
+-  caddy:
+-    image: ghcr.io/amalshaji/caddy-docker-proxy:main
+-    volumes:
+-      - /var/run/docker.sock:/var/run/docker.sock
+-      - caddy_data:/data
+-    restart: unless-stopped
+-    network_mode: "host"
+-
+   server:
+     ...
+-    labels:
+-      caddy_0: $PORTR_DOMAIN
+-      caddy_0.reverse_proxy: "{{upstreams http 8000}}"
+-      caddy_0.encode: gzip
+-      caddy_1: "*.$PORTR_DOMAIN"
+-      caddy_1.reverse_proxy: "{{upstreams http 8001}}"
+-      caddy_1.tls.dns: "cloudflare $CLOUDFLARE_API_TOKEN"
+-      caddy_1.encode: gzip
+```
+
+You can also drop `CLOUDFLARE_API_TOKEN` from your `.env` file — it is only consumed by the Caddy labels.
+
+The `server` service uses `network_mode: "host"`, so ports 8000, 8001, and 2222 are bound directly on the host and reachable at `localhost` from your proxy.
+
+## Example: Caddy with your own certificates
+
+If you already run Caddy, add two site blocks. The `tls` directive with certificate paths disables automatic provisioning — no DNS plugin or API token needed:
+
+```txt title="Caddyfile"
+example.com {
+    tls /etc/certs/wildcard.crt /etc/certs/wildcard.key
+    encode gzip
+    reverse_proxy localhost:8000
+}
+
+*.example.com {
+    tls /etc/certs/wildcard.crt /etc/certs/wildcard.key
+    encode gzip
+    reverse_proxy localhost:8001
+}
+```
+
+## Example: nginx
+
+```nginx title="/etc/nginx/conf.d/portr.conf"
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+server {
+    listen 443 ssl;
+    server_name example.com;
+
+    ssl_certificate /etc/certs/wildcard.crt;
+    ssl_certificate_key /etc/certs/wildcard.key;
+
+    location / {
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name *.example.com;
+
+    ssl_certificate /etc/certs/wildcard.crt;
+    ssl_certificate_key /etc/certs/wildcard.key;
+
+    location / {
+        proxy_pass http://localhost:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_read_timeout 300s;
+        client_max_body_size 0;
+    }
+}
+```
+
+## Proxy requirements
+
+Whatever proxy you use, on the wildcard vhost:
+
+- **Forward the `Host` header verbatim, without a port.** Portr routes to tunnels by extracting the subdomain from `Host`; forwarding `sub.example.com:443` results in a 404.
+- **Pass websocket upgrades through** (`Upgrade` / `Connection` headers).
+- **Don't buffer responses** — streaming responses and server-sent events depend on it.
+- **Don't intercept error responses or add proxy-level authentication.** Portr's health checks rely on its own 404 responses and `X-Portr-*` headers reaching clients unmodified, and the `Authorization` header is passed end to end to your local service.
+- **Set `X-Forwarded-Proto: https` and overwrite `X-Forwarded-For` from the real client address** so tunneled applications generate correct absolute URLs and can't be fed spoofed client IPs.
+- The tunnel proxy speaks HTTP/1.1 only.
+
+The admin dashboard must be served from the root of the apex domain — it cannot be mounted under a path prefix.
+
+## Certificates
+
+- The certificates must cover both `example.com` and `*.example.com` (a single cert with both SANs, or one per vhost).
+- Use certificates from a trusted CA. The Portr client verifies TLS when talking to the server (`portr auth set`, request replay), and the server's own health checks dial `https://<subdomain>.<domain>` — self-signed certificates break these.
+
+## DNS and firewall
+
+DNS records must point directly at the server. Don't route them through a proxying CDN — tunnel clients connect to port 2222 over raw TCP:
+
+| Type | Name | Value |
+|------|------|-------|
+| A    | @    | your-server-ipv4 |
+| A    | *    | your-server-ipv4 |
+
+Firewall rules:
+
+| Port | Action |
+|------|--------|
+| 80/443 | Allow (your proxy) |
+| 2222 | Allow (SSH tunnel ingress) |
+| 30001-40001 | Allow if you use TCP tunnels |
+| 5432, 8000, 8001 | Block from the internet (postgres and portr only need local access) |
+| 20000-30000 | Block from the internet |
+
+<Callout type="warn">
+  Ports 20000-30000 are used internally for HTTP tunnel connections and bind
+  on all interfaces. If left open, tunnel traffic can be reached directly over
+  plain HTTP, bypassing your proxy and TLS. Make sure your firewall blocks
+  them.
+</Callout>
+
+## Troubleshooting
+
+1. **404 with an `X-Portr-Error` header on tunnel URLs**: the `Host` header is being rewritten or forwarded with a port. Forward it verbatim.
+2. **Login loop on the admin dashboard**: the dashboard is being served over plain HTTP. The session cookie is `Secure`-only; serve it over HTTPS.
+3. **Websockets disconnect after ~60 seconds**: your proxy's read timeout is closing idle connections. Increase it (e.g. `proxy_read_timeout` in nginx).

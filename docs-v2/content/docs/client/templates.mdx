@@ -332,6 +332,31 @@ These options apply to stub tunnel entries with `type: stub`:
 
 Use exactly one of `response_tmpl` or `response_tmpl_file`.
 
+### SSH Host Key Verification
+
+By default, the Portr client skips SSH host key verification for ease of use. You can enable host key verification for additional security:
+
+```yaml
+server_url: example.com
+ssh_url: example.com:2222
+secret_key: { your-secret-key }
+insecure_skip_host_key_verification: false
+tunnels:
+  - name: portr
+    subdomain: portr
+    port: 4321
+```
+
+When host key verification is enabled:
+
+- On first connection, the server's host key is automatically saved to `~/.portr/known_hosts` (Trust On First Use)
+- Subsequent connections verify the server's key matches the saved key
+- If the key changes unexpectedly, the connection fails with a warning (potential security issue)
+
+<Callout type="warn">
+  If you enable host key verification, the server must present the same host key across restarts. Set `PORTR_SSH_HOST_KEY` on the server to a persistent PEM-encoded key; see [Generate SSH Host Key](/docs/server/start-the-tunnel-server#generate-ssh-host-key). Without it the server generates a new in-memory key on every start, and clients that verify host keys will refuse to connect after a restart or redeploy.
+</Callout>
+
 ### Tunnel Template Options
 
 Each tunnel template supports the following options:
