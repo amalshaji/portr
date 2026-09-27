@@ -3,6 +3,7 @@
   "pages": [
     "index",
     "start-the-tunnel-server",
+    "deploy-on-railway",
     "sqlite-backups",
     "reserved-subdomains",
     "cloudflare-api-token",

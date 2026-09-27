@@ -146,7 +146,7 @@ export function RequestSidebar({
             style={{ color: "var(--muted-foreground)" }}
           >
             <RadioTower className="size-4" style={{ color: "var(--tm-muted-2)" }} />
-            no requests match filter
+            {total === 0 ? "No request traces" : "no requests match filter"}
           </div>
         ) : (
           filtered.map((r) => (

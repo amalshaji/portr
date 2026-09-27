@@ -3,20 +3,19 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import Panel from "@/components/Panel";
 import {
   ChartContainer,
+  type ChartConfig,
   ChartTooltip,
   ChartTooltipContent,
-  type ChartConfig,
 } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { ChartData } from "@/types";
+import type { ChartData, ChartDataPoint } from "@/types";
 
 interface MetricsChartProps {
   chartData: ChartData;
   isLoading: boolean;
 }
 
-type MetricDataPoint = { timestamp: string; value: number };
-type ProcessedMetricDataPoint = {
+type ProcessedMetricPoint = {
   timestamp: number;
   timestampLabel: string;
   value: number;
@@ -83,7 +82,7 @@ function MetricChart({
 }: {
   title: string;
   description: string;
-  data: ProcessedMetricDataPoint[];
+  data: ProcessedMetricPoint[];
   dataKey: string;
   config: ChartConfig;
   isLoading: boolean;
@@ -205,7 +204,9 @@ function MetricChart({
 
 export function MetricsChart({ chartData, isLoading }: MetricsChartProps) {
   // Transform data for individual charts
-  const processMetricData = (metricData: MetricDataPoint[] | undefined) => {
+  const processMetricData = (
+    metricData: ChartDataPoint[]
+  ): ProcessedMetricPoint[] => {
     if (!metricData) return [];
 
     // Ensure we're showing the most recent data by sorting chronologically
@@ -227,13 +228,13 @@ export function MetricsChart({ chartData, isLoading }: MetricsChartProps) {
   };
 
   // Individual chart configurations
-  const memoryUsageConfig: ChartConfig = {
+  const memoryUsageConfig = {
     value: {
       label: "Memory Usage (MB)",
     },
   };
 
-  const cpuUsageConfig: ChartConfig = {
+  const cpuUsageConfig = {
     value: {
       label: "CPU Usage (%)",
     },

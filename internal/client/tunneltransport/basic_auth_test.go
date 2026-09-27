@@ -1,4 +1,4 @@
-package ssh
+package tunneltransport
 
 import (
 	"bufio"
@@ -27,7 +27,7 @@ func basicAuthHeader(credential string) string {
 // response head. Unlike runRawRequest it does not wait for EOF: a rejected
 // websocket upgrade carries Connection: Upgrade, so the gate answers it without
 // closing, and reading to EOF would block until the deadline.
-func runGatedRequest(t *testing.T, client *SshClient, localEndpoint, rawRequest string) *http.Response {
+func runGatedRequest(t *testing.T, client *Client, localEndpoint, rawRequest string) *http.Response {
 	t.Helper()
 
 	remoteConn, clientConn := net.Pipe()
@@ -90,8 +90,8 @@ func newGatedBackend(t *testing.T) gatedBackend {
 	}
 }
 
-func basicAuthClient(credential string) *SshClient {
-	return &SshClient{config: clientcfg.ClientConfig{Tunnel: clientcfg.Tunnel{
+func basicAuthClient(credential string) *Client {
+	return &Client{config: clientcfg.ClientConfig{Tunnel: clientcfg.Tunnel{
 		Name: "test", Subdomain: "test", Port: 3000, BasicAuth: credential,
 	}}}
 }
@@ -288,7 +288,7 @@ func TestRejectedRequestIsLoggedWithRedactedCredential(t *testing.T) {
 				InsecureSkipHostKeyVerification: &enabled,
 				RedactHeaders:                   tt.redactHeaders,
 			}
-			client := &SshClient{
+			client := &Client{
 				config: base.ClientConfigForTunnel(clientcfg.Tunnel{
 					Name: "test", Subdomain: "test", Port: 3000, BasicAuth: "admin:s3cret",
 				}),

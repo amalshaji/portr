@@ -1,4 +1,4 @@
-package ssh
+package tunneltransport
 
 import (
 	"crypto/sha256"
@@ -67,7 +67,7 @@ func (g *basicAuthGate) allow(request *http.Request) bool {
 //
 // X-Portr-Error is deliberately not set. A 401 is not a portr failure, and
 // replayFailure treats any unrecognised error reason as a 502.
-func (s *SshClient) rejectUnauthorized(writer http.ResponseWriter, request *http.Request) {
+func (s *Client) rejectUnauthorized(writer http.ResponseWriter, request *http.Request) {
 	header := writer.Header()
 	header.Set("WWW-Authenticate", basicAuthChallenge)
 	header.Set("Content-Type", "text/plain; charset=utf-8")

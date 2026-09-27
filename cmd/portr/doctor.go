@@ -14,9 +14,13 @@ import (
 
 	requestlogs "github.com/amalshaji/portr/internal/client/logs"
 	sshclient "github.com/amalshaji/portr/internal/client/ssh"
+	wstunnelclient "github.com/amalshaji/portr/internal/client/tunnel"
+	"github.com/amalshaji/portr/internal/client/tunneltransport"
 	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
+	"github.com/amalshaji/portr/internal/tunnel/wsproto"
 	"github.com/urfave/cli/v2"
+	"golang.org/x/net/websocket"
 )
 
 type doctorStatus string
@@ -150,16 +154,37 @@ func runDoctorChecks(ctx context.Context, cfg config.Config, configPath string) 
 		}
 	}
 
-	endpointCheck := checkSSHEndpoint(cfg.SshUrl)
-	checks = append(checks, endpointCheck)
-	if blocked == "" && endpointCheck.Status == doctorFail {
-		blocked = "ssh endpoint unreachable"
-	}
-
-	if blocked != "" {
-		checks = append(checks, skippedCheck("ssh handshake", blocked))
+	if cfg.Transport == config.TransportWebSocket {
+		// The websocket transport never dials ssh_url, so probing it would only
+		// report on an endpoint this client does not use. Probe the websocket
+		// endpoint it does use instead, then prove an authenticated tunnel
+		// registration completes against it.
+		endpointCheck := checkWebSocketEndpoint(ctx, cfg)
+		checks = append(checks, endpointCheck)
+		if blocked == "" && endpointCheck.Status == doctorFail {
+			blocked = "websocket endpoint unreachable"
+		}
+		if blocked != "" {
+			checks = append(checks, skippedCheck("websocket handshake", blocked))
+		} else {
+			checks = append(checks, checkWebSocketHandshake(ctx, cfg, connectionID))
+		}
+		checks = append(checks,
+			skippedCheck("ssh endpoint", "transport is websocket"),
+			skippedCheck("ssh handshake", "transport is websocket"),
+		)
 	} else {
-		checks = append(checks, checkSSHHandshake(ctx, cfg, connectionID))
+		endpointCheck := checkSSHEndpoint(cfg.SshUrl)
+		checks = append(checks, endpointCheck)
+		if blocked == "" && endpointCheck.Status == doctorFail {
+			blocked = "ssh endpoint unreachable"
+		}
+
+		if blocked != "" {
+			checks = append(checks, skippedCheck("ssh handshake", blocked))
+		} else {
+			checks = append(checks, checkSSHHandshake(ctx, cfg, connectionID))
+		}
 	}
 
 	for _, tunnel := range cfg.Tunnels {
@@ -288,7 +313,7 @@ func checkSecretKey(ctx context.Context, cfg config.Config) (string, doctorCheck
 		return "", check
 	}
 
-	connectionID, err := sshclient.CreateNewConnectionWithContext(ctx, doctorClientConfig(cfg))
+	connectionID, err := tunneltransport.CreateNewConnectionWithContext(ctx, doctorClientConfig(cfg))
 	if err != nil {
 		check.Status = doctorFail
 		check.Detail = err.Error()
@@ -299,6 +324,99 @@ func checkSecretKey(ctx context.Context, cfg config.Config) (string, doctorCheck
 	check.Status = doctorPass
 	check.Detail = fmt.Sprintf("accepted by %s (reserved a short-lived diagnostic connection)", cfg.ServerUrl)
 	return connectionID, check
+}
+
+// checkWebSocketEndpoint performs the websocket connect handshake without
+// credentials. A reachable, version-compatible server answers the anonymous
+// connect with a "missing connection credentials" error frame, which is
+// exactly the proof this check needs; a protocol mismatch reports the server's
+// upgrade hint instead.
+func checkWebSocketEndpoint(ctx context.Context, cfg config.Config) doctorCheck {
+	check := doctorCheck{Name: "websocket endpoint"}
+
+	clientCfg := doctorClientConfig(cfg)
+	wsURL, err := wstunnelclient.WebSocketURL(clientCfg)
+	if err != nil {
+		check.Status = doctorFail
+		check.Detail = err.Error()
+		check.Hint = "check ws_url in the config file"
+		return check
+	}
+
+	wsConfig, err := websocket.NewConfig(wsURL, clientCfg.GetServerAddr())
+	if err != nil {
+		check.Status = doctorFail
+		check.Detail = err.Error()
+		check.Hint = "check ws_url in the config file"
+		return check
+	}
+	wsConfig.Header.Set(wsproto.ProtocolVersionHeader, fmt.Sprint(wsproto.ProtocolVersion))
+
+	dialCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	conn, err := wsConfig.DialContext(dialCtx)
+	if err != nil {
+		check.Status = doctorFail
+		check.Detail = err.Error()
+		check.Hint = "check ws_url and that outbound traffic to that endpoint is not blocked"
+		return check
+	}
+	defer conn.Close()
+
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	frame, err := wsproto.Receive(conn)
+	if err != nil {
+		check.Status = doctorFail
+		check.Detail = fmt.Sprintf("handshake succeeded but reading the first frame failed: %v", err)
+		check.Hint = "check that ws_url points at the portr tunnel endpoint, not another websocket service"
+		return check
+	}
+	if frame.Type == wsproto.TypeError && strings.Contains(frame.Message, "protocol mismatch") {
+		check.Status = doctorFail
+		check.Detail = frame.Message
+		return check
+	}
+	// Only the exact anonymous-connect challenge proves this is a compatible
+	// portr tunnel endpoint. Any other frame means the URL answered the
+	// websocket handshake but is not the portr connect endpoint.
+	if frame.Type != wsproto.TypeError || !strings.Contains(frame.Message, "missing connection credentials") {
+		check.Status = doctorFail
+		check.Detail = fmt.Sprintf("endpoint answered with an unexpected %q frame instead of the portr credential challenge", frame.Type)
+		check.Hint = "check that ws_url points at the portr tunnel endpoint, not another websocket service"
+		return check
+	}
+
+	check.Status = doctorPass
+	check.Detail = "reachable at " + wsURL
+	return check
+}
+
+// checkWebSocketHandshake completes an authenticated tunnel registration
+// against the websocket endpoint using the short-lived diagnostic connection
+// reserved by the secret-key check, then tears it down. This is the websocket
+// counterpart of the ssh handshake check: it proves the endpoint accepts this
+// client's credentials and finishes the ready handshake, not just that
+// something answers websocket upgrades.
+func checkWebSocketHandshake(ctx context.Context, cfg config.Config, connectionID string) doctorCheck {
+	check := doctorCheck{Name: "websocket handshake"}
+
+	clientConfig := doctorClientConfig(cfg)
+	clientConfig.ConnectionID = connectionID
+
+	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	session, err := wstunnelclient.Connect(connectCtx, clientConfig, connectionID)
+	if err != nil {
+		check.Status = doctorFail
+		check.Detail = err.Error()
+		check.Hint = "verify ws_url points at the portr tunnel endpoint and the secret key is valid"
+		return check
+	}
+	_ = session.Close()
+
+	check.Status = doctorPass
+	check.Detail = "authenticated tunnel registration succeeded"
+	return check
 }
 
 func checkSSHEndpoint(sshURL string) doctorCheck {
@@ -420,7 +538,9 @@ func doctorClientConfig(cfg config.Config) config.ClientConfig {
 	return config.ClientConfig{
 		ServerUrl:                       cfg.ServerUrl,
 		SshUrl:                          cfg.SshUrl,
+		WsUrl:                           cfg.WsUrl,
 		TunnelUrl:                       cfg.TunnelUrl,
+		Transport:                       cfg.Transport,
 		SecretKey:                       cfg.SecretKey,
 		UseLocalHost:                    cfg.UseLocalHost,
 		Debug:                           cfg.Debug,
