@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/amalshaji/portr/internal/client/tunneltransport"
 	clientcfg "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
 )
@@ -81,14 +82,14 @@ func TestStartHandsWorkersEffectivePoolSize(t *testing.T) {
 		t.Fatalf("Start returned error: %v", err)
 	}
 
-	if len(c.sshcs) != 1 {
-		t.Fatalf("expected 1 ssh client, got %d", len(c.sshcs))
+	if len(c.tunnelClients) != 1 {
+		t.Fatalf("expected 1 tunnel client, got %d", len(c.tunnelClients))
 	}
 
 	// Pins the call site in Start: the TUI reads PoolSize off the config
 	// handed to each worker, so the effective count must be stamped onto
-	// clientConfig before sshclient.New, not left as the raw configured value.
-	if got := c.sshcs[0].ConfigSnapshot().Tunnel.PoolSize; got != 1 {
+	// clientConfig before tunneltransport.NewWorker, not left as the raw configured value.
+	if got := c.tunnelClients[0].(*tunneltransport.Client).ConfigSnapshot().Tunnel.PoolSize; got != 1 {
 		t.Fatalf("expected worker to receive effective pool size 1, got %d", got)
 	}
 }

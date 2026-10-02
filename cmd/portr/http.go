@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strings"
+
 	config "github.com/amalshaji/portr/internal/clientconfig"
 	"github.com/amalshaji/portr/internal/constants"
 	"github.com/urfave/cli/v2"
@@ -24,19 +26,50 @@ func httpCmd() *cli.Command {
 			basicAuthFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			host, port, err := parseLocalTarget(c.Args().First())
+			tunnel, err := httpTunnelFromContext(c)
 			if err != nil {
 				return err
 			}
 
-			return startTunnels(c, &config.Tunnel{
-				Host:       host,
-				Port:       port,
-				Subdomain:  c.String("subdomain"),
-				Type:       constants.Http,
-				HostHeader: c.String("host-header"),
-				BasicAuth:  c.String("basic-auth"),
-			})
+			return startTunnels(c, tunnel)
 		},
 	}
+}
+
+func httpTunnelFromContext(c *cli.Context) (*config.Tunnel, error) {
+	host, port, err := parseLocalTarget(c.Args().First())
+	if err != nil {
+		return nil, err
+	}
+
+	return &config.Tunnel{
+		Host:       host,
+		Port:       port,
+		Subdomain:  httpSubdomainFromContext(c),
+		Type:       constants.Http,
+		HostHeader: c.String("host-header"),
+		BasicAuth:  c.String("basic-auth"),
+	}, nil
+}
+
+func httpSubdomainFromContext(c *cli.Context) string {
+	if subdomain := c.String("subdomain"); subdomain != "" {
+		return subdomain
+	}
+
+	args := c.Args().Slice()
+	for i, arg := range args {
+		switch {
+		case arg == "-s" || arg == "--subdomain":
+			if i+1 < len(args) {
+				return args[i+1]
+			}
+		case strings.HasPrefix(arg, "-s="):
+			return strings.TrimPrefix(arg, "-s=")
+		case strings.HasPrefix(arg, "--subdomain="):
+			return strings.TrimPrefix(arg, "--subdomain=")
+		}
+	}
+
+	return ""
 }

@@ -35,6 +35,13 @@ type DatabaseConfig struct {
 	AutoMigrate bool
 }
 
+type TunnelTransport string
+
+const (
+	TransportSSH       TunnelTransport = "ssh"
+	TransportWebSocket TunnelTransport = "websocket"
+)
+
 type AdminConfig struct {
 	Port                   int
 	Domain                 string
@@ -46,6 +53,8 @@ type AdminConfig struct {
 	GithubSecret           string
 	ServerURL              string
 	SshURL                 string
+	WsURL                  string
+	Transport              TunnelTransport
 	SshHostKeyVerification bool
 	Version                string
 }
@@ -63,6 +72,7 @@ type Config struct {
 	Domain       string
 	UseLocalHost bool
 	Debug        bool
+	Transport    TunnelTransport
 	Database     DatabaseConfig
 	Admin        AdminConfig
 }
@@ -123,7 +133,25 @@ func new() *Config {
 		sshURL = "localhost:2222"
 	}
 
+	wsURL := os.Getenv("PORTR_WS_URL")
+	if wsURL == "" {
+		wsURL = "localhost:8001"
+	}
+
+	transport := TunnelTransport(strings.ToLower(strings.TrimSpace(os.Getenv("PORTR_TRANSPORT"))))
+	if transport == "" {
+		transport = TransportSSH
+	}
+	if transport != TransportSSH && transport != TransportWebSocket {
+		log.Fatal("Invalid PORTR_TRANSPORT", "transport", transport, "supported", "ssh, websocket")
+	}
+
 	sshHostKey := os.Getenv("PORTR_SSH_HOST_KEY")
+	useLocalHost := os.Getenv("PORTR_TUNNEL_USE_LOCALHOST") == "true"
+	tunnelDomain := domain
+	if useLocalHost {
+		tunnelDomain = fmt.Sprintf("localhost:%d", proxyPort)
+	}
 
 	reservedSubdomainLimitStr := os.Getenv("PORTR_RESERVED_SUBDOMAIN_LIMIT")
 	if reservedSubdomainLimitStr == "" {
@@ -145,8 +173,9 @@ func new() *Config {
 			Port: proxyPort,
 		},
 		Domain:       domain,
-		UseLocalHost: os.Getenv("PORTR_TUNNEL_USE_LOCALHOST") == "true",
+		UseLocalHost: useLocalHost,
 		Debug:        os.Getenv("PORTR_TUNNEL_DEBUG") == "true",
+		Transport:    transport,
 		Database: DatabaseConfig{
 			Url:         dbUrl,
 			Driver:      dbDriver,
@@ -155,7 +184,7 @@ func new() *Config {
 		Admin: AdminConfig{
 			Port:                   adminPort,
 			Domain:                 adminDomain,
-			TunnelDomain:           domain,
+			TunnelDomain:           tunnelDomain,
 			ReservedSubdomainLimit: reservedSubdomainLimit,
 			Debug:                  os.Getenv("PORTR_ADMIN_DEBUG") == "true",
 			UseVite:                os.Getenv("PORTR_ADMIN_USE_VITE") == "true",
@@ -163,6 +192,8 @@ func new() *Config {
 			GithubSecret:           os.Getenv("PORTR_ADMIN_GITHUB_CLIENT_SECRET"),
 			ServerURL:              serverURL,
 			SshURL:                 sshURL,
+			WsURL:                  wsURL,
+			Transport:              transport,
 			SshHostKeyVerification: sshHostKey != "",
 		},
 	}

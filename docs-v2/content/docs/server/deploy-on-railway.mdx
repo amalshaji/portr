@@ -1,0 +1,169 @@
+---
+title: Deploy on Railway
+description: Run the Portr server on Railway with the WebSocket tunnel transport, a wildcard custom domain, and a managed PostgreSQL database.
+---
+
+
+Railway's edge terminates HTTP and WebSocket traffic but does not expose raw TCP
+ports on HTTP domains, so the SSH transport is a poor fit there. The WebSocket
+transport carries tunnels over regular HTTPS connections, which makes Railway a
+natural host: no host key, no port 2222, and both listeners ride on Railway
+domains.
+
+This guide assumes you know the basics from
+[Server Deployment](/docs/server/start-the-tunnel-server).
+
+## Bring your own domain
+
+Neither Railway nor Portr provides the domain your tunnels are served on.
+Tunnel URLs are subdomains of `PORTR_DOMAIN` (`https://myapp.portr.example.com`),
+and Railway-generated `*.up.railway.app` domains have no wildcard support — so a
+working deployment needs:
+
+- **A domain you own**, managed at a DNS provider where you can add records.
+- **A wildcard record** (`*.portr.example.com`) pointing at Railway, set up in
+  [Add a wildcard custom domain](#add-a-wildcard-custom-domain).
+
+Without your own domain, the admin dashboard and client connections still work
+on the generated Railway domains, but every tunnel URL will fail to resolve.
+
+## One-click template
+
+The fastest path is the official template: it deploys both services with the
+variables below pre-wired, including a generated Postgres password.
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/portr)
+
+The template cannot bring the domain for you: after it deploys, continue with
+[Add a wildcard custom domain](#add-a-wildcard-custom-domain) using your own
+domain — that part is manual either way. The rest of this guide sets the same
+thing up by hand.
+
+## Create the services
+
+Create a Railway project with two services:
+
+- **Postgres**: add a Railway PostgreSQL database.
+- **portr**: point the service at your fork of the Portr repository (or the
+  upstream repo). The repository's `Dockerfile` builds the combined admin and
+  tunnel server.
+
+## Environment variables
+
+Set these on the **portr** service:
+
+```bash
+PORTR_DB_URL=${{Postgres.DATABASE_URL}}
+
+PORTR_TRANSPORT=websocket
+PORTR_ADMIN_PORT=8000
+PORTR_PROXY_PORT=8001
+PORTR_AUTO_MIGRATE=true
+
+# Start with the Railway-generated domains; switch to a custom
+# domain in the next section.
+PORTR_DOMAIN=<admin-domain>
+PORTR_SERVER_URL=https://<admin-domain>
+PORTR_WS_URL=https://<proxy-domain>
+```
+
+With `PORTR_TRANSPORT=websocket`, `PORTR_SSH_URL`, `PORTR_SSH_PORT` and
+`PORTR_SSH_HOST_KEY` are not used and can be omitted entirely.
+
+## Expose the two listeners
+
+The server listens on two ports, so the service needs two domains with
+different target ports:
+
+| Domain | Target port | Serves |
+|--------|-------------|--------|
+| `<admin-domain>` | `8000` | Admin dashboard and API |
+| `<proxy-domain>` | `8001` | WebSocket tunnel endpoint and tunnel traffic |
+
+Generate both under the service's networking settings, or with the CLI:
+
+```bash
+railway domain --port 8000 --service portr
+railway domain --port 8001 --service portr
+```
+
+At this point the admin dashboard works on the Railway domain, and clients can
+connect over WebSocket. Tunnel URLs do not resolve yet: they are served on
+subdomains of `PORTR_DOMAIN`, and Railway domains have no wildcard.
+
+## Add a wildcard custom domain
+
+Pick a hostname on a domain you control, for example `portr.example.com`, and
+add two custom domains to the **portr** service:
+
+```bash
+railway domain portr.example.com --port 8000 --service portr
+railway domain '*.portr.example.com' --port 8001 --service portr
+```
+
+Each command prints the DNS records Railway needs. Add them at your DNS
+provider:
+
+| Record | Type | Value |
+|--------|------|-------|
+| `portr` | CNAME | `<target>.up.railway.app` (from the first command) |
+| `*.portr` | CNAME | `<target>.up.railway.app` (from the second command) |
+| `_acme-challenge.portr` | CNAME | `<target>.authorize.railwaydns.net` (from the second command) |
+| `_railway-verify.portr` | TXT | `railway-verify=<token>` (from `railway domain status`) |
+
+<Callout type="warn">
+  On Cloudflare, create these records with the proxy **off** (DNS only).
+  Railway issues the certificates itself; the `_acme-challenge` delegation is
+  how it completes the DNS-01 challenge for the wildcard, and a proxied record
+  breaks it.
+</Callout>
+
+Certificates typically issue within a few minutes. Check progress with:
+
+```bash
+railway domain status portr.example.com --service portr
+railway domain status '*.portr.example.com' --service portr
+```
+
+Then point the server at the custom domain:
+
+```bash
+PORTR_DOMAIN=portr.example.com
+PORTR_SERVER_URL=https://portr.example.com
+```
+
+`PORTR_WS_URL` can stay on the Railway-generated proxy domain, or move to any
+hostname covered by the wildcard, such as `tunnel.portr.example.com`. Either
+way it must reach port `8001`.
+
+## Verify
+
+- `https://portr.example.com` serves the admin dashboard.
+- `https://anything.portr.example.com` returns the "Unregistered Subdomain"
+  page. That is the tunnel proxy answering through the wildcard, which is
+  exactly what a working setup looks like before any tunnel is connected.
+
+Generated client configs (from the admin setup page or `portr auth set`) will
+contain:
+
+```yaml
+server_url: portr.example.com
+transport: websocket
+ws_url: <proxy-domain>
+tunnel_url: portr.example.com
+secret_key: <your-secret-key>
+```
+
+Start a tunnel and hit its URL:
+
+```bash
+portr http 3000 -s myapp
+# https://myapp.portr.example.com
+```
+
+## SQLite instead of PostgreSQL
+
+To skip the Postgres service, attach a volume to the portr service, point
+`PORTR_DB_URL` at a SQLite path on the volume, and see
+[SQLite Backups](/docs/server/sqlite-backups) for continuous replication to
+object storage.

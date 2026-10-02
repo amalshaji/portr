@@ -1,4 +1,4 @@
-package ssh
+package tunneltransport
 
 import (
 	"bytes"
@@ -10,60 +10,11 @@ import (
 	"os"
 	"testing"
 	"time"
-
-	"github.com/amalshaji/portr/internal/constants"
 )
 
 type captureTaskFunc func()
 
-func (f captureTaskFunc) persist(*SshClient) { f() }
-
-type requestSenderFunc func(string, bool, []byte) (bool, []byte, error)
-
-func (f requestSenderFunc) SendRequest(name string, wantReply bool, payload []byte) (bool, []byte, error) {
-	return f(name, wantReply, payload)
-}
-
-func TestCheckSSHKeepAliveRequiresAcknowledgement(t *testing.T) {
-	called := false
-	err := checkSSHKeepAlive(requestSenderFunc(func(name string, wantReply bool, _ []byte) (bool, []byte, error) {
-		called = true
-		if name != "keepalive@openssh.com" {
-			t.Fatalf("unexpected request %q", name)
-		}
-		if !wantReply {
-			t.Fatal("keepalive must require a reply")
-		}
-		return true, nil, nil
-	}), time.Second)
-	if err != nil {
-		t.Fatalf("keepalive failed: %v", err)
-	}
-	if !called {
-		t.Fatal("keepalive request was not sent")
-	}
-}
-
-func TestCheckSSHKeepAliveRejectsMissingAcknowledgement(t *testing.T) {
-	err := checkSSHKeepAlive(requestSenderFunc(func(string, bool, []byte) (bool, []byte, error) {
-		return false, nil, nil
-	}), time.Second)
-	if err == nil {
-		t.Fatal("expected rejected keepalive to fail")
-	}
-}
-
-func TestCheckSSHKeepAliveTimesOut(t *testing.T) {
-	blocked := make(chan struct{})
-	err := checkSSHKeepAlive(requestSenderFunc(func(string, bool, []byte) (bool, []byte, error) {
-		<-blocked
-		return false, nil, errors.New("closed")
-	}), 10*time.Millisecond)
-	close(blocked)
-	if err == nil || err.Error() != "ssh keepalive timed out" {
-		t.Fatalf("expected timeout, got %v", err)
-	}
-}
+func (f captureTaskFunc) persist(*Client) { f() }
 
 func TestBodyCaptureIsBounded(t *testing.T) {
 	capture := &bodyCapture{}
@@ -81,7 +32,7 @@ func TestBodyCaptureIsBounded(t *testing.T) {
 
 func TestCaptureRecorderDrainsBeforeClose(t *testing.T) {
 	recorder := newCaptureRecorder()
-	client := &SshClient{}
+	client := &Client{}
 	persisted := make(chan struct{}, 1)
 	if !recorder.submit(client, captureTaskFunc(func() { persisted <- struct{}{} })) {
 		t.Fatal("expected capture task to be accepted")
@@ -216,14 +167,6 @@ func TestReconnectBackoffIsBounded(t *testing.T) {
 	}
 }
 
-func TestHTTPRemotePortsRemainLegacyServerCompatible(t *testing.T) {
-	for _, port := range remotePortCandidates(constants.Http) {
-		if port == 0 || port < 20000 || port > 30000 {
-			t.Fatalf("HTTP candidate port %d is not legacy-server compatible", port)
-		}
-	}
-}
-
 func tcpPair(t *testing.T) (*net.TCPConn, *net.TCPConn) {
 	t.Helper()
 	listener, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP("127.0.0.1")})
@@ -258,7 +201,7 @@ func TestTCPTunnelPropagatesHalfClose(t *testing.T) {
 	_ = remoteClient.SetDeadline(deadline)
 	_ = localServer.SetDeadline(deadline)
 
-	client := &SshClient{}
+	client := &Client{}
 	tunnelDone := make(chan struct{})
 	go func() {
 		client.tcpTunnel(remoteTunnel, localTunnel)

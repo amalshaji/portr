@@ -112,25 +112,44 @@ func (h *Handler) DownloadConfig(c *fiber.Ctx) error {
 		})
 	}
 
-	configContent := fmt.Sprintf(`server_url: %s
-ssh_url: %s
-secret_key: %s`, stripScheme(h.config.ServerURL), h.config.SshURL, teamUser.SecretKey)
-
-	if h.config.SshHostKeyVerification {
-		configContent += "\ninsecure_skip_host_key_verification: false"
-	}
-
 	template := strings.TrimSpace(teamUser.Team.ClientTemplate)
 	hasTemplate := template != ""
 	if !hasTemplate {
 		template = defaultClientTemplate
 	}
-	configContent += "\n" + template + "\n"
 
 	return c.JSON(fiber.Map{
-		"message":      configContent,
+		"message":      h.clientConfigTemplate(teamUser.SecretKey) + "\n" + template + "\n",
 		"has_template": hasTemplate,
 	})
+}
+
+// clientConfigTemplate renders the connection settings the server owns. The
+// team's tunnel template is appended by the caller.
+func (h *Handler) clientConfigTemplate(secretKey string) string {
+	transport := h.config.Transport
+	if transport == "" {
+		transport = serverConfig.TransportSSH
+	}
+	tunnelURL := stripScheme(h.config.TunnelDomain)
+	if tunnelURL == "" {
+		tunnelURL = stripScheme(h.config.ServerURL)
+	}
+
+	configContent := fmt.Sprintf("server_url: %s\ntransport: %s\n", stripScheme(h.config.ServerURL), transport)
+	switch transport {
+	case serverConfig.TransportWebSocket:
+		configContent += fmt.Sprintf("ws_url: %s\ntunnel_url: %s\n", stripScheme(h.config.WsURL), tunnelURL)
+	default:
+		configContent += fmt.Sprintf("ssh_url: %s\ntunnel_url: %s\n", h.config.SshURL, tunnelURL)
+		if h.config.SshHostKeyVerification {
+			configContent += "insecure_skip_host_key_verification: false\n"
+		}
+	}
+
+	configContent += fmt.Sprintf("secret_key: %s", secretKey)
+
+	return configContent
 }
 
 func (h *Handler) GetSetupScript(c *fiber.Ctx) error {
