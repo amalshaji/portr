@@ -1,0 +1,255 @@
+---
+title: Deploy on Fly.io
+description: Run the Portr server on Fly.io as two apps, with the WebSocket tunnel transport, a wildcard custom domain, and Fly Managed Postgres.
+---
+
+
+Fly.io terminates TLS and proxies HTTP and WebSocket traffic at its edge, so the
+WebSocket transport fits well: tunnels ride over regular HTTPS, with no host
+key and no port 2222.
+
+Fly routes an app's traffic by port, not by hostname. Portr serves the admin
+dashboard on `PORTR_DOMAIN` (port `8000`) and tunnels on `*.PORTR_DOMAIN`
+(port `8001`), and both need port 443 — one app cannot split them. The fix is
+to run the same image as **two Fly apps** sharing one Postgres database:
+
+| App | Command | Internal port | Domain |
+|-----|---------|---------------|--------|
+| `<admin-app>` | `start admin` | `8000` | `portr.example.com` |
+| `<tunnel-app>` | `start tunnel` | `8001` | `*.portr.example.com` |
+
+This guide assumes you know the basics from
+[Server Deployment](/docs/server/start-the-tunnel-server) and have
+[`flyctl`](https://fly.io/docs/flyctl/install/) installed and logged in.
+
+## Bring your own domain
+
+Tunnel URLs are subdomains of `PORTR_DOMAIN` (`https://myapp.portr.example.com`),
+and `*.fly.dev` hostnames cannot be wildcarded, so a working deployment needs:
+
+- **A domain you own**, managed at a DNS provider where you can add records.
+- **A wildcard record** (`*.portr.example.com`) pointing at the tunnel app, set
+  up in [Add custom domains](#add-custom-domains).
+
+The examples below use `portr.example.com`; replace it with your own hostname
+everywhere.
+
+## Create the apps and database
+
+Pick app names and a region (see `fly platform regions`), then create both apps
+and a Managed Postgres cluster in the same region:
+
+```bash
+fly apps create <admin-app>
+fly apps create <tunnel-app>
+
+fly mpg create --name <db-name> --region <region> --plan basic
+```
+
+When the cluster is ready, attach it to both apps. This stores the connection
+string as the `PORTR_DB_URL` secret on each app:
+
+```bash
+fly mpg attach <cluster-id> -a <admin-app> --variable-name PORTR_DB_URL
+fly mpg attach <cluster-id> -a <tunnel-app> --variable-name PORTR_DB_URL
+```
+
+`fly mpg list` shows the cluster ID.
+
+<Callout type="info">
+  SQLite is not an option here: the two apps run on separate machines and
+  cannot share a volume.
+</Callout>
+
+## App configuration
+
+Save these two files in the root of your Portr checkout, next to the
+`Dockerfile`.
+
+`fly.admin.toml`:
+
+```toml
+app = "<admin-app>"
+primary_region = "<region>"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[processes]
+  app = "start admin"
+
+[env]
+  PORTR_TRANSPORT = "websocket"
+  PORTR_ADMIN_PORT = "8000"
+  PORTR_AUTO_MIGRATE = "true"
+  PORTR_DOMAIN = "portr.example.com"
+  PORTR_SERVER_URL = "https://portr.example.com"
+  PORTR_WS_URL = "https://<tunnel-app>.fly.dev"
+
+[http_service]
+  internal_port = 8000
+  processes = ["app"]
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "20s"
+    method = "GET"
+    path = "/api/v1/healthcheck"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+```
+
+`fly.tunnel.toml`:
+
+```toml
+app = "<tunnel-app>"
+primary_region = "<region>"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[processes]
+  app = "start tunnel"
+
+[env]
+  PORTR_TRANSPORT = "websocket"
+  PORTR_PROXY_PORT = "8001"
+  PORTR_AUTO_MIGRATE = "true"
+  PORTR_DOMAIN = "portr.example.com"
+
+[http_service]
+  internal_port = 8001
+  processes = ["app"]
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+```
+
+A few things are deliberate:
+
+- **`PORTR_DOMAIN` is identical in both files.** The admin app uses it for its
+  own URL and for generated client configs; the tunnel app uses it to pull the
+  subdomain out of each request's host.
+- **The tunnel app never stops.** Clients hold long-lived WebSocket
+  connections to it, so `auto_stop_machines` is off. The admin app has no such
+  connections and can stop when idle; Fly starts it again on the next request.
+- **`PORTR_WS_URL` points at the tunnel app's `fly.dev` hostname**, which has a
+  Fly certificate from the start. Any hostname under the wildcard, such as
+  `tunnel.portr.example.com`, also works once its certificate is issued.
+- **The tunnel app has no health check.** Port `8001` answers unknown hosts
+  with a 404, so an HTTP check would always fail.
+
+## Deploy
+
+Deploy the admin app first so its migrations run before the tunnel app starts:
+
+```bash
+fly deploy -c fly.admin.toml --ha=false
+fly deploy -c fly.tunnel.toml --ha=false
+```
+
+<Callout type="warn">
+  Keep the tunnel app at **one machine**. Tunnel sessions live in memory, so a
+  second machine would receive requests for subdomains it has no session for.
+  `--ha=false` stops `fly deploy` from creating a standby machine; don't scale
+  it up with `fly scale count`.
+</Callout>
+
+Check both apps are up:
+
+```bash
+curl https://<admin-app>.fly.dev/api/v1/healthcheck
+# {"status":"ok"}
+```
+
+## Add custom domains
+
+Request certificates on each app:
+
+```bash
+fly certs add portr.example.com -a <admin-app>
+fly certs add '*.portr.example.com' -a <tunnel-app>
+```
+
+Each command prints the DNS records Fly needs. Add them at your DNS provider:
+
+| Record | Type | Value |
+|--------|------|-------|
+| `portr` | CNAME | `<admin-app>.fly.dev` |
+| `*.portr` | A / AAAA | The tunnel app's IPs (from the second command) |
+| `_acme-challenge.portr` | CNAME | `portr.example.com.<id>.flydns.net` (from the second command) |
+
+The `_acme-challenge` record is required: wildcard certificates can only be
+issued through a DNS-01 challenge. Fly also suggests an optional
+`_acme-challenge.portr` record for the admin certificate, with a different
+target. Skip it: the name is taken by the wildcard's record, and the admin
+certificate validates on its own once the `portr` CNAME points at the admin app. `fly certs setup <hostname> -a <app>` prints
+the full list of options again, including a CNAME alternative to the A / AAAA
+records.
+
+<Callout type="warn">
+  On Cloudflare, create these records with the proxy **off** (DNS only). Fly
+  issues and serves the certificates itself, so traffic has to reach Fly
+  directly rather than terminate at Cloudflare.
+</Callout>
+
+Certificates typically issue within a few minutes. Check progress with:
+
+```bash
+fly certs check portr.example.com -a <admin-app>
+fly certs check '*.portr.example.com' -a <tunnel-app>
+```
+
+## Verify
+
+- `https://portr.example.com` serves the admin dashboard. The first login
+  creates the superuser.
+- `https://anything.portr.example.com` returns the "Unregistered Subdomain"
+  page. That is the tunnel app answering through the wildcard, which is exactly
+  what a working setup looks like before any tunnel is connected.
+
+Generated client configs (from the admin setup page or `portr auth set`) will
+contain:
+
+```yaml
+server_url: portr.example.com
+transport: websocket
+ws_url: <tunnel-app>.fly.dev
+tunnel_url: portr.example.com
+secret_key: <your-secret-key>
+```
+
+Start a tunnel and hit its URL:
+
+```bash
+portr http 3000 -s myapp
+# https://myapp.portr.example.com
+```
+
+## GitHub login
+
+To enable [GitHub OAuth](/docs/server/github-oauth-app), store the credentials
+as secrets on the admin app rather than in `fly.admin.toml`:
+
+```bash
+fly secrets set -a <admin-app> \
+  PORTR_ADMIN_GITHUB_CLIENT_ID=<client-id> \
+  PORTR_ADMIN_GITHUB_CLIENT_SECRET=<client-secret>
+```
+
+## Limitations
+
+TCP tunnels do not work on this setup: the server opens a random public port
+for each TCP tunnel, and Fly only exposes ports declared in the app config.

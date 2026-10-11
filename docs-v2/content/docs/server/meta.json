@@ -4,6 +4,7 @@
     "index",
     "start-the-tunnel-server",
     "deploy-on-railway",
+    "deploy-on-fly",
     "sqlite-backups",
     "reserved-subdomains",
     "cloudflare-api-token",
