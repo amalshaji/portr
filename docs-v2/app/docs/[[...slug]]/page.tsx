@@ -48,9 +48,6 @@ export async function generateMetadata(props: {
   const { title, description } = page.data;
   const url = `https://portr.dev${page.url}`;
 
-  // Generate Open Graph image URL using Fumadocs convention
-  const image = ["/docs-og", ...(params.slug || []), "image.png"].join("/");
-
   return {
     title,
     description,
@@ -67,13 +64,13 @@ export async function generateMetadata(props: {
       type: "article",
       url,
       siteName: "Portr Documentation",
-      images: image,
+      images: "/og.png",
     },
     twitter: {
       card: "summary_large_image",
       title,
       description: description || "Portr documentation",
-      images: image,
+      images: "/og.png",
     },
     alternates: {
       canonical: page.data.canonical || url,
