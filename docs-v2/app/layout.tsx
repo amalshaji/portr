@@ -55,6 +55,7 @@ export const metadata: Metadata = {
     description:
       "Self-hosted tunnel solution designed for teams. Expose local HTTP, TCP, or WebSocket connections to the public internet.",
     siteName: "Portr",
+    images: "/og.png",
   },
   twitter: {
     card: "summary_large_image",
@@ -62,6 +63,7 @@ export const metadata: Metadata = {
     description:
       "Self-hosted tunnel solution designed for teams. Expose local HTTP, TCP, or WebSocket connections to the public internet.",
     creator: "@amalshaji",
+    images: "/og.png",
   },
   robots: {
     index: true,
