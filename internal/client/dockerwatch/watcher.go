@@ -44,8 +44,22 @@ type Watcher struct {
 	project string
 	// active maps a container ID to the tunnel started for it.
 	active map[string]string
+	// skipped holds containers whose labels or networking are invalid. They
+	// are not retried until the container starts again.
+	skipped map[string]bool
+	// retries holds containers whose tunnel failed to start, for example
+	// while the portr server was unreachable.
+	retries map[string]retryState
 
 	reconnectDelay time.Duration
+	resyncInterval time.Duration
+	retryDelay     time.Duration
+	maxRetryDelay  time.Duration
+}
+
+type retryState struct {
+	attempts int
+	next     time.Time
 }
 
 func New(docker Docker, tunnels Tunnels, opts Options) *Watcher {
@@ -61,7 +75,12 @@ func New(docker Docker, tunnels Tunnels, opts Options) *Watcher {
 		projectOverride: opts.Project,
 		selfIDs:         selfContainerCandidates(),
 		active:          make(map[string]string),
+		skipped:         make(map[string]bool),
+		retries:         make(map[string]retryState),
 		reconnectDelay:  2 * time.Second,
+		resyncInterval:  15 * time.Second,
+		retryDelay:      15 * time.Second,
+		maxRetryDelay:   5 * time.Minute,
 	}
 }
 
@@ -100,6 +119,10 @@ func (w *Watcher) filters() Filters {
 }
 
 func (w *Watcher) watch(ctx context.Context) error {
+	// Cancelling on return releases the event stream on every exit path.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	eventFilters := w.filters()
 	eventFilters["type"] = []string{"container"}
 	eventFilters["event"] = []string{"start", "die"}
@@ -111,11 +134,13 @@ func (w *Watcher) watch(ctx context.Context) error {
 		return err
 	}
 
-	running, err := w.docker.List(ctx, w.filters())
-	if err != nil {
+	if err := w.resync(ctx); err != nil {
 		return err
 	}
-	w.sync(ctx, running)
+
+	// The periodic resync retries tunnels that failed to start.
+	ticker := time.NewTicker(w.resyncInterval)
+	defer ticker.Stop()
 
 	for {
 		select {
@@ -123,15 +148,37 @@ func (w *Watcher) watch(ctx context.Context) error {
 			return nil
 		case err := <-errs:
 			return err
+		case <-ticker.C:
+			if err := w.resync(ctx); err != nil {
+				return err
+			}
 		case event := <-events:
 			switch event.Action {
 			case "start":
+				w.forget(event.Actor.ID)
 				w.start(ctx, event.Actor.ID)
 			case "die":
 				w.stop(ctx, event.Actor.ID)
+				w.forget(event.Actor.ID)
 			}
 		}
 	}
+}
+
+func (w *Watcher) resync(ctx context.Context) error {
+	running, err := w.docker.List(ctx, w.filters())
+	if err != nil {
+		return err
+	}
+	w.sync(ctx, running)
+	return nil
+}
+
+// forget clears skip and retry state so a restarted container is evaluated
+// from scratch.
+func (w *Watcher) forget(containerID string) {
+	delete(w.skipped, containerID)
+	delete(w.retries, containerID)
 }
 
 // sync reconciles tunnels with the running containers, which matters after a
@@ -147,6 +194,16 @@ func (w *Watcher) sync(ctx context.Context, running []string) {
 			w.stop(ctx, containerID)
 		}
 	}
+	for containerID := range w.skipped {
+		if !isRunning[containerID] {
+			w.forget(containerID)
+		}
+	}
+	for containerID := range w.retries {
+		if !isRunning[containerID] {
+			w.forget(containerID)
+		}
+	}
 
 	sort.Strings(running)
 	for _, id := range running {
@@ -155,7 +212,10 @@ func (w *Watcher) sync(ctx context.Context, running []string) {
 }
 
 func (w *Watcher) start(ctx context.Context, containerID string) {
-	if _, ok := w.active[containerID]; ok || containerID == w.self.ID {
+	if _, ok := w.active[containerID]; ok || containerID == w.self.ID || w.skipped[containerID] {
+		return
+	}
+	if retry, ok := w.retries[containerID]; ok && time.Now().Before(retry.next) {
 		return
 	}
 
@@ -171,23 +231,35 @@ func (w *Watcher) start(ctx context.Context, containerID string) {
 	name := tunnelName(container)
 	host, err := w.reachableHost(container)
 	if err != nil {
+		w.skipped[containerID] = true
 		w.logger.Error("Skipping container", "service", name, "error", err)
 		return
 	}
 
 	request, err := tunnelRequest(container, host)
 	if err != nil {
+		w.skipped[containerID] = true
 		w.logger.Error("Skipping container", "service", name, "error", err)
 		return
 	}
 
 	status, err := w.tunnels.StartTunnel(ctx, request)
 	if err != nil {
-		if ctx.Err() == nil {
-			w.logger.Error("Failed to start tunnel", "service", name, "error", err)
+		if ctx.Err() != nil {
+			return
 		}
+		retry := w.retries[containerID]
+		retry.attempts++
+		delay := w.retryDelay << min(retry.attempts-1, 16)
+		if delay <= 0 || delay > w.maxRetryDelay {
+			delay = w.maxRetryDelay
+		}
+		retry.next = time.Now().Add(delay)
+		w.retries[containerID] = retry
+		w.logger.Error("Failed to start tunnel", "service", name, "error", err, "retry_in", delay)
 		return
 	}
+	delete(w.retries, containerID)
 	w.active[containerID] = status.ID
 }
 

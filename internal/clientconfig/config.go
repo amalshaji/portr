@@ -669,14 +669,7 @@ func (c *ClientConfig) GetServerAddr() string {
 }
 
 func Load(configFile string) (Config, error) {
-	var config Config
-
-	bytes, err := os.ReadFile(configFile)
-	if err != nil {
-		return Config{}, err
-	}
-
-	err = yaml.Unmarshal(bytes, &config)
+	config, err := readConfig(configFile)
 	if err != nil {
 		return Config{}, err
 	}
@@ -693,5 +686,35 @@ func Load(configFile string) (Config, error) {
 		}
 	}
 
+	return config, nil
+}
+
+// LoadSettings loads the connection and client settings only. Tunnels and
+// groups are dropped before anything resolves them, so files they reference
+// need not exist. It returns how many tunnels were dropped.
+func LoadSettings(configFile string) (Config, int, error) {
+	config, err := readConfig(configFile)
+	if err != nil {
+		return Config{}, 0, err
+	}
+
+	dropped := len(config.Tunnels)
+	config.Tunnels = nil
+	config.Groups = nil
+	config.SetDefaults()
+	return config, dropped, nil
+}
+
+func readConfig(configFile string) (Config, error) {
+	var config Config
+
+	bytes, err := os.ReadFile(configFile)
+	if err != nil {
+		return Config{}, err
+	}
+
+	if err := yaml.Unmarshal(bytes, &config); err != nil {
+		return Config{}, err
+	}
 	return config, nil
 }

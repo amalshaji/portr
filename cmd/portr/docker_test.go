@@ -14,6 +14,11 @@ tunnels:
   - name: docs
     type: static
     dir: ./does-not-exist
+  - name: mock
+    type: stub
+    subdomain: mock
+    response_format: application/json
+    response_tmpl_file: ./not-mounted.json
 groups:
   site: [docs]
 `

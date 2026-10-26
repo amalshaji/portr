@@ -27,6 +27,8 @@ type fakeDocker struct {
 	running    []string
 	listErr    error
 	filters    []Filters
+	inspects   map[string]int
+	eventCtxs  []context.Context
 	streams    chan chan Event
 	streamErrs chan chan error
 }
@@ -38,8 +40,9 @@ func newFakeDocker() *fakeDocker {
 
 	return &fakeDocker{
 		containers: map[string]Container{selfID: self},
-		streams:    make(chan chan Event, 4),
-		streamErrs: make(chan chan error, 4),
+		inspects:   map[string]int{},
+		streams:    make(chan chan Event, 64),
+		streamErrs: make(chan chan error, 64),
 	}
 }
 
@@ -56,6 +59,7 @@ func (d *fakeDocker) add(id string, labels map[string]string, networks map[strin
 func (d *fakeDocker) Inspect(_ context.Context, id string) (Container, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	d.inspects[id]++
 	container, ok := d.containers[id]
 	if !ok {
 		return Container{}, fmt.Errorf("%w: no such container %s", ErrNotFound, id)
@@ -70,11 +74,12 @@ func (d *fakeDocker) List(_ context.Context, filters Filters) ([]string, error) 
 	return slices.Clone(d.running), d.listErr
 }
 
-func (d *fakeDocker) Events(_ context.Context, filters Filters) (<-chan Event, <-chan error, error) {
+func (d *fakeDocker) Events(ctx context.Context, filters Filters) (<-chan Event, <-chan error, error) {
 	events := make(chan Event)
 	errs := make(chan error, 1)
 	d.mu.Lock()
 	d.filters = append(d.filters, filters)
+	d.eventCtxs = append(d.eventCtxs, ctx)
 	d.mu.Unlock()
 	d.streams <- events
 	d.streamErrs <- errs
@@ -91,7 +96,7 @@ type fakeTunnels struct {
 }
 
 func newFakeTunnels() *fakeTunnels {
-	return &fakeTunnels{started: map[string]appserver.StartTunnelRequest{}, changed: make(chan struct{}, 32)}
+	return &fakeTunnels{started: map[string]appserver.StartTunnelRequest{}, changed: make(chan struct{}, 1024)}
 }
 
 func (f *fakeTunnels) StartTunnel(_ context.Context, request appserver.StartTunnelRequest) (appserver.TunnelStatus, error) {
@@ -350,4 +355,132 @@ func TestContainerIDFromMountinfo(t *testing.T) {
 	if got := containerIDFromMountinfo(strings.NewReader("1 0 0:1 / / rw - ext4 /dev/sda1 rw\n")); got != "" {
 		t.Fatalf("expected no id outside docker, got %q", got)
 	}
+}
+
+func waitFor(t *testing.T, what string, done func() bool) {
+	t.Helper()
+	deadline := time.After(2 * time.Second)
+	for !done() {
+		select {
+		case <-deadline:
+			t.Fatalf("timed out waiting for %s", what)
+		case <-time.After(2 * time.Millisecond):
+		}
+	}
+}
+
+func TestWatcherReleasesEventStreamWhenListFails(t *testing.T) {
+	docker := newFakeDocker()
+	docker.listErr = errors.New("daemon busy")
+
+	runWatcher(t, newTestWatcher(docker, newFakeTunnels()))
+	<-docker.streams
+
+	docker.mu.Lock()
+	streamCtx := docker.eventCtxs[0]
+	docker.mu.Unlock()
+	select {
+	case <-streamCtx.Done():
+	case <-time.After(2 * time.Second):
+		t.Fatal("the event subscription was not cancelled after the list failed")
+	}
+
+	docker.mu.Lock()
+	docker.listErr = nil
+	docker.mu.Unlock()
+}
+
+func TestWatcherRetriesFailedStarts(t *testing.T) {
+	docker := newFakeDocker()
+	tunnels := newFakeTunnels()
+	tunnels.failFor = "web"
+	docker.add("web", nil, sharedNetwork("172.18.0.3"))
+	docker.running = []string{"web"}
+
+	watcher := newTestWatcher(docker, tunnels)
+	watcher.resyncInterval = 2 * time.Millisecond
+	watcher.retryDelay = time.Millisecond
+	runWatcher(t, watcher)
+	tunnels.wait(t, 1)
+
+	// The portr server comes back.
+	tunnels.mu.Lock()
+	tunnels.failFor = ""
+	tunnels.mu.Unlock()
+
+	waitFor(t, "the tunnel to be retried", func() bool {
+		started, _ := tunnels.snapshot()
+		return len(started) == 1
+	})
+}
+
+func TestWatcherRetryBacksOff(t *testing.T) {
+	docker := newFakeDocker()
+	tunnels := newFakeTunnels()
+	tunnels.failFor = "web"
+	docker.add("web", nil, sharedNetwork("172.18.0.3"))
+
+	watcher := newTestWatcher(docker, tunnels)
+	watcher.retryDelay = time.Hour
+	watcher.maxRetryDelay = 2 * time.Hour
+	if err := watcher.resolveSelf(context.Background()); err != nil {
+		t.Fatalf("resolve self: %v", err)
+	}
+
+	for i := 0; i < 3; i++ {
+		watcher.sync(context.Background(), []string{"web"})
+	}
+
+	retry := watcher.retries["web"]
+	if retry.attempts != 1 {
+		t.Fatalf("expected one attempt inside the backoff window, got %d", retry.attempts)
+	}
+	if wait := time.Until(retry.next); wait < 59*time.Minute {
+		t.Fatalf("expected the next attempt about an hour away, got %s", wait)
+	}
+
+	retry.next = time.Now()
+	watcher.retries["web"] = retry
+	watcher.sync(context.Background(), []string{"web"})
+	if retry := watcher.retries["web"]; retry.attempts != 2 || time.Until(retry.next) < 119*time.Minute {
+		t.Fatalf("expected the delay to double up to the cap, got %+v", retry)
+	}
+
+	// A container that is no longer running is forgotten.
+	watcher.sync(context.Background(), nil)
+	if _, ok := watcher.retries["web"]; ok {
+		t.Fatal("expected retry state to be cleared for a stopped container")
+	}
+}
+
+func TestWatcherDoesNotReinspectSkippedContainers(t *testing.T) {
+	docker := newFakeDocker()
+	tunnels := newFakeTunnels()
+	docker.add("typo", map[string]string{"portr.prot": "3000"}, sharedNetwork("172.18.0.5"))
+	docker.running = []string{"typo"}
+
+	watcher := newTestWatcher(docker, tunnels)
+	watcher.resyncInterval = time.Millisecond
+	runWatcher(t, watcher)
+	events := <-docker.streams
+
+	waitFor(t, "several resyncs", func() bool {
+		docker.mu.Lock()
+		defer docker.mu.Unlock()
+		return len(docker.filters) > 6
+	})
+	docker.mu.Lock()
+	inspects := docker.inspects["typo"]
+	docker.mu.Unlock()
+	if inspects != 1 {
+		t.Fatalf("expected a skipped container to be inspected once, got %d", inspects)
+	}
+
+	// Starting again re-evaluates it, e.g. after the labels were fixed.
+	events <- startEvent("typo")
+	waitFor(t, "a fresh inspect on start", func() bool {
+		docker.mu.Lock()
+		defer docker.mu.Unlock()
+		return docker.inspects["typo"] == 2
+	})
 }

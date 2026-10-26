@@ -41,18 +41,15 @@ func dockerCmd() *cli.Command {
 }
 
 func dockerConfig(path string) (config.Config, error) {
-	cfg, err := config.Load(path)
+	// Tunnels come from labels only. Loading settings alone keeps a shared
+	// config's own tunnels, and the files they reference, out of the way.
+	cfg, dropped, err := config.LoadSettings(path)
 	if err != nil {
 		return config.Config{}, err
 	}
-
-	// Tunnels come from labels only, so a shared config's own tunnels must not
-	// fail validation inside the container (static dirs, for one).
-	if len(cfg.Tunnels) > 0 {
-		log.Info("Ignoring tunnels from the config file; docker mode reads them from labels", "count", len(cfg.Tunnels))
+	if dropped > 0 {
+		log.Info("Ignoring tunnels from the config file; docker mode reads them from labels", "count", dropped)
 	}
-	cfg.Tunnels = nil
-	cfg.Groups = nil
 	cfg.DisableTUI = true
 
 	if err := cfg.Validate(); err != nil {

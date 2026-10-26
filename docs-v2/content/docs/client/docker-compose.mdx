@@ -86,7 +86,9 @@ come only from labels.
 
 Unknown `portr.*` labels are rejected, so a typo such as `portr.prot` is
 reported instead of silently ignored. A service with invalid labels is skipped
-with an error in the logs, and the other tunnels keep running.
+with an error in the logs until it is restarted, and the other tunnels keep
+running. If a tunnel fails to start, for example while the Portr server is
+unreachable, it is retried with backoff, up to every five minutes.
 
 <Callout type="info">
   The default subdomain is derived from names you control, so two people
