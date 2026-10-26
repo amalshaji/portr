@@ -15,6 +15,7 @@ import {
   HelpCircle,
   Home,
   LogOut,
+  Plug,
   PlusCircle,
   Settings,
   User,
@@ -48,6 +49,7 @@ import { useUserStore } from "@/lib/store"
 import AutoSignupSettings from "../auto-signup/AutoSignupSettings"
 import NotFound from "../NotFound"
 import ClientTemplate from "./ClientTemplate"
+import Connect from "./Connect"
 import Connections from "./Connections"
 import Metrics from "./Metrics"
 import MyAccount from "./MyAccount"
@@ -57,6 +59,7 @@ import UsersPage from "./UsersPage"
 
 const operateNav = [
   { label: "Overview", path: "overview", icon: Home },
+  { label: "Connect", path: "connect", icon: Plug },
   { label: "Metrics", path: "metrics", icon: Activity },
   { label: "Connections", path: "connections", icon: ArrowUpDown },
   { label: "Reserved domains", path: "reserved-domains", icon: Globe },
@@ -302,6 +305,7 @@ export default function AppPage() {
       <AppLayout sidebar={sidebar}>
         <Routes>
           <Route path="/overview" element={<Overview />} />
+          <Route path="/connect" element={<Connect />} />
           <Route path="/metrics" element={<Metrics />} />
           <Route path="/connections" element={<Connections />} />
           <Route path="/reserved-domains" element={<ReservedDomains />} />

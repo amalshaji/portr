@@ -132,15 +132,17 @@ describe("Overview", () => {
     expect(screen.getByText("api-dev")).toBeInTheDocument()
     expect(screen.getByText(":5432")).toBeInTheDocument()
 
-    // The setup path stays reachable, just collapsed.
+    // Setup for more machines lives on its own page, so the credential is
+    // not fetched here.
+    expect(fetch).not.toHaveBeenCalledWith(
+      "/api/v1/config/setup-script",
+      expect.anything(),
+    )
     expect(
       screen.queryByText("curl -sSf https://install.portr.dev | sh"),
     ).not.toBeInTheDocument()
-    fireEvent.click(
-      screen.getByRole("button", { name: /Connect another machine/ }),
-    )
     expect(
-      screen.getByText("curl -sSf https://install.portr.dev | sh"),
-    ).toBeInTheDocument()
+      screen.getByRole("link", { name: /Connect another machine/ }),
+    ).toHaveAttribute("href", "/acme/connect")
   })
 })

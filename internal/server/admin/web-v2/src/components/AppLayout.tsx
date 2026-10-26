@@ -20,6 +20,7 @@ export default function AppLayout({ sidebar, children }: AppLayoutProps) {
   const pageName =
     [
       ["/overview", "Overview"],
+      ["/connect", "Connect"],
       ["/metrics", "Metrics"],
       ["/connections", "Connections"],
       ["/reserved-domains", "Reserved domains"],
