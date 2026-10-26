@@ -161,6 +161,17 @@ portr http 3000 -s myapp
 # https://myapp.portr.example.com
 ```
 
+## Response compression and ETags
+
+Railway's edge gzips tunnel responses when the client sends `Accept-Encoding`,
+and marks their ETags as weak (`"v1"` becomes `W/"v1"`). Portr passes
+responses through unchanged, but a weak ETag cannot satisfy a strict
+`If-Match` check, so an API that uses ETags for optimistic concurrency answers
+saves made through the tunnel with `412 Precondition Failed`.
+
+Send `Cache-Control: no-transform` on those responses from your local server.
+Railway then skips compression and the strong ETag reaches the client intact.
+
 ## SQLite instead of PostgreSQL
 
 To skip the Postgres service, attach a volume to the portr service, point
