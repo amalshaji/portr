@@ -115,7 +115,6 @@ func TestManagerShutdownClosesActiveSessions(t *testing.T) {
 		id:         "session-1",
 		connection: &connection,
 		conn:       transport,
-		streams:    make(map[string]*streamQueue),
 		listener:   listener,
 		closed:     make(chan struct{}),
 	}
@@ -169,7 +168,6 @@ func TestReconnectCannotBeOverwrittenByPreviousSessionClose(t *testing.T) {
 	oldSession := &session{
 		id:         "old",
 		connection: connection,
-		streams:    make(map[string]*streamQueue),
 		closed:     make(chan struct{}),
 	}
 	manager := New(nil, service)
@@ -190,7 +188,6 @@ func TestReconnectCannotBeOverwrittenByPreviousSessionClose(t *testing.T) {
 	newSession := &session{
 		id:         "new",
 		connection: connection,
-		streams:    make(map[string]*streamQueue),
 		closed:     make(chan struct{}),
 	}
 	registered := make(chan error, 1)
@@ -220,58 +217,6 @@ func TestReconnectCannotBeOverwrittenByPreviousSessionClose(t *testing.T) {
 	}
 	if got := service.currentStatus(); got != "active" {
 		t.Fatalf("expected reconnected status to remain active, got %q", got)
-	}
-}
-
-func TestSessionDeliverKeepsOtherStreamsResponsiveWhenOneIsFull(t *testing.T) {
-	sess := &session{
-		streams: make(map[string]*streamQueue),
-		closed:  make(chan struct{}),
-	}
-	slow := sess.addStream("slow-stream")
-	fast := sess.addStream("fast-stream")
-	for i := 0; i < cap(slow.frames); i++ {
-		sess.deliver(wsproto.Frame{Type: wsproto.TypeData, StreamID: "slow-stream", Data: []byte{byte(i)}})
-	}
-	sess.deliver(wsproto.Frame{Type: wsproto.TypeData, StreamID: "slow-stream", Data: []byte("overflow")})
-	sess.deliver(wsproto.Frame{Type: wsproto.TypeData, StreamID: "fast-stream", Data: []byte("ready")})
-	select {
-	case frame := <-fast.frames:
-		if string(frame.Data) != "ready" {
-			t.Fatalf("unexpected fast-stream frame %q", frame.Data)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("full stream blocked delivery to another stream")
-	}
-
-	sess.streamMu.Lock()
-	_, slowPresent := sess.streams["slow-stream"]
-	sess.streamMu.Unlock()
-	if slowPresent {
-		t.Fatal("expected overflowing stream to be removed")
-	}
-}
-
-func TestStreamCreditWaitUnblocksWhenStreamCloses(t *testing.T) {
-	sess := &session{
-		streams: make(map[string]*streamQueue),
-		closed:  make(chan struct{}),
-	}
-	stream := sess.addStream("closing-stream")
-
-	waiting := make(chan bool, 1)
-	go func() {
-		waiting <- stream.takeCredit(sess.closed)
-	}()
-
-	sess.removeStream("closing-stream")
-	select {
-	case acquired := <-waiting:
-		if acquired {
-			t.Fatal("credit wait succeeded after stream close")
-		}
-	case <-time.After(time.Second):
-		t.Fatal("credit wait remained blocked after the stream closed")
 	}
 }
 

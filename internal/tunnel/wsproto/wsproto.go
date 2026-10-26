@@ -2,8 +2,10 @@ package wsproto
 
 import (
 	"encoding/json"
+	"net"
 	"sync"
 
+	"github.com/hashicorp/yamux"
 	"golang.org/x/net/websocket"
 )
 
@@ -13,25 +15,35 @@ const (
 	SecretKeyHeader       = "X-Portr-Secret-Key"
 	ProtocolVersionHeader = "X-Portr-Ws-Protocol"
 
-	TypeReady      = "ready"
+	TypeReady = "ready"
+	TypeError = "error"
+)
+
+// Data-plane frames of protocol v1, which multiplexed streams in JSON frames.
+// The server still speaks v1 so older clients keep working; new clients use
+// yamux.
+const (
 	TypeOpen       = "open"
 	TypeData       = "data"
 	TypeWindow     = "window"
 	TypeCloseWrite = "close_write"
 	TypeClose      = "close"
-	TypeError      = "error"
 	TypePing       = "ping"
 	TypePong       = "pong"
 )
 
+// StreamWindowSize is the v1 per-stream credit window, counted in frames.
 const StreamWindowSize = 32
 
 // ProtocolVersion is exchanged during the connect handshake: the client sends
 // it in ProtocolVersionHeader and the server echoes it on the ready frame. The
-// framing has no compatibility mode (a peer without credit windows would
-// deadlock stream writes), so both sides require an exact match and fail the
-// handshake with a clear error instead of hanging mid-stream.
-const ProtocolVersion = 1
+// handshake is JSON text frames so a mismatched peer still gets a readable
+// error; after the ready frame both sides switch the websocket to binary frames
+// carrying a yamux session. The client requires an exact match; the server also
+// accepts LegacyProtocolVersion.
+const ProtocolVersion = 2
+
+const LegacyProtocolVersion = 1
 
 type Frame struct {
 	Type     string `json:"type"`
@@ -74,4 +86,28 @@ func Receive(conn *websocket.Conn) (Frame, error) {
 		return Frame{}, err
 	}
 	return frame, nil
+}
+
+// MuxConfig is the yamux configuration both peers use for the tunnel session.
+// yamux's own error logs go to logger.
+func MuxConfig(logger yamux.Logger) *yamux.Config {
+	// The default 256 KiB stream window is kept on purpose: larger windows let
+	// a few bulk downloads queue megabytes ahead of small responses on a slow
+	// uplink without raising throughput.
+	config := yamux.DefaultConfig()
+	// yamux keepalive closes the session when one ping takes longer than
+	// ConnectionWriteTimeout, which a saturated uplink can cause on a healthy
+	// tunnel. The client runs its own health check, which accepts any incoming
+	// traffic as proof of life, and the server falls back to TCP keepalive.
+	config.EnableKeepAlive = false
+	config.LogOutput = nil
+	config.Logger = logger
+	return config
+}
+
+// MuxConn switches a handshaken websocket to binary frames so it can carry a
+// yamux session.
+func MuxConn(conn *websocket.Conn) net.Conn {
+	conn.PayloadType = websocket.BinaryFrame
+	return conn
 }

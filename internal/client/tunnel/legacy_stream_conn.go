@@ -160,8 +160,13 @@ func (c *tunnelStreamConn) Close() error {
 	return nil
 }
 
-func (c *tunnelStreamConn) LocalAddr() net.Addr              { return tunnelAddr("portr-local") }
-func (c *tunnelStreamConn) RemoteAddr() net.Addr             { return tunnelAddr(c.streamID) }
-func (c *tunnelStreamConn) SetDeadline(time.Time) error      { return nil }
-func (c *tunnelStreamConn) SetReadDeadline(time.Time) error  { return nil }
-func (c *tunnelStreamConn) SetWriteDeadline(time.Time) error { return nil }
+func (c *tunnelStreamConn) LocalAddr() net.Addr  { return tunnelAddr("portr-local") }
+func (c *tunnelStreamConn) RemoteAddr() net.Addr { return tunnelAddr(c.streamID) }
+
+// v1 streams have no deadlines. Reporting that, rather than silently ignoring
+// them, makes callers that need deadlines (net/http) add their own.
+var errDeadlinesUnsupported = errors.New("websocket v1 stream: deadlines not supported")
+
+func (c *tunnelStreamConn) SetDeadline(time.Time) error      { return errDeadlinesUnsupported }
+func (c *tunnelStreamConn) SetReadDeadline(time.Time) error  { return errDeadlinesUnsupported }
+func (c *tunnelStreamConn) SetWriteDeadline(time.Time) error { return errDeadlinesUnsupported }

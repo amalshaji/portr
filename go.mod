@@ -16,6 +16,7 @@ require (
 	github.com/gofiber/template/django/v3 v3.1.11
 	github.com/gofiber/template/html/v2 v2.1.3
 	github.com/gookit/validate v1.5.2
+	github.com/hashicorp/yamux v0.1.2
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/gommon v0.4.2
 	github.com/lib/pq v1.10.9
