@@ -56,6 +56,8 @@ type Manager struct {
 	httpClient *http.Client
 	logger     *log.Logger
 	eventLog   string
+	// newWorker overrides worker construction in tests.
+	newWorker func(cfg clientcfg.ClientConfig, handler func(tunneltransport.Event)) tunneltransport.Worker
 
 	mu            sync.RWMutex
 	stubMu        sync.Mutex
@@ -170,16 +172,38 @@ func (m *Manager) StartTunnel(ctx context.Context, request StartTunnelRequest) (
 	case <-runtime.startedCh:
 		return m.GetTunnel(id)
 	case err := <-runtime.failedCh:
-		cancel()
+		m.discard(runtime)
 		m.unregisterStubTunnel(tunnel)
 		return TunnelStatus{}, err
 	case <-time.After(7 * time.Second):
 		return m.GetTunnel(id)
 	case <-ctx.Done():
-		cancel()
+		m.discard(runtime)
 		m.unregisterStubTunnel(tunnel)
 		return TunnelStatus{}, ctx.Err()
 	}
+}
+
+// discard removes a tunnel whose start the caller saw fail. The caller has no
+// ID for it, so keeping it would only accumulate entries across retries.
+func (m *Manager) discard(runtime *tunnelRuntime) {
+	m.mu.Lock()
+	runtime.stopping = true
+	delete(m.tunnels, runtime.id)
+	m.mu.Unlock()
+
+	runtime.cancel()
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	var shutdowns sync.WaitGroup
+	for _, client := range runtime.clients {
+		shutdowns.Add(1)
+		go func() {
+			defer shutdowns.Done()
+			_ = client.Shutdown(shutdownCtx)
+		}()
+	}
+	shutdowns.Wait()
 }
 
 func (m *Manager) ListTunnels() []TunnelStatus {
@@ -335,9 +359,13 @@ func (m *Manager) createNewConnection(ctx context.Context, cfg clientcfg.ClientC
 }
 
 func (m *Manager) newTunnelClient(id string, cfg clientcfg.ClientConfig) tunneltransport.Worker {
-	return tunneltransport.NewWorker(cfg, m.db, nil, nil, func(event tunneltransport.Event) {
+	handler := func(event tunneltransport.Event) {
 		m.handleTunnelEvent(id, event)
-	})
+	}
+	if m.newWorker != nil {
+		return m.newWorker(cfg, handler)
+	}
+	return tunneltransport.NewWorker(cfg, m.db, nil, nil, handler)
 }
 
 func (m *Manager) handleStartFailure(id string, err error) {
