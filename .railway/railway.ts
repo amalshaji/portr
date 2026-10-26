@@ -1,12 +1,14 @@
 // Railway Infrastructure as Code for a portr server (websocket transport).
 //
-// Edit DOMAIN, then from a directory linked to your Railway project:
+// Edit DOMAIN and the github() source, add both domains to the service (see
+// below), then from a directory linked to your Railway project:
 //
 //   bun install --cwd .railway
 //   railway config plan
 //   railway config apply
 //
-// The portr service listens on two ports:
+// The portr service listens on two ports, mapped to custom domains in the
+// dashboard or with `railway domain`; Railway IaC cannot register them:
 //   8000 -> admin dashboard + API              (DOMAIN)
 //   8001 -> public proxy and the client tunnel  (*.DOMAIN)
 //           transport at /_portr/tunnel/connect
@@ -18,7 +20,7 @@
 //
 // TCP tunnels do not work on Railway: the server allocates a random public port
 // per tunnel, and Railway only exposes ports through manually created TCP proxies.
-import { defineRailway, postgres, project, service } from "railway/iac";
+import { defineRailway, github, postgres, project, service } from "railway/iac";
 
 // A named partial limits this file to the resources it declares, so applying it
 // never deletes other services, volumes or buckets in the project.
@@ -30,6 +32,8 @@ export default defineRailway((ctx) => {
   const db = postgres("Postgres");
 
   const portr = service("portr", {
+    // Omitting the source disconnects the service from its repository.
+    source: github("amalshaji/portr", { branch: "main" }),
     build: { builder: "DOCKERFILE", dockerfilePath: "Dockerfile" },
     deploy: {
       // No startCommand: the image ENTRYPOINT (docker-entrypoint.sh, with CMD
@@ -50,10 +54,6 @@ export default defineRailway((ctx) => {
       // second replica would receive requests for subdomains it has no session for.
       numReplicas: 1,
     },
-    domains: [
-      { domain: DOMAIN, port: 8000 },
-      { domain: `*.${DOMAIN}`, port: 8001 },
-    ],
     env: {
       PORTR_DB_URL: db.env.DATABASE_URL,
       PORTR_DOMAIN: DOMAIN,
