@@ -132,7 +132,12 @@ describe("Overview", () => {
     expect(screen.getByText("api-dev")).toBeInTheDocument()
     expect(screen.getByText(":5432")).toBeInTheDocument()
 
-    // Setup for more machines lives on its own page.
+    // Setup for more machines lives on its own page, so the credential is
+    // not fetched here.
+    expect(fetch).not.toHaveBeenCalledWith(
+      "/api/v1/config/setup-script",
+      expect.anything(),
+    )
     expect(
       screen.queryByText("curl -sSf https://install.portr.dev | sh"),
     ).not.toBeInTheDocument()

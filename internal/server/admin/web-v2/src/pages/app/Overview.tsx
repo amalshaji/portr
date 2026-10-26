@@ -72,9 +72,23 @@ function Hero({
   )
 }
 
+/** Fetches the setup command only when it is shown, so established teams'
+ *  overview never pulls the credential. */
+function FirstRunSetup({ team }: { team?: string }) {
+  const { script, state, retry } = useSetupScript(team)
+
+  return (
+    <GuidedSetup
+      team={team}
+      setupState={state}
+      setupScript={script}
+      onRetry={retry}
+    />
+  )
+}
+
 export default function Overview() {
   const { team } = useParams<{ team: string }>()
-  const { script, state: setupState, retry } = useSetupScript(team)
   const {
     connections,
     totalConnections,
@@ -176,12 +190,7 @@ export default function Overview() {
           </div>
         </Hero>
 
-        <GuidedSetup
-          team={team}
-          setupState={setupState}
-          setupScript={script}
-          onRetry={retry}
-        />
+        <FirstRunSetup team={team} />
       </div>
     )
   }
