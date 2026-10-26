@@ -20,6 +20,10 @@
 // per tunnel, and Railway only exposes ports through manually created TCP proxies.
 import { defineRailway, postgres, project, service } from "railway/iac";
 
+// A named partial limits this file to the resources it declares, so applying it
+// never deletes other services, volumes or buckets in the project.
+export const partial = "portr";
+
 const DOMAIN = "portr.example.com";
 
 export default defineRailway((ctx) => {
@@ -45,8 +49,6 @@ export default defineRailway((ctx) => {
       // Tunnel sessions and proxy routes are held in memory per replica, so a
       // second replica would receive requests for subdomains it has no session for.
       numReplicas: 1,
-      restartPolicyType: "ON_FAILURE",
-      restartPolicyMaxRetries: 10,
     },
     domains: [
       { domain: DOMAIN, port: 8000 },

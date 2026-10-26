@@ -44,8 +44,12 @@ thing up with [Infrastructure as Code](#infrastructure-as-code) or by hand.
 The repository ships a
 [Railway Infrastructure as Code](https://docs.railway.com/infrastructure-as-code)
 file at `.railway/railway.ts`. It declares the **Postgres** database and the
-**portr** service with its Dockerfile build, restart policy, single replica,
-both custom domains and every variable from the sections below.
+**portr** service with its Dockerfile build, single replica, both custom
+domains and every variable from the sections below. It exports the named partial
+`portr`, so applying it only manages those two resources and leaves anything
+else in the project alone. It targets the PostgreSQL setup; for
+[SQLite](#sqlite-instead-of-postgresql), declare the volume and mount it on the
+service before applying, or the plan will detach it.
 
 Set `DOMAIN` at the top of the file to your hostname, then from the repository
 root:
@@ -71,8 +75,9 @@ with the DNS records in
 <Callout type="info">
   Earlier versions of this repository shipped a `railway.toml`. Railway stops
   reading Config as Code files on 2026-12-01, and a service cannot be managed by
-  both. For an existing deployment, run `railway config migrate cutover` before
-  `railway config plan`, so the service stops reading `railway.toml`.
+  both. For an existing deployment, run `railway config migrate cutover`
+  (Railway CLI 5.71.0 or newer) before `railway config plan`, so the service
+  stops reading `railway.toml`. `railway config migrate undo` reverts it.
 </Callout>
 
 The sections below set up the same deployment by hand.
