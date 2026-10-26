@@ -1,0 +1,4 @@
+requests=4000 conns=32 elapsed=118ms failures=0
+latency p50=920µs p90=1.14ms p99=1.8ms max=2.28ms n=4000
+throughput 33836.3 req/s, 2217.49 MB/s
+statuses 200=4000

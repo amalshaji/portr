@@ -1,0 +1,4 @@
+conns=1 messages=2000 size=1024B elapsed=850ms failures=0
+handshake p50=7.77ms p90=7.77ms p99=7.77ms max=7.77ms n=1
+echo rtt  p50=390µs p90=530µs p99=930µs max=5.29ms n=2000
+throughput 2353 msg/s, 2.41 MB/s each way
