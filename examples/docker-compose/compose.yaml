@@ -1,0 +1,28 @@
+# Tunnels labelled services with `portr docker`.
+#   docker compose up
+#   docker compose logs -f portr
+services:
+  portr:
+    image: amalshaji/portr-client:latest
+    volumes:
+      - ~/.portr/config.yaml:/root/.portr/config.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "7777:7777"
+
+  web:
+    image: nginx:alpine
+    labels:
+      portr.enable: "true"
+      portr.subdomain: "${USER:-portr}-web"
+
+  redis:
+    image: redis:7-alpine
+    labels:
+      portr.enable: "true"
+      portr.type: tcp
+
+  # No portr.enable label, so this stays private.
+  worker:
+    image: busybox
+    command: ["sleep", "infinity"]

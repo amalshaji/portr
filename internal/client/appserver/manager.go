@@ -31,6 +31,8 @@ const (
 	statusFailed    = "failed"
 
 	maxStoredEvents = 200
+
+	defaultEventLog = "App-server tunnel event"
 )
 
 var ErrTunnelNotFound = errors.New("tunnel not found")
@@ -53,6 +55,7 @@ type Manager struct {
 	db         *db.Db
 	httpClient *http.Client
 	logger     *log.Logger
+	eventLog   string
 
 	mu            sync.RWMutex
 	stubMu        sync.Mutex
@@ -77,6 +80,13 @@ func NewManager(baseConfig clientcfg.Config, database *db.Db) *Manager {
 	}
 }
 
+// SetEventLogger changes where tunnel events are logged and the message they
+// are logged under, for callers that are not the app server.
+func (m *Manager) SetEventLogger(logger *log.Logger, message string) {
+	m.logger = logger
+	m.eventLog = message
+}
+
 func (m *Manager) StartTunnel(ctx context.Context, request StartTunnelRequest) (TunnelStatus, error) {
 	tunnel := clientcfg.Tunnel{
 		Name:                 request.Name,
@@ -89,6 +99,7 @@ func (m *Manager) StartTunnel(ctx context.Context, request StartTunnelRequest) (
 		ResponseTemplate:     request.ResponseTemplate,
 		ResponseTemplateFile: request.ResponseTemplateFile,
 		BasicAuth:            request.BasicAuth,
+		HostHeader:           request.HostHeader,
 	}
 	tunnel.SetDefaults()
 	if err := tunnel.ResolveStubTemplate("."); err != nil {
@@ -462,14 +473,18 @@ func (m *Manager) recordEvent(tunnel *tunnelRuntime, event tunneltransport.Event
 func (m *Manager) logEvent(event TunnelEvent) {
 	logger := m.appLogger()
 	fields := tunnelEventLogFields(event)
+	message := m.eventLog
+	if message == "" {
+		message = defaultEventLog
+	}
 
 	switch event.Type {
 	case string(tunneltransport.EventFailed):
-		logger.Error("App-server tunnel event", fields...)
+		logger.Error(message, fields...)
 	case string(tunneltransport.EventUnhealthy):
-		logger.Warn("App-server tunnel event", fields...)
+		logger.Warn(message, fields...)
 	default:
-		logger.Info("App-server tunnel event", fields...)
+		logger.Info(message, fields...)
 	}
 }
 

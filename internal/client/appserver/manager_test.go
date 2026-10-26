@@ -229,3 +229,17 @@ func TestHandleTunnelEventIgnoresLateUnhealthyAfterStopped(t *testing.T) {
 		t.Fatalf("expected late unhealthy event to be ignored, got %#v", manager.Events("tun_1"))
 	}
 }
+
+func TestSetEventLoggerChangesMessage(t *testing.T) {
+	var output bytes.Buffer
+	manager := NewManager(clientcfg.Config{}, nil)
+	manager.SetEventLogger(log.NewWithOptions(&output, log.Options{}), "Tunnel event")
+
+	manager.recordEvent(&tunnelRuntime{id: "t1", status: TunnelStatus{Type: constants.Http}}, tunneltransport.Event{
+		Type: tunneltransport.EventStarted,
+	})
+
+	if logLine := output.String(); !strings.Contains(logLine, "Tunnel event") || strings.Contains(logLine, "App-server") {
+		t.Fatalf("expected the custom message, got %q", logLine)
+	}
+}

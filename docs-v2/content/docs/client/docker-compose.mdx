@@ -1,0 +1,115 @@
+---
+title: Docker Compose
+description: Add one Portr service to your docker compose file and tunnel any service by labelling it. Tunnels start and stop with the containers.
+---
+
+
+If your development stack runs on Docker Compose, you don't need a `portr`
+command per service. Add one `portr` service to the compose file, label the
+services you want public, and `docker compose up` brings the tunnels up with
+them.
+
+```yaml title="compose.yaml"
+services:
+  portr:
+    image: amalshaji/portr-client:latest
+    volumes:
+      - ~/.portr/config.yaml:/root/.portr/config.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "7777:7777" # local request inspector
+
+  web:
+    build: .
+    labels:
+      portr.enable: "true"
+      portr.subdomain: my-app
+      portr.port: "3000"
+
+  db:
+    image: postgres:16
+    labels:
+      portr.enable: "true"
+      portr.type: tcp
+```
+
+`web` is served at `my-app.<your portr domain>`, and `db` gets a public TCP
+port, printed in the `portr` service logs:
+
+```bash
+docker compose logs -f portr
+```
+
+## How it works
+
+The `portr` service runs `portr docker`, which talks to the Docker daemon
+through the mounted socket:
+
+1. It finds its own container and reads its compose project name.
+2. It subscribes to container `start` and `die` events, filtered to that
+   project and to containers labelled `portr.enable=true`.
+3. When a labelled service starts, it opens a tunnel to the service's IP on
+   the compose network. When the service stops, the tunnel closes. Restarting
+   a service gives it the same subdomain again.
+
+Only containers in the same compose project are watched, so other stacks on
+the machine are never exposed, even if they carry `portr.*` labels. When you
+combine several files with `-f`, they form one project and are watched
+together.
+
+## Configuration
+
+The `portr` service reads the same client config file as the CLI. Mount the
+one created by `portr auth` at `/root/.portr/config.yaml`. Connection settings
+such as `server_url`, `secret_key`, and `transport` are used as-is. The
+`tunnels` and `groups` sections are ignored, because in docker mode tunnels
+come only from labels.
+
+<Callout type="warning">
+  Inside the container, `localhost` is the container itself. If you run the
+  Portr server on your own machine, point `server_url` and `ssh_url` at
+  `host.docker.internal` and add
+  `extra_hosts: ["host.docker.internal:host-gateway"]` to the `portr` service.
+</Callout>
+
+## Labels
+
+| Label | Default | Description |
+| --- | --- | --- |
+| `portr.enable` | — | Set to `true` to tunnel the service. Required. |
+| `portr.type` | `http` | `http` or `tcp`. |
+| `portr.port` | the only exposed port | Port the service listens on inside its container. Required when the image exposes no port or several ports. |
+| `portr.subdomain` | `<service>-<project>` | HTTP only. TCP tunnels get a port assigned by the server instead. |
+| `portr.name` | service name | Label shown in logs and the inspector. |
+| `portr.basic_auth` | — | HTTP only. `user:password` required to reach the tunnel. |
+| `portr.host_header` | — | HTTP only. Host header sent to the service. Use `rewrite` for the local address, or any hostname. |
+
+Unknown `portr.*` labels are rejected, so a typo such as `portr.prot` is
+reported instead of silently ignored. A service with invalid labels is skipped
+with an error in the logs, and the other tunnels keep running.
+
+<Callout type="info">
+  The default subdomain is derived from names you control, so two people
+  running the same project against one Portr server will collide. Set
+  `portr.subdomain` explicitly, for example from an environment variable:
+  `portr.subdomain: "${USER}-app"`.
+</Callout>
+
+## Networking
+
+The `portr` service must share a network with every service it tunnels. With
+the default compose network this is automatic. If you use custom networks,
+attach `portr` to each of them. Services using `network_mode: host` or
+`network_mode: service:...` cannot be tunnelled this way.
+
+## Command options
+
+| Flag | Environment variable | Description |
+| --- | --- | --- |
+| `--docker-host` | `DOCKER_HOST` | Docker daemon address. Defaults to `unix:///var/run/docker.sock`. `tcp://` is also supported. |
+| `--project` | `PORTR_DOCKER_PROJECT` | Watch this compose project instead of the one the `portr` container belongs to. |
+
+<Callout type="warning">
+  Mounting the Docker socket gives the container root-equivalent access to the
+  host. Only use this for local development stacks.
+</Callout>

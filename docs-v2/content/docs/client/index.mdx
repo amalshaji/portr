@@ -27,6 +27,9 @@ The Portr client is a command-line tool that allows you to create secure tunnels
   <Card title="App Server" href="/docs/client/app-server">
     Manage tunnels programmatically through a local HTTP API.
   </Card>
+  <Card title="Docker Compose" href="/docs/client/docker-compose">
+    Tunnel compose services automatically with container labels.
+  </Card>
   <Card title="TCP Tunnels" href="/docs/client/tcp-tunnel">
     Tunnel raw TCP connections for databases and other services.
   </Card>
@@ -92,6 +95,9 @@ portr replay --latest --subdomain my-app --filter /api/orders --method POST --he
 
 # Start a local API for programmatic tunnel lifecycle management
 portr app-server
+
+# Tunnel labelled services in a docker compose project (run inside the project)
+portr docker
 
 # Get help
 portr --help

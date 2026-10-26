@@ -25,6 +25,7 @@ Portr is primarily designed for small teams looking to expose development server
 
 - 🎉 Expose local HTTP, TCP, and WebSocket services on public URLs.
 - 🚨 Built-in local inspector on `http://localhost:7777` for request inspection, replay, and WebSocket session debugging. [Watch video](https://www.youtube.com/watch?v=_4tipDzuoSs).
+- 🐳 Tunnel Docker Compose services by adding a `portr.enable` label. [Docker Compose guide](https://portr.dev/docs/client/docker-compose).
 - 🤖 Agent-friendly local request logs with `portr logs`, backed by `~/.portr/db.sqlite`.
 - 👾 Admin dashboard for team, user, and connection management. [Watch video](https://www.youtube.com/watch?v=Wv5j3YQk3Ew).
 

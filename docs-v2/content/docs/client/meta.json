@@ -9,6 +9,7 @@
     "request-logs",
     "request-replay",
     "app-server",
+    "docker-compose",
     "tcp-tunnel",
     "stub-tunnel",
     "static-tunnel",
