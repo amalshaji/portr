@@ -37,7 +37,50 @@ variables below pre-wired, including a generated Postgres password.
 The template cannot bring the domain for you: after it deploys, continue with
 [Add a wildcard custom domain](#add-a-wildcard-custom-domain) using your own
 domain — that part is manual either way. The rest of this guide sets the same
-thing up by hand.
+thing up with [Infrastructure as Code](#infrastructure-as-code) or by hand.
+
+## Infrastructure as Code
+
+The repository ships a
+[Railway Infrastructure as Code](https://docs.railway.com/infrastructure-as-code)
+file at `.railway/railway.ts`. It declares the **Postgres** database and the
+**portr** service with its Dockerfile build, single replica, both custom
+domains and every variable from the sections below. It exports the named partial
+`portr`, so applying it only manages those two resources and leaves anything
+else in the project alone. It targets the PostgreSQL setup; for
+[SQLite](#sqlite-instead-of-postgresql), declare the volume and mount it on the
+service before applying, or the plan will detach it.
+
+Set `DOMAIN` at the top of the file to your hostname, then from the repository
+root:
+
+```bash
+bun install --cwd .railway
+railway link
+railway config plan
+railway config apply
+```
+
+`plan` only reads Railway state and prints the changes; `apply` asks for
+confirmation before making them. Variables missing from the file are deleted
+on apply, so if you use [GitHub login](/docs/server/github-oauth-app), add
+`PORTR_ADMIN_GITHUB_CLIENT_ID` and `PORTR_ADMIN_GITHUB_CLIENT_SECRET` as
+`preserve()` entries as the file's comment describes.
+
+The file does not set the service source. Connect the **portr** service to your
+fork of the repository (or the upstream repo) in the dashboard, then continue
+with the DNS records in
+[Add a wildcard custom domain](#add-a-wildcard-custom-domain).
+
+<Callout type="info">
+  Earlier versions of this repository shipped a `railway.toml`. Railway stops
+  reading Config as Code files on 2026-12-01, and a service cannot be managed by
+  both. For an existing deployment, run `railway config migrate cutover`
+  (Railway CLI 5.71.0 or newer) before `railway config plan`, so the service
+  stops reading `railway.toml`. `railway config migrate undo` reverts it.
+</Callout>
+
+The sections below set up the same deployment by hand.
 
 ## Create the services
 
