@@ -22,6 +22,7 @@ type StartTunnelRequest struct {
 	ResponseTemplate     string                   `json:"response_tmpl"`
 	ResponseTemplateFile string                   `json:"response_tmpl_file"`
 	BasicAuth            string                   `json:"basic_auth"`
+	HostHeader           string                   `json:"host_header"`
 	CallbackURL          string                   `json:"callback_url"`
 	CallbackURLs         []string                 `json:"callback_urls"`
 }

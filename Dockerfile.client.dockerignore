@@ -1,0 +1,7 @@
+*
+!go.mod
+!go.sum
+!cmd/portr
+!internal
+internal/server
+**/node_modules

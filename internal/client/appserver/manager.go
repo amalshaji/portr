@@ -31,6 +31,8 @@ const (
 	statusFailed    = "failed"
 
 	maxStoredEvents = 200
+
+	defaultEventLog = "App-server tunnel event"
 )
 
 var ErrTunnelNotFound = errors.New("tunnel not found")
@@ -53,6 +55,9 @@ type Manager struct {
 	db         *db.Db
 	httpClient *http.Client
 	logger     *log.Logger
+	eventLog   string
+	// newWorker overrides worker construction in tests.
+	newWorker func(cfg clientcfg.ClientConfig, handler func(tunneltransport.Event)) tunneltransport.Worker
 
 	mu            sync.RWMutex
 	stubMu        sync.Mutex
@@ -77,6 +82,13 @@ func NewManager(baseConfig clientcfg.Config, database *db.Db) *Manager {
 	}
 }
 
+// SetEventLogger changes where tunnel events are logged and the message they
+// are logged under, for callers that are not the app server.
+func (m *Manager) SetEventLogger(logger *log.Logger, message string) {
+	m.logger = logger
+	m.eventLog = message
+}
+
 func (m *Manager) StartTunnel(ctx context.Context, request StartTunnelRequest) (TunnelStatus, error) {
 	tunnel := clientcfg.Tunnel{
 		Name:                 request.Name,
@@ -89,6 +101,7 @@ func (m *Manager) StartTunnel(ctx context.Context, request StartTunnelRequest) (
 		ResponseTemplate:     request.ResponseTemplate,
 		ResponseTemplateFile: request.ResponseTemplateFile,
 		BasicAuth:            request.BasicAuth,
+		HostHeader:           request.HostHeader,
 	}
 	tunnel.SetDefaults()
 	if err := tunnel.ResolveStubTemplate("."); err != nil {
@@ -159,16 +172,38 @@ func (m *Manager) StartTunnel(ctx context.Context, request StartTunnelRequest) (
 	case <-runtime.startedCh:
 		return m.GetTunnel(id)
 	case err := <-runtime.failedCh:
-		cancel()
+		m.discard(runtime)
 		m.unregisterStubTunnel(tunnel)
 		return TunnelStatus{}, err
 	case <-time.After(7 * time.Second):
 		return m.GetTunnel(id)
 	case <-ctx.Done():
-		cancel()
+		m.discard(runtime)
 		m.unregisterStubTunnel(tunnel)
 		return TunnelStatus{}, ctx.Err()
 	}
+}
+
+// discard removes a tunnel whose start the caller saw fail. The caller has no
+// ID for it, so keeping it would only accumulate entries across retries.
+func (m *Manager) discard(runtime *tunnelRuntime) {
+	m.mu.Lock()
+	runtime.stopping = true
+	delete(m.tunnels, runtime.id)
+	m.mu.Unlock()
+
+	runtime.cancel()
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	var shutdowns sync.WaitGroup
+	for _, client := range runtime.clients {
+		shutdowns.Add(1)
+		go func() {
+			defer shutdowns.Done()
+			_ = client.Shutdown(shutdownCtx)
+		}()
+	}
+	shutdowns.Wait()
 }
 
 func (m *Manager) ListTunnels() []TunnelStatus {
@@ -324,9 +359,13 @@ func (m *Manager) createNewConnection(ctx context.Context, cfg clientcfg.ClientC
 }
 
 func (m *Manager) newTunnelClient(id string, cfg clientcfg.ClientConfig) tunneltransport.Worker {
-	return tunneltransport.NewWorker(cfg, m.db, nil, nil, func(event tunneltransport.Event) {
+	handler := func(event tunneltransport.Event) {
 		m.handleTunnelEvent(id, event)
-	})
+	}
+	if m.newWorker != nil {
+		return m.newWorker(cfg, handler)
+	}
+	return tunneltransport.NewWorker(cfg, m.db, nil, nil, handler)
 }
 
 func (m *Manager) handleStartFailure(id string, err error) {
@@ -462,14 +501,18 @@ func (m *Manager) recordEvent(tunnel *tunnelRuntime, event tunneltransport.Event
 func (m *Manager) logEvent(event TunnelEvent) {
 	logger := m.appLogger()
 	fields := tunnelEventLogFields(event)
+	message := m.eventLog
+	if message == "" {
+		message = defaultEventLog
+	}
 
 	switch event.Type {
 	case string(tunneltransport.EventFailed):
-		logger.Error("App-server tunnel event", fields...)
+		logger.Error(message, fields...)
 	case string(tunneltransport.EventUnhealthy):
-		logger.Warn("App-server tunnel event", fields...)
+		logger.Warn(message, fields...)
 	default:
-		logger.Info("App-server tunnel event", fields...)
+		logger.Info(message, fields...)
 	}
 }
 
