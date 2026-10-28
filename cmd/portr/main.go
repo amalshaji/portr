@@ -40,6 +40,7 @@ func buildApp() *cli.App {
 			appServerCmd(),
 			adminCmd(),
 			doctorCmd(),
+			dockerCmd(),
 		},
 	}
 }

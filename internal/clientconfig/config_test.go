@@ -864,3 +864,36 @@ func TestGetLocalAddrBracketsIPv6Hosts(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadSettingsSkipsTunnelFiles(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	raw := `server_url: tunnel.example.com
+secret_key: key
+tunnels:
+  - name: mock
+    type: stub
+    subdomain: mock
+    response_format: application/json
+    response_tmpl_file: ./missing.json
+groups:
+  api: [mock]
+`
+	if err := os.WriteFile(path, []byte(raw), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	if _, err := Load(path); err == nil {
+		t.Fatal("expected Load to fail on the missing template file")
+	}
+
+	cfg, dropped, err := LoadSettings(path)
+	if err != nil {
+		t.Fatalf("expected tunnels to be skipped, got %v", err)
+	}
+	if dropped != 1 || len(cfg.Tunnels) != 0 || len(cfg.Groups) != 0 {
+		t.Fatalf("expected tunnels and groups dropped, got dropped=%d %+v %+v", dropped, cfg.Tunnels, cfg.Groups)
+	}
+	if cfg.ServerUrl != "tunnel.example.com" || cfg.DashboardPort != DefaultDashboardPort {
+		t.Fatalf("expected settings with defaults, got %+v", cfg)
+	}
+}

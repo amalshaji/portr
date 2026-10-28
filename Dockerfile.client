@@ -1,0 +1,38 @@
+# Client image for `portr docker`. Build with:
+#   docker build -f Dockerfile.client -t portr-client .
+# Dockerfile.client.dockerignore replaces .dockerignore, which strips the
+# client sources from the server image's build context.
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+
+RUN go mod download
+
+COPY cmd/portr ./cmd/portr
+COPY internal ./internal
+
+ARG VERSION=dev
+
+RUN CGO_ENABLED=0 go build \
+    -ldflags="-s -w -X main.version=${VERSION}" \
+    -o portr ./cmd/portr
+
+FROM alpine:3.20
+
+LABEL maintainer="Amal Shaji" \
+    org.opencontainers.image.title="Portr Client" \
+    org.opencontainers.image.description="Portr client for exposing docker compose services" \
+    org.opencontainers.image.source="https://github.com/amalshaji/portr"
+
+RUN apk --no-cache add ca-certificates
+
+COPY --from=builder /app/portr /usr/local/bin/portr
+
+# Runs as root: it needs the docker socket, and the config is mounted at
+# /root/.portr/config.yaml next to the request log database.
+EXPOSE 7777
+
+ENTRYPOINT ["portr"]
+CMD ["docker"]

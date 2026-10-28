@@ -3,10 +3,12 @@ package appserver
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -228,4 +230,88 @@ func TestHandleTunnelEventIgnoresLateUnhealthyAfterStopped(t *testing.T) {
 	if len(manager.Events("tun_1")) != 0 {
 		t.Fatalf("expected late unhealthy event to be ignored, got %#v", manager.Events("tun_1"))
 	}
+}
+
+func TestSetEventLoggerChangesMessage(t *testing.T) {
+	var output bytes.Buffer
+	manager := NewManager(clientcfg.Config{}, nil)
+	manager.SetEventLogger(log.NewWithOptions(&output, log.Options{}), "Tunnel event")
+
+	manager.recordEvent(&tunnelRuntime{id: "t1", status: TunnelStatus{Type: constants.Http}}, tunneltransport.Event{
+		Type: tunneltransport.EventStarted,
+	})
+
+	if logLine := output.String(); !strings.Contains(logLine, "Tunnel event") || strings.Contains(logLine, "App-server") {
+		t.Fatalf("expected the custom message, got %q", logLine)
+	}
+}
+
+type failingWorker struct {
+	startErr  error
+	block     bool
+	shutdowns *atomic.Int32
+}
+
+func (w failingWorker) Start(ctx context.Context) error {
+	if w.block {
+		<-ctx.Done()
+		return nil
+	}
+	return w.startErr
+}
+
+func (w failingWorker) Shutdown(context.Context) error {
+	w.shutdowns.Add(1)
+	return nil
+}
+
+func TestStartTunnelDiscardsRepeatedFailures(t *testing.T) {
+	var shutdowns atomic.Int32
+	manager := newTestManager()
+	manager.newWorker = func(clientcfg.ClientConfig, func(tunneltransport.Event)) tunneltransport.Worker {
+		return failingWorker{startErr: errors.New("connection refused"), shutdowns: &shutdowns}
+	}
+
+	for i := 0; i < 5; i++ {
+		_, err := manager.StartTunnel(context.Background(), StartTunnelRequest{Type: constants.Tcp, Host: "10.0.0.2", Port: 5432})
+		if err == nil || !strings.Contains(err.Error(), "connection refused") {
+			t.Fatalf("attempt %d: expected the start error, got %v", i, err)
+		}
+	}
+
+	if tunnels := manager.ListTunnels(); len(tunnels) != 0 {
+		t.Fatalf("expected failed starts to be discarded, got %d tunnels", len(tunnels))
+	}
+	if got := shutdowns.Load(); got != 5 {
+		t.Fatalf("expected each failed worker to be shut down, got %d", got)
+	}
+}
+
+func TestStartTunnelDiscardsCancelledStart(t *testing.T) {
+	var shutdowns atomic.Int32
+	manager := newTestManager()
+	manager.newWorker = func(clientcfg.ClientConfig, func(tunneltransport.Event)) tunneltransport.Worker {
+		return failingWorker{block: true, shutdowns: &shutdowns}
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := manager.StartTunnel(ctx, StartTunnelRequest{Type: constants.Tcp, Host: "10.0.0.2", Port: 5432}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+
+	if tunnels := manager.ListTunnels(); len(tunnels) != 0 {
+		t.Fatalf("expected the cancelled start to be discarded, got %d tunnels", len(tunnels))
+	}
+	if got := shutdowns.Load(); got != 1 {
+		t.Fatalf("expected the worker to be shut down, got %d", got)
+	}
+}
+
+func newTestManager() *Manager {
+	cfg := clientcfg.Config{}
+	cfg.SetDefaults()
+	manager := NewManager(cfg, nil)
+	manager.SetEventLogger(log.New(io.Discard), "Tunnel event")
+	return manager
 }
