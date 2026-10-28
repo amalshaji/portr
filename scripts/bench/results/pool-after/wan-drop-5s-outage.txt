@@ -1,0 +1,2 @@
+recovery_seconds=2.54
+visitor_responses=404x17 200x1

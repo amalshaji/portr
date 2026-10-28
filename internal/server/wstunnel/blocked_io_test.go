@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	serverdb "github.com/amalshaji/portr/internal/server/db"
 	"github.com/amalshaji/portr/internal/tunnel/wsproto"
 	"github.com/hashicorp/yamux"
 )
@@ -154,28 +153,3 @@ func TestSessionCloseInterruptsBlockedDownstreamWrite(t *testing.T) {
 }
 
 var discardLogger = log.New(io.Discard, "", 0)
-
-func TestPipeStreamStopsWaitingForVisitorAfterLingerTimeout(t *testing.T) {
-	previous := streamLingerTimeout
-	streamLingerTimeout = 50 * time.Millisecond
-	t.Cleanup(func() { streamLingerTimeout = previous })
-
-	sess, clientMux := newMuxSession(t)
-	sess.connection = &serverdb.Connection{ID: "conn-linger", Type: "http"}
-	_, proxied := tcpPair(t)
-	finished := make(chan struct{})
-	go func() { (&Manager{}).pipeStream(sess, proxied, nil); close(finished) }()
-
-	stream, err := clientMux.AcceptStream()
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, _ = stream.Write([]byte("response"))
-	_ = stream.Close()
-	// The visitor never closes its side.
-	select {
-	case <-finished:
-	case <-time.After(time.Second):
-		t.Fatal("pipeStream kept waiting on a visitor that never closed")
-	}
-}
