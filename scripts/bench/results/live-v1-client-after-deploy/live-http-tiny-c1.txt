@@ -1,0 +1,4 @@
+requests=50 conns=1 elapsed=5.311s failures=0
+latency p50=102.46ms p90=123.81ms p99=221.97ms max=221.97ms n=50
+throughput 9.4 req/s, 0.00 MB/s
+statuses 200=50

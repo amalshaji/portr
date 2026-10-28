@@ -16,6 +16,8 @@ IMAGE=${2:-portr-bench:$LABEL}
 SCALE=${SCALE:-1}                          # multiplies request counts
 WAN_LATENCY_MS=${WAN_LATENCY_MS:-40}      # each direction, so RTT ~= 2x
 WAN_UPLOAD_KBPS=${WAN_UPLOAD_KBPS:-2500}  # client -> server, KB/s (~20 Mbit/s)
+WAN_DIVISOR=${WAN_DIVISOR:-10}            # wan request counts are divided by this
+PROFILES=${PROFILES:-"direct loopback wan"}
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 OUT=$ROOT/scripts/bench/results/$LABEL
@@ -27,7 +29,7 @@ rm -f "$OUT"/*.txt "$OUT"/*.log
   echo "commit=$(git -C "$ROOT" rev-parse --short HEAD)$(git -C "$ROOT" diff --quiet -- cmd internal || echo -dirty)"
   echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "host=$(uname -sm) cpu=$(sysctl -n machdep.cpu.brand_string 2>/dev/null || nproc) docker=$(docker version -f '{{.Server.Version}}')"
-  echo "wan=${WAN_LATENCY_MS}ms each way, upload ${WAN_UPLOAD_KBPS} KB/s"
+  echo "profiles=$PROFILES wan=${WAN_LATENCY_MS}ms each way, upload ${WAN_UPLOAD_KBPS} KB/s, divisor ${WAN_DIVISOR}"
 } >"$OUT/env.info"
 
 HOST=bench.localhost:8001
@@ -219,23 +221,31 @@ run_profile() {
   ws "$profile-ws-handshake-c50" 50 1 16
 }
 
-log "direct origin reference"
-http direct-http-tiny-c1 1 1000 /tiny direct
-http direct-http-tiny-c32 32 3000 /tiny direct
-http direct-http-64k-c32 32 2000 "/bytes?n=65536" direct
-ws direct-ws-1k-c32 32 200 1024 direct
+has_profile() { [[ " $PROFILES " == *" $1 "* ]]; }
 
-start_client localhost:8001
-run_profile loopback 1
-log "loopback: server restart"
-recover loopback-drop-server-restart server_restart
-stop_client
+if has_profile direct; then
+  log "direct origin reference"
+  http direct-http-tiny-c1 1 1000 /tiny direct
+  http direct-http-tiny-c32 32 3000 /tiny direct
+  http direct-http-64k-c32 32 2000 "/bytes?n=65536" direct
+  ws direct-ws-1k-c32 32 200 1024 direct
+fi
 
-start_client localhost:18001
-run_profile wan 10
-log "wan: 5s network outage"
-recover wan-drop-5s-outage toxi_outage
-stop_client
+if has_profile loopback; then
+  start_client localhost:8001
+  run_profile loopback 1
+  log "loopback: server restart"
+  recover loopback-drop-server-restart server_restart
+  stop_client
+fi
+
+if has_profile wan; then
+  start_client localhost:18001
+  run_profile wan "$WAN_DIVISOR"
+  log "wan: 5s network outage"
+  recover wan-drop-5s-outage toxi_outage
+  stop_client
+fi
 
 log "summary"
 "$ROOT/scripts/bench/summarize.sh" "$OUT" | tee "$OUT/SUMMARY.md"

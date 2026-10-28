@@ -49,7 +49,9 @@ land in the real `~/.portr/db.sqlite`.
 - `loopback`: tunnel client connects to portrd over localhost.
 - `wan`: tunnel client connects through toxiproxy with 40 ms latency each way
   (~80 ms RTT) and a 2500 KB/s upload cap from client to server, like a home
-  connection. Override with `WAN_LATENCY_MS` and `WAN_UPLOAD_KBPS`.
+  connection. Override with `WAN_LATENCY_MS` and `WAN_UPLOAD_KBPS`; `WAN_DIVISOR`
+  (default 10) scales its request counts down, and `PROFILES` picks which
+  profiles run (default `direct loopback wan`).
 
 Visitor traffic always goes straight to portrd; only the tunnel leg is shaped.
 
