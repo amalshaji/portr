@@ -110,7 +110,10 @@ use_localhost: true
 disable_tui: true
 disable_dashboard: true
 EOF
-  "$WORK/portr" -c "$cfg" http 9100 -s bench >"$WORK/client-$1.log" 2>&1 &
+  # The client logs every request to $HOME/.portr/db.sqlite; a scratch HOME
+  # keeps benchmark traffic out of the real request log.
+  mkdir -p "$WORK/home-$1"
+  HOME="$WORK/home-$1" "$WORK/portr" -c "$cfg" http 9100 -s bench >"$WORK/client-$1.log" 2>&1 &
   CLIENT_PID=$!
   PIDS+=($CLIENT_PID)
   wait_for http://127.0.0.1:8001/tiny "$HOST"

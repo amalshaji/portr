@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"log"
@@ -108,9 +109,27 @@ func summarize(samples []time.Duration) string {
 }
 
 // dial connects to addr but handshakes with config's Host, so tunnel
-// subdomains work without DNS for *.localhost.
+// subdomains work without DNS for *.localhost. wss URLs dial with TLS.
 func dial(config *websocket.Config, addr string) (*websocket.Conn, error) {
-	raw, err := net.DialTimeout("tcp", addr, 10*time.Second)
+	secure := config.Location.Scheme == "wss"
+	if _, _, err := net.SplitHostPort(addr); err != nil {
+		port := "80"
+		if secure {
+			port = "443"
+		}
+		addr = net.JoinHostPort(addr, port)
+	}
+	var raw net.Conn
+	var err error
+	if secure {
+		serverName, _, splitErr := net.SplitHostPort(config.Location.Host)
+		if splitErr != nil {
+			serverName = config.Location.Host
+		}
+		raw, err = tls.DialWithDialer(&net.Dialer{Timeout: 10 * time.Second}, "tcp", addr, &tls.Config{ServerName: serverName})
+	} else {
+		raw, err = net.DialTimeout("tcp", addr, 10*time.Second)
+	}
 	if err != nil {
 		return nil, err
 	}

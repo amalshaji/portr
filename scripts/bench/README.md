@@ -25,6 +25,24 @@ Runs on a laptop vary by roughly ±30% between identical runs, and the WAN
 websocket handshake at 50 concurrent connections alternates between ~110 ms and
 ~330 ms on both protocol versions, so compare runs taken back to back.
 
+## Deployed server
+
+`live.sh` benchmarks a deployed server with an authenticated client config
+(default `~/.portr/config.yaml`). The client tunnels a random `bench-*`
+subdomain and load goes to its public URL, so both legs cross the internet.
+Request counts are small because the server is shared, and there are no drop
+scenarios; `live-drop-client-health` counts how often the client tore the
+tunnel down during the run.
+
+```bash
+PORTR_BIN=path/to/portr CLIENT_SOURCE="main 209fa22" scripts/bench/live.sh live-before
+scripts/bench/live.sh live-after
+scripts/bench/compare.sh live-before live-after
+```
+
+Benchmark clients always run with a scratch `HOME`, so their request logs never
+land in the real `~/.portr/db.sqlite`.
+
 ## Profiles
 
 - `direct`: load generator straight to the origin, as a reference.
