@@ -248,3 +248,21 @@ func TestTCPTunnelPropagatesHalfClose(t *testing.T) {
 		t.Fatal("tunnel did not close after both half-closes")
 	}
 }
+
+type noDeadlineConn struct{ net.Conn }
+
+func (noDeadlineConn) SetReadDeadline(time.Time) error { return errors.New("deadline not supported") }
+
+func TestWithDeadlinesWrapsOnlyConnsWithoutDeadlineSupport(t *testing.T) {
+	server, client := net.Pipe()
+	t.Cleanup(func() { _ = server.Close(); _ = client.Close() })
+
+	if got := withDeadlines(server); got != server {
+		t.Fatalf("expected a deadline-capable conn to be used as is, got %T", got)
+	}
+	wrapped := withDeadlines(noDeadlineConn{server})
+	if _, ok := wrapped.(*deadlineConn); !ok {
+		t.Fatalf("expected a conn without deadlines to be wrapped, got %T", wrapped)
+	}
+	_ = wrapped.Close()
+}

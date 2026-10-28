@@ -1,0 +1,4 @@
+conns=32 messages=40 size=1024B elapsed=4.463s failures=0
+handshake p50=117.31ms p90=325.63ms p99=326.01ms max=326.01ms n=32
+echo rtt  p50=100.33ms p90=113.88ms p99=124.34ms max=127.94ms n=1280
+throughput 287 msg/s, 0.29 MB/s each way

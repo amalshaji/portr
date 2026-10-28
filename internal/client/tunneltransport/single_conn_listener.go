@@ -3,6 +3,7 @@ package tunneltransport
 import (
 	"net"
 	"sync"
+	"time"
 )
 
 type singleConnListener struct {
@@ -24,7 +25,7 @@ func (l *singleConnListener) Accept() (net.Conn, error) {
 	}
 	l.accepted = true
 	l.doneChannelLocked()
-	conn := &listenerConn{Conn: newDeadlineConn(l.conn), onClose: l.Close}
+	conn := &listenerConn{Conn: withDeadlines(l.conn), onClose: l.Close}
 	l.mu.Unlock()
 	return conn, nil
 }
@@ -57,4 +58,14 @@ func (c *listenerConn) Close() error {
 	err := c.Conn.Close()
 	c.once.Do(func() { _ = c.onClose() })
 	return err
+}
+
+// withDeadlines returns conn as is when it supports read deadlines, which
+// net/http relies on, and wraps it otherwise. yamux streams support them; SSH
+// channels do not.
+func withDeadlines(conn net.Conn) net.Conn {
+	if conn.SetReadDeadline(time.Time{}) == nil {
+		return conn
+	}
+	return newDeadlineConn(conn)
 }

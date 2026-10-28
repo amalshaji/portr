@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -21,6 +20,7 @@ import (
 	"github.com/amalshaji/portr/internal/tunnel/wsproto"
 	"github.com/amalshaji/portr/internal/utils"
 	"github.com/charmbracelet/log"
+	"github.com/hashicorp/yamux"
 	"github.com/oklog/ulid/v2"
 	"golang.org/x/net/websocket"
 )
@@ -49,21 +49,60 @@ type session struct {
 	id         string
 	connection *db.Connection
 	conn       io.Closer
-	writer     *wsproto.Writer
-	streams    map[string]*streamQueue
-	streamMu   sync.Mutex
-	workers    sync.WaitGroup
-	workerMu   sync.Mutex
-	closing    bool
-	listener   net.Listener
-	closed     chan struct{}
-	closeOnce  sync.Once
+	// mux carries v2 sessions; v1 sessions use writer and streams instead.
+	mux      *yamux.Session
+	writer   *wsproto.Writer
+	streams  map[string]*streamQueue
+	streamMu sync.Mutex
+	// ready is closed once the ready frame is on the wire; streams opened
+	// before that would put yamux frames ahead of the handshake.
+	ready     chan struct{}
+	workers   sync.WaitGroup
+	workerMu  sync.Mutex
+	closing   bool
+	listener  net.Listener
+	closed    chan struct{}
+	closeOnce sync.Once
+	reasonMu  sync.Mutex
+	reason    string
 }
 
-type streamQueue struct {
-	frames  chan wsproto.Frame
-	credits chan struct{}
-	closed  chan struct{}
+// streamLingerTimeout bounds how long an HTTP visitor may keep its connection
+// open after the response has finished.
+var streamLingerTimeout = 30 * time.Second
+
+// setEndReason records the first cause seen for the session ending.
+func (s *session) setEndReason(reason string) {
+	s.reasonMu.Lock()
+	defer s.reasonMu.Unlock()
+	if s.reason == "" {
+		s.reason = reason
+	}
+}
+
+func (s *session) endReason() string {
+	s.reasonMu.Lock()
+	defer s.reasonMu.Unlock()
+	if s.reason == "" {
+		return "closed by server"
+	}
+	return s.reason
+}
+
+// muxLogger routes yamux's own error logs to the server log and keeps the
+// first one as the session's end reason.
+type muxLogger struct {
+	sess *session
+}
+
+func (l muxLogger) Print(v ...any)                 { l.log(fmt.Sprint(v...)) }
+func (l muxLogger) Println(v ...any)               { l.log(fmt.Sprint(v...)) }
+func (l muxLogger) Printf(format string, v ...any) { l.log(fmt.Sprintf(format, v...)) }
+
+func (l muxLogger) log(message string) {
+	message = strings.TrimSpace(message)
+	l.sess.setEndReason(message)
+	log.Warn("Tunnel session error", "connection_id", l.sess.connection.ID, "error", message)
 }
 
 func New(config *config.Config, service connectionService) *Manager {
@@ -121,6 +160,7 @@ func (m *Manager) Shutdown(ctx context.Context) error {
 		m.mu.Unlock()
 
 		for _, sess := range sessions {
+			sess.setEndReason("server shutting down")
 			m.unregisterSession(sess)
 		}
 		go func() {
@@ -166,9 +206,11 @@ func (m *Manager) OpenHTTPStream(subdomain string, clientConn net.Conn, initial 
 
 func (m *Manager) handle(conn *websocket.Conn) {
 	req := conn.Request()
-	if version := req.Header.Get(wsproto.ProtocolVersionHeader); version != strconv.Itoa(wsproto.ProtocolVersion) {
+	version, err := strconv.Atoi(req.Header.Get(wsproto.ProtocolVersionHeader))
+	if err != nil || (version != wsproto.ProtocolVersion && version != wsproto.LegacyProtocolVersion) {
 		_ = wsproto.NewWriter(conn).Send(wsproto.Frame{Type: wsproto.TypeError, Message: fmt.Sprintf(
-			"portr websocket protocol mismatch: server speaks v%d, client sent %q; upgrade the portr client", wsproto.ProtocolVersion, version)})
+			"portr websocket protocol mismatch: server speaks v%d and v%d, client sent %q; upgrade the portr client",
+			wsproto.LegacyProtocolVersion, wsproto.ProtocolVersion, req.Header.Get(wsproto.ProtocolVersionHeader))})
 		_ = conn.Close()
 		return
 	}
@@ -187,43 +229,61 @@ func (m *Manager) handle(conn *websocket.Conn) {
 		return
 	}
 
+	writer := wsproto.NewWriter(conn)
 	sess := &session{
 		id:         ulid.Make().String(),
 		connection: reserved,
 		conn:       conn,
-		writer:     wsproto.NewWriter(conn),
-		streams:    make(map[string]*streamQueue),
+		writer:     writer,
+		ready:      make(chan struct{}),
 		closed:     make(chan struct{}),
+	}
+	if version == wsproto.ProtocolVersion {
+		mux, err := yamux.Server(wsproto.MuxConn(conn), wsproto.MuxConfig(muxLogger{sess: sess}))
+		if err != nil {
+			_ = writer.Send(wsproto.Frame{Type: wsproto.TypeError, Message: err.Error()})
+			_ = conn.Close()
+			return
+		}
+		sess.mux = mux
+	} else {
+		sess.streams = make(map[string]*streamQueue)
 	}
 
 	if err := m.registerSession(req.Context(), sess); err != nil {
-		_ = sess.writer.Send(wsproto.Frame{Type: wsproto.TypeError, Message: err.Error()})
+		_ = writer.Send(wsproto.Frame{Type: wsproto.TypeError, Message: err.Error()})
+		if sess.mux != nil {
+			_ = sess.mux.Close()
+		}
 		_ = conn.Close()
 		return
 	}
+	started := time.Now()
 	defer func() {
 		m.unregisterSession(sess)
 		sess.workers.Wait()
+		log.Info("Tunnel session ended", "connection_id", reserved.ID, "protocol", version,
+			"duration", time.Since(started).Round(time.Second), "reason", sess.endReason())
 	}()
 
-	ready := wsproto.Frame{Type: wsproto.TypeReady, Version: wsproto.ProtocolVersion}
+	ready := wsproto.Frame{Type: wsproto.TypeReady, Version: version}
 	if reserved.Port != nil {
 		ready.Port = int(*reserved.Port)
 	}
-	if err := sess.writer.Send(ready); err != nil {
+	if err := writer.Send(ready); err != nil {
+		sess.setEndReason("send ready frame: " + err.Error())
 		return
 	}
+	close(sess.ready)
 
-	for {
-		frame, err := wsproto.Receive(conn)
-		if err != nil {
-			return
-		}
-		if frame.Type == wsproto.TypePing {
-			_ = sess.writer.Send(wsproto.Frame{Type: wsproto.TypePong})
-			continue
-		}
-		sess.deliver(frame)
+	if sess.mux == nil {
+		sess.serveLegacyFrames(conn)
+		return
+	}
+	select {
+	case <-sess.mux.CloseChan():
+		sess.setEndReason("tunnel connection closed")
+	case <-sess.closed:
 	}
 }
 
@@ -286,6 +346,11 @@ func (m *Manager) unregisterSession(sess *session) {
 			if conn, ok := sess.conn.(interface{ SetDeadline(time.Time) error }); ok {
 				_ = conn.SetDeadline(time.Now())
 			}
+		}
+		if sess.mux != nil {
+			_ = sess.mux.Close()
+		}
+		if sess.conn != nil {
 			_ = sess.conn.Close()
 		}
 		if sess.listener != nil {
@@ -394,176 +459,65 @@ func (s *session) goWorker(worker func()) bool {
 }
 
 func (m *Manager) pipeStream(sess *session, conn net.Conn, initial []byte) {
+	if sess.mux == nil {
+		m.pipeLegacyStream(sess, conn, initial)
+		return
+	}
 	defer conn.Close()
 
-	streamID := ulid.Make().String()
-	stream := sess.addStream(streamID)
-
-	closed := make(chan struct{})
+	finished := make(chan struct{})
+	defer close(finished)
 	go func() {
-		defer close(closed)
 		select {
 		case <-sess.closed:
-		case <-stream.closed:
+			_ = conn.Close()
+		case <-finished:
 		}
-		_ = conn.Close()
-	}()
-	defer func() {
-		sess.removeStream(streamID)
-		<-closed
 	}()
 
-	if err := sess.writer.Send(wsproto.Frame{Type: wsproto.TypeOpen, StreamID: streamID, Data: initial}); err != nil {
+	select {
+	case <-sess.ready:
+	case <-sess.closed:
 		return
 	}
-	if err := sess.writer.Send(wsproto.Frame{
-		Type:     wsproto.TypeWindow,
-		StreamID: streamID,
-		Window:   wsproto.StreamWindowSize,
-	}); err != nil {
+	stream, err := sess.mux.OpenStream()
+	if err != nil {
 		return
 	}
-
-	readDone := make(chan error, 1)
-	if !sess.goWorker(func() {
-		buf := make([]byte, 32*1024)
-		for {
-			n, err := conn.Read(buf)
-			if n > 0 {
-				if !stream.takeCredit(sess.closed) {
-					return
-				}
-				if sendErr := sess.writer.Send(wsproto.Frame{
-					Type:     wsproto.TypeData,
-					StreamID: streamID,
-					Data:     append([]byte(nil), buf[:n]...),
-				}); sendErr != nil {
-					readDone <- sendErr
-					return
-				}
-			}
-			if err != nil {
-				readDone <- err
-				return
-			}
-		}
-	}) {
-		return
-	}
-
-	readClosed := false
-	writeClosed := false
-	for {
-		select {
-		case frame := <-stream.frames:
-			switch frame.Type {
-			case wsproto.TypeData:
-				if _, err := conn.Write(frame.Data); err != nil {
-					return
-				}
-				if err := sess.writer.Send(wsproto.Frame{
-					Type:     wsproto.TypeWindow,
-					StreamID: streamID,
-					Window:   1,
-				}); err != nil {
-					return
-				}
-			case wsproto.TypeCloseWrite:
-				closeWriter, ok := conn.(interface{ CloseWrite() error })
-				if !ok || closeWriter.CloseWrite() != nil {
-					return
-				}
-				writeClosed = true
-				if readClosed {
-					return
-				}
-			case wsproto.TypeClose, wsproto.TypeError:
-				return
-			}
-		case err := <-readDone:
-			if err != nil && !errors.Is(err, io.EOF) {
-				_ = sess.writer.Send(wsproto.Frame{Type: wsproto.TypeError, StreamID: streamID, Message: err.Error()})
-				return
-			}
-			if err := sess.writer.Send(wsproto.Frame{Type: wsproto.TypeCloseWrite, StreamID: streamID}); err != nil {
-				return
-			}
-			readClosed = true
-			readDone = nil
-			if writeClosed {
-				return
-			}
-		case <-sess.closed:
-			return
-		case <-stream.closed:
+	defer stream.Close()
+	if len(initial) > 0 {
+		if _, err := stream.Write(initial); err != nil {
 			return
 		}
 	}
-}
 
-func (s *session) addStream(streamID string) *streamQueue {
-	stream := &streamQueue{
-		frames:  make(chan wsproto.Frame, wsproto.StreamWindowSize+1),
-		credits: make(chan struct{}, wsproto.StreamWindowSize),
-		closed:  make(chan struct{}),
-	}
-	s.streamMu.Lock()
-	s.streams[streamID] = stream
-	s.streamMu.Unlock()
-	return stream
-}
+	upstreamDone := make(chan struct{})
+	go func() {
+		defer close(upstreamDone)
+		if _, err := io.Copy(stream, conn); err != nil {
+			_ = conn.Close()
+		}
+		// yamux Close only half-closes: the response keeps flowing back.
+		_ = stream.Close()
+	}()
 
-func (s *session) removeStream(streamID string) {
-	s.streamMu.Lock()
-	stream := s.streams[streamID]
-	if stream != nil {
-		delete(s.streams, streamID)
-		close(stream.closed)
-	}
-	s.streamMu.Unlock()
-}
-
-func (s *session) deliver(frame wsproto.Frame) {
-	if frame.StreamID == "" {
+	if _, err := io.Copy(conn, stream); err != nil {
 		return
 	}
-	s.streamMu.Lock()
-	stream := s.streams[frame.StreamID]
-	s.streamMu.Unlock()
-	if stream == nil {
+	closeWriter, ok := conn.(interface{ CloseWrite() error })
+	if !ok || closeWriter.CloseWrite() != nil {
 		return
 	}
-	if frame.Type == wsproto.TypeWindow {
-		stream.grant(frame.Window)
-		return
+	var linger <-chan time.Time
+	if sess.connection != nil && sess.connection.Type == string(constants.Http) {
+		timer := time.NewTimer(streamLingerTimeout)
+		defer timer.Stop()
+		linger = timer.C
 	}
 	select {
-	case stream.frames <- frame:
-	case <-stream.closed:
-	case <-s.closed:
-	default:
-		s.removeStream(frame.StreamID)
-	}
-}
-
-func (s *streamQueue) grant(credits int) {
-	for range min(credits, wsproto.StreamWindowSize) {
-		select {
-		case s.credits <- struct{}{}:
-		default:
-			return
-		}
-	}
-}
-
-func (s *streamQueue) takeCredit(sessionClosed <-chan struct{}) bool {
-	select {
-	case <-s.credits:
-		return true
-	case <-s.closed:
-		return false
-	case <-sessionClosed:
-		return false
+	case <-upstreamDone:
+	case <-linger:
+	case <-sess.closed:
 	}
 }
 
