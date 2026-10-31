@@ -22,6 +22,7 @@ func (s *Client) Shutdown(ctx context.Context) error {
 	s.mu.Unlock()
 
 	err := s.closeTransport()
+	s.closeLocalTransport()
 	if lifecycleDone != nil {
 		select {
 		case <-lifecycleDone:

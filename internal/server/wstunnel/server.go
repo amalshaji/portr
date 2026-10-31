@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"slices"
 	"strconv"
 	"strings"
@@ -50,10 +51,14 @@ type session struct {
 	connection *db.Connection
 	conn       io.Closer
 	// mux carries v2 sessions; v1 sessions use writer and streams instead.
-	mux      *yamux.Session
-	writer   *wsproto.Writer
-	streams  map[string]*streamQueue
-	streamMu sync.Mutex
+	mux *yamux.Session
+	// proxy forwards HTTP requests over mux. Its transport keeps idle streams
+	// open, so both visitor connections and tunnel streams are reused.
+	proxy     *httputil.ReverseProxy
+	transport *http.Transport
+	writer    *wsproto.Writer
+	streams   map[string]*streamQueue
+	streamMu  sync.Mutex
 	// ready is closed once the ready frame is on the wire; streams opened
 	// before that would put yamux frames ahead of the handshake.
 	ready     chan struct{}
@@ -66,10 +71,6 @@ type session struct {
 	reasonMu  sync.Mutex
 	reason    string
 }
-
-// streamLingerTimeout bounds how long an HTTP visitor may keep its connection
-// open after the response has finished.
-var streamLingerTimeout = 30 * time.Second
 
 // setEndReason records the first cause seen for the session ending.
 func (s *session) setEndReason(reason string) {
@@ -136,13 +137,25 @@ func (*Manager) Endpoint() string {
 }
 
 func (m *Manager) ServeHTTPStream(subdomain string, writer http.ResponseWriter, request *http.Request) {
+	sess, err := m.nextHTTPSession(subdomain)
+	if err != nil {
+		unregisteredSubdomainError(writer, subdomain)
+		return
+	}
+	defer sess.workers.Done()
+
+	if sess.mux != nil {
+		sess.proxy.ServeHTTP(writer, request)
+		return
+	}
+	// v1 sessions carry raw bytes, so the visitor connection is handed over.
 	conn, initial, err := hijackRequest(writer, request)
 	if err != nil {
 		log.Error("Failed to hijack proxied request", "error", err, "subdomain", subdomain)
 		http.Error(writer, "failed to proxy request", http.StatusBadGateway)
 		return
 	}
-	m.OpenHTTPStream(subdomain, conn, initial)
+	m.pipeLegacyStream(sess, conn, initial)
 }
 
 func (m *Manager) Start() {
@@ -192,18 +205,6 @@ func (m *Manager) HTTPBackendCount(subdomain string) int {
 	return len(m.bySub[subdomain])
 }
 
-func (m *Manager) OpenHTTPStream(subdomain string, clientConn net.Conn, initial []byte) {
-	sess, err := m.nextHTTPSession(subdomain)
-	if err != nil {
-		unregisteredSubdomainError(clientConn, subdomain)
-		_ = clientConn.Close()
-		return
-	}
-
-	defer sess.workers.Done()
-	m.pipeStream(sess, clientConn, initial)
-}
-
 func (m *Manager) handle(conn *websocket.Conn) {
 	req := conn.Request()
 	version, err := strconv.Atoi(req.Header.Get(wsproto.ProtocolVersionHeader))
@@ -246,6 +247,7 @@ func (m *Manager) handle(conn *websocket.Conn) {
 			return
 		}
 		sess.mux = mux
+		sess.newHTTPProxy()
 	} else {
 		sess.streams = make(map[string]*streamQueue)
 	}
@@ -349,6 +351,7 @@ func (m *Manager) unregisterSession(sess *session) {
 		}
 		if sess.mux != nil {
 			_ = sess.mux.Close()
+			sess.transport.CloseIdleConnections()
 		}
 		if sess.conn != nil {
 			_ = sess.conn.Close()
@@ -458,6 +461,48 @@ func (s *session) goWorker(worker func()) bool {
 	return true
 }
 
+// newHTTPProxy sets up the reverse proxy that carries HTTP requests over yamux
+// streams. Request and response bytes pass through unchanged apart from
+// hop-by-hop headers.
+func (s *session) newHTTPProxy() {
+	s.transport = &http.Transport{
+		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			select {
+			case <-s.ready:
+			case <-s.closed:
+				return nil, net.ErrClosed
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+			return s.mux.OpenStream()
+		},
+		DisableCompression:  true,
+		MaxIdleConnsPerHost: 64,
+		IdleConnTimeout:     90 * time.Second,
+	}
+	s.proxy = &httputil.ReverseProxy{
+		Rewrite: func(request *httputil.ProxyRequest) {
+			request.Out.URL.Scheme = "http"
+			request.Out.URL.Host = "portr-tunnel"
+			request.Out.Host = request.In.Host
+			// Rewrite strips forwarding headers; keep the visitor's.
+			for _, name := range []string{"Forwarded", "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto"} {
+				if values, ok := request.In.Header[name]; ok {
+					request.Out.Header[name] = values
+				}
+			}
+		},
+		Transport:     s.transport,
+		FlushInterval: -1,
+		ErrorHandler: func(writer http.ResponseWriter, request *http.Request, err error) {
+			if request.Context().Err() == nil {
+				log.Warn("Tunnel stream failed", "connection_id", s.connection.ID, "error", err)
+			}
+			connectionLostError(writer)
+		},
+	}
+}
+
 func (m *Manager) pipeStream(sess *session, conn net.Conn, initial []byte) {
 	if sess.mux == nil {
 		m.pipeLegacyStream(sess, conn, initial)
@@ -508,27 +553,26 @@ func (m *Manager) pipeStream(sess *session, conn net.Conn, initial []byte) {
 	if !ok || closeWriter.CloseWrite() != nil {
 		return
 	}
-	var linger <-chan time.Time
-	if sess.connection != nil && sess.connection.Type == string(constants.Http) {
-		timer := time.NewTimer(streamLingerTimeout)
-		defer timer.Stop()
-		linger = timer.C
-	}
 	select {
 	case <-upstreamDone:
-	case <-linger:
 	case <-sess.closed:
 	}
 }
 
-func unregisteredSubdomainError(conn net.Conn, subdomain string) {
-	body := []byte(utils.UnregisteredSubdomain(subdomain))
-	fmt.Fprintf(conn, "HTTP/1.1 404 Not Found\r\n")
-	fmt.Fprintf(conn, "Content-Length: %d\r\n", len(body))
-	fmt.Fprintf(conn, "Content-Type: text/html\r\n")
-	fmt.Fprintf(conn, "X-Portr-Error: true\r\n")
-	fmt.Fprintf(conn, "X-Portr-Error-Reason: unregistered-subdomain\r\n\r\n")
-	_, _ = conn.Write(body)
+func unregisteredSubdomainError(writer http.ResponseWriter, subdomain string) {
+	writer.Header().Set("Content-Type", "text/html")
+	writer.Header().Set("X-Portr-Error", "true")
+	writer.Header().Set("X-Portr-Error-Reason", "unregistered-subdomain")
+	writer.WriteHeader(http.StatusNotFound)
+	_, _ = writer.Write([]byte(utils.UnregisteredSubdomain(subdomain)))
+}
+
+func connectionLostError(writer http.ResponseWriter) {
+	writer.Header().Set("Content-Type", "text/html")
+	writer.Header().Set("X-Portr-Error", "true")
+	writer.Header().Set("X-Portr-Error-Reason", "connection-lost")
+	writer.WriteHeader(http.StatusServiceUnavailable)
+	_, _ = writer.Write([]byte(utils.ConnectionLost()))
 }
 
 func hijackRequest(w http.ResponseWriter, r *http.Request) (net.Conn, []byte, error) {

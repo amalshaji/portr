@@ -1,12 +1,16 @@
 package wstunnel
 
 import (
+	"bufio"
+	"context"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -57,17 +61,58 @@ func dialTunnel(t *testing.T, version string) (*Manager, string, *websocket.Conn
 	return manager, subdomain, conn, frame
 }
 
-// proxyRequest sends request bytes through the manager as a visitor would and
-// returns everything the visitor reads back.
-func proxyRequest(manager *Manager, subdomain string) <-chan string {
-	visitor, proxied := net.Pipe()
-	go manager.OpenHTTPStream(subdomain, proxied, []byte("ping"))
+// visitorProxy serves visitor requests for subdomain through the manager, as
+// the proxy server does.
+func visitorProxy(t *testing.T, manager *Manager, subdomain string) *httptest.Server {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		manager.ServeHTTPStream(subdomain, w, r)
+	}))
+	t.Cleanup(server.Close)
+	return server
+}
+
+// proxyRequest sends a GET through the visitor proxy and returns the response
+// body.
+func proxyRequest(client *http.Client, url string) <-chan string {
 	result := make(chan string, 1)
 	go func() {
-		response, _ := io.ReadAll(visitor)
-		result <- string(response)
+		response, err := client.Get(url)
+		if err != nil {
+			result <- err.Error()
+			return
+		}
+		defer response.Body.Close()
+		body, _ := io.ReadAll(response.Body)
+		result <- string(body)
 	}()
 	return result
+}
+
+// serveStreamRequests answers every HTTP request on stream with body until the
+// stream closes.
+func serveStreamRequests(stream net.Conn, body string) {
+	reader := bufio.NewReader(stream)
+	for {
+		request, err := http.ReadRequest(reader)
+		if err != nil {
+			return
+		}
+		_, _ = io.Copy(io.Discard, request.Body)
+		fmt.Fprintf(stream, "HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n%s", len(body), body)
+	}
+}
+
+func awaitResponse(t *testing.T, response <-chan string, want string) {
+	t.Helper()
+	select {
+	case got := <-response:
+		if got != want {
+			t.Fatalf("unexpected response %q", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("visitor did not receive the response")
+	}
 }
 
 func TestHandlerServesProtocolV2WithYamux(t *testing.T) {
@@ -80,25 +125,59 @@ func TestHandlerServesProtocolV2WithYamux(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer mux.Close()
+	visitors := visitorProxy(t, manager, subdomain)
 
-	response := proxyRequest(manager, subdomain)
+	response := proxyRequest(visitors.Client(), visitors.URL)
 	stream, err := mux.AcceptStream()
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := make([]byte, len("ping"))
-	if _, err := io.ReadFull(stream, request); err != nil || string(request) != "ping" {
-		t.Fatalf("unexpected request %q: %v", request, err)
+	request, err := http.ReadRequest(bufio.NewReader(stream))
+	if err != nil {
+		t.Fatal(err)
 	}
-	_, _ = stream.Write([]byte("pong"))
-	_ = stream.Close()
-	select {
-	case got := <-response:
-		if got != "pong" {
-			t.Fatalf("unexpected response %q", got)
+	if request.Host != strings.TrimPrefix(visitors.URL, "http://") {
+		t.Fatalf("expected the visitor's host, got %q", request.Host)
+	}
+	_, _ = stream.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\npong"))
+	awaitResponse(t, response, "pong")
+}
+
+func TestHTTPRequestsReuseVisitorConnectionsAndStreams(t *testing.T) {
+	manager, subdomain, conn, _ := dialTunnel(t, strconv.Itoa(wsproto.ProtocolVersion))
+	mux, err := yamux.Client(wsproto.MuxConn(conn), wsproto.MuxConfig(discardLogger))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mux.Close()
+	var streams atomic.Int32
+	go func() {
+		for {
+			stream, err := mux.AcceptStream()
+			if err != nil {
+				return
+			}
+			streams.Add(1)
+			go serveStreamRequests(stream, "pong")
 		}
-	case <-time.After(time.Second):
-		t.Fatal("visitor did not receive the response")
+	}()
+
+	visitors := visitorProxy(t, manager, subdomain)
+	var dials atomic.Int32
+	transport := visitors.Client().Transport.(*http.Transport).Clone()
+	transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		dials.Add(1)
+		return (&net.Dialer{}).DialContext(ctx, network, addr)
+	}
+	client := &http.Client{Transport: transport}
+	for range 5 {
+		awaitResponse(t, proxyRequest(client, visitors.URL), "pong")
+	}
+	if got := dials.Load(); got != 1 {
+		t.Fatalf("expected one visitor connection, got %d", got)
+	}
+	if got := streams.Load(); got != 1 {
+		t.Fatalf("expected one tunnel stream, got %d", got)
 	}
 }
 
@@ -108,32 +187,26 @@ func TestHandlerStillServesProtocolV1Clients(t *testing.T) {
 		t.Fatalf("expected a v1 ready frame, got %#v", ready)
 	}
 
-	response := proxyRequest(manager, subdomain)
+	visitors := visitorProxy(t, manager, subdomain)
+	response := proxyRequest(visitors.Client(), visitors.URL)
 	open, err := wsproto.Receive(conn)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if open.Type != wsproto.TypeOpen || string(open.Data) != "ping" {
+	if open.Type != wsproto.TypeOpen || !strings.HasPrefix(string(open.Data), "GET / HTTP/1.1\r\n") {
 		t.Fatalf("expected an open frame carrying the request, got %#v", open)
 	}
 	writer := wsproto.NewWriter(conn)
 	for _, frame := range []wsproto.Frame{
 		{Type: wsproto.TypeWindow, StreamID: open.StreamID, Window: wsproto.StreamWindowSize},
-		{Type: wsproto.TypeData, StreamID: open.StreamID, Data: []byte("pong")},
+		{Type: wsproto.TypeData, StreamID: open.StreamID, Data: []byte("HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\npong")},
 		{Type: wsproto.TypeClose, StreamID: open.StreamID},
 	} {
 		if err := writer.Send(frame); err != nil {
 			t.Fatal(err)
 		}
 	}
-	select {
-	case got := <-response:
-		if got != "pong" {
-			t.Fatalf("unexpected response %q", got)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("visitor did not receive the response")
-	}
+	awaitResponse(t, response, "pong")
 }
 
 func TestHandlerRejectsUnknownProtocolVersion(t *testing.T) {

@@ -51,6 +51,9 @@ type Client struct {
 	tuiActive       int32
 	lifecycleCancel context.CancelFunc
 	lifecycleDone   chan struct{}
+	localMu         sync.Mutex
+	localTransport  *http.Transport
+	localEndpoint   string
 }
 
 func (s *Client) setTUIActive(active bool) {
@@ -255,6 +258,40 @@ func writeLocalServerUnavailable(writer io.Writer, localEndpoint string) error {
 	return response.Write(writer)
 }
 
+// localHTTPTransport returns the transport shared by every tunnel stream, so
+// connections to the local server are reused across streams and requests.
+func (s *Client) localHTTPTransport(localEndpoint string) *http.Transport {
+	s.localMu.Lock()
+	defer s.localMu.Unlock()
+	if s.localTransport != nil && s.localEndpoint == localEndpoint {
+		return s.localTransport
+	}
+	if s.localTransport != nil {
+		s.localTransport.CloseIdleConnections()
+	}
+	s.localEndpoint = localEndpoint
+	s.localTransport = &http.Transport{
+		Proxy:             http.ProxyFromEnvironment,
+		ForceAttemptHTTP2: false,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			d := net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}
+			return d.DialContext(ctx, network, localEndpoint)
+		},
+		MaxIdleConns:        64,
+		MaxIdleConnsPerHost: 64,
+		IdleConnTimeout:     90 * time.Second,
+	}
+	return s.localTransport
+}
+
+func (s *Client) closeLocalTransport() {
+	s.localMu.Lock()
+	defer s.localMu.Unlock()
+	if s.localTransport != nil {
+		s.localTransport.CloseIdleConnections()
+	}
+}
+
 func (s *Client) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 	defer src.Close()
 
@@ -263,21 +300,8 @@ func (s *Client) httpTunnelReverseProxy(src net.Conn, localEndpoint string) {
 		Host:   localEndpoint,
 	}
 
-	transport := &http.Transport{
-		Proxy:             http.ProxyFromEnvironment,
-		ForceAttemptHTTP2: false,
-		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			d := net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}
-			return d.DialContext(ctx, network, localEndpoint)
-		},
-		MaxIdleConns:        8,
-		MaxIdleConnsPerHost: 8,
-		IdleConnTimeout:     90 * time.Second,
-	}
-	defer transport.CloseIdleConnections()
-
 	proxy := httputil.NewSingleHostReverseProxy(target)
-	proxy.Transport = transport
+	proxy.Transport = s.localHTTPTransport(localEndpoint)
 
 	hostHeader := s.config.Tunnel.ResolvedHostHeader(localEndpoint)
 	authGate := newBasicAuthGate(s.config.Tunnel.ResolvedBasicAuth())
