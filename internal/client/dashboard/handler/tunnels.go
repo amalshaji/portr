@@ -253,20 +253,29 @@ func (h *Handler) ReplayRequestWithEdits(c *fiber.Ctx) error {
 	})
 }
 
+// legacyReplayDeprecatedAt is the RFC 9745 Deprecation date of GET replay
+// (2026-11-01).
+const legacyReplayDeprecatedAt = "@1793491200"
+
 // ReplayRequestLegacy keeps GET replay working for scripts written before
 // replay moved to POST. A GET carries no Origin header, so a cross-site page
-// could trigger it with an <img>; browsers label those requests with
-// Sec-Fetch-Site, while scripts send none.
+// could trigger it with an <img>. Browsers label such requests with
+// Sec-Fetch-Site; one too old to send it still sends a Mozilla User-Agent,
+// which the page cannot change, so only non-browser clients may omit it.
 //
 // Deprecated: remove in v2.2.0. Use POST /api/tunnels/replay/:id with {}.
 func (h *Handler) ReplayRequestLegacy(c *fiber.Ctx) error {
 	switch c.Get("Sec-Fetch-Site") {
-	case "", "same-origin", "none":
+	case "same-origin", "none":
+	case "":
+		if strings.HasPrefix(c.Get(fiber.HeaderUserAgent), "Mozilla/") {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"message": "replay requests with POST"})
+		}
 	default:
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"message": "replay requests with POST"})
 	}
 
-	c.Set("Deprecation", "true")
+	c.Set("Deprecation", legacyReplayDeprecatedAt)
 	return h.replay(c, clientreplay.EditOptions{})
 }
 

@@ -306,12 +306,14 @@ func TestReplayWithoutEdits(t *testing.T) {
 		name           string
 		method         string
 		secFetchSite   string
+		userAgent      string
 		wantStatus     int
 		wantReplay     bool
 		wantDeprecated bool
 	}{
 		{name: "post", method: http.MethodPost, wantStatus: http.StatusOK, wantReplay: true},
-		{name: "legacy get from a script", method: http.MethodGet, wantStatus: http.StatusOK, wantReplay: true, wantDeprecated: true},
+		{name: "legacy get from a script", method: http.MethodGet, userAgent: "curl/8.7.1", wantStatus: http.StatusOK, wantReplay: true, wantDeprecated: true},
+		{name: "legacy get from a browser without fetch metadata", method: http.MethodGet, userAgent: "Mozilla/5.0 (Macintosh) Safari/605.1.15", wantStatus: http.StatusForbidden},
 		{name: "legacy get from the dashboard", method: http.MethodGet, secFetchSite: "same-origin", wantStatus: http.StatusOK, wantReplay: true, wantDeprecated: true},
 		{name: "legacy get typed in the address bar", method: http.MethodGet, secFetchSite: "none", wantStatus: http.StatusOK, wantReplay: true, wantDeprecated: true},
 		{name: "legacy get from another site", method: http.MethodGet, secFetchSite: "cross-site", wantStatus: http.StatusForbidden},
@@ -333,6 +335,9 @@ func TestReplayWithoutEdits(t *testing.T) {
 			if tc.secFetchSite != "" {
 				req.Header.Set("Sec-Fetch-Site", tc.secFetchSite)
 			}
+			if tc.userAgent != "" {
+				req.Header.Set("User-Agent", tc.userAgent)
+			}
 
 			resp, err := app.Test(req)
 			if err != nil {
@@ -344,7 +349,7 @@ func TestReplayWithoutEdits(t *testing.T) {
 				respBody, _ := io.ReadAll(resp.Body)
 				t.Fatalf("expected %d, got %d body=%s", tc.wantStatus, resp.StatusCode, string(respBody))
 			}
-			if deprecated := resp.Header.Get("Deprecation") == "true"; deprecated != tc.wantDeprecated {
+			if deprecated := resp.Header.Get("Deprecation") == legacyReplayDeprecatedAt; deprecated != tc.wantDeprecated {
 				t.Fatalf("expected deprecated=%v, got Deprecation=%q", tc.wantDeprecated, resp.Header.Get("Deprecation"))
 			}
 			if tc.wantReplay && observed != original {
