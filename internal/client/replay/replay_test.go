@@ -17,8 +17,6 @@ import (
 )
 
 func TestExecuteUsesOriginalRequestAndInjectsReplayHeader(t *testing.T) {
-	t.Parallel()
-
 	type observedRequest struct {
 		Method        string
 		Path          string
@@ -94,8 +92,6 @@ func TestExecuteUsesOriginalRequestAndInjectsReplayHeader(t *testing.T) {
 }
 
 func TestExecuteAppliesOverridesAndDropsHeaders(t *testing.T) {
-	t.Parallel()
-
 	type observedRequest struct {
 		Method        string
 		Path          string
@@ -186,8 +182,6 @@ func TestExecuteAppliesOverridesAndDropsHeaders(t *testing.T) {
 }
 
 func TestExecuteReplaceHeaders(t *testing.T) {
-	t.Parallel()
-
 	type observedRequest struct {
 		Authorization string
 		NewHeader     string
@@ -233,8 +227,6 @@ func TestExecuteReplaceHeaders(t *testing.T) {
 }
 
 func TestExecuteUsesConfiguredHTTPScheme(t *testing.T) {
-	t.Parallel()
-
 	var observedHost string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		observedHost = r.Host
@@ -313,8 +305,6 @@ func TestExecuteRejectsInvalidInputs(t *testing.T) {
 }
 
 func TestExecuteMapsPortrErrorReason(t *testing.T) {
-	t.Parallel()
-
 	server := openReplayTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Portr-Error-Reason", "connection-lost")
 		w.WriteHeader(http.StatusBadGateway)
@@ -350,6 +340,8 @@ func TestExecuteMapsPortrErrorReason(t *testing.T) {
 	}
 }
 
+// openReplayTestServer swaps the package-level newRestyClient, so tests that
+// call it, or that reach execute, must not run in parallel.
 func openReplayTestServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
 	t.Helper()
 

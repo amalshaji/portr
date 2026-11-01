@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -15,7 +16,13 @@ import (
 
 func newUnixAPI(t *testing.T, handler http.Handler) *API {
 	t.Helper()
-	socket := filepath.Join(t.TempDir(), "docker.sock")
+	// t.TempDir() can exceed the 104-byte unix socket path limit on macOS.
+	dir, err := os.MkdirTemp("", "dw")
+	if err != nil {
+		t.Fatalf("mkdir temp: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	socket := filepath.Join(dir, "docker.sock")
 	listener, err := net.Listen("unix", socket)
 	if err != nil {
 		t.Fatalf("listen: %v", err)
