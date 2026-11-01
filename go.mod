@@ -25,6 +25,7 @@ require (
 	github.com/mdp/qrterminal/v3 v3.2.1
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/pressly/goose/v3 v3.24.3
+	github.com/quic-go/quic-go v0.61.0
 	github.com/urfave/cli/v2 v2.27.1
 	github.com/valyala/fasttemplate v1.2.2
 	golang.org/x/crypto v0.54.0

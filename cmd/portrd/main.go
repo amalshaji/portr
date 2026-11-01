@@ -19,6 +19,7 @@ import (
 	"github.com/amalshaji/portr/internal/server/service"
 	sshd "github.com/amalshaji/portr/internal/server/ssh"
 	"github.com/amalshaji/portr/internal/server/wstunnel"
+	"github.com/amalshaji/portr/internal/tunnel/quicproto"
 	"github.com/charmbracelet/log"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
@@ -42,6 +43,18 @@ func newApp() *cli.App {
 					key, err := sshd.GenerateHostKey()
 					if err != nil {
 						return fmt.Errorf("failed to generate host key: %w", err)
+					}
+					_, err = fmt.Fprint(c.App.Writer, key)
+					return err
+				},
+			},
+			{
+				Name:  "generate-quic-key",
+				Usage: "Generate an Ed25519 key for the QUIC tunnel certificate",
+				Action: func(c *cli.Context) error {
+					key, err := quicproto.GenerateKey()
+					if err != nil {
+						return fmt.Errorf("failed to generate quic key: %w", err)
 					}
 					_, err = fmt.Fprint(c.App.Writer, key)
 					return err

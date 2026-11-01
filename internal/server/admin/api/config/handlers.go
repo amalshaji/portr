@@ -140,6 +140,13 @@ func (h *Handler) clientConfigTemplate(secretKey string) string {
 	switch transport {
 	case serverConfig.TransportWebSocket:
 		configContent += fmt.Sprintf("ws_url: %s\ntunnel_url: %s\n", stripScheme(h.config.WsURL), tunnelURL)
+	case serverConfig.TransportQUIC:
+		// ws_url is the fallback when UDP to quic_url is blocked.
+		configContent += fmt.Sprintf("quic_url: %s\nws_url: %s\ntunnel_url: %s\n",
+			h.config.QuicURL, stripScheme(h.config.WsURL), tunnelURL)
+		if h.config.QuicCertPin != "" {
+			configContent += fmt.Sprintf("quic_cert_sha256: %s\n", h.config.QuicCertPin)
+		}
 	default:
 		configContent += fmt.Sprintf("ssh_url: %s\ntunnel_url: %s\n", h.config.SshURL, tunnelURL)
 		if h.config.SshHostKeyVerification {

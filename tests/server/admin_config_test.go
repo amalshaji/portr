@@ -112,6 +112,57 @@ func TestDownloadConfig_WebSocketTransportReturnsWebSocketConfig(t *testing.T) {
 	}
 }
 
+func TestDownloadConfig_QUICTransportReturnsQUICConfigWithFallback(t *testing.T) {
+	db, cleanup := NewTestDB(t)
+	defer cleanup()
+
+	cfg := DefaultAdminConfig()
+	cfg.Transport = serverConfig.TransportQUIC
+	cfg.QuicURL = "quic.example.com:4433"
+	cfg.QuicCertPin = "abc123"
+	cfg.WsURL = "ws.example.com"
+	cfg.TunnelDomain = "public.example.com"
+	srv := serverAdmin.NewServer(cfg, db)
+
+	user := CreateTestUser(t, db, "cfgquic@example.com", false)
+	_, teamUser := CreateTeamAndTeamUser(t, db, "Cfg QUIC Team", user, "admin")
+
+	payloadBytes, _ := json.Marshal(map[string]string{"secret_key": teamUser.SecretKey})
+	req := httptest.NewRequest("POST", "/api/v1/config/download", bytes.NewReader(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp := DoRequest(t, srv, req)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK for valid download config, got %d", resp.StatusCode)
+	}
+
+	var body map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	message, ok := body["message"].(string)
+	if !ok || message == "" {
+		t.Fatalf("expected 'message' string in response, got: %v", body)
+	}
+
+	for _, expected := range []string{
+		"transport: quic",
+		"quic_url: quic.example.com:4433",
+		"quic_cert_sha256: abc123",
+		"ws_url: ws.example.com",
+		"tunnel_url: public.example.com",
+	} {
+		if !strings.Contains(message, expected) {
+			t.Fatalf("expected quic config to include %q, got: %s", expected, message)
+		}
+	}
+	if strings.Contains(message, "ssh_url:") {
+		t.Fatalf("expected quic config not to include ssh_url, got: %s", message)
+	}
+}
+
 func TestDownloadConfig_UsesTeamClientTemplate(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()

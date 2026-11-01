@@ -897,3 +897,33 @@ groups:
 		t.Fatalf("expected settings with defaults, got %+v", cfg)
 	}
 }
+
+func TestSetDefaultsDerivesQuicUrlFromTunnelUrl(t *testing.T) {
+	tests := []struct {
+		tunnelURL string
+		quicURL   string
+		want      string
+	}{
+		{tunnelURL: "example.com", want: "example.com:4433"},
+		{tunnelURL: "localhost:8001", want: "localhost:4433"},
+		{tunnelURL: "[::1]:8001", want: "[::1]:4433"},
+		{tunnelURL: "example.com", quicURL: "quic.example.com:9443", want: "quic.example.com:9443"},
+	}
+	for _, tt := range tests {
+		cfg := Config{TunnelUrl: tt.tunnelURL, QuicUrl: tt.quicURL}
+		cfg.SetDefaults()
+		if cfg.QuicUrl != tt.want {
+			t.Errorf("tunnel_url %q, quic_url %q: got %q, want %q", tt.tunnelURL, tt.quicURL, cfg.QuicUrl, tt.want)
+		}
+	}
+}
+
+func TestClientConfigForTunnelCarriesQuicSettings(t *testing.T) {
+	cfg := Config{QuicUrl: "quic.example.com:4433", QuicCertSha256: "abc123", InsecureSkipQuicVerification: true}
+	cfg.SetDefaults()
+
+	clientCfg := cfg.ClientConfigForTunnel(Tunnel{})
+	if clientCfg.QuicUrl != "quic.example.com:4433" || clientCfg.QuicCertSha256 != "abc123" || !clientCfg.InsecureSkipQuicVerification {
+		t.Fatalf("quic settings not carried over: %+v", clientCfg)
+	}
+}

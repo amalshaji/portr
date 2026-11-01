@@ -81,11 +81,13 @@ func GetConfig(token string, remote string) error {
 
 func updateAuthValues(token string, downloaded string) error {
 	var config struct {
-		ServerUrl string    `yaml:"server_url"`
-		SshUrl    string    `yaml:"ssh_url"`
-		WsUrl     string    `yaml:"ws_url"`
-		TunnelUrl string    `yaml:"tunnel_url"`
-		Transport Transport `yaml:"transport"`
+		ServerUrl      string    `yaml:"server_url"`
+		SshUrl         string    `yaml:"ssh_url"`
+		WsUrl          string    `yaml:"ws_url"`
+		QuicUrl        string    `yaml:"quic_url"`
+		QuicCertSha256 string    `yaml:"quic_cert_sha256"`
+		TunnelUrl      string    `yaml:"tunnel_url"`
+		Transport      Transport `yaml:"transport"`
 	}
 	if err := yaml.Unmarshal([]byte(downloaded), &config); err != nil {
 		return err
@@ -103,6 +105,12 @@ func updateAuthValues(token string, downloaded string) error {
 	}
 	if config.WsUrl != "" {
 		entries = append(entries, [2]string{"ws_url", config.WsUrl})
+	}
+	if config.QuicUrl != "" {
+		entries = append(entries, [2]string{"quic_url", config.QuicUrl})
+	}
+	if config.QuicCertSha256 != "" {
+		entries = append(entries, [2]string{"quic_cert_sha256", config.QuicCertSha256})
 	}
 	if config.TunnelUrl != "" {
 		entries = append(entries, [2]string{"tunnel_url", config.TunnelUrl})

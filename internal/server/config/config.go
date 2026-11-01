@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/amalshaji/portr/internal/tunnel/quicproto"
 	"github.com/charmbracelet/log"
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -18,6 +19,11 @@ type SshConfig struct {
 
 func (s SshConfig) Address() string {
 	return s.Host + ":" + fmt.Sprint(s.Port)
+}
+
+type QuicConfig struct {
+	Port   int
+	TLSKey string
 }
 
 type ProxyConfig struct {
@@ -40,6 +46,7 @@ type TunnelTransport string
 const (
 	TransportSSH       TunnelTransport = "ssh"
 	TransportWebSocket TunnelTransport = "websocket"
+	TransportQUIC      TunnelTransport = "quic"
 )
 
 type AdminConfig struct {
@@ -54,6 +61,8 @@ type AdminConfig struct {
 	ServerURL              string
 	SshURL                 string
 	WsURL                  string
+	QuicURL                string
+	QuicCertPin            string
 	Transport              TunnelTransport
 	SshHostKeyVerification bool
 	Version                string
@@ -68,6 +77,7 @@ func (c *AdminConfig) DomainAddress() string {
 
 type Config struct {
 	Ssh          SshConfig
+	Quic         QuicConfig
 	Proxy        ProxyConfig
 	Domain       string
 	UseLocalHost bool
@@ -146,6 +156,29 @@ func new() *Config {
 		log.Fatal("Invalid PORTR_TRANSPORT", "transport", transport, "supported", "ssh, websocket")
 	}
 
+	quicPortStr := os.Getenv("PORTR_QUIC_PORT")
+	if quicPortStr == "" {
+		quicPortStr = strconv.Itoa(quicproto.DefaultPort)
+	}
+	quicPort, err := strconv.Atoi(quicPortStr)
+	if err != nil || quicPort < 1 || quicPort > 65535 {
+		log.Fatal("Invalid PORTR_QUIC_PORT", "port", quicPortStr)
+	}
+
+	quicURL := os.Getenv("PORTR_QUIC_URL")
+	if quicURL == "" {
+		quicURL = "localhost:" + quicPortStr
+	}
+
+	quicTLSKey := os.Getenv("PORTR_QUIC_TLS_KEY")
+	quicCertPin := ""
+	if quicTLSKey != "" {
+		quicCertPin, err = quicproto.KeyPin(quicTLSKey)
+		if err != nil {
+			log.Fatal("Invalid PORTR_QUIC_TLS_KEY", "error", err)
+		}
+	}
+
 	sshHostKey := os.Getenv("PORTR_SSH_HOST_KEY")
 	useLocalHost := os.Getenv("PORTR_TUNNEL_USE_LOCALHOST") == "true"
 	tunnelDomain := domain
@@ -167,6 +200,10 @@ func new() *Config {
 			Host:    "localhost",
 			Port:    sshPort,
 			HostKey: sshHostKey,
+		},
+		Quic: QuicConfig{
+			Port:   quicPort,
+			TLSKey: quicTLSKey,
 		},
 		Proxy: ProxyConfig{
 			Host: "localhost",
@@ -193,6 +230,8 @@ func new() *Config {
 			ServerURL:              serverURL,
 			SshURL:                 sshURL,
 			WsURL:                  wsURL,
+			QuicURL:                quicURL,
+			QuicCertPin:            quicCertPin,
 			Transport:              transport,
 			SshHostKeyVerification: sshHostKey != "",
 		},

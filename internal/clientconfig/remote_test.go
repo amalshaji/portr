@@ -265,3 +265,49 @@ func TestPullConfigWithoutConfigFile(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestGetConfigUpdatesQuicAuthValuesWhenDefaultConfigExists(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	useDefaultConfigPath(t, configPath)
+
+	existingConfig := `server_url: existing.example.com
+transport: websocket
+ws_url: existing.example.com:8001
+quic_url: existing.example.com:4433
+quic_cert_sha256: old-pin
+secret_key: old-token
+`
+	if err := os.WriteFile(configPath, []byte(existingConfig), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"message":"server_url: admin.example.com\ntransport: quic\nquic_url: quic.example.com:4433\nquic_cert_sha256: new-pin\nws_url: tunnel.example.com\ntunnel_url: tunnel.example.com\nsecret_key: new-token"}`)
+	}))
+	defer server.Close()
+
+	if err := GetConfig("new-token", server.URL); err != nil {
+		t.Fatalf("get config: %v", err)
+	}
+
+	configBytes, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	configContent := string(configBytes)
+
+	for _, expected := range []string{
+		"transport: quic",
+		"quic_url: quic.example.com:4433",
+		"quic_cert_sha256: new-pin",
+		"ws_url: tunnel.example.com",
+	} {
+		if !strings.Contains(configContent, expected) {
+			t.Fatalf("expected %q in updated config, got: %s", expected, configContent)
+		}
+	}
+	if strings.Contains(configContent, "old-pin") {
+		t.Fatalf("expected old quic pin to be replaced, got: %s", configContent)
+	}
+}

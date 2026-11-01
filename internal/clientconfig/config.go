@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/amalshaji/portr/internal/constants"
+	"github.com/amalshaji/portr/internal/tunnel/quicproto"
 	"github.com/amalshaji/portr/internal/utils"
 	"gopkg.in/yaml.v3"
 )
@@ -269,12 +270,16 @@ type Transport string
 const (
 	TransportSSH       Transport = "ssh"
 	TransportWebSocket Transport = "websocket"
+	TransportQUIC      Transport = "quic"
 )
 
 type Config struct {
 	ServerUrl                       string              `yaml:"server_url"`
 	SshUrl                          string              `yaml:"ssh_url"`
 	WsUrl                           string              `yaml:"ws_url"`
+	QuicUrl                         string              `yaml:"quic_url"`
+	QuicCertSha256                  string              `yaml:"quic_cert_sha256"`
+	InsecureSkipQuicVerification    bool                `yaml:"insecure_skip_quic_verification"`
 	TunnelUrl                       string              `yaml:"tunnel_url"`
 	Transport                       Transport           `yaml:"transport"`
 	SecretKey                       string              `yaml:"secret_key"`
@@ -312,6 +317,14 @@ func (c *Config) SetDefaults() {
 
 	if c.WsUrl == "" {
 		c.WsUrl = c.TunnelUrl
+	}
+
+	if c.QuicUrl == "" {
+		host, _, err := net.SplitHostPort(c.TunnelUrl)
+		if err != nil {
+			host = c.TunnelUrl
+		}
+		c.QuicUrl = net.JoinHostPort(host, strconv.Itoa(quicproto.DefaultPort))
 	}
 
 	if c.Transport == "" {
@@ -574,6 +587,9 @@ type ClientConfig struct {
 	ServerUrl                       string
 	SshUrl                          string
 	WsUrl                           string
+	QuicUrl                         string
+	QuicCertSha256                  string
+	InsecureSkipQuicVerification    bool
 	TunnelUrl                       string
 	Transport                       Transport
 	SecretKey                       string
@@ -601,6 +617,9 @@ func (c *Config) ClientConfigForTunnel(tunnel Tunnel) ClientConfig {
 		ServerUrl:                       c.ServerUrl,
 		SshUrl:                          c.SshUrl,
 		WsUrl:                           c.WsUrl,
+		QuicUrl:                         c.QuicUrl,
+		QuicCertSha256:                  c.QuicCertSha256,
+		InsecureSkipQuicVerification:    c.InsecureSkipQuicVerification,
 		TunnelUrl:                       c.TunnelUrl,
 		Transport:                       c.Transport,
 		SecretKey:                       c.SecretKey,
