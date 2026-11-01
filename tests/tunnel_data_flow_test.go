@@ -64,7 +64,7 @@ type tunnelHarness struct {
 	sshErr    chan error
 }
 
-func openTestDatabase(t *testing.T, name string, models ...any) *gorm.DB {
+func openTestDatabase(t testing.TB, name string, models ...any) *gorm.DB {
 	t.Helper()
 	database, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), name+".sqlite")), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
@@ -85,7 +85,7 @@ func openTestDatabase(t *testing.T, name string, models ...any) *gorm.DB {
 	return database
 }
 
-func backendAddress(t *testing.T, rawURL string) (string, int) {
+func backendAddress(t testing.TB, rawURL string) (string, int) {
 	t.Helper()
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
@@ -102,7 +102,7 @@ func backendAddress(t *testing.T, rawURL string) (string, int) {
 	return host, port
 }
 
-func startDataFlowServerDatabase(t *testing.T, tunnelType constants.ConnectionType) *gorm.DB {
+func startDataFlowServerDatabase(t testing.TB, tunnelType constants.ConnectionType) *gorm.DB {
 	t.Helper()
 	serverDatabase := openTestDatabase(t, "server", &serverdb.TeamUser{}, &serverdb.Connection{})
 	teamUser := serverdb.TeamUser{SecretKey: testSecretKey, Role: "member"}
@@ -125,7 +125,7 @@ func startDataFlowServerDatabase(t *testing.T, tunnelType constants.ConnectionTy
 	return serverDatabase
 }
 
-func startDataFlowClient(t *testing.T, client *tunneltransport.Client, onFail func()) (context.CancelFunc, chan error) {
+func startDataFlowClient(t testing.TB, client *tunneltransport.Client, onFail func()) (context.CancelFunc, chan error) {
 	t.Helper()
 	started := make(chan struct{}, 1)
 	client.SetEventHandler(func(event tunneltransport.Event) {
@@ -159,7 +159,7 @@ func startDataFlowClient(t *testing.T, client *tunneltransport.Client, onFail fu
 // startTunnelHarness runs the full stack for one transport: server database,
 // public proxy front, transport listener (WebSocket endpoint or SSH server),
 // and a real tunneltransport client connected through it.
-func startTunnelHarness(t *testing.T, transport clientconfig.Transport, tunnelType constants.ConnectionType, backendHost string, backendPort int) *tunnelHarness {
+func startTunnelHarness(t testing.TB, transport clientconfig.Transport, tunnelType constants.ConnectionType, backendHost string, backendPort int) *tunnelHarness {
 	t.Helper()
 
 	serverDatabase := startDataFlowServerDatabase(t, tunnelType)
@@ -297,13 +297,13 @@ func startTunnelHarness(t *testing.T, transport clientconfig.Transport, tunnelTy
 	return harness
 }
 
-func startHTTPTunnelHarness(t *testing.T, transport clientconfig.Transport, backendURL string) *tunnelHarness {
+func startHTTPTunnelHarness(t testing.TB, transport clientconfig.Transport, backendURL string) *tunnelHarness {
 	t.Helper()
 	backendHost, backendPort := backendAddress(t, backendURL)
 	return startTunnelHarness(t, transport, constants.Http, backendHost, backendPort)
 }
 
-func (h *tunnelHarness) close(t *testing.T) {
+func (h *tunnelHarness) close(t testing.TB) {
 	t.Helper()
 	shutdownContext, cancelShutdown := context.WithTimeout(context.Background(), testTimeout)
 	defer cancelShutdown()
@@ -343,7 +343,7 @@ func (h *tunnelHarness) close(t *testing.T) {
 	h.publicServer.Close()
 }
 
-func (h *tunnelHarness) waitForConnectionClosed(t *testing.T) {
+func (h *tunnelHarness) waitForConnectionClosed(t testing.TB) {
 	t.Helper()
 	deadline := time.Now().Add(testTimeout)
 	for time.Now().Before(deadline) {
@@ -358,7 +358,7 @@ func (h *tunnelHarness) waitForConnectionClosed(t *testing.T) {
 
 // waitForTCPPort waits until the server assigned the tunnel its public TCP
 // port and returns the address to dial.
-func (h *tunnelHarness) waitForTCPPort(t *testing.T) string {
+func (h *tunnelHarness) waitForTCPPort(t testing.TB) string {
 	t.Helper()
 	deadline := time.Now().Add(testTimeout)
 	for time.Now().Before(deadline) {

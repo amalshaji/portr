@@ -1,0 +1,4 @@
+requests=80 conns=4 elapsed=806ms failures=0
+latency p50=38.65ms p90=47.99ms p99=52.11ms max=52.11ms n=80
+throughput 99.3 req/s, 416.56 MB/s
+statuses 200=80

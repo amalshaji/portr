@@ -1,6 +1,6 @@
 # Tunnel benchmark
 
-End-to-end benchmark for the websocket tunnel transport: portrd runs in Docker,
+End-to-end benchmark for the websocket and QUIC tunnel transports: portrd runs in Docker,
 the portr client and a Go origin run on the host, and `httpbench` / `wsbench`
 generate load against portrd's proxy port.
 
@@ -14,6 +14,13 @@ Results go to `scripts/bench/results/<label>/`: one file per scenario,
 
 The client is built from the working tree. To measure an older server image,
 pass a client binary that speaks its protocol version with `PORTR_BIN`.
+
+`TRANSPORT=quic` runs the same scenarios over QUIC. The run aborts if the client
+falls back to websocket, so its numbers are always QUIC.
+
+```bash
+TRANSPORT=quic SCALE=2 scripts/bench/run.sh <label>-quic portr-bench:<label>
+```
 
 Compare two runs:
 
@@ -49,7 +56,11 @@ land in the real `~/.portr/db.sqlite`.
 - `loopback`: tunnel client connects to portrd over localhost.
 - `wan`: tunnel client connects through toxiproxy with 40 ms latency each way
   (~80 ms RTT) and a 2500 KB/s upload cap from client to server, like a home
-  connection. Override with `WAN_LATENCY_MS` and `WAN_UPLOAD_KBPS`; `WAN_DIVISOR`
+  connection. toxiproxy only relays TCP, so QUIC runs go through `udpdelay`
+  with the same latency and cap; it queues up to 256 KB behind the cap and
+  drops beyond that, like a router (`WAN_QUEUE_KB`). udpdelay shapes QUIC ACKs
+  too, while toxiproxy terminates TCP and shapes only payload, so scenarios
+  that saturate both directions favour websocket. Override with `WAN_LATENCY_MS` and `WAN_UPLOAD_KBPS`; `WAN_DIVISOR`
   (default 10) scales its request counts down, and `PROFILES` picks which
   profiles run (default `direct loopback wan`).
 

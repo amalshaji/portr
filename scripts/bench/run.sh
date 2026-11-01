@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Benchmarks the websocket tunnel end to end: portrd in Docker, the portr client
+# Benchmarks a tunnel transport end to end: portrd in Docker, the portr client
 # and a Go origin on the host, httpbench and wsbench as load generators.
 #
-#   [PORTR_BIN=path/to/portr] scripts/bench/run.sh <label> [image]
+#   [TRANSPORT=quic] [PORTR_BIN=path/to/portr] scripts/bench/run.sh <label> [image]
 #
 # HTTP and websocket scenarios run over two network profiles:
 #   loopback  client <-> server over localhost
-#   wan       client <-> server through toxiproxy (RTT and upload limit below)
+#   wan       client <-> server through toxiproxy, or udpdelay for quic
+#             (RTT and upload limit below)
 # Visitor traffic always hits portrd directly; only the tunnel leg is shaped.
 # Results land in scripts/bench/results/<label>/.
 set -euo pipefail
@@ -18,6 +19,8 @@ WAN_LATENCY_MS=${WAN_LATENCY_MS:-40}      # each direction, so RTT ~= 2x
 WAN_UPLOAD_KBPS=${WAN_UPLOAD_KBPS:-2500}  # client -> server, KB/s (~20 Mbit/s)
 WAN_DIVISOR=${WAN_DIVISOR:-10}            # wan request counts are divided by this
 PROFILES=${PROFILES:-"direct loopback wan"}
+TRANSPORT=${TRANSPORT:-websocket}         # websocket or quic
+WAN_QUEUE_KB=${WAN_QUEUE_KB:-256}         # quic only: bytes udpdelay queues behind the cap
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 OUT=$ROOT/scripts/bench/results/$LABEL
@@ -25,11 +28,11 @@ WORK=$(mktemp -d)
 mkdir -p "$OUT"
 rm -f "$OUT"/*.txt "$OUT"/*.log
 {
-  echo "label=$LABEL image=$IMAGE scale=$SCALE"
+  echo "label=$LABEL image=$IMAGE scale=$SCALE transport=$TRANSPORT"
   echo "commit=$(git -C "$ROOT" rev-parse --short HEAD)$(git -C "$ROOT" diff --quiet -- cmd internal || echo -dirty)"
   echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "host=$(uname -sm) cpu=$(sysctl -n machdep.cpu.brand_string 2>/dev/null || nproc) docker=$(docker version -f '{{.Server.Version}}')"
-  echo "profiles=$PROFILES wan=${WAN_LATENCY_MS}ms each way, upload ${WAN_UPLOAD_KBPS} KB/s, divisor ${WAN_DIVISOR}"
+  echo "profiles=$PROFILES wan=${WAN_LATENCY_MS}ms each way, upload ${WAN_UPLOAD_KBPS} KB/s, divisor ${WAN_DIVISOR}, quic queue ${WAN_QUEUE_KB} KB"
 } >"$OUT/env.info"
 
 HOST=bench.localhost:8001
@@ -43,6 +46,8 @@ cleanup() {
 trap cleanup EXIT
 
 log() { printf '\n== %s\n' "$*"; }
+
+has_profile() { [[ " $PROFILES " == *" $1 "* ]]; }
 
 wait_for() {
   local url=$1 host=${2:-}
@@ -65,13 +70,17 @@ if [ -n "${PORTR_BIN:-}" ]; then cp "$PORTR_BIN" "$WORK/portr"; else go build -o
 go build -o "$WORK/origin" "$ROOT/scripts/bench/origin"
 go build -o "$WORK/wsbench" "$ROOT/scripts/bench/wsbench"
 go build -o "$WORK/httpbench" "$ROOT/scripts/bench/httpbench"
+go build -o "$WORK/udpdelay" "$ROOT/scripts/bench/udpdelay"
 
 log "starting portrd ($IMAGE)"
 docker rm -f portr-bench toxiproxy-bench >/dev/null 2>&1 || true
-docker run -d --name portr-bench -p 8000:8000 -p 8001:8001 \
+QUIC_KEY=
+if [ "$TRANSPORT" = quic ]; then QUIC_KEY=$(docker run --rm "$IMAGE" generate-quic-key); fi
+docker run -d --name portr-bench -p 8000:8000 -p 8001:8001 -p 4433:4433/udp \
   -e PORTR_DB_URL=sqlite:///app/data/db.sqlite3 \
   -e PORTR_DOMAIN=localhost:8000 -e PORTR_SERVER_URL=http://localhost:8000 \
-  -e PORTR_TRANSPORT=websocket -e PORTR_WS_URL=localhost:8001 \
+  -e PORTR_TRANSPORT="$TRANSPORT" -e PORTR_WS_URL=localhost:8001 \
+  -e PORTR_QUIC_URL=localhost:4433 -e PORTR_QUIC_TLS_KEY="$QUIC_KEY" \
   -e PORTR_ADMIN_PORT=8000 -e PORTR_PROXY_PORT=8001 \
   -e PORTR_AUTO_MIGRATE=true -e PORTR_TUNNEL_USE_LOCALHOST=true \
   "$IMAGE" start all >/dev/null
@@ -84,6 +93,10 @@ curl -sf -c "$JAR" -b "$JAR" -H 'content-type: application/json' \
   -d "{\"email\":\"bench@example.com\",\"password\":\"$PASSWORD\"}" \
   http://localhost:8000/api/v1/auth/login >/dev/null
 SECRET=$(curl -sf -b "$JAR" -H 'X-Team-Slug: default-team' http://localhost:8000/api/v1/user/me | jq -r .secret_key)
+# The pin comes from the config download, the same way `portr auth set` gets it.
+QUIC_PIN=$(curl -sf -H 'content-type: application/json' -d "{\"secret_key\":\"$SECRET\"}" \
+  http://localhost:8000/api/v1/config/download | jq -r .message | sed -n 's/^quic_cert_sha256: //p')
+if [ "$TRANSPORT" = quic ] && [ -z "$QUIC_PIN" ]; then echo "config download has no quic_cert_sha256" >&2; exit 1; fi
 
 log "starting toxiproxy"
 docker run -d --name toxiproxy-bench -p 8474:8474 -p 18001:18001 \
@@ -95,18 +108,29 @@ curl -sf -X POST $TOXI/proxies/tunnel/toxics -d "{\"name\":\"lat_down\",\"type\"
 curl -sf -X POST $TOXI/proxies/tunnel/toxics -d "{\"name\":\"lat_up\",\"type\":\"latency\",\"stream\":\"upstream\",\"attributes\":{\"latency\":$WAN_LATENCY_MS}}" >/dev/null
 curl -sf -X POST $TOXI/proxies/tunnel/toxics -d "{\"name\":\"bw_up\",\"type\":\"bandwidth\",\"stream\":\"upstream\",\"attributes\":{\"rate\":$WAN_UPLOAD_KBPS}}" >/dev/null
 
+UDPDELAY_PID=
+if [ "$TRANSPORT" = quic ] && has_profile wan; then
+  "$WORK/udpdelay" -listen 127.0.0.1:14433 -upstream 127.0.0.1:4433 \
+    -latency "${WAN_LATENCY_MS}ms" -upload-kbps "$WAN_UPLOAD_KBPS" -queue $(( WAN_QUEUE_KB * 1024 )) >"$WORK/udpdelay.log" 2>&1 &
+  UDPDELAY_PID=$!
+  PIDS+=($UDPDELAY_PID)
+fi
+
 "$WORK/origin" -addr 127.0.0.1:9100 >"$WORK/origin.log" 2>&1 &
 PIDS+=($!)
 wait_for http://127.0.0.1:9100/tiny
 
 CLIENT_PID=
+# start_client <ws_url> <quic_url>
 start_client() {
-  local ws_url=$1 cfg=$WORK/client-$1.yaml
+  local ws_url=$1 quic_url=$2 cfg=$WORK/client-$1.yaml
   cat >"$cfg" <<EOF
 server_url: localhost:8000
 ws_url: $ws_url
+quic_url: $quic_url
+quic_cert_sha256: $QUIC_PIN
 tunnel_url: localhost:8001
-transport: websocket
+transport: $TRANSPORT
 secret_key: $SECRET
 use_localhost: true
 disable_tui: true
@@ -122,6 +146,11 @@ EOF
 }
 
 stop_client() {
+  # A quic run that fell back to websocket would measure the wrong transport.
+  if [ "$TRANSPORT" = quic ] && grep -q "using websocket" "$WORK"/client-*.log; then
+    echo "quic client fell back to websocket; results are not quic" >&2
+    exit 1
+  fi
   kill "$CLIENT_PID" 2>/dev/null || true
   wait "$CLIENT_PID" 2>/dev/null || true
   # Let the server drop the session before the next profile registers.
@@ -194,6 +223,12 @@ EOF
 }
 
 toxi_outage() {
+  if [ "$TRANSPORT" = quic ]; then
+    kill -USR1 "$UDPDELAY_PID"
+    sleep 5
+    kill -USR1 "$UDPDELAY_PID"
+    return
+  fi
   curl -sf -X POST $TOXI/proxies/tunnel -d '{"enabled":false}' >/dev/null
   sleep 5
   curl -sf -X POST $TOXI/proxies/tunnel -d '{"enabled":true}' >/dev/null
@@ -221,8 +256,6 @@ run_profile() {
   ws "$profile-ws-handshake-c50" 50 1 16
 }
 
-has_profile() { [[ " $PROFILES " == *" $1 "* ]]; }
-
 if has_profile direct; then
   log "direct origin reference"
   http direct-http-tiny-c1 1 1000 /tiny direct
@@ -232,7 +265,7 @@ if has_profile direct; then
 fi
 
 if has_profile loopback; then
-  start_client localhost:8001
+  start_client localhost:8001 localhost:4433
   run_profile loopback 1
   log "loopback: server restart"
   recover loopback-drop-server-restart server_restart
@@ -240,7 +273,7 @@ if has_profile loopback; then
 fi
 
 if has_profile wan; then
-  start_client localhost:18001
+  start_client localhost:18001 localhost:14433
   run_profile wan "$WAN_DIVISOR"
   log "wan: 5s network outage"
   recover wan-drop-5s-outage toxi_outage
