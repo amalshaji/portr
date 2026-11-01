@@ -3,6 +3,7 @@
   "pages": [
     "index",
     "start-the-tunnel-server",
+    "quic-transport",
     "deploy-on-railway",
     "deploy-on-fly",
     "sqlite-backups",

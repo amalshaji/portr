@@ -17,7 +17,7 @@
 
 <br />
 
-Portr is a tunnel solution that allows you to expose local HTTP, TCP, or WebSocket services to the public internet. Servers can run either SSH or WebSocket as the client-to-server tunnel transport, and generated client configs tell the client which transport to use.
+Portr is a tunnel solution that allows you to expose local HTTP, TCP, or WebSocket services to the public internet. Servers can run SSH, WebSocket, or QUIC (with WebSocket fallback) as the client-to-server tunnel transport, and generated client configs tell the client which transport to use.
 
 Portr is primarily designed for small teams looking to expose development servers on a public URL. It is not recommended for use alongside production servers.
 

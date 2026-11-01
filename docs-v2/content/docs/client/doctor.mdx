@@ -46,6 +46,9 @@ status.
 | secret key | The server accepts your `secret_key`. |
 | ssh endpoint | The SSH port is reachable over TCP. Separate from the handshake so a firewall looks different from an auth problem. |
 | ssh handshake | SSH authentication succeeds, and which host key the server presented. |
+| quic handshake | With `transport: quic`, a tunnel registers over QUIC with the server's pinned key. Warns instead of failing when UDP is blocked, since the client then falls back to WebSocket. |
+| websocket endpoint | With `transport: websocket` or `quic`, the WebSocket tunnel endpoint answers. For QUIC this is the fallback path. |
+| websocket handshake | With `transport: websocket`, a tunnel registers over the WebSocket endpoint. |
 | local service | Something is listening on each configured tunnel's local port. A warning, not a failure — starting Portr before your app is fine. |
 | dashboard port | The inspector port is free, already owned by another Portr, or taken by an unrelated program. |
 

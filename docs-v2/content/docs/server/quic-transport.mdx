@@ -1,0 +1,94 @@
+---
+title: QUIC Transport
+description: Run Portr tunnels over QUIC on a single UDP port, with automatic WebSocket fallback for networks that block UDP.
+---
+
+With `PORTR_TRANSPORT=quic`, clients connect to the tunnel server over QUIC
+instead of SSH or WebSocket. Only the client-to-server leg changes: visitors
+still reach your tunnels over the usual HTTPS, WebSocket and TCP ports.
+
+QUIC gives each request its own stream with its own flow control, so a slow or
+lossy request does not hold up the others the way it can on a single TCP
+connection. It is encrypted with TLS 1.3, connects in one round trip, and
+needs a single UDP port.
+
+## When to use it
+
+- Your server can accept UDP on a public port. Hosts with no UDP ingress,
+  such as Railway, should keep `PORTR_TRANSPORT=websocket`.
+- Clients are on networks where UDP usually works. Clients on networks that
+  block it fall back to WebSocket automatically, so the server keeps serving
+  the WebSocket endpoint as well.
+
+## Server setup
+
+Generate a key for the server's QUIC certificate and store it as a persistent
+secret:
+
+```bash
+portrd generate-quic-key
+```
+
+Then set:
+
+```bash title=".env"
+PORTR_TRANSPORT=quic
+PORTR_QUIC_TLS_KEY= # output of portrd generate-quic-key
+PORTR_QUIC_URL=example.com:4433
+PORTR_QUIC_PORT=4433
+PORTR_WS_URL=tunnel.example.com # fallback for clients that cannot use UDP
+```
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORTR_QUIC_TLS_KEY` | PEM-encoded Ed25519 key for the QUIC certificate. Required with `PORTR_TRANSPORT=quic` | Required |
+| `PORTR_QUIC_URL` | Public `host:port` clients dial for QUIC | `localhost:<PORTR_QUIC_PORT>` |
+| `PORTR_QUIC_PORT` | UDP port the server listens on | `4433` |
+
+Open the QUIC port for UDP in your firewall, for example `4433/udp`. The
+default is not 443 because Caddy and many other proxies already serve HTTP/3
+on `443/udp`. The QUIC port must reach portrd directly; do not put it behind
+an HTTP reverse proxy.
+
+<Callout type="info">
+  On Linux, quic-go performs best with larger UDP buffers. If portrd logs that
+  it could not increase the receive buffer size, raise the limits:
+  `sysctl -w net.core.rmem_max=7500000 net.core.wmem_max=7500000`.
+</Callout>
+
+## How clients verify the server
+
+The server uses a self-signed certificate built from `PORTR_QUIC_TLS_KEY`.
+Clients do not trust it through a certificate authority; instead
+`portr auth set` downloads the SHA-256 pin of the key as `quic_cert_sha256`,
+and the client refuses any server whose key does not match.
+
+Generated client configs look like this:
+
+```yaml
+server_url: example.com
+transport: quic
+quic_url: example.com:4433
+ws_url: tunnel.example.com
+tunnel_url: example.com
+quic_cert_sha256: 3f1c...
+secret_key: portr_xxx
+```
+
+<Callout type="warn">
+  Changing `PORTR_QUIC_TLS_KEY` changes the pin. Existing clients reject the
+  server until they run `portr auth set` again to download the new one.
+</Callout>
+
+For local development only, `insecure_skip_quic_verification: true` skips the
+pin check.
+
+## WebSocket fallback
+
+When the QUIC handshake gets no answer within three seconds, usually because
+UDP is blocked, the client connects through `ws_url` instead and keeps using
+WebSocket for that server for ten minutes before trying QUIC again. A pin
+mismatch or rejected credentials is reported as an error and never falls back.
+
+`portr doctor` runs a QUIC handshake check, which warns when the QUIC port is
+unreachable, and checks the WebSocket endpoint used for fallback.

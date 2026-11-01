@@ -21,8 +21,8 @@ portr http 9000 -s realtime-dev
 </Callout>
 
 The Portr client-to-server tunnel transport is selected by your server-generated
-config. It connects to `ssh_url` when `transport: ssh`, or to `ws_url` when
-`transport: websocket`. Public HTTP and application WebSocket traffic still uses
+config. It connects to `ssh_url` when `transport: ssh`, to `ws_url` when
+`transport: websocket`, or to `quic_url` when `transport: quic`. Public HTTP and application WebSocket traffic still uses
 the normal tunnel URL such as `https://realtime-dev.example.com` or
 `wss://realtime-dev.example.com`.
 

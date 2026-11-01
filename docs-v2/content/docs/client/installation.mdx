@@ -52,7 +52,11 @@ tunnel_url: example.com
 secret_key: portr_xxx
 ```
 
-Use `server_url` for admin API calls. Use `ssh_url` or `ws_url` for
+With `PORTR_TRANSPORT=quic`, generated configs use `transport: quic` with
+`quic_url` and the server's `quic_cert_sha256` pin, and keep `ws_url` as the
+fallback when UDP is blocked. See [QUIC Transport](/docs/server/quic-transport).
+
+Use `server_url` for admin API calls. Use `ssh_url`, `ws_url` or `quic_url` for
 client-to-server tunnel connections, depending on the generated `transport`.
 
 The server appends your [team's client template](/docs/client/team-administration)

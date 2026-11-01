@@ -152,6 +152,7 @@ Firewall rules:
 |------|--------|
 | 80/443 | Allow (your proxy) |
 | 2222 | Allow (SSH tunnel ingress) |
+| 4433/udp | Allow if `PORTR_TRANSPORT=quic` (QUIC tunnel ingress, straight to portrd) |
 | 30001-40001 | Allow if you use TCP tunnels |
 | 5432, 8000, 8001 | Block from the internet (postgres and portr only need local access) |
 | 20000-30000 | Block from the internet |

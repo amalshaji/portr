@@ -62,7 +62,7 @@ RUN mkdir -p /app/data && chown -R portr:portr /app
 
 USER portr
 
-EXPOSE 2222 8000 8001
+EXPOSE 2222 8000 8001 4433/udp
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["start", "all"]

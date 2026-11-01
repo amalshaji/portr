@@ -64,11 +64,14 @@ POSTGRES_DB=postgres
 | `PORTR_DOMAIN` | Your server domain | `localhost:8001` |
 | `PORTR_DB_URL` | PostgreSQL connection URL | Required |
 | `PORTR_SERVER_URL` | Public admin/API server URL for clients, without a scheme | `localhost:8000` |
-| `PORTR_TRANSPORT` | Transport to emit in generated client configs: `ssh` or `websocket` | `ssh` |
+| `PORTR_TRANSPORT` | Transport to emit in generated client configs: `ssh`, `websocket` or `quic` | `ssh` |
 | `PORTR_SSH_URL` | Public SSH tunnel URL for clients when `PORTR_TRANSPORT=ssh` | `localhost:2222` |
 | `PORTR_SSH_PORT` | SSH tunnel listener port | `2222` |
 | `PORTR_SSH_HOST_KEY` | Stable PEM-encoded Ed25519 host private key when `PORTR_TRANSPORT=ssh`; strongly recommended to preserve identity across restarts | Ephemeral key |
-| `PORTR_WS_URL` | WebSocket control hostname routed to the tunnel proxy when `PORTR_TRANSPORT=websocket` | `localhost:8001` |
+| `PORTR_WS_URL` | WebSocket control hostname routed to the tunnel proxy when `PORTR_TRANSPORT=websocket`, and the fallback when `PORTR_TRANSPORT=quic` | `localhost:8001` |
+| `PORTR_QUIC_URL` | Public QUIC `host:port` for clients when `PORTR_TRANSPORT=quic` | `localhost:4433` |
+| `PORTR_QUIC_PORT` | QUIC listener UDP port | `4433` |
+| `PORTR_QUIC_TLS_KEY` | PEM-encoded Ed25519 key for the QUIC certificate; required when `PORTR_TRANSPORT=quic` | Required for QUIC |
 | `PORTR_ADMIN_PORT` | Admin server port | `8000` |
 | `PORTR_PROXY_PORT` | Tunnel proxy port; also the WebSocket endpoint port when `PORTR_TRANSPORT=websocket` | `8001` |
 | `PORTR_ADMIN_GITHUB_CLIENT_ID` | GitHub OAuth client ID | Optional |
@@ -78,6 +81,8 @@ POSTGRES_DB=postgres
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token for SSL | Required (bundled Caddy) |
 
 If you run on SQLite instead of PostgreSQL, see [SQLite Backups](/docs/server/sqlite-backups) for the `LITESTREAM_*` variables that replicate the database to object storage.
+
+To run tunnels over QUIC with WebSocket fallback, see [QUIC Transport](/docs/server/quic-transport).
 
 If you already run a reverse proxy or manage TLS certificates manually, see [Custom Reverse Proxy](/docs/server/custom-reverse-proxy) — the Cloudflare token is only needed by the bundled Caddy service.
 

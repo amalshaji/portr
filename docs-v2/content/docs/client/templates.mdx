@@ -41,7 +41,8 @@ tunnels:
 
 The admin dashboard generates this transport block from the server's
 `PORTR_TRANSPORT` setting. For WebSocket deployments it will use
-`transport: websocket` with `ws_url` instead of `ssh_url`.
+`transport: websocket` with `ws_url` instead of `ssh_url`, and for QUIC
+deployments `transport: quic` with `quic_url`, `quic_cert_sha256` and `ws_url`.
 
 ### Disable TUI (Terminal User Interface)
 

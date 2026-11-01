@@ -110,6 +110,9 @@ PORTR_SERVER_URL=https://<admin-domain>
 PORTR_WS_URL=https://<proxy-domain>
 ```
 
+Railway has no UDP ingress, so the [QUIC transport](/docs/server/quic-transport)
+does not work there either.
+
 With `PORTR_TRANSPORT=websocket`, `PORTR_SSH_URL`, `PORTR_SSH_PORT` and
 `PORTR_SSH_HOST_KEY` are not used and can be omitted entirely.
 
