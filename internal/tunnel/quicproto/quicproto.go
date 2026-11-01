@@ -202,9 +202,13 @@ func ClientTLSConfig(pin string, insecure bool) (*tls.Config, error) {
 	}, nil
 }
 
+// A stream whose reader stalls, such as a visitor that stops reading a
+// download, keeps its whole window of the connection window. yamux has no
+// connection window, but QUIC does, so it is fixed at many times the largest
+// stream window: one stalled stream must not freeze the rest of the tunnel.
 const (
-	maxStreamWindow     = 6 << 20
-	maxConnectionWindow = 15 << 20
+	maxStreamWindow  = 2 << 20
+	connectionWindow = 32 << 20
 )
 
 func baseConfig() *quic.Config {
@@ -214,8 +218,8 @@ func baseConfig() *quic.Config {
 		KeepAlivePeriod:                10 * time.Second,
 		InitialStreamReceiveWindow:     512 << 10,
 		MaxStreamReceiveWindow:         maxStreamWindow,
-		InitialConnectionReceiveWindow: 512 << 10,
-		MaxConnectionReceiveWindow:     maxConnectionWindow,
+		InitialConnectionReceiveWindow: connectionWindow,
+		MaxConnectionReceiveWindow:     connectionWindow,
 		MaxIncomingUniStreams:          -1,
 		// The hello frame carries the secret key; 0-RTT data can be replayed.
 		Allow0RTT: false,
