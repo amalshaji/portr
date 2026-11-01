@@ -152,8 +152,8 @@ func new() *Config {
 	if transport == "" {
 		transport = TransportSSH
 	}
-	if transport != TransportSSH && transport != TransportWebSocket {
-		log.Fatal("Invalid PORTR_TRANSPORT", "transport", transport, "supported", "ssh, websocket")
+	if transport != TransportSSH && transport != TransportWebSocket && transport != TransportQUIC {
+		log.Fatal("Invalid PORTR_TRANSPORT", "transport", transport, "supported", "ssh, websocket, quic")
 	}
 
 	quicPortStr := os.Getenv("PORTR_QUIC_PORT")
@@ -172,6 +172,10 @@ func new() *Config {
 
 	quicTLSKey := os.Getenv("PORTR_QUIC_TLS_KEY")
 	quicCertPin := ""
+	if transport == TransportQUIC && quicTLSKey == "" {
+		// Clients verify the server by this key's pin; run `portrd generate-quic-key`.
+		log.Fatal("PORTR_QUIC_TLS_KEY is required when PORTR_TRANSPORT is quic")
+	}
 	if quicTLSKey != "" {
 		quicCertPin, err = quicproto.KeyPin(quicTLSKey)
 		if err != nil {

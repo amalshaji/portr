@@ -33,6 +33,7 @@ type Manager struct {
 	bySub        map[string][]*session
 	sessions     map[string]*session
 	rrIdx        map[string]int
+	quic         *quicServer
 	workers      sync.WaitGroup
 	shutdownOnce sync.Once
 	shutdownDone chan struct{}
@@ -166,11 +167,16 @@ func (m *Manager) Shutdown(ctx context.Context) error {
 	m.shutdownOnce.Do(func() {
 		m.mu.Lock()
 		m.shuttingDown = true
+		quicServer := m.quic
 		sessions := make([]*session, 0, len(m.sessions))
 		for _, sess := range m.sessions {
 			sessions = append(sessions, sess)
 		}
 		m.mu.Unlock()
+
+		if quicServer != nil {
+			_ = quicServer.listener.Close()
+		}
 
 		for _, sess := range sessions {
 			sess.setEndReason("server shutting down")
@@ -181,6 +187,11 @@ func (m *Manager) Shutdown(ctx context.Context) error {
 				sess.workers.Wait()
 			}
 			m.workers.Wait()
+			// The socket stays open until sessions are gone so their close
+			// frames still go out.
+			if quicServer != nil {
+				quicServer.close()
+			}
 			close(m.shutdownDone)
 		}()
 	})
@@ -474,7 +485,11 @@ func (s *session) newHTTPProxy() {
 			case <-ctx.Done():
 				return nil, ctx.Err()
 			}
-			return s.mux.OpenStream(ctx)
+			stream, err := s.mux.OpenStream(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return stream, nil
 		},
 		DisableCompression:  true,
 		MaxIdleConnsPerHost: 64,
@@ -542,8 +557,8 @@ func (m *Manager) pipeStream(sess *session, conn net.Conn, initial []byte) {
 		if _, err := io.Copy(stream, conn); err != nil {
 			_ = conn.Close()
 		}
-		// Stream Close only half-closes: the response keeps flowing back.
-		_ = stream.Close()
+		// Half-close: the response keeps flowing back.
+		_ = stream.CloseWrite()
 	}()
 
 	if _, err := io.Copy(conn, stream); err != nil {

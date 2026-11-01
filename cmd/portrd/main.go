@@ -205,9 +205,17 @@ type tunnelTransportProcess interface {
 }
 
 func configureTunnelTransport(cfg *configpkg.Config, svc *service.Service, proxyServer *proxy.Proxy) tunnelTransportProcess {
-	if cfg.Transport == configpkg.TransportWebSocket {
+	if cfg.Transport == configpkg.TransportWebSocket || cfg.Transport == configpkg.TransportQUIC {
 		manager := wstunnel.New(cfg, svc)
+		// QUIC servers keep the websocket endpoint as the client fallback.
 		proxyServer.SetTunnelBackend(manager)
+		if cfg.Transport == configpkg.TransportQUIC {
+			addr, err := manager.ListenQUIC(fmt.Sprintf(":%d", cfg.Quic.Port), cfg.Quic.TLSKey)
+			if err != nil {
+				log.Fatal("Failed to start QUIC tunnel listener", "error", err)
+			}
+			log.Info("Listening for QUIC tunnels", "address", addr)
+		}
 		return manager
 	}
 	return sshd.New(&cfg.Ssh, proxyServer, svc)

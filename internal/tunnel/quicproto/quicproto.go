@@ -43,6 +43,12 @@ const (
 	TypePong  = "pong"
 )
 
+// DataStreamHeader is the first byte the server writes on every data stream.
+// QUIC only announces a stream once it carries data, so without it a TCP
+// tunnel to a server-speaks-first service (SMTP, MySQL) would never reach the
+// client.
+const DataStreamHeader byte = 0x01
+
 // maxFrameSize bounds control frames so a peer cannot make the other side
 // allocate arbitrary memory before authenticating.
 const maxFrameSize = 64 << 10
