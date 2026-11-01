@@ -622,3 +622,36 @@ func TestCheckWebSocketHandshakeFailsOnRejectedCredentials(t *testing.T) {
 		t.Fatalf("expected the server rejection to surface, got %q", check.Detail)
 	}
 }
+
+func TestCheckQUICHandshakeWarnsWhenUnreachable(t *testing.T) {
+	// A bound UDP socket that never answers stands in for a blocked port.
+	silent, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer silent.Close()
+
+	check := checkQUICHandshake(context.Background(), config.Config{
+		Transport:      config.TransportQUIC,
+		QuicUrl:        silent.LocalAddr().String(),
+		QuicCertSha256: "00",
+		SecretKey:      "sk-doctor-test",
+	}, "conn-1")
+	if check.Status != doctorWarn {
+		t.Fatalf("expected warn, got %s (%s)", check.Status, check.Detail)
+	}
+	if !strings.Contains(check.Hint, "websocket") {
+		t.Fatalf("expected the hint to mention the websocket fallback, got %q", check.Hint)
+	}
+}
+
+func TestCheckQUICHandshakeFailsWithoutPin(t *testing.T) {
+	check := checkQUICHandshake(context.Background(), config.Config{
+		Transport: config.TransportQUIC,
+		QuicUrl:   "127.0.0.1:1",
+		SecretKey: "sk-doctor-test",
+	}, "conn-1")
+	if check.Status != doctorFail || !strings.Contains(check.Detail, "quic_cert_sha256") {
+		t.Fatalf("expected missing pin failure, got %s (%s)", check.Status, check.Detail)
+	}
+}

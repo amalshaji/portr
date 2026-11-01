@@ -377,9 +377,9 @@ func (c Config) Validate() error {
 	}
 
 	switch c.Transport {
-	case "", TransportSSH, TransportWebSocket:
+	case "", TransportSSH, TransportWebSocket, TransportQUIC:
 	default:
-		return fmt.Errorf("transport must be either %q or %q", TransportSSH, TransportWebSocket)
+		return fmt.Errorf("transport must be one of %q, %q or %q", TransportSSH, TransportWebSocket, TransportQUIC)
 	}
 
 	tunnelNames := make(map[string]bool, len(c.Tunnels))

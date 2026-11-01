@@ -26,6 +26,7 @@ import (
 	"github.com/amalshaji/portr/internal/server/service"
 	sshd "github.com/amalshaji/portr/internal/server/ssh"
 	"github.com/amalshaji/portr/internal/server/wstunnel"
+	"github.com/amalshaji/portr/internal/tunnel/quicproto"
 	"github.com/glebarez/sqlite"
 	sshserver "github.com/gliderlabs/ssh"
 	"golang.org/x/net/websocket"
@@ -42,10 +43,11 @@ const (
 
 // dataFlowTransports is the transport axis of the integration matrix. Every
 // data-flow test below runs once per entry, so a new tunnel channel only needs
-// one flow function to be covered on both transports.
+// one flow function to be covered on every transport.
 var dataFlowTransports = []clientconfig.Transport{
 	clientconfig.TransportWebSocket,
 	clientconfig.TransportSSH,
+	clientconfig.TransportQUIC,
 }
 
 type tunnelHarness struct {
@@ -56,6 +58,7 @@ type tunnelHarness struct {
 	publicServer *httptest.Server
 	tunnelHost   string
 	serverDB     *gorm.DB
+	manager      *wstunnel.Manager
 
 	sshServer *sshserver.Server
 	sshErr    chan error
@@ -191,7 +194,7 @@ func startTunnelHarness(t *testing.T, transport clientconfig.Transport, tunnelTy
 	harness := &tunnelHarness{transport: transport, serverDB: serverDatabase}
 
 	switch transport {
-	case clientconfig.TransportWebSocket:
+	case clientconfig.TransportWebSocket, clientconfig.TransportQUIC:
 		serverConfig := &serverconfig.Config{
 			Proxy:        serverconfig.ProxyConfig{Host: "localhost"},
 			Domain:       "localhost",
@@ -199,7 +202,9 @@ func startTunnelHarness(t *testing.T, transport clientconfig.Transport, tunnelTy
 			Debug:        true,
 		}
 		proxyServer := proxy.New(serverConfig)
-		proxyServer.SetTunnelBackend(wstunnel.New(serverConfig, serverService))
+		manager := wstunnel.New(serverConfig, serverService)
+		proxyServer.SetTunnelBackend(manager)
+		harness.manager = manager
 		publicServer := httptest.NewServer(proxyServer)
 		publicURL, err := url.Parse(publicServer.URL)
 		if err != nil {
@@ -223,6 +228,28 @@ func startTunnelHarness(t *testing.T, transport clientconfig.Transport, tunnelTy
 		clientCfg.WsUrl = publicHost
 		clientCfg.TunnelUrl = publicHost
 		clientCfg.UseLocalHost = true
+
+		if transport == clientconfig.TransportQUIC {
+			key, err := quicproto.GenerateKey()
+			if err != nil {
+				publicServer.Close()
+				t.Fatalf("generate quic key: %v", err)
+			}
+			pin, err := quicproto.KeyPin(key)
+			if err != nil {
+				publicServer.Close()
+				t.Fatalf("pin quic key: %v", err)
+			}
+			quicAddr, err := manager.ListenQUIC("127.0.0.1:0", key)
+			if err != nil {
+				publicServer.Close()
+				t.Fatalf("listen quic: %v", err)
+			}
+			clientCfg.QuicUrl = quicAddr.String()
+			clientCfg.QuicCertSha256 = pin
+			// A dead websocket endpoint makes a silent fallback fail the test.
+			clientCfg.WsUrl = "127.0.0.1:1"
+		}
 
 		harness.publicServer = publicServer
 		harness.tunnelHost = testSubdomain + "." + publicHost
@@ -307,6 +334,11 @@ func (h *tunnelHarness) close(t *testing.T) {
 			t.Error("timed out waiting for SSH server shutdown")
 		}
 		h.waitForConnectionClosed(t)
+	}
+	if h.manager != nil {
+		if err := h.manager.Shutdown(shutdownContext); err != nil {
+			t.Errorf("shut down tunnel manager: %v", err)
+		}
 	}
 	h.publicServer.Close()
 }

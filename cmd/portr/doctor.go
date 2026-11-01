@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -154,7 +155,19 @@ func runDoctorChecks(ctx context.Context, cfg config.Config, configPath string) 
 		}
 	}
 
-	if cfg.Transport == config.TransportWebSocket {
+	if cfg.Transport == config.TransportQUIC {
+		if blocked != "" {
+			checks = append(checks, skippedCheck("quic handshake", blocked))
+		} else {
+			checks = append(checks, checkQUICHandshake(ctx, cfg, connectionID))
+		}
+		// Clients fall back to websocket when UDP to quic_url is blocked.
+		checks = append(checks,
+			checkWebSocketEndpoint(ctx, cfg),
+			skippedCheck("ssh endpoint", "transport is quic"),
+			skippedCheck("ssh handshake", "transport is quic"),
+		)
+	} else if cfg.Transport == config.TransportWebSocket {
 		// The websocket transport never dials ssh_url, so probing it would only
 		// report on an endpoint this client does not use. Probe the websocket
 		// endpoint it does use instead, then prove an authenticated tunnel
@@ -419,6 +432,36 @@ func checkWebSocketHandshake(ctx context.Context, cfg config.Config, connectionI
 	return check
 }
 
+// checkQUICHandshake registers a tunnel over QUIC. An endpoint that never
+// answers only warns, since the client then falls back to websocket.
+func checkQUICHandshake(ctx context.Context, cfg config.Config, connectionID string) doctorCheck {
+	check := doctorCheck{Name: "quic handshake"}
+
+	clientConfig := doctorClientConfig(cfg)
+	clientConfig.ConnectionID = connectionID
+
+	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	session, err := wstunnelclient.ConnectQUIC(connectCtx, clientConfig, connectionID)
+	if errors.Is(err, wstunnelclient.ErrQUICUnreachable) {
+		check.Status = doctorWarn
+		check.Detail = err.Error()
+		check.Hint = "UDP to quic_url looks blocked; tunnels will use websocket. Open the QUIC port on the server and network for better performance"
+		return check
+	}
+	if err != nil {
+		check.Status = doctorFail
+		check.Detail = err.Error()
+		check.Hint = "verify quic_url and quic_cert_sha256 match the server; run `portr auth set` again to refresh them"
+		return check
+	}
+	_ = session.Close()
+
+	check.Status = doctorPass
+	check.Detail = "authenticated tunnel registration succeeded"
+	return check
+}
+
 func checkSSHEndpoint(sshURL string) doctorCheck {
 	check := doctorCheck{Name: "ssh endpoint"}
 
@@ -539,6 +582,9 @@ func doctorClientConfig(cfg config.Config) config.ClientConfig {
 		ServerUrl:                       cfg.ServerUrl,
 		SshUrl:                          cfg.SshUrl,
 		WsUrl:                           cfg.WsUrl,
+		QuicUrl:                         cfg.QuicUrl,
+		QuicCertSha256:                  cfg.QuicCertSha256,
+		InsecureSkipQuicVerification:    cfg.InsecureSkipQuicVerification,
 		TunnelUrl:                       cfg.TunnelUrl,
 		Transport:                       cfg.Transport,
 		SecretKey:                       cfg.SecretKey,
