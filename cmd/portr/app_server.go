@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,6 +14,7 @@ import (
 	"github.com/amalshaji/portr/internal/client/appserver"
 	"github.com/amalshaji/portr/internal/client/db"
 	config "github.com/amalshaji/portr/internal/clientconfig"
+	"github.com/amalshaji/portr/internal/utils"
 	"github.com/urfave/cli/v2"
 )
 
@@ -45,16 +45,7 @@ func appServerCmd() *cli.Command {
 
 func requiresAppServerToken(host string) bool {
 	host = strings.TrimSpace(host)
-	if host == "" || strings.EqualFold(host, "localhost") {
-		return false
-	}
-
-	ip := net.ParseIP(strings.Trim(host, "[]"))
-	if ip != nil {
-		return !ip.IsLoopback()
-	}
-
-	return true
+	return host != "" && !utils.IsLoopbackHost(host)
 }
 
 func startAppServer(c *cli.Context) error {

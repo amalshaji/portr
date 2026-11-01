@@ -234,20 +234,6 @@ func (h *Handler) RenderResponse(c *fiber.Ctx) error {
 	return nil
 }
 
-func (h *Handler) ReplayRequest(c *fiber.Ctx) error {
-	requestID := c.Params("id")
-	request, err := h.service.GetRequestById(requestID)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to get requests"})
-	}
-
-	if _, err := clientreplay.Execute(request, clientreplay.EditOptions{Scheme: h.replayScheme()}); err != nil {
-		return replayHTTPError(c, err)
-	}
-
-	return c.JSON(fiber.Map{"message": "replayed request"})
-}
-
 func (h *Handler) ReplayRequestWithEdits(c *fiber.Ctx) error {
 	requestID := c.Params("id")
 	request, err := h.service.GetRequestById(requestID)

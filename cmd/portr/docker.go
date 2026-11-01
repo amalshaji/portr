@@ -80,7 +80,9 @@ func startDocker(c *cli.Context) error {
 	var dash *dashboard.Dashboard
 	dashErrCh := make(chan error, 1)
 	if !cfg.DisableDashboard {
-		dash = dashboard.New(database, &cfg)
+		// Inside the container the dashboard must listen on every interface for
+		// the published port to reach it; the compose file binds it to loopback.
+		dash = dashboard.New(database, &cfg, "")
 		go func() {
 			if err := dash.Start(); err != nil {
 				dashErrCh <- fmt.Errorf("failed to start dashboard server: %w", err)

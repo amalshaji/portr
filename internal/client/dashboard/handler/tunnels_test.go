@@ -19,7 +19,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func newTestApp(t *testing.T) (*fiber.App, *gorm.DB) {
+func newTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
 	conn, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
@@ -29,6 +29,13 @@ func newTestApp(t *testing.T) (*fiber.App, *gorm.DB) {
 	if err := conn.AutoMigrate(&db.Request{}, &db.WebSocketSession{}, &db.WebSocketEvent{}); err != nil {
 		t.Fatalf("migrate schema: %v", err)
 	}
+	return conn
+}
+
+func newTestApp(t *testing.T) (*fiber.App, *gorm.DB) {
+	t.Helper()
+
+	conn := newTestDB(t)
 
 	svc := dashboardservice.New(&db.Db{Conn: conn}, nil)
 	handler := New(nil, svc)
@@ -196,13 +203,7 @@ func TestReplayRequestWithEditsUsesLocalSchemeAndOverrides(t *testing.T) {
 	}))
 	defer target.Close()
 
-	conn, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open sqlite: %v", err)
-	}
-	if err := conn.AutoMigrate(&db.Request{}, &db.WebSocketSession{}, &db.WebSocketEvent{}); err != nil {
-		t.Fatalf("migrate schema: %v", err)
-	}
+	conn := newTestDB(t)
 
 	request := db.Request{
 		ID:      "req-edit",
@@ -263,5 +264,65 @@ func TestReplayRequestWithEditsUsesLocalSchemeAndOverrides(t *testing.T) {
 	}
 	if observed.Body != "edited-body" {
 		t.Fatalf("expected edited body, got %q", observed.Body)
+	}
+}
+
+func TestReplayWithEmptyEditsReplaysOriginalAndGetDoesNotReplay(t *testing.T) {
+	type observedRequest struct {
+		Method string
+		Path   string
+		Body   string
+	}
+
+	var observed observedRequest
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		observed = observedRequest{Method: r.Method, Path: r.URL.RequestURI(), Body: string(body)}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer target.Close()
+
+	conn := newTestDB(t)
+
+	request := db.Request{
+		ID:      "req-plain",
+		Host:    strings.TrimPrefix(target.URL, "http://"),
+		Url:     "/original",
+		Method:  http.MethodPut,
+		Headers: datatypes.JSON([]byte(`{}`)),
+		Body:    []byte("original-body"),
+	}
+	if err := conn.Create(&request).Error; err != nil {
+		t.Fatalf("create request: %v", err)
+	}
+
+	app := fiber.New()
+	cfg := &clientconfig.Config{UseLocalHost: true}
+	handler := New(cfg, dashboardservice.New(&db.Db{Conn: conn}, cfg))
+	handler.RegisterTunnelRoutes(app.Group("/api/tunnels"))
+
+	getResp, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/tunnels/replay/"+request.ID, nil))
+	if err != nil {
+		t.Fatalf("get replay: %v", err)
+	}
+	getResp.Body.Close()
+	if observed.Method != "" {
+		t.Fatalf("expected GET not to replay, but target received %+v", observed)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/tunnels/replay/"+request.ID, strings.NewReader("{}"))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("replay request: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 200, got %d body=%s", resp.StatusCode, string(body))
+	}
+
+	if observed != (observedRequest{Method: http.MethodPut, Path: "/original", Body: "original-body"}) {
+		t.Fatalf("expected original request to be replayed, got %+v", observed)
 	}
 }

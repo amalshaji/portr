@@ -81,16 +81,7 @@ export function deleteTunnelLogs(subdomain: string, localport: number) {
   )
 }
 
-export function replayRequest(requestId: string) {
-  return fetchJSON<{ message: string }>(
-    `/api/tunnels/replay/${encodeURIComponent(requestId)}`
-  )
-}
-
-export function replayRequestWithEdits(
-  requestId: string,
-  input: ReplayEditInput
-) {
+function postReplay(requestId: string, payload: object) {
   return fetchJSON<{ message: string }>(
     `/api/tunnels/replay/${encodeURIComponent(requestId)}`,
     {
@@ -98,13 +89,24 @@ export function replayRequestWithEdits(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        method: input.method,
-        path: input.path,
-        headers: input.headers,
-        body: input.body,
-        body_encoding: input.bodyEncoding,
-      }),
+      body: JSON.stringify(payload),
     }
   )
+}
+
+export function replayRequest(requestId: string) {
+  return postReplay(requestId, {})
+}
+
+export function replayRequestWithEdits(
+  requestId: string,
+  input: ReplayEditInput
+) {
+  return postReplay(requestId, {
+    method: input.method,
+    path: input.path,
+    headers: input.headers,
+    body: input.body,
+    body_encoding: input.bodyEncoding,
+  })
 }
