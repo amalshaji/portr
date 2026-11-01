@@ -267,7 +267,7 @@ func TestReplayRequestWithEditsUsesLocalSchemeAndOverrides(t *testing.T) {
 	}
 }
 
-func TestReplayWithEmptyEditsReplaysOriginalAndGetDoesNotReplay(t *testing.T) {
+func TestReplayWithoutEdits(t *testing.T) {
 	type observedRequest struct {
 		Method string
 		Path   string
@@ -301,28 +301,58 @@ func TestReplayWithEmptyEditsReplaysOriginalAndGetDoesNotReplay(t *testing.T) {
 	handler := New(cfg, dashboardservice.New(&db.Db{Conn: conn}, cfg))
 	handler.RegisterTunnelRoutes(app.Group("/api/tunnels"))
 
-	getResp, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/tunnels/replay/"+request.ID, nil))
-	if err != nil {
-		t.Fatalf("get replay: %v", err)
-	}
-	getResp.Body.Close()
-	if observed.Method != "" {
-		t.Fatalf("expected GET not to replay, but target received %+v", observed)
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/tunnels/replay/"+request.ID, strings.NewReader("{}"))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := app.Test(req)
-	if err != nil {
-		t.Fatalf("replay request: %v", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("expected 200, got %d body=%s", resp.StatusCode, string(body))
+	original := observedRequest{Method: http.MethodPut, Path: "/original", Body: "original-body"}
+	cases := []struct {
+		name           string
+		method         string
+		secFetchSite   string
+		wantStatus     int
+		wantReplay     bool
+		wantDeprecated bool
+	}{
+		{name: "post", method: http.MethodPost, wantStatus: http.StatusOK, wantReplay: true},
+		{name: "legacy get from a script", method: http.MethodGet, wantStatus: http.StatusOK, wantReplay: true, wantDeprecated: true},
+		{name: "legacy get from the dashboard", method: http.MethodGet, secFetchSite: "same-origin", wantStatus: http.StatusOK, wantReplay: true, wantDeprecated: true},
+		{name: "legacy get typed in the address bar", method: http.MethodGet, secFetchSite: "none", wantStatus: http.StatusOK, wantReplay: true, wantDeprecated: true},
+		{name: "legacy get from another site", method: http.MethodGet, secFetchSite: "cross-site", wantStatus: http.StatusForbidden},
+		{name: "legacy get from another localhost port", method: http.MethodGet, secFetchSite: "same-site", wantStatus: http.StatusForbidden},
 	}
 
-	if observed != (observedRequest{Method: http.MethodPut, Path: "/original", Body: "original-body"}) {
-		t.Fatalf("expected original request to be replayed, got %+v", observed)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			observed = observedRequest{}
+
+			var body io.Reader
+			if tc.method == http.MethodPost {
+				body = strings.NewReader("{}")
+			}
+			req := httptest.NewRequest(tc.method, "/api/tunnels/replay/"+request.ID, body)
+			if body != nil {
+				req.Header.Set("Content-Type", "application/json")
+			}
+			if tc.secFetchSite != "" {
+				req.Header.Set("Sec-Fetch-Site", tc.secFetchSite)
+			}
+
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatalf("replay request: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != tc.wantStatus {
+				respBody, _ := io.ReadAll(resp.Body)
+				t.Fatalf("expected %d, got %d body=%s", tc.wantStatus, resp.StatusCode, string(respBody))
+			}
+			if deprecated := resp.Header.Get("Deprecation") == "true"; deprecated != tc.wantDeprecated {
+				t.Fatalf("expected deprecated=%v, got Deprecation=%q", tc.wantDeprecated, resp.Header.Get("Deprecation"))
+			}
+			if tc.wantReplay && observed != original {
+				t.Fatalf("expected original request to be replayed, got %+v", observed)
+			}
+			if !tc.wantReplay && observed != (observedRequest{}) {
+				t.Fatalf("expected no replay, got %+v", observed)
+			}
+		})
 	}
 }

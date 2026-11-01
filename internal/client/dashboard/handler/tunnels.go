@@ -235,21 +235,14 @@ func (h *Handler) RenderResponse(c *fiber.Ctx) error {
 }
 
 func (h *Handler) ReplayRequestWithEdits(c *fiber.Ctx) error {
-	requestID := c.Params("id")
-	request, err := h.service.GetRequestById(requestID)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to get requests"})
-	}
-
 	var input replayRequestInput
 	if err := c.BodyParser(&input); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "invalid replay payload"})
 	}
 
-	edit := clientreplay.EditOptions{
+	return h.replay(c, clientreplay.EditOptions{
 		Method:         input.Method,
 		Path:           input.Path,
-		Scheme:         h.replayScheme(),
 		Headers:        input.Headers,
 		ReplaceHeaders: input.Headers != nil,
 		Body: clientreplay.BodyOverride{
@@ -257,8 +250,33 @@ func (h *Handler) ReplayRequestWithEdits(c *fiber.Ctx) error {
 			Value:    input.Body,
 			Encoding: input.BodyEncoding,
 		},
+	})
+}
+
+// ReplayRequestLegacy keeps GET replay working for scripts written before
+// replay moved to POST. A GET carries no Origin header, so a cross-site page
+// could trigger it with an <img>; browsers label those requests with
+// Sec-Fetch-Site, while scripts send none.
+//
+// Deprecated: remove in v2.2.0. Use POST /api/tunnels/replay/:id with {}.
+func (h *Handler) ReplayRequestLegacy(c *fiber.Ctx) error {
+	switch c.Get("Sec-Fetch-Site") {
+	case "", "same-origin", "none":
+	default:
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"message": "replay requests with POST"})
 	}
 
+	c.Set("Deprecation", "true")
+	return h.replay(c, clientreplay.EditOptions{})
+}
+
+func (h *Handler) replay(c *fiber.Ctx, edit clientreplay.EditOptions) error {
+	request, err := h.service.GetRequestById(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to get requests"})
+	}
+
+	edit.Scheme = h.replayScheme()
 	if _, err := clientreplay.Execute(request, edit); err != nil {
 		return replayHTTPError(c, err)
 	}

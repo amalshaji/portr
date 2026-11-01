@@ -22,6 +22,7 @@ func (h *Handler) RegisterTunnelRoutes(group fiber.Router) {
 	group.Get("/", h.GetTunnels)
 	group.Get("/requests/:id", h.GetRequest)
 	group.Get("/render/:id", h.RenderResponse)
+	group.Get("/replay/:id", h.ReplayRequestLegacy) // deprecated: remove in v2.2.0
 	group.Post("/replay/:id", h.ReplayRequestWithEdits)
 	group.Get("/websocket-sessions/:id", h.GetWebSocketSession)
 	group.Get("/:subdomain/:port/websocket-sessions", h.GetWebSocketSessions)
