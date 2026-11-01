@@ -19,7 +19,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func newTestApp(t *testing.T) (*fiber.App, *gorm.DB) {
+func newTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
 	conn, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
@@ -29,6 +29,13 @@ func newTestApp(t *testing.T) (*fiber.App, *gorm.DB) {
 	if err := conn.AutoMigrate(&db.Request{}, &db.WebSocketSession{}, &db.WebSocketEvent{}); err != nil {
 		t.Fatalf("migrate schema: %v", err)
 	}
+	return conn
+}
+
+func newTestApp(t *testing.T) (*fiber.App, *gorm.DB) {
+	t.Helper()
+
+	conn := newTestDB(t)
 
 	svc := dashboardservice.New(&db.Db{Conn: conn}, nil)
 	handler := New(nil, svc)
@@ -196,13 +203,7 @@ func TestReplayRequestWithEditsUsesLocalSchemeAndOverrides(t *testing.T) {
 	}))
 	defer target.Close()
 
-	conn, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open sqlite: %v", err)
-	}
-	if err := conn.AutoMigrate(&db.Request{}, &db.WebSocketSession{}, &db.WebSocketEvent{}); err != nil {
-		t.Fatalf("migrate schema: %v", err)
-	}
+	conn := newTestDB(t)
 
 	request := db.Request{
 		ID:      "req-edit",
@@ -263,5 +264,100 @@ func TestReplayRequestWithEditsUsesLocalSchemeAndOverrides(t *testing.T) {
 	}
 	if observed.Body != "edited-body" {
 		t.Fatalf("expected edited body, got %q", observed.Body)
+	}
+}
+
+func TestReplayWithoutEdits(t *testing.T) {
+	type observedRequest struct {
+		Method string
+		Path   string
+		Body   string
+	}
+
+	var observed observedRequest
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		observed = observedRequest{Method: r.Method, Path: r.URL.RequestURI(), Body: string(body)}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer target.Close()
+
+	conn := newTestDB(t)
+
+	request := db.Request{
+		ID:      "req-plain",
+		Host:    strings.TrimPrefix(target.URL, "http://"),
+		Url:     "/original",
+		Method:  http.MethodPut,
+		Headers: datatypes.JSON([]byte(`{}`)),
+		Body:    []byte("original-body"),
+	}
+	if err := conn.Create(&request).Error; err != nil {
+		t.Fatalf("create request: %v", err)
+	}
+
+	app := fiber.New()
+	cfg := &clientconfig.Config{UseLocalHost: true}
+	handler := New(cfg, dashboardservice.New(&db.Db{Conn: conn}, cfg))
+	handler.RegisterTunnelRoutes(app.Group("/api/tunnels"))
+
+	original := observedRequest{Method: http.MethodPut, Path: "/original", Body: "original-body"}
+	cases := []struct {
+		name           string
+		method         string
+		secFetchSite   string
+		userAgent      string
+		wantStatus     int
+		wantReplay     bool
+		wantDeprecated bool
+	}{
+		{name: "post", method: http.MethodPost, wantStatus: http.StatusOK, wantReplay: true},
+		{name: "legacy get from a script", method: http.MethodGet, userAgent: "curl/8.7.1", wantStatus: http.StatusOK, wantReplay: true, wantDeprecated: true},
+		{name: "legacy get from a browser without fetch metadata", method: http.MethodGet, userAgent: "Mozilla/5.0 (Macintosh) Safari/605.1.15", wantStatus: http.StatusForbidden},
+		{name: "legacy get from the dashboard", method: http.MethodGet, secFetchSite: "same-origin", wantStatus: http.StatusOK, wantReplay: true, wantDeprecated: true},
+		{name: "legacy get typed in the address bar", method: http.MethodGet, secFetchSite: "none", wantStatus: http.StatusOK, wantReplay: true, wantDeprecated: true},
+		{name: "legacy get from another site", method: http.MethodGet, secFetchSite: "cross-site", wantStatus: http.StatusForbidden},
+		{name: "legacy get from another localhost port", method: http.MethodGet, secFetchSite: "same-site", wantStatus: http.StatusForbidden},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			observed = observedRequest{}
+
+			var body io.Reader
+			if tc.method == http.MethodPost {
+				body = strings.NewReader("{}")
+			}
+			req := httptest.NewRequest(tc.method, "/api/tunnels/replay/"+request.ID, body)
+			if body != nil {
+				req.Header.Set("Content-Type", "application/json")
+			}
+			if tc.secFetchSite != "" {
+				req.Header.Set("Sec-Fetch-Site", tc.secFetchSite)
+			}
+			if tc.userAgent != "" {
+				req.Header.Set("User-Agent", tc.userAgent)
+			}
+
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatalf("replay request: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != tc.wantStatus {
+				respBody, _ := io.ReadAll(resp.Body)
+				t.Fatalf("expected %d, got %d body=%s", tc.wantStatus, resp.StatusCode, string(respBody))
+			}
+			if deprecated := resp.Header.Get("Deprecation") == legacyReplayDeprecatedAt; deprecated != tc.wantDeprecated {
+				t.Fatalf("expected deprecated=%v, got Deprecation=%q", tc.wantDeprecated, resp.Header.Get("Deprecation"))
+			}
+			if tc.wantReplay && observed != original {
+				t.Fatalf("expected original request to be replayed, got %+v", observed)
+			}
+			if !tc.wantReplay && observed != (observedRequest{}) {
+				t.Fatalf("expected no replay, got %+v", observed)
+			}
+		})
 	}
 }

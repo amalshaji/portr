@@ -101,7 +101,7 @@ func startTunnels(c *cli.Context, tunnelFromCli *config.Tunnel) error {
 	}
 
 	if !cfg.DisableDashboard {
-		dash = dashboard.New(db, _c.GetConfig())
+		dash = dashboard.New(db, _c.GetConfig(), "127.0.0.1")
 		startErrCh := make(chan error, 1)
 		dashErrCh = startErrCh
 		go func() {

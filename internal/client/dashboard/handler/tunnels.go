@@ -234,36 +234,15 @@ func (h *Handler) RenderResponse(c *fiber.Ctx) error {
 	return nil
 }
 
-func (h *Handler) ReplayRequest(c *fiber.Ctx) error {
-	requestID := c.Params("id")
-	request, err := h.service.GetRequestById(requestID)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to get requests"})
-	}
-
-	if _, err := clientreplay.Execute(request, clientreplay.EditOptions{Scheme: h.replayScheme()}); err != nil {
-		return replayHTTPError(c, err)
-	}
-
-	return c.JSON(fiber.Map{"message": "replayed request"})
-}
-
 func (h *Handler) ReplayRequestWithEdits(c *fiber.Ctx) error {
-	requestID := c.Params("id")
-	request, err := h.service.GetRequestById(requestID)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to get requests"})
-	}
-
 	var input replayRequestInput
 	if err := c.BodyParser(&input); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "invalid replay payload"})
 	}
 
-	edit := clientreplay.EditOptions{
+	return h.replay(c, clientreplay.EditOptions{
 		Method:         input.Method,
 		Path:           input.Path,
-		Scheme:         h.replayScheme(),
 		Headers:        input.Headers,
 		ReplaceHeaders: input.Headers != nil,
 		Body: clientreplay.BodyOverride{
@@ -271,8 +250,42 @@ func (h *Handler) ReplayRequestWithEdits(c *fiber.Ctx) error {
 			Value:    input.Body,
 			Encoding: input.BodyEncoding,
 		},
+	})
+}
+
+// legacyReplayDeprecatedAt is the RFC 9745 Deprecation date of GET replay
+// (2026-11-01).
+const legacyReplayDeprecatedAt = "@1793491200"
+
+// ReplayRequestLegacy keeps GET replay working for scripts written before
+// replay moved to POST. A GET carries no Origin header, so a cross-site page
+// could trigger it with an <img>. Browsers label such requests with
+// Sec-Fetch-Site; one too old to send it still sends a Mozilla User-Agent,
+// which the page cannot change, so only non-browser clients may omit it.
+//
+// Deprecated: remove in v2.2.0. Use POST /api/tunnels/replay/:id with {}.
+func (h *Handler) ReplayRequestLegacy(c *fiber.Ctx) error {
+	switch c.Get("Sec-Fetch-Site") {
+	case "same-origin", "none":
+	case "":
+		if strings.HasPrefix(c.Get(fiber.HeaderUserAgent), "Mozilla/") {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"message": "replay requests with POST"})
+		}
+	default:
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"message": "replay requests with POST"})
 	}
 
+	c.Set("Deprecation", legacyReplayDeprecatedAt)
+	return h.replay(c, clientreplay.EditOptions{})
+}
+
+func (h *Handler) replay(c *fiber.Ctx, edit clientreplay.EditOptions) error {
+	request, err := h.service.GetRequestById(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "failed to get requests"})
+	}
+
+	edit.Scheme = h.replayScheme()
 	if _, err := clientreplay.Execute(request, edit); err != nil {
 		return replayHTTPError(c, err)
 	}

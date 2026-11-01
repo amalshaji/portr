@@ -17,7 +17,7 @@ services:
       - ~/.portr/config.yaml:/root/.portr/config.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
-      - "7777:7777" # local request inspector
+      - "127.0.0.1:7777:7777" # local request inspector
 
   web:
     build: .
