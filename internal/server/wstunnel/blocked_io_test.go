@@ -32,7 +32,7 @@ func newMuxSession(t *testing.T) (*session, *yamux.Session) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = serverMux.Close(); _ = clientMux.Close() })
-	sess := &session{mux: serverMux, ready: make(chan struct{}), closed: make(chan struct{})}
+	sess := &session{mux: yamuxMux{serverMux}, ready: make(chan struct{}), closed: make(chan struct{})}
 	close(sess.ready)
 	return sess, clientMux
 }

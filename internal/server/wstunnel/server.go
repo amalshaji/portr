@@ -51,7 +51,7 @@ type session struct {
 	connection *db.Connection
 	conn       io.Closer
 	// mux carries v2 sessions; v1 sessions use writer and streams instead.
-	mux *yamux.Session
+	mux streamMux
 	// proxy forwards HTTP requests over mux. Its transport keeps idle streams
 	// open, so both visitor connections and tunnel streams are reused.
 	proxy     *httputil.ReverseProxy
@@ -246,7 +246,7 @@ func (m *Manager) handle(conn *websocket.Conn) {
 			_ = conn.Close()
 			return
 		}
-		sess.mux = mux
+		sess.mux = yamuxMux{mux}
 		sess.newHTTPProxy()
 	} else {
 		sess.streams = make(map[string]*streamQueue)
@@ -474,7 +474,7 @@ func (s *session) newHTTPProxy() {
 			case <-ctx.Done():
 				return nil, ctx.Err()
 			}
-			return s.mux.OpenStream()
+			return s.mux.OpenStream(ctx)
 		},
 		DisableCompression:  true,
 		MaxIdleConnsPerHost: 64,
@@ -525,7 +525,7 @@ func (m *Manager) pipeStream(sess *session, conn net.Conn, initial []byte) {
 	case <-sess.closed:
 		return
 	}
-	stream, err := sess.mux.OpenStream()
+	stream, err := sess.mux.OpenStream(context.Background())
 	if err != nil {
 		return
 	}
@@ -542,7 +542,7 @@ func (m *Manager) pipeStream(sess *session, conn net.Conn, initial []byte) {
 		if _, err := io.Copy(stream, conn); err != nil {
 			_ = conn.Close()
 		}
-		// yamux Close only half-closes: the response keeps flowing back.
+		// Stream Close only half-closes: the response keeps flowing back.
 		_ = stream.Close()
 	}()
 
